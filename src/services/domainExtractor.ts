@@ -9,150 +9,152 @@ interface ExtractionResult {
 export function extractDomainFromObjective(projectName: string, objective: string): ExtractionResult {
   const text = (objective + ' ' + projectName).toLowerCase();
   
-  // Rule-based domain archetype analyzer
+  // Payments / Billing archetype
   if (text.includes('pay') || text.includes('bill') || text.includes('checkout') || text.includes('wallet') || text.includes('ledger') || text.includes('stripe')) {
     return {
       entities: [
         {
           id: 'ent_' + Date.now() + '_1',
-          name: 'CustomerAccount',
-          description: 'Represents the billing entity with attached payment methods and currency locale.'
+          name: 'Customer',
+          description: 'Stores customer details, contact info, and saved payment methods.'
         },
         {
           id: 'ent_' + Date.now() + '_2',
-          name: 'PaymentTransaction',
-          description: 'Single attempt to charge or credit funds, enforced with an idempotency key.'
+          name: 'Payment',
+          description: 'Records money paid or refunded, including the date, amount, and status.'
         },
         {
           id: 'ent_' + Date.now() + '_3',
           name: 'Subscription',
-          description: 'Recurring billing contract with status (active, past_due, canceled) and billing cycles.'
+          description: 'Recurring plan (e.g. Monthly or Annual) with active, paused, or canceled status.'
         },
         {
           id: 'ent_' + Date.now() + '_4',
-          name: 'LedgerEntry',
-          description: 'Immutable double-entry monetary record tracking all debits and credits in integer cents.'
+          name: 'Invoice',
+          description: 'Itemized bill listing items purchased, taxes, and payment confirmation.'
         }
       ],
       nonNegotiables: [
-        'A payment transaction must never be processed twice for the same idempotency key.',
-        'All monetary amounts must be stored as positive integers in minor units (cents). Floating-point currency is strictly forbidden.',
-        'Total refunded amount on any transaction can never exceed the original captured amount.',
-        'A canceled subscription must never trigger automated renewal payment attempts.'
+        'A customer must never be charged twice for the same checkout or payment attempt.',
+        'Always store money as exact whole cents (e.g. $10.00 = 1000) so calculations never lose pennies or round incorrectly.',
+        'A refund can never be greater than the original amount paid.',
+        'A canceled subscription must never trigger automatic renewal charges.'
       ],
       criticalWorkflows: [
-        'Idempotent Payment Charge & Webhook Confirmation',
-        'Recurring Subscription Lifecycle & Grace Period Retry',
-        'Customer Dispute & Partial/Full Refund Processing'
+        'Customer enters payment details and completes checkout',
+        'Automatic subscription renewal and receipt email delivery',
+        'Customer requests a refund or updates their payment method'
       ]
     };
   }
 
-  if (text.includes('auth') || text.includes('user') || text.includes('rbac') || text.includes('permission') || text.includes('tenant') || text.includes('org')) {
+  // Auth / Users archetype
+  if (text.includes('auth') || text.includes('user') || text.includes('rbac') || text.includes('permission') || text.includes('tenant') || text.includes('org') || text.includes('account')) {
     return {
       entities: [
         {
           id: 'ent_' + Date.now() + '_1',
-          name: 'UserIdentity',
-          description: 'Primary credential holder with verified email, password hash, and MFA status.'
+          name: 'User Account',
+          description: 'Person using the app, with their email, password, and profile settings.'
         },
         {
           id: 'ent_' + Date.now() + '_2',
-          name: 'OrganizationTenant',
-          description: 'Isolated tenancy boundary containing workspaces, members, and billing tier.'
+          name: 'Team / Workspace',
+          description: 'Shared workspace or company group that members belong to.'
         },
         {
           id: 'ent_' + Date.now() + '_3',
-          name: 'RoleAssignment',
-          description: 'Granular permission grants mapped between users and tenant resource scopes.'
+          name: 'Role & Permissions',
+          description: 'What each person is allowed to do (e.g. Admin, Editor, Viewer).'
         },
         {
           id: 'ent_' + Date.now() + '_4',
-          name: 'SessionToken',
-          description: 'Cryptographically signed revocable token bound to client fingerprint and TTL.'
+          name: 'Login Session',
+          description: 'Tracks when and where a user is signed in to keep their account secure.'
         }
       ],
       nonNegotiables: [
-        'Users can never read, modify, or query records belonging to a different tenant organization ID.',
-        'Revoked session tokens must immediately fail authentication across all nodes via blacklist or version check.',
-        'Password hashes must never be serialized or returned in public API payloads or log output.',
-        'An organization must always maintain at least one active Owner account.'
+        'Users can only view and edit data from their own team or account — never another team’s private data.',
+        'When a user logs out or resets their password, their active login sessions must immediately end.',
+        'Passwords must always be securely encrypted and never shown in plain text or shared.',
+        'Every team or workspace must always have at least one active Admin / Owner.'
       ],
       criticalWorkflows: [
-        'Multi-factor Authentication & Secure Token Issuance',
-        'Organization Onboarding & Tenant Provisioning',
-        'Role-Based Access Control Evaluation at Gateway'
+        'New user signs up, verifies email, and logs in',
+        'Admin invites a teammate and assigns them a role',
+        'User securely resets their password or logs out from all devices'
       ]
     };
   }
 
-  if (text.includes('order') || text.includes('shop') || text.includes('store') || text.includes('cart') || text.includes('inventory') || text.includes('product')) {
+  // E-Commerce / Store / Orders archetype
+  if (text.includes('order') || text.includes('shop') || text.includes('store') || text.includes('cart') || text.includes('inventory') || text.includes('product') || text.includes('item')) {
     return {
       entities: [
         {
           id: 'ent_' + Date.now() + '_1',
-          name: 'ProductSKU',
-          description: 'Sellable catalog item with base price, tax category, and physical dimensions.'
+          name: 'Product',
+          description: 'Item available for sale, with its name, price, photos, and details.'
         },
         {
           id: 'ent_' + Date.now() + '_2',
-          name: 'InventoryReservation',
-          description: 'Time-locked stock allocation held during the customer checkout window.'
+          name: 'Shopping Cart',
+          description: 'Holds items selected by a customer before they check out.'
         },
         {
           id: 'ent_' + Date.now() + '_3',
-          name: 'CustomerOrder',
-          description: 'Committed purchase order with immutable line items, applied discounts, and shipping target.'
+          name: 'Order',
+          description: 'Confirmed purchase with ordered items, total paid, and shipping address.'
         },
         {
           id: 'ent_' + Date.now() + '_4',
-          name: 'ShipmentPackage',
-          description: 'Fulfillment manifest tracking carrier tracking number and dispatch status.'
+          name: 'Delivery Tracking',
+          description: 'Tracks shipping carrier, tracking number, and delivery status.'
         }
       ],
       nonNegotiables: [
-        'Inventory stock cannot drop below zero. Overselling is physically prevented by database row-level locking.',
-        'Order line item prices and tax amounts must be permanently snapshot at checkout time and never re-read from live catalog.',
-        'Expired inventory reservations must automatically release stock back to available pool.',
-        'An order cannot transition to Fulfilled without a valid payment confirmation.'
+        'Inventory stock can never drop below zero — customers cannot buy items that are out of stock.',
+        'The price of items in an order must be permanently locked at checkout time so future price changes do not alter past receipts.',
+        'An order cannot be marked as "Shipped" or "Completed" before payment is successfully confirmed.',
+        'If an order is canceled, the items must be automatically returned to available stock.'
       ],
       criticalWorkflows: [
-        'Atomic Cart Checkout & Stock Reservation',
-        'Payment Authorization & Order State Transition',
-        'Fulfillment Dispatch & Automated Inventory Reconciliation'
+        'Customer browses products and adds items to shopping cart',
+        'Customer enters shipping and payment info to place order',
+        'Store prepares shipment and sends tracking number to customer'
       ]
     };
   }
 
-  // Generic High-Rigor Architecture Default
+  // Generic Approachable Default
   const cleanName = projectName.replace(/[-_]/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
   return {
     entities: [
       {
         id: 'ent_' + Date.now() + '_1',
-        name: cleanName ? cleanName.replace(/\s+/g, '') + 'Entity' : 'PrimaryEntity',
-        description: 'Core domain aggregate root managing primary business lifecycle and audit records.'
+        name: cleanName ? cleanName.replace(/\s+/g, ' ') : 'Main Item',
+        description: 'The primary record or content that this app manages and displays.'
       },
       {
         id: 'ent_' + Date.now() + '_2',
-        name: 'AuditEventLog',
-        description: 'Immutable time-series log recording all state mutations, actor IDs, and reason codes.'
+        name: 'User Profile',
+        description: 'Person or member who creates and interacts with items in the app.'
       },
       {
         id: 'ent_' + Date.now() + '_3',
-        name: 'OperationLock',
-        description: 'Concurrency control token preventing conflicting simultaneous operations on the same entity.'
+        name: 'Activity History',
+        description: 'Keeps a record of who changed what and when for safety and auditing.'
       }
     ],
     nonNegotiables: [
-      'All database mutations must be executed within an explicit ACID transaction boundary.',
-      'Soft-deleted records must be filtered by default from all read queries and unique index validations.',
-      'Concurrent update attempts must be guarded with optimistic locking (version column) or idempotent tokens.'
+      'If an action fails halfway through, undo the changes so data is never left half-saved or corrupted.',
+      'Deleted items must be safely archived and never show up in active user views.',
+      'Prevent two users from accidentally overwriting each other’s edits at the exact same moment.'
     ],
     criticalWorkflows: [
-      'Primary Entity Creation & Validation Cycle',
-      'State Mutation with Audit Trail Recording',
-      'Asynchronous Event Dispatch & Reconciliation'
+      'User creates and saves a new item with all required information',
+      'User updates or reviews existing items',
+      'User safely deletes or archives an item'
     ]
   };
 }

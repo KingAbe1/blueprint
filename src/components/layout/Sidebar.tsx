@@ -39,13 +39,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
     }`}>
       <div className={`${isCollapsed ? 'p-2 space-y-4' : 'p-3.5 space-y-4'}`}>
         
-        {/* Phase 1: Pre-Flight */}
+        {/* Phase 1: Planning */}
         <div className="space-y-1">
           {!isCollapsed && (
             <div className={`text-[10px] font-mono uppercase tracking-wider font-semibold px-2 py-1 ${
               isDark ? 'text-[#71727D]' : 'text-slate-400'
             }`}>
-              Phase 1: Pre-Flight Gate
+              Phase 1: Project Blueprint
             </div>
           )}
 
@@ -61,10 +61,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     ? 'text-[#8E8F99] hover:text-white hover:bg-white/[0.04]'
                     : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
               }`}
-              title="1. Domain & Intent"
+              title="1. Project Overview"
             >
               <FileText className="w-3.5 h-3.5 shrink-0" />
-              {!isCollapsed && <span>1. Domain & Intent</span>}
+              {!isCollapsed && <span>1. Project Overview</span>}
             </button>
 
             <button
@@ -78,10 +78,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     ? 'text-[#8E8F99] hover:text-white hover:bg-white/[0.04]'
                     : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
               }`}
-              title="2. Schema Invariants"
+              title="2. Data & Safety Rules"
             >
               <Database className="w-3.5 h-3.5 shrink-0" />
-              {!isCollapsed && <span>2. Schema Invariants</span>}
+              {!isCollapsed && <span>2. Data & Rules</span>}
             </button>
 
             <button
@@ -95,10 +95,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     ? 'text-[#8E8F99] hover:text-white hover:bg-white/[0.04]'
                     : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
               }`}
-              title="3. State Machines"
+              title="3. Status & Steps Flow"
             >
               <GitBranch className="w-3.5 h-3.5 shrink-0" />
-              {!isCollapsed && <span>3. State Machines</span>}
+              {!isCollapsed && <span>3. Status & Steps Flow</span>}
             </button>
 
             <button
@@ -112,10 +112,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     ? 'text-[#8E8F99] hover:text-white hover:bg-white/[0.04]'
                     : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
               }`}
-              title="4. TDD Assertions"
+              title="4. Quality Checks"
             >
               <CheckSquare className="w-3.5 h-3.5 shrink-0" />
-              {!isCollapsed && <span>4. TDD Assertions</span>}
+              {!isCollapsed && <span>4. Quality Checks</span>}
             </button>
           </nav>
         </div>
@@ -126,7 +126,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             <div className={`text-[10px] font-mono uppercase tracking-wider font-semibold px-2 py-1 ${
               isDark ? 'text-[#71727D]' : 'text-slate-400'
             }`}>
-              Execution & Audit
+              Building & Review
             </div>
           )}
 
@@ -142,10 +142,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     ? 'text-[#8E8F99] hover:text-white hover:bg-white/[0.04]'
                     : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
               }`}
-              title="Phase 2: In-Flight Prompt"
+              title="Phase 2: Generate Code"
             >
               <Code2 className="w-3.5 h-3.5 shrink-0" />
-              {!isCollapsed && <span>Phase 2: In-Flight</span>}
+              {!isCollapsed && <span>Phase 2: Generate Code</span>}
             </button>
 
             <button
@@ -159,10 +159,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     ? 'text-[#8E8F99] hover:text-white hover:bg-white/[0.04]'
                     : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
               }`}
-              title="Phase 3: Audit Checklist"
+              title="Phase 3: Final Review Checklist"
             >
               <ShieldCheck className="w-3.5 h-3.5 shrink-0" />
-              {!isCollapsed && <span>Phase 3: Audit</span>}
+              {!isCollapsed && <span>Phase 3: Final Review</span>}
             </button>
           </nav>
         </div>

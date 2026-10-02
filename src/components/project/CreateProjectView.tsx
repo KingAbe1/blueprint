@@ -29,10 +29,10 @@ export const CreateProjectView: React.FC = () => {
           </div>
           <div>
             <h2 className={`text-base font-bold tracking-tight ${isDark ? 'text-white' : 'text-slate-900'}`}>
-              New Architecture Project
+              Create New Project
             </h2>
             <p className={`text-xs ${isDark ? 'text-[#8E8F99]' : 'text-slate-500'}`}>
-              What is the name of this system or service?
+              What would you like to name this app or project?
             </p>
           </div>
         </div>
@@ -45,13 +45,13 @@ export const CreateProjectView: React.FC = () => {
               className={`w-full text-sm font-medium p-3 rounded-lg outline-none ${
                 isDark ? 'studio-input-dark' : 'studio-input-light'
               }`}
-              placeholder="e.g. payment-gateway"
+              placeholder="e.g. online-store, workout-tracker, billing-system"
               value={inputName}
               onChange={(e) => setInputName(e.target.value)}
               autoFocus
             />
             <div className={`text-[11px] font-mono ${isDark ? 'text-[#71727D]' : 'text-slate-400'}`}>
-              Workspace: ~/blueprint/{inputName.trim() ? inputName.trim().toLowerCase().replace(/\s+/g, '-') : 'project-name'}
+              Project folder: ~/blueprint/{inputName.trim() ? inputName.trim().toLowerCase().replace(/\s+/g, '-') : 'project-name'}
             </div>
           </div>
 

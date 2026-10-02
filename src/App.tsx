@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { ThemeProvider, useTheme } from './context/ThemeContext';
 import { ProjectProvider, useProjects } from './context/ProjectContext';
+import { AIProvider } from './context/AIContext';
 import { Header } from './components/layout/Header';
 import { Sidebar } from './components/layout/Sidebar';
 import { CreateProjectView } from './components/project/CreateProjectView';
@@ -8,6 +9,7 @@ import { DomainIntentView } from './components/workbench/DomainIntentView';
 import { InvariantWorkbench } from './components/workbench/InvariantWorkbench';
 import { RenameModal } from './components/modals/RenameModal';
 import { DeleteModal } from './components/modals/DeleteModal';
+import { AISettingsModal } from './components/modals/AISettingsModal';
 import { PhaseTab } from './types/project';
 
 const AppContent: React.FC = () => {
@@ -73,6 +75,7 @@ const AppContent: React.FC = () => {
 
       <RenameModal />
       <DeleteModal />
+      <AISettingsModal />
     </div>
   );
 };
@@ -81,7 +84,9 @@ export const App: React.FC = () => {
   return (
     <ThemeProvider>
       <ProjectProvider>
-        <AppContent />
+        <AIProvider>
+          <AppContent />
+        </AIProvider>
       </ProjectProvider>
     </ThemeProvider>
   );
