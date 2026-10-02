@@ -1,0 +1,13 @@
+cargo:rerun-if-env-changed=TAURI_CONFIG
+cargo:rustc-check-cfg=cfg(desktop)
+cargo:rustc-cfg=desktop
+cargo:rustc-check-cfg=cfg(mobile)
+cargo:rerun-if-changed=/Users/abel/Desktop/personal/blueprint/src-tauri/tauri.conf.json
+cargo:rustc-env=TAURI_ANDROID_PACKAGE_NAME_APP_NAME=studio
+cargo:rustc-env=TAURI_ANDROID_PACKAGE_NAME_PREFIX=com_blueprint
+cargo:rustc-check-cfg=cfg(dev)
+cargo:rustc-cfg=dev
+cargo:PERMISSION_FILES_PATH=/Users/abel/Desktop/personal/blueprint/src-tauri/target/debug/build/blueprint-studio-4a1844f104ea5d5a/out/app-manifest/__app__-permission-files
+cargo:rerun-if-changed=/Users/abel/Desktop/personal/blueprint/src-tauri/capabilities
+cargo:rerun-if-env-changed=REMOVE_UNUSED_COMMANDS
+cargo:rustc-env=TAURI_ENV_TARGET_TRIPLE=aarch64-apple-darwin

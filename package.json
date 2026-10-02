@@ -1,0 +1,37 @@
+{
+  "name": "blueprint-studio",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Architectural Rigor for the Generative Era - Desktop Pre-Flight Studio & Spec Generator",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview",
+    "tauri": "tauri",
+    "tauri:dev": "tauri dev",
+    "tauri:build": "tauri build",
+    "app": "tauri dev"
+  },
+  "dependencies": {
+    "lucide-react": "^1.50.0",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.3.3",
+    "@tauri-apps/api": "^2.12.1",
+    "@tauri-apps/cli": "^2.12.1",
+    "@types/node": "^24.13.3",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.7",
+    "@vitejs/plugin-react": "^6.1.1",
+    "concurrently": "^9.1.2",
+    "cross-env": "^7.0.3",
+    "electron": "^35.0.0",
+    "tailwindcss": "^4.3.3",
+    "typescript": "~6.0.2",
+    "vite": "^8.3.0",
+    "wait-on": "^8.0.2"
+  }
+}

@@ -1,0 +1,97 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --font-display: 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    --font-mono: 'JetBrains Mono', monospace;
+  }
+
+  body {
+    margin: 0;
+    padding: 0;
+    overflow-x: hidden;
+    font-family: var(--font-display);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    transition: background-color 0.25s ease, color 0.25s ease;
+  }
+
+  /* Velvet Graphite & Carbon (Raycast / Arc Dark) */
+  body.dark {
+    background-color: #121316;
+    color: #F4F4F6;
+    background-image: 
+      radial-gradient(circle at 50% -10%, rgba(59, 130, 246, 0.08) 0%, transparent 50%),
+      linear-gradient(to bottom, #121316, #15161A);
+    background-attachment: fixed;
+  }
+
+  /* Crisp Porcelain Light Mode */
+  body.light {
+    background-color: #F8FAFC;
+    color: #0F172A;
+    background-image: 
+      radial-gradient(circle at 50% -10%, rgba(37, 99, 235, 0.06) 0%, transparent 45%),
+      linear-gradient(to bottom, #FFFFFF, #F1F5F9);
+    background-attachment: fixed;
+  }
+}
+
+/* Velvet Carbon Glass & Surfaces */
+.glass-surface-dark {
+  background: rgba(24, 25, 29, 0.75);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 
+    0 20px 40px -15px rgba(0, 0, 0, 0.6),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+.glass-surface-light {
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  box-shadow: 
+    0 20px 40px -15px rgba(15, 23, 42, 0.05),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+
+/* Carbon Card Style */
+.carbon-card {
+  background: #18191D;
+  border: 1px solid #27282E;
+}
+
+/* Premium Button Styling */
+.btn-primary-blue {
+  background: linear-gradient(180deg, #3B82F6 0%, #2563EB 100%);
+  box-shadow: 
+    0 0 0 1px rgba(96, 165, 250, 0.4),
+    0 2px 4px rgba(0, 0, 0, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.25);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.btn-primary-blue:hover {
+  background: linear-gradient(180deg, #60A5FA 0%, #3B82F6 100%);
+  box-shadow: 
+    0 0 0 1px rgba(147, 197, 253, 0.6),
+    0 4px 12px rgba(37, 99, 235, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.4);
+  transform: translateY(-1px);
+}
+
+.btn-primary-blue:active {
+  transform: translateY(0px);
+}
+
+/* Typography styles */
+.font-display {
+  font-family: var(--font-display);
+}
+
+.font-mono {
+  font-family: var(--font-mono);
+}
