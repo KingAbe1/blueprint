@@ -1,5 +1,14 @@
 import React from 'react';
-import { Layers, Code2, ShieldCheck, Edit3 } from 'lucide-react';
+import { 
+  FileText, 
+  Database, 
+  GitBranch, 
+  CheckSquare, 
+  Code2, 
+  ShieldCheck, 
+  PanelLeftClose,
+  PanelLeft
+} from 'lucide-react';
 import { PhaseTab } from '../../types/project';
 import { useProjects } from '../../context/ProjectContext';
 import { useTheme } from '../../context/ThemeContext';
@@ -7,113 +16,184 @@ import { useTheme } from '../../context/ThemeContext';
 interface SidebarProps {
   activeTab: PhaseTab;
   onSelectTab: (tab: PhaseTab) => void;
+  isCollapsed?: boolean;
+  onToggleCollapse?: () => void;
 }
 
-export const Sidebar: React.FC<SidebarProps> = ({ activeTab, onSelectTab }) => {
-  const { activeProject, setEditingProjectId } = useProjects();
+export const Sidebar: React.FC<SidebarProps> = ({ 
+  activeTab, 
+  onSelectTab,
+  isCollapsed = false,
+  onToggleCollapse
+}) => {
+  const { activeProject } = useProjects();
   const { isDark } = useTheme();
 
   if (!activeProject) return null;
 
   return (
-    <aside className={`w-64 border-r flex flex-col justify-between transition-colors ${
-      isDark ? 'bg-[#141519]/70 border-[#23242A]' : 'bg-slate-50/60 border-slate-200'
+    <aside className={`border-r flex flex-col justify-between transition-all duration-200 shrink-0 select-none overflow-y-auto min-h-0 ${
+      isCollapsed ? 'w-14' : 'w-60'
+    } ${
+      isDark ? 'bg-[#0E0F12] border-[#23252C]' : 'bg-white border-slate-200/60'
     }`}>
-      <div className="p-4 space-y-6">
+      <div className={`${isCollapsed ? 'p-2 space-y-4' : 'p-3.5 space-y-4'}`}>
+        
+        {/* Phase 1: Pre-Flight */}
         <div className="space-y-1">
-          <div className={`text-[10px] font-mono uppercase tracking-wider font-semibold ${
-            isDark ? 'text-[#71727D]' : 'text-slate-400'
-          }`}>
-            Engineering Phases
-          </div>
-          <nav className="space-y-1">
+          {!isCollapsed && (
+            <div className={`text-[10px] font-mono uppercase tracking-wider font-semibold px-2 py-1 ${
+              isDark ? 'text-[#71727D]' : 'text-slate-400'
+            }`}>
+              Phase 1: Pre-Flight Gate
+            </div>
+          )}
+
+          <nav className="space-y-0.5">
             <button
-              onClick={() => onSelectTab('pre-flight')}
-              className={`w-full flex items-center space-x-2.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer text-left ${
-                activeTab === 'pre-flight'
+              onClick={() => onSelectTab('domain-intent')}
+              className={`w-full flex items-center ${isCollapsed ? 'justify-center px-2 py-2' : 'space-x-2 px-2.5 py-1.5'} rounded-lg text-xs font-medium transition-colors cursor-pointer text-left ${
+                activeTab === 'domain-intent'
                   ? isDark
-                    ? 'bg-blue-600/15 text-blue-400 border border-blue-500/30'
-                    : 'bg-blue-50 text-blue-700 border border-blue-200 shadow-xs'
+                    ? 'bg-blue-600/15 text-blue-400 font-semibold'
+                    : 'bg-blue-50 text-blue-700 font-semibold'
                   : isDark
                     ? 'text-[#8E8F99] hover:text-white hover:bg-white/[0.04]'
-                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
               }`}
+              title="1. Domain & Intent"
             >
-              <Layers className="w-4 h-4 shrink-0" />
-              <span>1. Pre-Flight Gate</span>
+              <FileText className="w-3.5 h-3.5 shrink-0" />
+              {!isCollapsed && <span>1. Domain & Intent</span>}
             </button>
 
             <button
-              onClick={() => onSelectTab('in-flight')}
-              className={`w-full flex items-center space-x-2.5 px-3 py-2 rounded-xl text-xs font-medium transition-all cursor-pointer text-left ${
-                activeTab === 'in-flight'
+              onClick={() => onSelectTab('invariants')}
+              className={`w-full flex items-center ${isCollapsed ? 'justify-center px-2 py-2' : 'space-x-2 px-2.5 py-1.5'} rounded-lg text-xs font-medium transition-colors cursor-pointer text-left ${
+                activeTab === 'invariants'
                   ? isDark
-                    ? 'bg-blue-600/15 text-blue-400 border border-blue-500/30'
-                    : 'bg-blue-50 text-blue-700 border border-blue-200 shadow-xs'
+                    ? 'bg-blue-600/15 text-blue-400 font-semibold'
+                    : 'bg-blue-50 text-blue-700 font-semibold'
                   : isDark
                     ? 'text-[#8E8F99] hover:text-white hover:bg-white/[0.04]'
-                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
               }`}
+              title="2. Schema Invariants"
             >
-              <Code2 className="w-4 h-4 shrink-0" />
-              <span>2. In-Flight Execution</span>
+              <Database className="w-3.5 h-3.5 shrink-0" />
+              {!isCollapsed && <span>2. Schema Invariants</span>}
             </button>
 
             <button
-              onClick={() => onSelectTab('post-flight')}
-              className={`w-full flex items-center space-x-2.5 px-3 py-2 rounded-xl text-xs font-medium transition-all cursor-pointer text-left ${
-                activeTab === 'post-flight'
+              onClick={() => onSelectTab('state-machine')}
+              className={`w-full flex items-center ${isCollapsed ? 'justify-center px-2 py-2' : 'space-x-2 px-2.5 py-1.5'} rounded-lg text-xs font-medium transition-colors cursor-pointer text-left ${
+                activeTab === 'state-machine'
                   ? isDark
-                    ? 'bg-blue-600/15 text-blue-400 border border-blue-500/30'
-                    : 'bg-blue-50 text-blue-700 border border-blue-200 shadow-xs'
+                    ? 'bg-blue-600/15 text-blue-400 font-semibold'
+                    : 'bg-blue-50 text-blue-700 font-semibold'
                   : isDark
                     ? 'text-[#8E8F99] hover:text-white hover:bg-white/[0.04]'
-                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
               }`}
+              title="3. State Machines"
             >
-              <ShieldCheck className="w-4 h-4 shrink-0" />
-              <span>3. Post-Flight Audit</span>
+              <GitBranch className="w-3.5 h-3.5 shrink-0" />
+              {!isCollapsed && <span>3. State Machines</span>}
+            </button>
+
+            <button
+              onClick={() => onSelectTab('tdd-spec')}
+              className={`w-full flex items-center ${isCollapsed ? 'justify-center px-2 py-2' : 'space-x-2 px-2.5 py-1.5'} rounded-lg text-xs font-medium transition-colors cursor-pointer text-left ${
+                activeTab === 'tdd-spec'
+                  ? isDark
+                    ? 'bg-blue-600/15 text-blue-400 font-semibold'
+                    : 'bg-blue-50 text-blue-700 font-semibold'
+                  : isDark
+                    ? 'text-[#8E8F99] hover:text-white hover:bg-white/[0.04]'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+              }`}
+              title="4. TDD Assertions"
+            >
+              <CheckSquare className="w-3.5 h-3.5 shrink-0" />
+              {!isCollapsed && <span>4. TDD Assertions</span>}
             </button>
           </nav>
         </div>
 
-        <div className="space-y-2">
-          <div className={`text-[10px] font-mono uppercase tracking-wider font-semibold ${
-            isDark ? 'text-[#71727D]' : 'text-slate-400'
-          }`}>
-            Active Project
-          </div>
-          <div className={`p-3 rounded-xl border text-xs space-y-2 ${
-            isDark ? 'bg-[#18191E] border-[#27282F]' : 'bg-white border-slate-200 shadow-xs'
-          }`}>
-            <div className="flex items-center justify-between">
-              <span className={`font-semibold truncate ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                {activeProject.name}
-              </span>
-              <button
-                onClick={() => setEditingProjectId(activeProject.id)}
-                className={`p-1 rounded cursor-pointer ${
-                  isDark ? 'text-[#8E8F99] hover:text-white' : 'text-slate-400 hover:text-slate-800'
-                }`}
-                title="Rename"
-              >
-                <Edit3 className="w-3 h-3" />
-              </button>
+        {/* Subsequent Phases */}
+        <div className={`space-y-1 ${isCollapsed ? 'pt-1' : 'pt-2'} border-t border-slate-100 dark:border-[#1E2028]`}>
+          {!isCollapsed && (
+            <div className={`text-[10px] font-mono uppercase tracking-wider font-semibold px-2 py-1 ${
+              isDark ? 'text-[#71727D]' : 'text-slate-400'
+            }`}>
+              Execution & Audit
             </div>
-            <div className={`text-[10px] font-mono ${isDark ? 'text-[#71727D]' : 'text-slate-400'}`}>
-              ~/blueprint/{activeProject.name.toLowerCase().replace(/\s+/g, '-')}
-            </div>
-          </div>
+          )}
+
+          <nav className="space-y-0.5">
+            <button
+              onClick={() => onSelectTab('in-flight')}
+              className={`w-full flex items-center ${isCollapsed ? 'justify-center px-2 py-2' : 'space-x-2 px-2.5 py-1.5'} rounded-lg text-xs font-medium transition-colors cursor-pointer text-left ${
+                activeTab === 'in-flight'
+                  ? isDark
+                    ? 'bg-blue-600/15 text-blue-400 font-semibold'
+                    : 'bg-blue-50 text-blue-700 font-semibold'
+                  : isDark
+                    ? 'text-[#8E8F99] hover:text-white hover:bg-white/[0.04]'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+              }`}
+              title="Phase 2: In-Flight Prompt"
+            >
+              <Code2 className="w-3.5 h-3.5 shrink-0" />
+              {!isCollapsed && <span>Phase 2: In-Flight</span>}
+            </button>
+
+            <button
+              onClick={() => onSelectTab('post-flight')}
+              className={`w-full flex items-center ${isCollapsed ? 'justify-center px-2 py-2' : 'space-x-2 px-2.5 py-1.5'} rounded-lg text-xs font-medium transition-colors cursor-pointer text-left ${
+                activeTab === 'post-flight'
+                  ? isDark
+                    ? 'bg-blue-600/15 text-blue-400 font-semibold'
+                    : 'bg-blue-50 text-blue-700 font-semibold'
+                  : isDark
+                    ? 'text-[#8E8F99] hover:text-white hover:bg-white/[0.04]'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+              }`}
+              title="Phase 3: Audit Checklist"
+            >
+              <ShieldCheck className="w-3.5 h-3.5 shrink-0" />
+              {!isCollapsed && <span>Phase 3: Audit</span>}
+            </button>
+          </nav>
         </div>
+
       </div>
 
-      <div className={`p-4 border-t flex items-center justify-between ${isDark ? 'border-[#23242A]' : 'border-slate-200'}`}>
-        <div className={`text-[11px] ${isDark ? 'text-[#71727D]' : 'text-slate-500'}`}>
-          Blueprint Studio
-        </div>
-        <div className={`text-[10px] font-mono ${isDark ? 'text-[#60616B]' : 'text-slate-400'}`}>
-          v1.0
-        </div>
+      {/* Footer Toggle Bar */}
+      <div className={`p-2.5 border-t flex items-center ${isCollapsed ? 'justify-center' : 'justify-between'} ${
+        isDark ? 'border-[#23252C]' : 'border-slate-100'
+      }`}>
+        {!isCollapsed && (
+          <div className={`text-[11px] font-medium ${isDark ? 'text-[#71727D]' : 'text-slate-400'}`}>
+            Blueprint Studio
+          </div>
+        )}
+        
+        {onToggleCollapse && (
+          <button
+            onClick={onToggleCollapse}
+            className={`p-1 rounded-md text-xs transition-colors cursor-pointer ${
+              isDark ? 'text-[#8E8F99] hover:text-white hover:bg-white/[0.06]' : 'text-slate-400 hover:text-slate-800 hover:bg-slate-100'
+            }`}
+            title={isCollapsed ? "Expand Sidebar (⌘B)" : "Collapse Sidebar (⌘B)"}
+          >
+            {isCollapsed ? (
+              <PanelLeft className="w-3.5 h-3.5" />
+            ) : (
+              <PanelLeftClose className="w-3.5 h-3.5" />
+            )}
+          </button>
+        )}
       </div>
     </aside>
   );

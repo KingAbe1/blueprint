@@ -1,21 +1,50 @@
 import React, { useState } from 'react';
-import { Sun, Moon, Plus } from 'lucide-react';
+import { Sun, Moon, Plus, PanelLeftClose, PanelLeft } from 'lucide-react';
 import { useProjects } from '../../context/ProjectContext';
 import { useTheme } from '../../context/ThemeContext';
 import { ProjectDropdown } from '../project/ProjectDropdown';
 
-export const Header: React.FC = () => {
-  const { projects, isCreatingNew, setIsCreatingNew } = useProjects();
+interface HeaderProps {
+  isSidebarCollapsed?: boolean;
+  onToggleSidebar?: () => void;
+  showSidebarToggle?: boolean;
+}
+
+export const Header: React.FC<HeaderProps> = ({ 
+  isSidebarCollapsed = false, 
+  onToggleSidebar,
+  showSidebarToggle = true
+}) => {
+  const { projects, isCreatingNew, setIsCreatingNew, activeProject } = useProjects();
   const { isDark, toggleTheme } = useTheme();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
   return (
-    <header className={`h-12 border-b px-5 flex items-center justify-between sticky top-0 z-50 backdrop-blur-xl transition-colors duration-200 ${
+    <header className={`h-12 border-b px-4 flex items-center justify-between sticky top-0 z-50 backdrop-blur-xl transition-colors duration-200 shrink-0 ${
       isDark 
         ? 'bg-[#121316]/95 border-[#23242A]' 
-        : 'bg-white/95 border-slate-200/90 shadow-xs'
+        : 'bg-white/95 border-slate-200/60 shadow-2xs'
     }`}>
-      <div className="flex items-center space-x-3">
+      <div className="flex items-center space-x-2.5">
+        {/* Sidebar Collapse/Expand Toggle */}
+        {showSidebarToggle && activeProject && !isCreatingNew && (
+          <button
+            onClick={onToggleSidebar}
+            className={`p-1.5 rounded-lg border transition-all cursor-pointer flex items-center ${
+              isDark 
+                ? 'bg-[#18191E] border-[#27282F] text-[#8E8F99] hover:text-white hover:bg-white/[0.06]' 
+                : 'bg-slate-50 border-slate-200/60 text-slate-600 hover:text-slate-900 hover:bg-slate-100 shadow-2xs'
+            }`}
+            title={isSidebarCollapsed ? "Expand Sidebar (⌘B)" : "Collapse Sidebar (⌘B)"}
+          >
+            {isSidebarCollapsed ? (
+              <PanelLeft className="w-3.5 h-3.5" />
+            ) : (
+              <PanelLeftClose className="w-3.5 h-3.5" />
+            )}
+          </button>
+        )}
+
         {/* Logo Mark */}
         <div className="w-5 h-5 rounded-md bg-blue-600 flex items-center justify-center shadow-sm">
           <div className="w-2 h-2 border-[1.5px] border-white rounded-[1px] rotate-45" />
@@ -37,7 +66,7 @@ export const Header: React.FC = () => {
             className={`text-xs px-2.5 py-1 rounded-lg border transition-all cursor-pointer font-medium flex items-center space-x-1.5 ${
               isDark 
                 ? 'border-[#27282F] text-[#A1A1AA] hover:text-white hover:bg-white/[0.04]' 
-                : 'border-slate-200 text-slate-600 hover:text-slate-900 hover:bg-slate-50 shadow-xs'
+                : 'border-slate-200/60 text-slate-600 hover:text-slate-900 hover:bg-slate-50 shadow-2xs'
             }`}
           >
             <Plus className="w-3 h-3" />
@@ -51,7 +80,7 @@ export const Header: React.FC = () => {
           className={`p-1.5 rounded-lg border transition-all cursor-pointer flex items-center ${
             isDark 
               ? 'bg-[#1B1C22] border-[#2E3038] text-slate-300 hover:text-white hover:bg-[#25262E]' 
-              : 'bg-slate-100 border-slate-200 text-slate-700 hover:text-slate-900 hover:bg-slate-200 shadow-xs'
+              : 'bg-slate-50 border-slate-200/60 text-slate-700 hover:text-slate-900 hover:bg-slate-100 shadow-2xs'
           }`}
           title={`Switch to ${isDark ? 'Light' : 'Dark'} Mode`}
         >

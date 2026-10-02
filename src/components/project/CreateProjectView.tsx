@@ -16,7 +16,7 @@ export const CreateProjectView: React.FC = () => {
   };
 
   return (
-    <div className="flex-1 flex items-center justify-center p-6">
+    <div className="flex-1 overflow-y-auto min-h-0 flex items-center justify-center p-6 select-none">
       <div className={`w-full max-w-md rounded-2xl border p-7 space-y-6 transition-all animate-in fade-in zoom-in-95 duration-200 ${
         isDark ? 'desktop-card-dark' : 'desktop-card-light'
       }`}>
@@ -28,42 +28,36 @@ export const CreateProjectView: React.FC = () => {
             <FolderCode className="w-5 h-5" />
           </div>
           <div>
-            <h2 className={`text-lg font-bold tracking-tight ${isDark ? 'text-white' : 'text-slate-900'}`}>
-              New Project
+            <h2 className={`text-base font-bold tracking-tight ${isDark ? 'text-white' : 'text-slate-900'}`}>
+              New Architecture Project
             </h2>
             <p className={`text-xs ${isDark ? 'text-[#8E8F99]' : 'text-slate-500'}`}>
-              What is the name of the project?
+              What is the name of this system or service?
             </p>
           </div>
         </div>
 
         {/* Form Content */}
-        <form onSubmit={handleSubmit} className="space-y-5">
-          <div className="space-y-2">
-            <div className={`px-3.5 py-2.5 rounded-xl border flex items-center transition-all ${
-              isDark 
-                ? 'bg-[#141519] border-[#2B2C33] focus-within:border-blue-500 focus-within:ring-1 focus-within:ring-blue-500/30' 
-                : 'bg-white border-slate-200 focus-within:border-blue-500 focus-within:ring-1 focus-within:ring-blue-500/20 shadow-xs'
-            }`}>
-              <input
-                type="text"
-                className={`w-full text-sm font-medium bg-transparent border-none outline-none ${
-                  isDark ? 'text-white placeholder-[#5E606B]' : 'text-slate-900 placeholder-slate-400'
-                }`}
-                placeholder="e.g. payment-service"
-                value={inputName}
-                onChange={(e) => setInputName(e.target.value)}
-                autoFocus
-              />
-            </div>
-            <div className={`text-[11px] font-mono ${isDark ? 'text-[#60616B]' : 'text-slate-400'}`}>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-1.5">
+            <input
+              type="text"
+              className={`w-full text-sm font-medium p-3 rounded-lg outline-none ${
+                isDark ? 'studio-input-dark' : 'studio-input-light'
+              }`}
+              placeholder="e.g. payment-gateway"
+              value={inputName}
+              onChange={(e) => setInputName(e.target.value)}
+              autoFocus
+            />
+            <div className={`text-[11px] font-mono ${isDark ? 'text-[#71727D]' : 'text-slate-400'}`}>
               Workspace: ~/blueprint/{inputName.trim() ? inputName.trim().toLowerCase().replace(/\s+/g, '-') : 'project-name'}
             </div>
           </div>
 
           {/* Actions Footer */}
           <div className="flex items-center justify-between pt-1">
-            <div className={`flex items-center space-x-1 text-[11px] font-mono ${isDark ? 'text-[#60616B]' : 'text-slate-400'}`}>
+            <div className={`flex items-center space-x-1 text-[11px] font-mono ${isDark ? 'text-[#71727D]' : 'text-slate-400'}`}>
               <CornerDownLeft className="w-3 h-3" />
               <span>Press Enter</span>
             </div>
@@ -78,7 +72,7 @@ export const CreateProjectView: React.FC = () => {
                       setActiveProjectId(projects[0].id);
                     }
                   }}
-                  className={`text-xs px-3 py-2 rounded-xl transition-colors cursor-pointer ${
+                  className={`text-xs px-3 py-2 rounded-lg transition-colors cursor-pointer ${
                     isDark ? 'text-[#8E8F99] hover:text-white' : 'text-slate-500 hover:text-slate-800'
                   }`}
                 >
@@ -88,7 +82,7 @@ export const CreateProjectView: React.FC = () => {
               <button
                 type="submit"
                 disabled={!inputName.trim()}
-                className="btn-primary-blue disabled:opacity-30 disabled:pointer-events-none px-4 py-2 rounded-xl text-xs font-semibold text-white flex items-center space-x-1.5 cursor-pointer shadow-md"
+                className="btn-primary-blue disabled:opacity-30 disabled:pointer-events-none px-4 py-2 rounded-lg text-xs font-semibold text-white flex items-center space-x-1.5 cursor-pointer shadow-sm"
               >
                 <span>Continue</span>
                 <ArrowRight className="w-3.5 h-3.5" />
@@ -99,7 +93,7 @@ export const CreateProjectView: React.FC = () => {
 
         {/* Recent Projects Quick Select if any exist */}
         {projects.length > 0 && (
-          <div className={`pt-4 border-t space-y-2 ${isDark ? 'border-[#23242A]' : 'border-slate-100'}`}>
+          <div className={`pt-4 border-t space-y-2 ${isDark ? 'border-[#23252C]' : 'border-slate-100'}`}>
             <div className={`text-[10px] font-mono uppercase tracking-wider font-semibold ${
               isDark ? 'text-[#71727D]' : 'text-slate-400'
             }`}>
@@ -114,10 +108,10 @@ export const CreateProjectView: React.FC = () => {
                     setActiveProjectId(proj.id);
                     setIsCreatingNew(false);
                   }}
-                  className={`flex items-center justify-between px-3 py-2 rounded-xl border text-xs font-medium text-left transition-colors cursor-pointer ${
+                  className={`flex items-center justify-between px-3 py-2 rounded-lg border text-xs font-medium text-left transition-colors cursor-pointer ${
                     isDark 
-                      ? 'bg-[#18191E] border-[#27282F] text-slate-300 hover:text-white hover:border-[#383944]' 
-                      : 'bg-white border-slate-200 text-slate-700 hover:text-slate-900 hover:bg-slate-50 shadow-xs'
+                      ? 'bg-[#101114] border-[#23252C] text-slate-300 hover:text-white hover:border-[#32353E]' 
+                      : 'bg-[#F8FAFC] border-slate-200/80 text-slate-700 hover:text-slate-900 hover:bg-slate-100'
                   }`}
                 >
                   <div className="flex items-center space-x-2 truncate">

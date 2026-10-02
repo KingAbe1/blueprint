@@ -1,5 +1,5 @@
 import React from 'react';
-import { Plus, Database } from 'lucide-react';
+import { Plus, Database, ArrowRight } from 'lucide-react';
 import { useProjects } from '../../context/ProjectContext';
 import { useTheme } from '../../context/ThemeContext';
 
@@ -10,52 +10,55 @@ export const InvariantWorkbench: React.FC = () => {
   if (!activeProject) return null;
 
   return (
-    <div className="flex-1 flex flex-col overflow-y-auto p-8 space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className={`text-xl font-bold tracking-tight ${isDark ? 'text-white' : 'text-slate-900'}`}>
-            Pre-Flight Invariant Gates
+    <div className="flex-1 flex flex-col overflow-y-auto w-full">
+      {/* Top Bar */}
+      <div className={`px-8 py-5 border-b flex items-center justify-between sticky top-0 z-20 backdrop-blur-md transition-colors ${
+        isDark ? 'bg-[#0E0F12]/90 border-[#23252C]' : 'bg-white/90 border-slate-200 shadow-2xs'
+      }`}>
+        <div className="flex items-center space-x-3">
+          <span className="text-[11px] font-mono font-bold text-blue-500 uppercase tracking-wider">
+            Step 2
+          </span>
+          <span className={`text-xs ${isDark ? 'text-[#5E606B]' : 'text-slate-300'}`}>/</span>
+          <h1 className={`text-sm font-semibold tracking-tight ${isDark ? 'text-white' : 'text-slate-900'}`}>
+            Database & Schema Invariant Contracts
           </h1>
-          <p className={`text-xs mt-0.5 ${isDark ? 'text-[#8E8F99]' : 'text-slate-500'}`}>
-            Define unbreachable contracts for <span className="font-semibold">{activeProject.name}</span> before prompting code generation.
-          </p>
         </div>
 
         <button
-          className="btn-primary-blue px-3.5 py-1.5 rounded-xl text-xs font-semibold text-white flex items-center space-x-1.5 cursor-pointer shadow-sm"
+          className="btn-primary-blue px-3.5 py-1.5 rounded-lg text-xs font-semibold text-white flex items-center space-x-1.5 cursor-pointer shadow-sm"
         >
           <Plus className="w-3.5 h-3.5" />
-          <span>Add Invariant Contract</span>
+          <span>Add Invariant Gate</span>
         </button>
       </div>
 
-      {/* Invariant Rule Empty State */}
-      <div className={`p-10 rounded-2xl border text-center space-y-4 ${
-        isDark ? 'bg-[#18191E]/60 border-[#27282F]' : 'bg-white border-slate-200 shadow-xs'
-      }`}>
-        <div className={`w-12 h-12 rounded-2xl flex items-center justify-center mx-auto ${
-          isDark ? 'bg-blue-500/10 text-blue-400 border border-blue-500/20' : 'bg-blue-50 text-blue-600 border border-blue-200'
+      {/* Content Canvas */}
+      <div className="p-8 max-w-7xl w-full mx-auto space-y-6">
+        <div className={`p-10 rounded-xl border text-center space-y-4 transition-colors ${
+          isDark ? 'studio-panel-dark' : 'studio-panel-light'
         }`}>
-          <Database className="w-6 h-6" />
-        </div>
-        <div className="space-y-1 max-w-sm mx-auto">
-          <h3 className={`text-sm font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>
-            No Invariant Gates Configured Yet
-          </h3>
-          <p className={`text-xs leading-relaxed ${isDark ? 'text-[#8E8F99]' : 'text-slate-500'}`}>
-            Add your first database constraint (e.g. non-nullable money cents, state enum) to generate failing test harnesses.
-          </p>
-        </div>
-        <div>
-          <button
-            className={`text-xs font-semibold px-4 py-2 rounded-xl border transition-all cursor-pointer ${
-              isDark 
-                ? 'border-[#383944] text-white hover:bg-white/[0.05]' 
-                : 'border-slate-300 text-slate-800 hover:bg-slate-50 shadow-xs'
-            }`}
-          >
-            Load Standard Invariants
-          </button>
+          <div className={`w-11 h-11 rounded-xl flex items-center justify-center mx-auto ${
+            isDark ? 'bg-blue-500/10 text-blue-400 border border-blue-500/20' : 'bg-blue-50 text-blue-600 border border-blue-200'
+          }`}>
+            <Database className="w-5 h-5" />
+          </div>
+          <div className="space-y-1 max-w-md mx-auto">
+            <h3 className={`text-sm font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>
+              Schema Invariants Derived from Domain Spec
+            </h3>
+            <p className={`text-xs leading-relaxed ${isDark ? 'text-[#8E8F99]' : 'text-slate-500'}`}>
+              Define SQL CHECK constraints, non-nullable integer cents, and unique composite indexes to lock down data integrity before code synthesis.
+            </p>
+          </div>
+          <div>
+            <button
+              className="btn-primary-blue px-4 py-2 rounded-lg text-xs font-semibold text-white inline-flex items-center space-x-1.5 cursor-pointer shadow-sm"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>Define First Table Constraint</span>
+            </button>
+          </div>
         </div>
       </div>
     </div>

@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { Project } from '../types/project';
+import { Project, ProjectSpec } from '../types/project';
 
 interface ProjectContextType {
   projects: Project[];
@@ -12,10 +12,18 @@ interface ProjectContextType {
   setEditingProjectId: (id: string | null) => void;
   setProjectToDelete: (project: Project | null) => void;
   setActiveProjectId: (id: string | null) => void;
-  createProject: (name: string) => Project | null;
+  createProject: (name: string, description?: string) => Project | null;
   renameProject: (id: string, newName: string) => void;
+  updateProjectSpec: (id: string, updatedSpec: Partial<ProjectSpec>) => void;
   deleteProject: (id: string) => void;
 }
+
+const defaultSpec: ProjectSpec = {
+  description: '',
+  coreEntities: [],
+  criticalWorkflows: [],
+  nonNegotiables: []
+};
 
 const ProjectContext = createContext<ProjectContextType | undefined>(undefined);
 
@@ -24,13 +32,18 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({ children })
     try {
       const saved = localStorage.getItem('blueprint_projects_list');
       if (saved) {
-        return JSON.parse(saved);
+        const parsed: Project[] = JSON.parse(saved);
+        return parsed.map(p => ({
+          ...p,
+          spec: p.spec ? { ...defaultSpec, ...p.spec } : { ...defaultSpec }
+        }));
       }
       const legacyName = localStorage.getItem('blueprint_project_name');
       if (legacyName && legacyName.trim()) {
         const initial: Project = {
           id: 'proj_' + Date.now(),
           name: legacyName.trim(),
+          spec: { ...defaultSpec },
           createdAt: Date.now(),
           updatedAt: Date.now()
         };
@@ -80,13 +93,17 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({ children })
 
   const activeProject = projects.find(p => p.id === activeProjectId);
 
-  const createProject = (name: string): Project | null => {
+  const createProject = (name: string, description: string = ''): Project | null => {
     const trimmed = name.trim();
     if (!trimmed) return null;
 
     const newProject: Project = {
       id: 'proj_' + Date.now(),
       name: trimmed,
+      spec: {
+        ...defaultSpec,
+        description: description.trim()
+      },
       createdAt: Date.now(),
       updatedAt: Date.now()
     };
@@ -108,6 +125,22 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({ children })
       return p;
     }));
     setEditingProjectId(null);
+  };
+
+  const updateProjectSpec = (id: string, updatedSpec: Partial<ProjectSpec>) => {
+    setProjects(prev => prev.map(p => {
+      if (p.id === id) {
+        return {
+          ...p,
+          spec: {
+            ...p.spec,
+            ...updatedSpec
+          },
+          updatedAt: Date.now()
+        };
+      }
+      return p;
+    }));
   };
 
   const deleteProject = (id: string) => {
@@ -140,6 +173,7 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({ children })
         setActiveProjectId,
         createProject,
         renameProject,
+        updateProjectSpec,
         deleteProject
       }}
     >

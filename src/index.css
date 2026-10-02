@@ -13,77 +13,118 @@
     font-family: var(--font-display);
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
-    transition: background-color 0.25s ease, color 0.25s ease;
+    transition: background-color 0.2s ease, color 0.2s ease;
     user-select: none;
   }
 
-  /* Velvet Graphite Dark Mode */
+  /* Velvet Obsidian Dark Mode */
   body.dark {
-    background-color: #121316;
-    color: #F4F4F6;
-    background-image: 
-      radial-gradient(circle at 50% 0%, rgba(59, 130, 246, 0.08) 0%, transparent 60%),
-      linear-gradient(to right, rgba(255, 255, 255, 0.02) 1px, transparent 1px),
-      linear-gradient(to bottom, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
-    background-size: 100% 100%, 32px 32px, 32px 32px;
+    background-color: #0E0F12;
+    color: #F3F4F6;
   }
 
   /* Crisp Porcelain Light Mode */
   body.light {
     background-color: #F8FAFC;
     color: #0F172A;
-    background-image: 
-      radial-gradient(circle at 50% 0%, rgba(37, 99, 235, 0.05) 0%, transparent 55%),
-      linear-gradient(to right, rgba(15, 23, 42, 0.03) 1px, transparent 1px),
-      linear-gradient(to bottom, rgba(15, 23, 42, 0.03) 1px, transparent 1px);
-    background-size: 100% 100%, 32px 32px, 32px 32px;
   }
 }
 
-/* Desktop Glass Card */
+/* Studio Surface Panels */
+.studio-panel-dark {
+  background: #141519;
+  border: 1px solid #23252C;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+.studio-panel-light {
+  background: #FFFFFF;
+  border: 1px solid #EAECEF;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03);
+}
+
+/* Subtle Input Boxes */
+.studio-input-dark {
+  background: #101114;
+  border: 1px solid #262832;
+  color: #F3F4F6;
+  transition: all 0.15s ease;
+}
+
+.studio-input-dark:focus {
+  border-color: #3B82F6;
+  box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.4);
+}
+
+.studio-input-light {
+  background: #F8FAFC;
+  border: 1px solid #EAECEF;
+  color: #0F172A;
+  transition: all 0.15s ease;
+}
+
+.studio-input-light:focus {
+  background: #FFFFFF;
+  border-color: #3B82F6;
+  box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.25);
+}
+
+/* Desktop Modal Cards */
 .desktop-card-dark {
-  background: rgba(22, 23, 28, 0.85);
-  backdrop-filter: blur(24px);
-  -webkit-backdrop-filter: blur(24px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: 
-    0 25px 50px -12px rgba(0, 0, 0, 0.7),
-    0 0 0 1px rgba(255, 255, 255, 0.03),
-    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  background: #14151A;
+  border: 1px solid #252730;
+  box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.7);
 }
 
 .desktop-card-light {
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(24px);
-  -webkit-backdrop-filter: blur(24px);
-  border: 1px solid rgba(15, 23, 42, 0.08);
-  box-shadow: 
-    0 20px 40px -15px rgba(15, 23, 42, 0.08),
-    0 0 0 1px rgba(15, 23, 42, 0.02),
-    inset 0 1px 0 rgba(255, 255, 255, 1);
+  background: #FFFFFF;
+  border: 1px solid #E2E8F0;
+  box-shadow: 0 20px 35px -10px rgba(15, 23, 42, 0.08);
 }
 
 /* Primary Button */
 .btn-primary-blue {
-  background: linear-gradient(180deg, #3B82F6 0%, #2563EB 100%);
-  box-shadow: 
-    0 0 0 1px rgba(96, 165, 250, 0.4),
-    0 2px 4px rgba(0, 0, 0, 0.3),
-    inset 0 1px 0 rgba(255, 255, 255, 0.3);
-  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+  background: #2563EB;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  transition: all 0.15s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .btn-primary-blue:hover {
-  background: linear-gradient(180deg, #60A5FA 0%, #3B82F6 100%);
-  box-shadow: 
-    0 0 0 1px rgba(147, 197, 253, 0.6),
-    0 4px 12px rgba(37, 99, 235, 0.35),
-    inset 0 1px 0 rgba(255, 255, 255, 0.45);
-  transform: translateY(-1px);
+  background: #1D4ED8;
+  transform: translateY(-0.5px);
+  box-shadow: 0 2px 6px rgba(37, 99, 235, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.25);
 }
 
 .btn-primary-blue:active {
   transform: translateY(0px);
+}
+
+/* Custom Desktop Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+body.dark ::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 4px;
+}
+
+body.dark ::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.25);
+}
+
+body.light ::-webkit-scrollbar-thumb {
+  background: rgba(15, 23, 42, 0.15);
+  border-radius: 4px;
+}
+
+body.light ::-webkit-scrollbar-thumb:hover {
+  background: rgba(15, 23, 42, 0.25);
 }
 
 /* Typography styles */
@@ -94,3 +135,4 @@
 .font-mono {
   font-family: var(--font-mono);
 }
+
