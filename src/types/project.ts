@@ -28,11 +28,33 @@ export interface FrameworkRecommendation {
   isRecommended?: boolean;
 }
 
+export interface InterviewMessage {
+  id: string;
+  role: 'assistant' | 'user';
+  content: string;
+  options?: { id: string; label: string; description?: string }[];
+  selectedOption?: string;
+  customAnswer?: string;
+  timestamp: number;
+}
+
+export interface ArchitecturalInterview {
+  status: 'idle' | 'in_progress' | 'completed';
+  currentQuestionIndex: number;
+  totalEstimatedQuestions: number;
+  history: InterviewMessage[];
+  summaryInsights?: string[];
+}
+
 export interface ProjectSpec {
   description: string;
   architecturePreference?: ArchitecturePreference;
   stylingPreference?: StylingPreference;
   backendPreference?: BackendPreference;
+  targetPlatforms?: string[];
+  nfrPreferences?: string[];
+  customRequirements?: string;
+  interview?: ArchitecturalInterview;
   targetFramework?: string;
   frameworkRecommendation?: FrameworkRecommendation;
   frameworkRecommendations?: FrameworkRecommendation[];

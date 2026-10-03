@@ -1,5 +1,5 @@
 import { AIProviderConfig, AISettings } from '../types/ai';
-import { DomainEntity, FrameworkRecommendation, ArchitecturePreference, StylingPreference, BackendPreference } from '../types/project';
+import { DomainEntity, FrameworkRecommendation, ArchitecturePreference, StylingPreference, BackendPreference, InterviewMessage } from '../types/project';
 import { 
   cleanRawDescription,
   formatSpecificationTemplate 
@@ -496,6 +496,8 @@ export async function analyzeFrameworksWithAI(
     architecturePreference?: string;
     stylingPreference?: string;
     backendPreference?: string;
+    targetPlatforms?: string[];
+    nfrPreferences?: string[];
     customRequirements?: string;
   }
 ): Promise<{ recommendations: FrameworkRecommendation[]; providerName: string }> {
@@ -510,21 +512,27 @@ export async function analyzeFrameworksWithAI(
   const dynamicConstraints: string[] = [];
 
   if (options?.architecturePreference && options.architecturePreference.trim() && options.architecturePreference !== 'auto') {
-    dynamicConstraints.push(`- Architecture Model Preference: ${options.architecturePreference.trim()}`);
+    dynamicConstraints.push(`- Architecture Topology Preference: ${options.architecturePreference.trim()}`);
+  }
+  if (options?.targetPlatforms && options.targetPlatforms.length > 0) {
+    dynamicConstraints.push(`- Target Deployment Platforms: ${options.targetPlatforms.join(', ')}`);
+  }
+  if (options?.nfrPreferences && options.nfrPreferences.length > 0) {
+    dynamicConstraints.push(`- Critical Non-Functional Invariants & Requirements: ${options.nfrPreferences.join('; ')}`);
   }
   if (options?.stylingPreference && options.stylingPreference.trim() && options.stylingPreference !== 'auto') {
     dynamicConstraints.push(`- UI & Styling Preference: ${options.stylingPreference.trim()}`);
   }
   if (options?.backendPreference && options.backendPreference.trim() && options.backendPreference !== 'auto') {
-    dynamicConstraints.push(`- Language / Backend & Database Preference: ${options.backendPreference.trim()}`);
+    dynamicConstraints.push(`- Language / Backend & Database Ecosystem: ${options.backendPreference.trim()}`);
   }
   if (options?.customRequirements && options.customRequirements.trim()) {
-    dynamicConstraints.push(`- Special Constraints & Requirements: ${options.customRequirements.trim()}`);
+    dynamicConstraints.push(`- Custom Architectural Directives: ${options.customRequirements.trim()}`);
   }
 
   const constraintSection = dynamicConstraints.length > 0
-    ? `User Technical Preferences & Directives:\n${dynamicConstraints.join('\n')}\n`
-    : `User Technical Preferences:\n- Architecture: Analyze the product requirements to pick the optimal architecture.\n- Technologies: Select the best-in-class programming languages and ecosystems for this specific domain.\n`;
+    ? `User Technical Preferences & Architectural Directives:\n${dynamicConstraints.join('\n')}\n`
+    : `User Technical Preferences:\n- Architecture: Analyze the domain requirements to pick the optimal production architecture.\n- Technologies: Select the best-in-class programming languages and ecosystems for this specific domain.\n`;
 
   const prompt = `You are a Principal Enterprise Software Architect advising on designing a production-grade, scalable software project.
 Project Name: "${projectName}"
