@@ -2,6 +2,10 @@ export type Theme = 'dark' | 'light';
 
 export type PhaseTab = 'domain-intent' | 'invariants' | 'state-machine' | 'tdd-spec' | 'in-flight' | 'post-flight';
 
+export type ArchitecturePreference = string;
+export type StylingPreference = string;
+export type BackendPreference = string;
+
 export interface DomainEntity {
   id: string;
   name: string;
@@ -11,7 +15,13 @@ export interface DomainEntity {
 export interface FrameworkRecommendation {
   id: string;
   name: string;
-  category: 'Full-Stack Web' | 'Frontend SPA' | 'Desktop App' | 'Backend API' | 'Mobile App';
+  category: string;
+  architecture?: string;
+  frontendStack?: string;
+  backendStack?: string;
+  stylingStack?: string;
+  databaseStack?: string;
+  deploymentTarget?: string;
   description: string;
   whyReasons: string[];
   bestFor: string;
@@ -20,6 +30,9 @@ export interface FrameworkRecommendation {
 
 export interface ProjectSpec {
   description: string;
+  architecturePreference?: ArchitecturePreference;
+  stylingPreference?: StylingPreference;
+  backendPreference?: BackendPreference;
   targetFramework?: string;
   frameworkRecommendation?: FrameworkRecommendation;
   frameworkRecommendations?: FrameworkRecommendation[];
@@ -35,3 +48,4 @@ export interface Project {
   createdAt: number;
   updatedAt: number;
 }
+

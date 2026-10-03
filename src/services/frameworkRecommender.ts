@@ -1,35 +1,74 @@
 import { FrameworkRecommendation } from '../types/project';
 
-export const BASE_FRAMEWORKS: Record<string, { name: string; category: FrameworkRecommendation['category']; description: string }> = {
+export const BASE_FRAMEWORKS: Record<string, { 
+  name: string; 
+  category: FrameworkRecommendation['category']; 
+  architecture: FrameworkRecommendation['architecture'];
+  frontendStack?: string;
+  backendStack?: string;
+  stylingStack?: string;
+  databaseStack?: string;
+  description: string;
+}> = {
   'nextjs': {
     name: 'Next.js 15 (React / TypeScript)',
     category: 'Full-Stack Web',
+    architecture: 'Integrated Full-Stack',
+    frontendStack: 'React 19 + TypeScript (App Router)',
+    backendStack: 'Server Actions & Edge API Routes',
+    stylingStack: 'Tailwind CSS v4 + Lucide',
+    databaseStack: 'PostgreSQL + Prisma ORM',
     description: 'Production full-stack web framework with integrated server actions, API routes, and fast edge rendering.'
+  },
+  'react-fastapi': {
+    name: 'React (Vite) + FastAPI (Python)',
+    category: 'Frontend SPA',
+    architecture: 'Separate (Frontend + Backend)',
+    frontendStack: 'React 19 + TypeScript (Vite)',
+    backendStack: 'FastAPI (Python 3.12) + asyncpg',
+    stylingStack: 'Tailwind CSS v4 + shadcn/ui',
+    databaseStack: 'PostgreSQL + SQLAlchemy',
+    description: 'Decoupled modern frontend paired with a high-speed async Python REST API for maximum performance.'
   },
   'react-vite': {
     name: 'React + Vite (SPA)',
     category: 'Frontend SPA',
+    architecture: 'Separate (Frontend + Backend)',
+    frontendStack: 'React 19 + TypeScript (Vite)',
+    backendStack: 'Node.js (Hono / Express) or BaaS',
+    stylingStack: 'Tailwind CSS v4 + Lucide',
+    databaseStack: 'Supabase PostgreSQL or REST API',
     description: 'Lightweight client-side web application with instant HMR and low-overhead deployment.'
   },
   'tauri': {
     name: 'Tauri 2.0 (Rust + Web)',
     category: 'Desktop App',
+    architecture: 'Desktop App',
+    frontendStack: 'React + TypeScript (Vite)',
+    backendStack: 'Rust Core (Native IPC)',
+    stylingStack: 'Tailwind CSS + Lucide',
+    databaseStack: 'SQLite / Embedded File DB',
     description: 'Ultra-lightweight native desktop app for macOS, Windows, and Linux with tiny RAM usage.'
   },
   'fastapi': {
     name: 'FastAPI (Python) + PostgreSQL',
     category: 'Backend API',
+    architecture: 'Separate (Frontend + Backend)',
+    frontendStack: 'Decoupled Web Client or SPA',
+    backendStack: 'FastAPI (Python) + Pydantic v2',
+    stylingStack: 'Tailwind CSS (Docs UI)',
+    databaseStack: 'PostgreSQL + asyncpg',
     description: 'High-speed typed async Python backend designed for data processing, AI models, and automation.'
   },
   'expo': {
     name: 'Expo (React Native / Mobile)',
     category: 'Mobile App',
+    architecture: 'Mobile App',
+    frontendStack: 'React Native / Expo Router',
+    backendStack: 'REST / GraphQL Cloud API',
+    stylingStack: 'NativeWind (Tailwind) / React Native StyleSheet',
+    databaseStack: 'Cloud Database / SQLite Local',
     description: 'Universal cross-platform mobile application running natively on iOS and Android.'
-  },
-  'node-hono': {
-    name: 'Node.js (Hono / Express) + TypeScript',
-    category: 'Backend API',
-    description: 'High-performance typed API service with sub-millisecond cold starts and unified TypeScript types.'
   }
 };
 

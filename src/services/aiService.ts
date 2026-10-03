@@ -1,5 +1,5 @@
 import { AIProviderConfig, AISettings } from '../types/ai';
-import { DomainEntity, FrameworkRecommendation } from '../types/project';
+import { DomainEntity, FrameworkRecommendation, ArchitecturePreference, StylingPreference, BackendPreference } from '../types/project';
 import { 
   cleanRawDescription,
   formatSpecificationTemplate 
@@ -491,7 +491,13 @@ Instructions:
 export async function analyzeFrameworksWithAI(
   projectName: string,
   description: string,
-  settings: AISettings
+  settings: AISettings,
+  options?: {
+    architecturePreference?: string;
+    stylingPreference?: string;
+    backendPreference?: string;
+    customRequirements?: string;
+  }
 ): Promise<{ recommendations: FrameworkRecommendation[]; providerName: string }> {
   const activeConfig = settings.providers[settings.activeProvider];
   const hasKey = activeConfig && (activeConfig.provider === 'ollama' || Boolean(activeConfig.apiKey?.trim()));
@@ -500,52 +506,77 @@ export async function analyzeFrameworksWithAI(
     throw new Error(`API key is required for ${activeConfig?.name || 'AI'}. Please click 'Configure AI Key' to connect.`);
   }
 
-  const prompt = `You are a senior software architect advising on the best tech stack for a new project.
+  // Construct dynamic architectural constraints based on user criteria without rigid if/else locks
+  const dynamicConstraints: string[] = [];
+
+  if (options?.architecturePreference && options.architecturePreference.trim() && options.architecturePreference !== 'auto') {
+    dynamicConstraints.push(`- Architecture Model Preference: ${options.architecturePreference.trim()}`);
+  }
+  if (options?.stylingPreference && options.stylingPreference.trim() && options.stylingPreference !== 'auto') {
+    dynamicConstraints.push(`- UI & Styling Preference: ${options.stylingPreference.trim()}`);
+  }
+  if (options?.backendPreference && options.backendPreference.trim() && options.backendPreference !== 'auto') {
+    dynamicConstraints.push(`- Language / Backend & Database Preference: ${options.backendPreference.trim()}`);
+  }
+  if (options?.customRequirements && options.customRequirements.trim()) {
+    dynamicConstraints.push(`- Special Constraints & Requirements: ${options.customRequirements.trim()}`);
+  }
+
+  const constraintSection = dynamicConstraints.length > 0
+    ? `User Technical Preferences & Directives:\n${dynamicConstraints.join('\n')}\n`
+    : `User Technical Preferences:\n- Architecture: Analyze the product requirements to pick the optimal architecture.\n- Technologies: Select the best-in-class programming languages and ecosystems for this specific domain.\n`;
+
+  const prompt = `You are a Principal Enterprise Software Architect advising on designing a production-grade, scalable software project.
 Project Name: "${projectName}"
 Project Description:
 """
 ${description.trim() || projectName}
 """
 
-Please recommend the TOP 2 or 3 ideal frameworks/tech stacks to build this exact project.
-For each framework, provide:
-- id: lowercase identifier (e.g. "nextjs", "react-vite", "tauri", "fastapi", "expo", "node-hono", "django", "sveltekit")
-- name: full display name (e.g. "Next.js 15 (React / TypeScript)", "FastAPI (Python) + PostgreSQL", "Tauri 2.0 (Rust + React)", "Expo (React Native)")
-- category: one of ["Full-Stack Web", "Frontend SPA", "Desktop App", "Backend API", "Mobile App"]
-- description: a concise 1-sentence description of the stack.
-- whyReasons: an array of 3 specific, concrete reasons why this framework specifically excels for the user's described project requirements (e.g. mention specific needs like payments, auth, offline access, websockets, or AI pipelines).
-- bestFor: a short phrase describing the ideal use case for this stack.
+${constraintSection}
+Architectural Guidelines:
+- Evaluate the domain, data scale, concurrency, security, and developer ergonomics.
+- You are free to recommend ANY modern production-grade programming languages (e.g. TypeScript, Python, Go, Rust, C#/.NET 9, Elixir, Kotlin, Java, Swift, PHP, etc.), frameworks, and database architectures that best serve this specific product.
+- Recommend the TOP 2 or 3 distinct, production-ready tech stacks.
 
-Respond ONLY with a valid JSON array of objects with the fields above.
-Example format:
-[
-  {
-    "id": "nextjs",
-    "name": "Next.js 15 (React / TypeScript)",
-    "category": "Full-Stack Web",
-    "description": "Production full-stack framework with built-in server actions and API routes.",
-    "whyReasons": [
-      "Built-in server routes handle private API keys and database transactions securely.",
-      "Server-side rendering ensures fast page speeds and high search engine discoverability.",
-      "Seamless integration with Tailwind CSS and modern authentication providers."
-    ],
-    "bestFor": "SaaS applications and customer web portals"
-  }
-]`;
+For each stack recommendation, provide:
+- id: lowercase slug identifier (e.g. "nextjs-postgres", "react-fastapi", "vue-go-fiber", "tauri-rust", "elixir-phoenix", "expo-supabase", "dotnet-react")
+- name: full display title including core languages & frameworks (e.g. "Next.js 15 (TypeScript + React 19)", "React (Vite) + FastAPI (Python 3.12)", "Go (Fiber) + Vue 3 SPA", "Tauri 2.0 (Rust + TypeScript)")
+- category: descriptive architectural category (e.g. "Full-Stack Web", "Decoupled SPA + API", "Mobile App", "Desktop Software", "Distributed Microservices")
+- architecture: architectural pattern (e.g. "Integrated Full-Stack", "Separate (Frontend + Backend)", "Mobile Native", "Desktop Native", "Event-Driven System")
+- frontendStack: exact frontend language, framework & tooling (e.g. "React 19 + TypeScript + Vite", "Next.js 15 App Router", "Flutter (Dart)", "Expo / React Native")
+- backendStack: exact backend language, framework & runtime (e.g. "FastAPI (Python 3.12) + asyncpg", "Integrated Server Actions & Route Handlers", "Go (Fiber v3) + pgx", "Node.js (Hono / TypeScript)", "Elixir (Phoenix LiveView)")
+- stylingStack: styling system & component kit (e.g. "Tailwind CSS v4 + shadcn/ui", "Vanilla CSS Modules", "Mantine UI", "NativeWind")
+- databaseStack: database engine, ORM, and caching (e.g. "PostgreSQL + Prisma ORM + Redis", "PostgreSQL + SQLAlchemy 2.0", "SQLite + Drizzle ORM", "Supabase PostgreSQL")
+- deploymentTarget: optimal production deployment target (e.g. "Vercel + Supabase", "Docker + AWS ECS / Fly.io", "Cloudflare Workers / Edge", "Native Installers (macOS / Windows)")
+- description: concise 1-2 sentence overview of this system architecture.
+- whyReasons: an array of 3 specific, concrete production-grade justifications why this stack excels for the user's described workflows (mention data safety, concurrency, developer velocity, auth, or ecosystem advantages).
+- bestFor: short phrase summarizing ideal team / project fit (e.g. "High-velocity SaaS apps with real-time requirements").
 
-  const rawText = await callAIModel(activeConfig, prompt, { temperature: 0.2, maxTokens: 1500 });
+Respond ONLY with a valid JSON array of objects with the exact fields above.
+Do NOT include markdown formatting outside the JSON array.`;
+
+  const rawText = await callAIModel(activeConfig, prompt, { temperature: 0.2, maxTokens: 1800 });
 
   const jsonMatch = rawText.match(/\[[\s\S]*\]/);
   if (jsonMatch) {
     const parsed = JSON.parse(jsonMatch[0]);
     if (Array.isArray(parsed) && parsed.length > 0) {
-      const recommendations = parsed.map((item: any, idx: number) => ({
-        id: String(item.id || 'fw_' + idx).toLowerCase(),
-        name: String(item.name || 'Framework'),
-        category: item.category || 'Full-Stack Web',
+      const recommendations: FrameworkRecommendation[] = parsed.map((item: any, idx: number) => ({
+        id: String(item.id || 'stack_' + idx).toLowerCase().replace(/[^a-z0-9_-]/g, '_'),
+        name: String(item.name || 'Framework Stack'),
+        category: String(item.category || item.architecture || 'Full-Stack Web'),
+        architecture: String(item.architecture || item.category || 'Integrated Full-Stack'),
+        frontendStack: item.frontendStack ? String(item.frontendStack) : undefined,
+        backendStack: item.backendStack ? String(item.backendStack) : undefined,
+        stylingStack: item.stylingStack ? String(item.stylingStack) : undefined,
+        databaseStack: item.databaseStack ? String(item.databaseStack) : undefined,
+        deploymentTarget: item.deploymentTarget ? String(item.deploymentTarget) : undefined,
         description: String(item.description || ''),
-        whyReasons: Array.isArray(item.whyReasons) ? item.whyReasons : ['Optimized for this project architecture.'],
-        bestFor: String(item.bestFor || 'Modern applications'),
+        whyReasons: Array.isArray(item.whyReasons) && item.whyReasons.length > 0 
+          ? item.whyReasons.map((r: any) => String(r)) 
+          : ['Engineered for production scale and developer ergonomics.'],
+        bestFor: String(item.bestFor || 'Production software systems'),
         isRecommended: idx === 0
       }));
 
