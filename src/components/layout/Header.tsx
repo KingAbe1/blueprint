@@ -1,5 +1,5 @@
 import React from 'react';
-import { Sun, Moon, Plus, PanelLeft, PanelLeftClose, Cpu, Sparkles } from 'lucide-react';
+import { Sun, Moon, Plus, PanelLeft, PanelLeftClose, Cpu, Sparkles, HardDrive } from 'lucide-react';
 import { useProjects } from '../../context/ProjectContext';
 import { useTheme } from '../../context/ThemeContext';
 import { useAI } from '../../context/AIContext';
@@ -13,7 +13,7 @@ interface HeaderProps {
 
 const TAB_META: Record<PhaseTab, { step: string; title: string; accent: string }> = {
   'domain-intent': { step: 'Step 1', title: 'Project Overview & Tech Stack', accent: 'text-blue-400' },
-  'invariants': { step: 'Step 2', title: 'Data & Safety Rules', accent: 'text-emerald-400' },
+  'invariants': { step: 'Step 2', title: 'Data & Safety Rules', accent: 'text-[#00E5FF]' },
   'state-machine': { step: 'Step 3', title: 'Status & Steps Flow', accent: 'text-violet-400' },
   'tdd-spec': { step: 'Step 4', title: 'Quality Checks', accent: 'text-amber-400' },
   'in-flight': { step: 'Phase 2', title: 'Generate Code', accent: 'text-cyan-400' },
@@ -25,7 +25,7 @@ export const Header: React.FC<HeaderProps> = ({
   isSidebarCollapsed = false, 
   onToggleSidebar,
 }) => {
-  const { projects, isCreatingNew, setIsCreatingNew, activeProject } = useProjects();
+  const { projects, isCreatingNew, setIsCreatingNew, activeProject, storageSource } = useProjects();
   const { isDark, toggleTheme } = useTheme();
   const { activeConfig, isAiConfigured, setIsSettingsOpen } = useAI();
 
@@ -80,6 +80,23 @@ export const Header: React.FC<HeaderProps> = ({
 
       {/* Header Right Actions */}
       <div className="flex items-center space-x-2">
+        {/* Storage Persistence Indicator */}
+        <div
+          className={`text-[11px] px-2 py-1 rounded-lg border font-mono transition-all flex items-center space-x-1.5 ${
+            storageSource === 'disk'
+              ? isDark 
+                ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300' 
+                : 'border-emerald-300 bg-emerald-50 text-emerald-700'
+              : isDark
+                ? 'border-amber-500/30 bg-amber-500/10 text-amber-300'
+                : 'border-amber-300 bg-amber-50 text-amber-700'
+          }`}
+          title={storageSource === 'disk' ? "Projects automatically saved to disk (.blueprint_store.json) across browser & incognito windows" : "Local Storage fallback"}
+        >
+          <HardDrive className="w-3 h-3" />
+          <span className="font-semibold">{storageSource === 'disk' ? 'Disk Sync' : 'Local'}</span>
+        </div>
+
         {/* AI Key / Provider Settings Button */}
         <button
           onClick={() => setIsSettingsOpen(true)}

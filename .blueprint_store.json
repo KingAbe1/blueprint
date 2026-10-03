@@ -1,0 +1,96 @@
+[
+  {
+    "id": "proj_1791027103712",
+    "name": "online-store",
+    "spec": {
+      "description": "What It Does & Core Value Proposition:  \nThe online-store mobile app serves as a seamless platform for users to discover and purchase products effortlessly. By integrating instant search filtering and secure payment options like Stripe and Apple Pay, it enhances the shopping experience while providing real-time order updates through push notifications.\n\nTarget Users & Primary Workflows:  \n• Users browse the product catalog, utilizing instant search filters to refine their search based on categories, price ranges, and other attributes.  \n• Once a product is selected, users can add it to their cart and proceed to a secure checkout process, choosing from multiple payment options including Stripe and Apple Pay.  \n• After completing the purchase, users receive push notifications regarding order status updates, ensuring they are informed throughout the delivery process.\n\nKey Data & Reliability Expectations:  \n• User data must be securely stored and encrypted to comply with industry standards for payment processing and personal information protection.  \n• The app should maintain a minimum uptime of 99.9% to ensure users can access the platform and complete transactions without interruptions.  \n• Product inventory data must be updated in real-time to reflect availability accurately, preventing overselling and enhancing user trust in the platform.",
+      "coreEntities": [],
+      "criticalWorkflows": [],
+      "nonNegotiables": [],
+      "targetPlatforms": [
+        "Web Browser"
+      ],
+      "frameworkRecommendations": [
+        {
+          "id": "nextjs-stripe",
+          "name": "Next.js 15 (TypeScript + React 19)",
+          "category": "Full-Stack Web",
+          "architecture": "Integrated Full-Stack",
+          "frontendStack": "Next.js 15 App Router + React 19 + TypeScript",
+          "backendStack": "Node.js (Express) + Stripe API",
+          "stylingStack": "Tailwind CSS v4 + shadcn/ui",
+          "databaseStack": "PostgreSQL + Prisma ORM + Redis",
+          "deploymentTarget": "Vercel + Supabase",
+          "description": "This architecture leverages Next.js for a seamless user experience and real-time updates, while ensuring secure payment processing with Stripe.",
+          "whyReasons": [
+            "Strong TypeScript support enhances developer productivity and reduces runtime errors.",
+            "Next.js provides built-in API routes, making it easy to handle server-side logic and secure payment processing.",
+            "PostgreSQL with Prisma ORM ensures data integrity and real-time inventory management."
+          ],
+          "bestFor": "High-velocity SaaS apps with real-time requirements",
+          "isRecommended": true
+        },
+        {
+          "id": "flutter-firebase",
+          "name": "Flutter (Dart) + Firebase",
+          "category": "Mobile App",
+          "architecture": "Mobile Native",
+          "frontendStack": "Flutter (Dart)",
+          "backendStack": "Firebase Cloud Functions + Firestore",
+          "stylingStack": "Flutter Material Design",
+          "databaseStack": "Firebase Firestore",
+          "deploymentTarget": "Google Play Store + Apple App Store",
+          "description": "This mobile-native architecture utilizes Flutter for cross-platform development, backed by Firebase for real-time data synchronization and secure authentication.",
+          "whyReasons": [
+            "Firebase provides built-in security features and real-time database capabilities, ensuring data safety and instant updates.",
+            "Flutter's single codebase for both iOS and Android accelerates development and reduces maintenance overhead.",
+            "Firebase Authentication simplifies user management and secure payment integration."
+          ],
+          "bestFor": "Cross-platform mobile apps with real-time features",
+          "isRecommended": false
+        },
+        {
+          "id": "elixir-phoenix",
+          "name": "Elixir (Phoenix LiveView)",
+          "category": "Decoupled SPA + API",
+          "architecture": "Event-Driven System",
+          "frontendStack": "Phoenix LiveView + Tailwind CSS",
+          "backendStack": "Elixir (Phoenix) + Ecto",
+          "stylingStack": "Tailwind CSS v4",
+          "databaseStack": "PostgreSQL + Ecto",
+          "deploymentTarget": "Docker + AWS ECS",
+          "description": "This architecture employs Elixir's concurrency model to handle high traffic and real-time updates efficiently, using Phoenix LiveView for a dynamic user experience.",
+          "whyReasons": [
+            "Elixir's lightweight processes allow for handling thousands of concurrent users, ensuring high availability and performance.",
+            "Phoenix LiveView enables real-time updates without complex JavaScript, enhancing user engagement.",
+            "PostgreSQL with Ecto provides robust data management and safety features, crucial for handling sensitive user information."
+          ],
+          "bestFor": "High-concurrency applications with real-time interactivity",
+          "isRecommended": false
+        }
+      ],
+      "targetFramework": "nextjs-stripe",
+      "frameworkRecommendation": {
+        "id": "nextjs-stripe",
+        "name": "Next.js 15 (TypeScript + React 19)",
+        "category": "Full-Stack Web",
+        "architecture": "Integrated Full-Stack",
+        "frontendStack": "Next.js 15 App Router + React 19 + TypeScript",
+        "backendStack": "Node.js (Express) + Stripe API",
+        "stylingStack": "Tailwind CSS v4 + shadcn/ui",
+        "databaseStack": "PostgreSQL + Prisma ORM + Redis",
+        "deploymentTarget": "Vercel + Supabase",
+        "description": "This architecture leverages Next.js for a seamless user experience and real-time updates, while ensuring secure payment processing with Stripe.",
+        "whyReasons": [
+          "Strong TypeScript support enhances developer productivity and reduces runtime errors.",
+          "Next.js provides built-in API routes, making it easy to handle server-side logic and secure payment processing.",
+          "PostgreSQL with Prisma ORM ensures data integrity and real-time inventory management."
+        ],
+        "bestFor": "High-velocity SaaS apps with real-time requirements",
+        "isRecommended": true
+      }
+    },
+    "createdAt": 1791027103712,
+    "updatedAt": 1791033011138
+  }
+]

@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { Project, ProjectSpec } from '../types/project';
+import { storageService } from '../services/storageService';
 
 interface ProjectContextType {
   projects: Project[];
@@ -8,6 +9,8 @@ interface ProjectContextType {
   isCreatingNew: boolean;
   editingProjectId: string | null;
   projectToDelete: Project | null;
+  storageSource: 'disk' | 'local';
+  isLoaded: boolean;
   setIsCreatingNew: (isCreating: boolean) => void;
   setEditingProjectId: (id: string | null) => void;
   setProjectToDelete: (project: Project | null) => void;
@@ -16,6 +19,8 @@ interface ProjectContextType {
   renameProject: (id: string, newName: string) => void;
   updateProjectSpec: (id: string, updatedSpec: Partial<ProjectSpec>) => void;
   deleteProject: (id: string) => void;
+  exportProjects: () => void;
+  importProjectsFromFile: (file: File) => Promise<void>;
 }
 
 const defaultSpec: ProjectSpec = {
@@ -38,20 +43,7 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({ children })
           spec: p.spec ? { ...defaultSpec, ...p.spec } : { ...defaultSpec }
         }));
       }
-      const legacyName = localStorage.getItem('blueprint_project_name');
-      if (legacyName && legacyName.trim()) {
-        const initial: Project = {
-          id: 'proj_' + Date.now(),
-          name: legacyName.trim(),
-          spec: { ...defaultSpec },
-          createdAt: Date.now(),
-          updatedAt: Date.now()
-        };
-        return [initial];
-      }
-    } catch (e) {
-      console.error('Failed to parse projects from localStorage', e);
-    }
+    } catch (e) {}
     return [];
   });
 
@@ -71,11 +63,41 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({ children })
   const [isCreatingNew, setIsCreatingNew] = useState(false);
   const [editingProjectId, setEditingProjectId] = useState<string | null>(null);
   const [projectToDelete, setProjectToDelete] = useState<Project | null>(null);
+  const [storageSource, setStorageSource] = useState<'disk' | 'local'>('local');
+  const [isLoaded, setIsLoaded] = useState(false);
 
-  // Sync projects list to localStorage
+  const lastSavedJsonRef = React.useRef<string>('');
+
+  // Load from disk API on startup
   useEffect(() => {
-    localStorage.setItem('blueprint_projects_list', JSON.stringify(projects));
-  }, [projects]);
+    let isSubscribed = true;
+    storageService.loadProjects().then(({ projects: loadedProjects, source }) => {
+      if (!isSubscribed) return;
+      setStorageSource(source);
+      if (loadedProjects && loadedProjects.length > 0) {
+        lastSavedJsonRef.current = JSON.stringify(loadedProjects);
+        setProjects(loadedProjects);
+        if (!activeProjectId || !loadedProjects.some(p => p.id === activeProjectId)) {
+          setActiveProjectId(loadedProjects[0].id);
+        }
+      }
+      setIsLoaded(true);
+    }).catch(err => {
+      console.warn('Async disk load fallback:', err);
+      setIsLoaded(true);
+    });
+    return () => { isSubscribed = false; };
+  }, []);
+
+  // Sync projects list to storage whenever projects state updates (only if content changed)
+  useEffect(() => {
+    if (!isLoaded) return;
+    const currentJson = JSON.stringify(projects);
+    if (currentJson === lastSavedJsonRef.current) return;
+    
+    lastSavedJsonRef.current = currentJson;
+    storageService.saveProjects(projects);
+  }, [projects, isLoaded]);
 
   // Sync active project to localStorage
   useEffect(() => {
@@ -158,6 +180,39 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({ children })
     setProjectToDelete(null);
   };
 
+  const exportProjects = () => {
+    storageService.exportProjectsToFile(projects);
+  };
+
+  const importProjectsFromFile = async (file: File) => {
+    try {
+      const imported = await storageService.importProjectsFromFile(file);
+      if (imported.length === 0) return;
+      
+      setProjects(prev => {
+        const map = new Map<string, Project>();
+        prev.forEach(p => map.set(p.id, p));
+        imported.forEach(p => {
+          map.set(p.id, {
+            ...p,
+            spec: p.spec ? { ...defaultSpec, ...p.spec } : { ...defaultSpec }
+          });
+        });
+        const combined = Array.from(map.values());
+        storageService.saveProjects(combined);
+        return combined;
+      });
+
+      if (imported.length > 0) {
+        setActiveProjectId(imported[0].id);
+        setIsCreatingNew(false);
+      }
+    } catch (err) {
+      console.error('Import failed:', err);
+      alert('Failed to import project file. Please check file format.');
+    }
+  };
+
   return (
     <ProjectContext.Provider
       value={{
@@ -167,6 +222,8 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({ children })
         isCreatingNew,
         editingProjectId,
         projectToDelete,
+        storageSource,
+        isLoaded,
         setIsCreatingNew,
         setEditingProjectId,
         setProjectToDelete,
@@ -174,7 +231,9 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({ children })
         createProject,
         renameProject,
         updateProjectSpec,
-        deleteProject
+        deleteProject,
+        exportProjects,
+        importProjectsFromFile
       }}
     >
       {children}
@@ -189,3 +248,4 @@ export const useProjects = (): ProjectContextType => {
   }
   return context;
 };
+

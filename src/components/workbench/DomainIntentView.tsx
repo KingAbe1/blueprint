@@ -283,8 +283,65 @@ export const DomainIntentView: React.FC<DomainIntentViewProps> = ({ onProceedToI
   return (
     <div className="flex-1 flex flex-col overflow-y-auto w-full">
       {/* Main Document Body */}
-      <div className="p-8 space-y-7 w-full max-w-7xl mx-auto">
+      <div className="p-6 md:p-8 space-y-7 w-full max-w-7xl mx-auto">
         
+        {/* Project Overview Hero Banner */}
+        <div className={`p-6 rounded-2xl border transition-all relative overflow-hidden ${
+          isDark 
+            ? 'bg-gradient-to-r from-[#0F1322] via-[#121628] to-[#0D101C] border-[#1F2438] text-white shadow-xl' 
+            : 'bg-gradient-to-r from-blue-50/80 via-indigo-50/40 to-slate-50 border-blue-100 text-slate-900 shadow-xs'
+        }`}>
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 relative z-10">
+            <div className="space-y-1.5">
+              <div className="flex items-center space-x-2">
+                <span className="text-[10px] font-mono px-2.5 py-0.5 rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/20 font-semibold uppercase tracking-wide">
+                  Step 1 • System Architecture Specification
+                </span>
+                <span className="text-[10px] font-mono text-emerald-400 flex items-center space-x-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                  <span>Blueprint Active</span>
+                </span>
+              </div>
+              <h2 className="text-xl font-bold tracking-tight">
+                {activeProject.name || 'Project Blueprint Overview'}
+              </h2>
+              <p className={`text-xs max-w-2xl leading-relaxed ${isDark ? 'text-[#8E92A6]' : 'text-slate-600'}`}>
+                Define high-level domain intent, target platforms, and architectural invariants. AI synthesizes your blueprint into type-safe code contracts.
+              </p>
+            </div>
+
+            {/* Quick Stats Grid */}
+            <div className="flex items-center space-x-2.5 shrink-0 self-start md:self-auto">
+              <div className={`px-3 py-2 rounded-xl border text-center ${
+                isDark ? 'bg-[#15192C] border-[#22283E]' : 'bg-white border-slate-200 shadow-2xs'
+              }`}>
+                <div className="text-[10px] font-mono text-slate-400 uppercase">Entities</div>
+                <div className="text-xs font-bold font-mono text-blue-400">
+                  {spec.coreEntities?.length || 0} Defined
+                </div>
+              </div>
+
+              <div className={`px-3 py-2 rounded-xl border text-center ${
+                isDark ? 'bg-[#15192C] border-[#22283E]' : 'bg-white border-slate-200 shadow-2xs'
+              }`}>
+                <div className="text-[10px] font-mono text-slate-400 uppercase">Platform</div>
+                <div className="text-xs font-bold font-mono text-purple-400">
+                  {targetPlatforms.length > 0 ? targetPlatforms[0] : 'Auto-Detect'}
+                </div>
+              </div>
+
+              <div className={`px-3 py-2 rounded-xl border text-center ${
+                isDark ? 'bg-[#15192C] border-[#22283E]' : 'bg-white border-slate-200 shadow-2xs'
+              }`}>
+                <div className="text-[10px] font-mono text-slate-400 uppercase">AI Engine</div>
+                <div className="text-xs font-bold font-mono text-emerald-400">
+                  {isAiConfigured ? (settings.providers[settings.activeProvider]?.name || 'Active') : 'Standard'}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
         {/* Section 1: Project Description */}
         <div className={`rounded-xl border p-6 space-y-4 transition-all focus-within:border-blue-500/70 focus-within:ring-1 focus-within:ring-blue-500/20 ${
           isDark ? 'studio-panel-dark' : 'studio-panel-light'
@@ -321,6 +378,53 @@ export const DomainIntentView: React.FC<DomainIntentViewProps> = ({ onProceedToI
             </button>
           </div>
 
+          {/* Quick Preset Prompts */}
+          <div className="space-y-1.5 pt-1">
+            <span className={`text-[10px] font-mono uppercase font-semibold ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+              💡 Quick Architecture Templates (Click to apply):
+            </span>
+            <div className="flex flex-wrap items-center gap-2">
+              {[
+                {
+                  label: '🛍️ SaaS Marketplace',
+                  text: 'A high-scale SaaS subscription marketplace with multi-tenant workspace management, Stripe billing, role-based access control (RBAC), and real-time email notification alerts.'
+                },
+                {
+                  label: '🤖 AI Autonomous Copilot',
+                  text: 'An AI-powered autonomous copilot assistant featuring streaming LLM responses, RAG vector retrieval, custom tool execution, and session persistent chat memory.'
+                },
+                {
+                  label: '📊 Real-Time Analytics',
+                  text: 'A high-throughput real-time telemetry dashboard with WebSocket data feeds, sub-millisecond query caching, interactive charts, and anomaly alerting triggers.'
+                },
+                {
+                  label: '📱 E-Commerce Mobile App',
+                  text: 'A cross-platform mobile app with product discovery, instant search filtering, secure Stripe Apple Pay checkout, and push notification order updates.'
+                },
+                {
+                  label: '⚡ DevOps CLI Tool',
+                  text: 'A high-speed terminal CLI developer utility for automated cloud deployment, infrastructure linting, environment secret rotation, and local sandbox verification.'
+                }
+              ].map((preset, idx) => (
+                <button
+                  key={idx}
+                  type="button"
+                  onClick={() => {
+                    handleDescriptionChange(preset.text);
+                    notify.info(`Applied template: ${preset.label}`);
+                  }}
+                  className={`text-[11px] px-2.5 py-1 rounded-lg border transition-all cursor-pointer font-medium ${
+                    isDark 
+                      ? 'bg-[#151722] border-[#242738] text-slate-300 hover:text-white hover:border-blue-500/50 hover:bg-[#1C1F2E]' 
+                      : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-blue-50 hover:border-blue-300'
+                  }`}
+                >
+                  {preset.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
           {/* If generating/polishing description, show clean loading state */}
           {isGenerating ? (
             <div className={`p-8 rounded-xl border border-dashed flex flex-col items-center justify-center space-y-3 transition-all animate-in fade-in duration-150 ${
@@ -335,7 +439,7 @@ export const DomainIntentView: React.FC<DomainIntentViewProps> = ({ onProceedToI
               </div>
             </div>
           ) : (
-            <div className="relative">
+            <div className="relative space-y-2">
               <textarea
                 id="system-objective-input"
                 rows={5}
@@ -348,6 +452,19 @@ export const DomainIntentView: React.FC<DomainIntentViewProps> = ({ onProceedToI
                     : 'bg-[#F8FAFC] border-slate-200/80 text-slate-900 placeholder-slate-400 focus:border-slate-300'
                 }`}
               />
+              
+              {/* Word & Character Count Bar */}
+              <div className="flex items-center justify-between text-[10.5px] font-mono px-1 text-slate-500">
+                <div className="flex items-center space-x-2">
+                  <span>{(spec.description || '').trim() ? (spec.description || '').trim().split(/\s+/).length : 0} words</span>
+                  <span>•</span>
+                  <span>{(spec.description || '').length} characters</span>
+                </div>
+                <div className="flex items-center space-x-1.5">
+                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                  <span className="text-emerald-400 font-semibold">Specification Synced</span>
+                </div>
+              </div>
             </div>
           )}
 
@@ -434,25 +551,27 @@ export const DomainIntentView: React.FC<DomainIntentViewProps> = ({ onProceedToI
 
           {/* Guided Step-by-Step Questionnaire Wizard */}
           {isWizardMode && (
-            <div className={`p-6 rounded-xl border space-y-6 animate-in fade-in zoom-in-98 duration-200 ${
-              isDark ? 'bg-[#111217] border-[#22242E]' : 'bg-slate-50/80 border-slate-200/90 shadow-2xs'
+            <div className={`p-6 sm:p-7 rounded-2xl border space-y-6 animate-in fade-in zoom-in-98 duration-300 relative overflow-hidden ${
+              isDark 
+                ? 'bg-[#101117]/90 border-white/[0.08] shadow-[0_16px_40px_-12px_rgba(0,0,0,0.6)] backdrop-blur-xl' 
+                : 'bg-white/95 border-slate-200/90 shadow-[0_16px_40px_-12px_rgba(15,23,42,0.08)] backdrop-blur-xl'
             }`}>
               
               {/* Wizard Step Progress Header */}
-              <div className="flex items-center justify-between border-b pb-4 dark:border-[#1E2028] border-slate-200/80">
-                <div className="space-y-1">
-                  <div className="flex items-center space-x-2">
-                    <span className="text-[10px] font-mono uppercase font-bold text-blue-500 bg-blue-500/10 px-2 py-0.5 rounded-full border border-blue-500/20">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b pb-5 dark:border-white/[0.08] border-slate-200/80">
+                <div className="space-y-1.5">
+                  <div className="flex items-center space-x-2.5">
+                    <span className="text-[10px] font-mono uppercase font-extrabold text-blue-500 bg-blue-500/10 px-2.5 py-1 rounded-full border border-blue-500/20 tracking-wider">
                       Question {wizardStep} of 4
                     </span>
-                    <span className={`text-xs font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                    <span className={`text-sm font-bold tracking-tight ${isDark ? 'text-white' : 'text-slate-900'}`}>
                       {wizardStep === 1 && 'Target Deployment Platform'}
                       {wizardStep === 2 && `Application Architecture (${targetPlatforms.length > 0 ? targetPlatforms[0] : 'Auto Tailored'})`}
                       {wizardStep === 3 && 'User Interface & Styling System'}
                       {wizardStep === 4 && 'Backend Language & Database Ecosystem'}
                     </span>
                   </div>
-                  <p className={`text-xs ${isDark ? 'text-[#8E8F99]' : 'text-slate-500'}`}>
+                  <p className={`text-xs leading-relaxed ${isDark ? 'text-[#9A9CA6]' : 'text-slate-500'}`}>
                     {wizardStep === 1 && 'Where will your software and users run this? Select your primary target ecosystems.'}
                     {wizardStep === 2 && 'Based on your selected platform, choose an optimal architectural topology and production guardrails.'}
                     {wizardStep === 3 && 'How would you like to build your components, layouts, and visual design?'}
@@ -461,11 +580,16 @@ export const DomainIntentView: React.FC<DomainIntentViewProps> = ({ onProceedToI
                 </div>
 
                 {/* Progress Bar */}
-                <div className="w-28 bg-slate-200 dark:bg-[#1D1F28] rounded-full h-1.5 overflow-hidden shrink-0">
-                  <div 
-                    className="bg-blue-600 h-full rounded-full transition-all duration-300"
-                    style={{ width: `${(wizardStep / 4) * 100}%` }}
-                  />
+                <div className="flex items-center space-x-2 shrink-0">
+                  <div className="w-32 bg-slate-200/80 dark:bg-[#1A1C26] rounded-full h-2 overflow-hidden p-0.5 border dark:border-white/[0.06] border-slate-200">
+                    <div 
+                      className="bg-gradient-to-r from-blue-500 via-indigo-500 to-cyan-400 h-full rounded-full transition-all duration-500 shadow-[0_0_10px_rgba(59,130,246,0.5)]"
+                      style={{ width: `${(wizardStep / 4) * 100}%` }}
+                    />
+                  </div>
+                  <span className={`text-[10px] font-mono font-bold ${isDark ? 'text-blue-400' : 'text-blue-600'}`}>
+                    {Math.round((wizardStep / 4) * 100)}%
+                  </span>
                 </div>
               </div>
 
@@ -561,95 +685,124 @@ export const DomainIntentView: React.FC<DomainIntentViewProps> = ({ onProceedToI
                               } else {
                                 updateProjectSpec(activeProject.id, { targetPlatforms: [opt.id] });
                               }
-                            }}
-                            className={`p-3.5 rounded-xl border flex flex-col justify-between space-y-3 cursor-pointer transition-all ${
-                              isSelected
-                                ? isDark
-                                  ? 'bg-blue-600/15 border-blue-500 ring-1 ring-blue-500/30 shadow-xs'
-                                  : 'bg-blue-50/70 border-blue-600 ring-1 ring-blue-500/20 shadow-xs'
-                                : isDark
-                                  ? 'bg-[#15161C] border-[#22242D] hover:border-[#323644]'
-                                  : 'bg-white border-slate-200 hover:border-slate-300'
-                            }`}
-                          >
-                            <div className="flex items-start justify-between">
-                              <div className="flex items-center space-x-2">
-                                <div className={`p-1.5 rounded-lg ${isSelected ? 'bg-blue-600 text-white' : isDark ? 'bg-[#1F212B] text-slate-300' : 'bg-slate-100 text-slate-700'}`}>
-                                  <Icon className="w-4 h-4" />
-                                </div>
-                                <div>
-                                  <div className={`text-xs font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>{opt.title}</div>
-                                  <div className="flex items-center space-x-1.5 mt-0.5">
-                                    <span className={`text-[10px] font-mono ${isDark ? 'text-blue-400' : 'text-blue-700'}`}>{opt.subtitle}</span>
-                                    <span className={`text-[9px] px-1.5 py-0.2 rounded font-mono ${
-                                      isDark ? 'bg-[#1D1F28] text-slate-400 border border-[#2B2D3A]' : 'bg-slate-100 text-slate-600 border border-slate-200'
-                                    }`}>
-                                      {opt.badge}
-                                    </span>
-                                  </div>
-                                </div>
-                              </div>
-                              <div className={`w-4 h-4 rounded-full border flex items-center justify-center shrink-0 ${isSelected ? 'bg-blue-600 border-blue-600 text-white' : isDark ? 'border-[#333644]' : 'border-slate-300'}`}>
-                                {isSelected && <Check className="w-2.5 h-2.5" />}
-                              </div>
-                            </div>
-                            <p className={`text-[11px] leading-relaxed ${isDark ? 'text-[#8E8F99]' : 'text-slate-500'}`}>
-                              {opt.desc}
-                            </p>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
+                             }}
+                             className={`p-4 rounded-2xl border flex flex-col justify-between space-y-3 cursor-pointer transition-all duration-300 relative group overflow-hidden ${
+                               isSelected
+                                 ? isDark
+                                   ? 'card-archetype-selected-dark ring-2 ring-blue-500/30'
+                                   : 'card-archetype-selected-light ring-2 ring-blue-500/20'
+                                 : isDark
+                                   ? 'card-archetype-dark'
+                                   : 'card-archetype-light'
+                             }`}
+                           >
+                             {/* Subtle glow background for active card */}
+                             {isSelected && (
+                               <div className="absolute top-0 right-0 -mr-6 -mt-6 w-20 h-20 rounded-full bg-blue-500/10 blur-xl pointer-events-none" />
+                             )}
 
-                  {/* Multi-Platform Detailed Tags */}
-                  <div className={`p-4 rounded-xl border space-y-2.5 ${
-                    isDark ? 'bg-[#14151B] border-[#22242E]' : 'bg-slate-100/70 border-slate-200'
-                  }`}>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-1.5">
-                        <Globe className="w-3.5 h-3.5 text-blue-500" />
-                        <span className={`text-xs font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                          2. Granular Target Platforms (Toggle All That Apply)
-                        </span>
-                      </div>
-                      <span className={`text-[10px] font-mono ${isDark ? 'text-[#71727D]' : 'text-slate-500'}`}>
-                        {targetPlatforms.length === 0 ? 'Auto / All applicable' : `${targetPlatforms.length} selected`}
-                      </span>
-                    </div>
+                             <div className="flex items-start justify-between relative z-10">
+                               <div className="flex items-center space-x-2.5">
+                                 <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 transition-transform group-hover:scale-105 ${
+                                   isSelected 
+                                     ? 'bg-gradient-to-br from-blue-600 to-indigo-600 text-white shadow-md shadow-blue-500/25' 
+                                     : isDark 
+                                       ? 'bg-[#1C1E2A] border border-[#2B2D3C] text-blue-400 group-hover:border-blue-500/30' 
+                                       : 'bg-blue-50 border border-blue-100 text-blue-600 group-hover:bg-blue-100/50'
+                                 }`}>
+                                   <Icon className="w-4 h-4" />
+                                 </div>
+                                 <div className="min-w-0">
+                                   <div className={`text-xs font-bold tracking-tight truncate ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                                     {opt.title}
+                                   </div>
+                                   <div className="flex items-center space-x-1.5 mt-0.5">
+                                     <span className={`text-[10px] font-mono font-medium ${isDark ? 'text-blue-400' : 'text-blue-600'}`}>
+                                       {opt.subtitle}
+                                     </span>
+                                     <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-mono uppercase tracking-wider font-semibold ${
+                                       isDark 
+                                         ? 'bg-blue-500/10 text-slate-300 border border-blue-500/20' 
+                                         : 'bg-slate-100 text-slate-600 border border-slate-200'
+                                     }`}>
+                                       {opt.badge}
+                                     </span>
+                                   </div>
+                                 </div>
+                               </div>
 
-                    <div className="flex flex-wrap gap-2">
-                      {[
-                        { id: 'Web Browser', label: '🌐 Web Browser' },
-                        { id: 'iOS', label: '🍏 iOS' },
-                        { id: 'Android', label: '🤖 Android' },
-                        { id: 'macOS', label: '🍎 macOS' },
-                        { id: 'Windows', label: '🪟 Windows' },
-                        { id: 'Linux', label: '🐧 Linux' },
-                        { id: 'Edge / Cloud Worker', label: '☁️ Edge / Serverless' },
-                        { id: 'Terminal / CLI', label: '⌨️ Terminal / CLI' }
-                      ].map((plat) => {
-                        const isSelected = targetPlatforms.includes(plat.id);
-                        return (
-                          <button
-                            key={plat.id}
-                            type="button"
-                            onClick={() => togglePlatform(plat.id)}
-                            className={`text-xs px-2.5 py-1 rounded-lg border font-medium transition-all cursor-pointer flex items-center space-x-1.5 ${
-                              isSelected
-                                ? 'bg-blue-600 border-blue-600 text-white shadow-xs'
-                                : isDark
-                                  ? 'bg-[#181A22] border-[#262834] text-slate-300 hover:border-slate-600'
-                                  : 'bg-white border-slate-200 text-slate-700 hover:border-slate-300'
-                            }`}
-                          >
-                            <span>{plat.label}</span>
-                            {isSelected && <Check className="w-3 h-3" />}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
+                               <div className={`w-5 h-5 rounded-full border flex items-center justify-center shrink-0 transition-all duration-200 ${
+                                 isSelected 
+                                   ? 'bg-blue-600 border-blue-600 text-white shadow-sm shadow-blue-500/30 scale-105' 
+                                   : isDark 
+                                     ? 'border-[#333644] group-hover:border-blue-400/50' 
+                                     : 'border-slate-300 group-hover:border-blue-400'
+                               }`}>
+                                 {isSelected && <Check className="w-3 h-3 stroke-[2.5]" />}
+                               </div>
+                             </div>
+
+                             <p className={`text-[11px] leading-relaxed relative z-10 ${isDark ? 'text-[#9A9CA6]' : 'text-slate-500'}`}>
+                               {opt.desc}
+                             </p>
+                           </div>
+                         );
+                       })}
+                     </div>
+                   </div>
+
+                   {/* Multi-Platform Detailed Tags */}
+                   <div className={`p-4 rounded-2xl border space-y-3 transition-all ${
+                     isDark ? 'bg-[#14151C] border-[#222430]' : 'bg-slate-100/70 border-slate-200/90 shadow-2xs'
+                   }`}>
+                     <div className="flex items-center justify-between">
+                       <div className="flex items-center space-x-2">
+                         <div className="w-6 h-6 rounded-lg bg-blue-500/10 border border-blue-500/20 flex items-center justify-center">
+                           <Globe className="w-3.5 h-3.5 text-blue-500" />
+                         </div>
+                         <span className={`text-xs font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                           2. Granular Target Platforms (Toggle All That Apply)
+                         </span>
+                       </div>
+                       <span className={`text-[10px] font-mono px-2 py-0.5 rounded-full border ${
+                         isDark ? 'bg-white/[0.04] border-white/[0.08] text-slate-400' : 'bg-white border-slate-200 text-slate-600 shadow-2xs'
+                       }`}>
+                         {targetPlatforms.length === 0 ? 'Auto / All applicable' : `${targetPlatforms.length} selected`}
+                       </span>
+                     </div>
+
+                     <div className="flex flex-wrap gap-2">
+                       {[
+                         { id: 'Web Browser', label: '🌐 Web Browser', accent: 'blue' },
+                         { id: 'iOS', label: '🍏 iOS', accent: 'emerald' },
+                         { id: 'Android', label: '🤖 Android', accent: 'green' },
+                         { id: 'macOS', label: '🍎 macOS', accent: 'rose' },
+                         { id: 'Windows', label: '🪟 Windows', accent: 'cyan' },
+                         { id: 'Linux', label: '🐧 Linux', accent: 'amber' },
+                         { id: 'Edge / Cloud Worker', label: '☁️ Edge / Serverless', accent: 'violet' },
+                         { id: 'Terminal / CLI', label: '⌨️ Terminal / CLI', accent: 'slate' }
+                       ].map((plat) => {
+                         const isSelected = targetPlatforms.includes(plat.id);
+                         return (
+                           <button
+                             key={plat.id}
+                             type="button"
+                             onClick={() => togglePlatform(plat.id)}
+                             className={`text-xs px-3 py-1.5 rounded-xl border font-medium transition-all duration-200 cursor-pointer flex items-center space-x-1.5 ${
+                               isSelected
+                                 ? 'bg-gradient-to-r from-blue-600 to-indigo-600 border-blue-500 text-white shadow-md shadow-blue-500/20 scale-[1.02]'
+                                 : isDark
+                                   ? 'bg-[#181A24] border-[#272A38] text-slate-300 hover:border-blue-500/40 hover:bg-[#1E202E]'
+                                   : 'bg-white border-slate-200 text-slate-700 hover:border-blue-300 hover:bg-blue-50/30 shadow-2xs'
+                             }`}
+                           >
+                             <span>{plat.label}</span>
+                             {isSelected && <Check className="w-3.5 h-3.5 stroke-[2.5]" />}
+                           </button>
+                         );
+                       })}
+                     </div>
+                   </div>
 
                   {/* Custom Platform write-in */}
                   <div className="flex items-center space-x-2 pt-1">
@@ -969,38 +1122,54 @@ export const DomainIntentView: React.FC<DomainIntentViewProps> = ({ onProceedToI
                             <div
                               key={opt.id}
                               onClick={() => handleUpdateArchitecture(opt.id)}
-                              className={`p-3.5 rounded-xl border flex flex-col justify-between space-y-3 cursor-pointer transition-all ${
+                              className={`p-4 rounded-2xl border flex flex-col justify-between space-y-3 cursor-pointer transition-all duration-300 relative group overflow-hidden ${
                                 isSelected
                                   ? isDark
-                                    ? 'bg-blue-600/15 border-blue-500 ring-1 ring-blue-500/30 shadow-xs'
-                                    : 'bg-blue-50/70 border-blue-600 ring-1 ring-blue-500/20 shadow-xs'
+                                    ? 'card-archetype-selected-dark ring-2 ring-blue-500/30'
+                                    : 'card-archetype-selected-light ring-2 ring-blue-500/20'
                                   : isDark
-                                    ? 'bg-[#15161C] border-[#22242D] hover:border-[#323644]'
-                                    : 'bg-white border-slate-200 hover:border-slate-300'
+                                    ? 'card-archetype-dark'
+                                    : 'card-archetype-light'
                               }`}
                             >
-                              <div className="flex items-start justify-between">
-                                <div className="flex items-center space-x-2">
-                                  <div className={`p-1.5 rounded-lg ${isSelected ? 'bg-blue-600 text-white' : isDark ? 'bg-[#1F212B] text-slate-300' : 'bg-slate-100 text-slate-700'}`}>
+                              {isSelected && (
+                                <div className="absolute top-0 right-0 -mr-6 -mt-6 w-20 h-20 rounded-full bg-blue-500/10 blur-xl pointer-events-none" />
+                              )}
+
+                              <div className="flex items-start justify-between relative z-10">
+                                <div className="flex items-center space-x-2.5">
+                                  <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 transition-transform group-hover:scale-105 ${
+                                    isSelected 
+                                      ? 'bg-gradient-to-br from-blue-600 to-indigo-600 text-white shadow-md shadow-blue-500/25' 
+                                      : isDark 
+                                        ? 'bg-[#1C1E2A] border border-[#2B2D3C] text-blue-400 group-hover:border-blue-500/30' 
+                                        : 'bg-blue-50 border border-blue-100 text-blue-600 group-hover:bg-blue-100/50'
+                                  }`}>
                                     <Icon className="w-4 h-4" />
                                   </div>
-                                  <div>
-                                    <div className={`text-xs font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>{opt.title}</div>
+                                  <div className="min-w-0">
+                                    <div className={`text-xs font-bold tracking-tight truncate ${isDark ? 'text-white' : 'text-slate-900'}`}>{opt.title}</div>
                                     <div className="flex items-center space-x-1.5 mt-0.5">
-                                      <span className={`text-[10px] font-mono ${isDark ? 'text-blue-400' : 'text-blue-700'}`}>{opt.subtitle}</span>
-                                      <span className={`text-[9px] px-1.5 py-0.2 rounded font-mono ${
-                                        isDark ? 'bg-[#1D1F28] text-slate-400 border border-[#2B2D3A]' : 'bg-slate-100 text-slate-600 border border-slate-200'
+                                      <span className={`text-[10px] font-mono font-medium ${isDark ? 'text-blue-400' : 'text-blue-600'}`}>{opt.subtitle}</span>
+                                      <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-mono uppercase tracking-wider font-semibold ${
+                                        isDark ? 'bg-blue-500/10 text-slate-300 border border-blue-500/20' : 'bg-slate-100 text-slate-600 border border-slate-200'
                                       }`}>
                                         {opt.badge}
                                       </span>
                                     </div>
                                   </div>
                                 </div>
-                                <div className={`w-4 h-4 rounded-full border flex items-center justify-center shrink-0 ${isSelected ? 'bg-blue-600 border-blue-600 text-white' : isDark ? 'border-[#333644]' : 'border-slate-300'}`}>
-                                  {isSelected && <Check className="w-2.5 h-2.5" />}
+                                <div className={`w-5 h-5 rounded-full border flex items-center justify-center shrink-0 transition-all duration-200 ${
+                                  isSelected 
+                                    ? 'bg-blue-600 border-blue-600 text-white shadow-sm shadow-blue-500/30 scale-105' 
+                                    : isDark 
+                                      ? 'border-[#333644] group-hover:border-blue-400/50' 
+                                      : 'border-slate-300 group-hover:border-blue-400'
+                                }`}>
+                                  {isSelected && <Check className="w-3 h-3 stroke-[2.5]" />}
                                 </div>
                               </div>
-                              <p className={`text-[11px] leading-relaxed ${isDark ? 'text-[#8E8F99]' : 'text-slate-500'}`}>
+                              <p className={`text-[11px] leading-relaxed relative z-10 ${isDark ? 'text-[#9A9CA6]' : 'text-slate-500'}`}>
                                 {opt.desc}
                               </p>
                             </div>
@@ -1207,31 +1376,47 @@ export const DomainIntentView: React.FC<DomainIntentViewProps> = ({ onProceedToI
                           <div
                             key={opt.id}
                             onClick={() => handleUpdateStyling(opt.id)}
-                            className={`p-4 rounded-xl border flex flex-col justify-between space-y-3 cursor-pointer transition-all ${
+                            className={`p-4 rounded-2xl border flex flex-col justify-between space-y-3 cursor-pointer transition-all duration-300 relative group overflow-hidden ${
                               isSelected
                                 ? isDark
-                                  ? 'bg-blue-600/15 border-blue-500 ring-1 ring-blue-500/30 shadow-xs'
-                                  : 'bg-blue-50/70 border-blue-600 ring-1 ring-blue-500/20 shadow-xs'
+                                  ? 'card-archetype-selected-dark ring-2 ring-blue-500/30'
+                                  : 'card-archetype-selected-light ring-2 ring-blue-500/20'
                                 : isDark
-                                  ? 'bg-[#15161C] border-[#22242D] hover:border-[#323644]'
-                                  : 'bg-white border-slate-200 hover:border-slate-300'
+                                  ? 'card-archetype-dark'
+                                  : 'card-archetype-light'
                             }`}
                           >
-                            <div className="flex items-start justify-between">
-                              <div className="flex items-center space-x-2">
-                                <div className={`p-1.5 rounded-lg ${isSelected ? 'bg-blue-600 text-white' : isDark ? 'bg-[#1F212B] text-slate-300' : 'bg-slate-100 text-slate-700'}`}>
+                            {isSelected && (
+                              <div className="absolute top-0 right-0 -mr-6 -mt-6 w-20 h-20 rounded-full bg-blue-500/10 blur-xl pointer-events-none" />
+                            )}
+
+                            <div className="flex items-start justify-between relative z-10">
+                              <div className="flex items-center space-x-2.5">
+                                <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 transition-transform group-hover:scale-105 ${
+                                  isSelected 
+                                    ? 'bg-gradient-to-br from-blue-600 to-indigo-600 text-white shadow-md shadow-blue-500/25' 
+                                    : isDark 
+                                      ? 'bg-[#1C1E2A] border border-[#2B2D3C] text-blue-400 group-hover:border-blue-500/30' 
+                                      : 'bg-blue-50 border border-blue-100 text-blue-600 group-hover:bg-blue-100/50'
+                                }`}>
                                   <Icon className="w-4 h-4" />
                                 </div>
-                                <div>
-                                  <div className={`text-xs font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>{opt.title}</div>
-                                  <div className={`text-[10px] font-mono ${isDark ? 'text-blue-400' : 'text-blue-700'}`}>{opt.subtitle}</div>
+                                <div className="min-w-0">
+                                  <div className={`text-xs font-bold tracking-tight truncate ${isDark ? 'text-white' : 'text-slate-900'}`}>{opt.title}</div>
+                                  <div className={`text-[10px] font-mono font-medium ${isDark ? 'text-blue-400' : 'text-blue-600'}`}>{opt.subtitle}</div>
                                 </div>
                               </div>
-                              <div className={`w-4 h-4 rounded-full border flex items-center justify-center ${isSelected ? 'bg-blue-600 border-blue-600 text-white' : isDark ? 'border-[#333644]' : 'border-slate-300'}`}>
-                                {isSelected && <Check className="w-2.5 h-2.5" />}
+                              <div className={`w-5 h-5 rounded-full border flex items-center justify-center shrink-0 transition-all duration-200 ${
+                                isSelected 
+                                  ? 'bg-blue-600 border-blue-600 text-white shadow-sm shadow-blue-500/30 scale-105' 
+                                  : isDark 
+                                    ? 'border-[#333644] group-hover:border-blue-400/50' 
+                                    : 'border-slate-300 group-hover:border-blue-400'
+                              }`}>
+                                {isSelected && <Check className="w-3 h-3 stroke-[2.5]" />}
                               </div>
                             </div>
-                            <p className={`text-[11px] leading-relaxed ${isDark ? 'text-[#8E8F99]' : 'text-slate-500'}`}>
+                            <p className={`text-[11px] leading-relaxed relative z-10 ${isDark ? 'text-[#9A9CA6]' : 'text-slate-500'}`}>
                               {opt.desc}
                             </p>
                           </div>
@@ -1419,31 +1604,47 @@ export const DomainIntentView: React.FC<DomainIntentViewProps> = ({ onProceedToI
                           <div
                             key={opt.id}
                             onClick={() => handleUpdateBackend(opt.id)}
-                            className={`p-4 rounded-xl border flex flex-col justify-between space-y-3 cursor-pointer transition-all ${
+                            className={`p-4 rounded-2xl border flex flex-col justify-between space-y-3 cursor-pointer transition-all duration-300 relative group overflow-hidden ${
                               isSelected
                                 ? isDark
-                                  ? 'bg-blue-600/15 border-blue-500 ring-1 ring-blue-500/30 shadow-xs'
-                                  : 'bg-blue-50/70 border-blue-600 ring-1 ring-blue-500/20 shadow-xs'
+                                  ? 'card-archetype-selected-dark ring-2 ring-blue-500/30'
+                                  : 'card-archetype-selected-light ring-2 ring-blue-500/20'
                                 : isDark
-                                  ? 'bg-[#15161C] border-[#22242D] hover:border-[#323644]'
-                                  : 'bg-white border-slate-200 hover:border-slate-300'
+                                  ? 'card-archetype-dark'
+                                  : 'card-archetype-light'
                             }`}
                           >
-                            <div className="flex items-start justify-between">
-                              <div className="flex items-center space-x-2">
-                                <div className={`p-1.5 rounded-lg ${isSelected ? 'bg-blue-600 text-white' : isDark ? 'bg-[#1F212B] text-slate-300' : 'bg-slate-100 text-slate-700'}`}>
+                            {isSelected && (
+                              <div className="absolute top-0 right-0 -mr-6 -mt-6 w-20 h-20 rounded-full bg-blue-500/10 blur-xl pointer-events-none" />
+                            )}
+
+                            <div className="flex items-start justify-between relative z-10">
+                              <div className="flex items-center space-x-2.5">
+                                <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 transition-transform group-hover:scale-105 ${
+                                  isSelected 
+                                    ? 'bg-gradient-to-br from-blue-600 to-indigo-600 text-white shadow-md shadow-blue-500/25' 
+                                    : isDark 
+                                      ? 'bg-[#1C1E2A] border border-[#2B2D3C] text-blue-400 group-hover:border-blue-500/30' 
+                                      : 'bg-blue-50 border border-blue-100 text-blue-600 group-hover:bg-blue-100/50'
+                                }`}>
                                   <Icon className="w-4 h-4" />
                                 </div>
-                                <div>
-                                  <div className={`text-xs font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>{opt.title}</div>
-                                  <div className={`text-[10px] font-mono ${isDark ? 'text-blue-400' : 'text-blue-700'}`}>{opt.subtitle}</div>
+                                <div className="min-w-0">
+                                  <div className={`text-xs font-bold tracking-tight truncate ${isDark ? 'text-white' : 'text-slate-900'}`}>{opt.title}</div>
+                                  <div className={`text-[10px] font-mono font-medium ${isDark ? 'text-blue-400' : 'text-blue-600'}`}>{opt.subtitle}</div>
                                 </div>
                               </div>
-                              <div className={`w-4 h-4 rounded-full border flex items-center justify-center ${isSelected ? 'bg-blue-600 border-blue-600 text-white' : isDark ? 'border-[#333644]' : 'border-slate-300'}`}>
-                                {isSelected && <Check className="w-2.5 h-2.5" />}
+                              <div className={`w-5 h-5 rounded-full border flex items-center justify-center shrink-0 transition-all duration-200 ${
+                                isSelected 
+                                  ? 'bg-blue-600 border-blue-600 text-white shadow-sm shadow-blue-500/30 scale-105' 
+                                  : isDark 
+                                    ? 'border-[#333644] group-hover:border-blue-400/50' 
+                                    : 'border-slate-300 group-hover:border-blue-400'
+                              }`}>
+                                {isSelected && <Check className="w-3 h-3 stroke-[2.5]" />}
                               </div>
                             </div>
-                            <p className={`text-[11px] leading-relaxed ${isDark ? 'text-[#8E8F99]' : 'text-slate-500'}`}>
+                            <p className={`text-[11px] leading-relaxed relative z-10 ${isDark ? 'text-[#9A9CA6]' : 'text-slate-500'}`}>
                               {opt.desc}
                             </p>
                           </div>
@@ -1469,17 +1670,19 @@ export const DomainIntentView: React.FC<DomainIntentViewProps> = ({ onProceedToI
               })()}
 
               {/* Wizard Bottom Controls */}
-              <div className="flex items-center justify-between pt-4 border-t dark:border-[#1E2028] border-slate-200/80">
-                <div className="flex items-center space-x-2">
+              <div className="flex items-center justify-between pt-5 border-t dark:border-white/[0.08] border-slate-200/80">
+                <div className="flex items-center space-x-2.5">
                   {wizardStep > 1 && (
                     <button
                       type="button"
                       onClick={() => setWizardStep((prev) => Math.max(1, prev - 1) as 1 | 2 | 3 | 4)}
-                      className={`text-xs px-3 py-2 rounded-lg border font-semibold transition-colors cursor-pointer ${
-                        isDark ? 'border-[#2D303B] text-slate-300 hover:bg-white/[0.06]' : 'border-slate-200 text-slate-700 hover:bg-slate-100'
+                      className={`text-xs px-4 py-2 rounded-xl border font-semibold transition-all duration-200 cursor-pointer flex items-center space-x-1.5 ${
+                        isDark 
+                          ? 'border-white/[0.1] text-slate-300 hover:text-white hover:bg-white/[0.06] hover:border-white/[0.18]' 
+                          : 'border-slate-200 text-slate-700 hover:text-slate-900 hover:bg-slate-100/80 shadow-2xs'
                       }`}
                     >
-                      Back
+                      <span>Back</span>
                     </button>
                   )}
 
@@ -1487,7 +1690,7 @@ export const DomainIntentView: React.FC<DomainIntentViewProps> = ({ onProceedToI
                     <button
                       type="button"
                       onClick={() => setIsWizardMode(false)}
-                      className={`text-xs px-3 py-2 rounded-lg transition-colors cursor-pointer ${
+                      className={`text-xs px-3 py-2 rounded-xl font-medium transition-colors cursor-pointer ${
                         isDark ? 'text-slate-400 hover:text-white' : 'text-slate-500 hover:text-slate-900'
                       }`}
                     >
@@ -1496,7 +1699,7 @@ export const DomainIntentView: React.FC<DomainIntentViewProps> = ({ onProceedToI
                   )}
                 </div>
 
-                <div className="flex items-center space-x-2">
+                <div className="flex items-center space-x-2.5">
                   <button
                     type="button"
                     onClick={() => {
@@ -1507,21 +1710,21 @@ export const DomainIntentView: React.FC<DomainIntentViewProps> = ({ onProceedToI
                       }
                     }}
                     disabled={wizardStep === 4 && (isAnalyzingStack || !spec.description?.trim())}
-                    className="btn-primary-blue disabled:opacity-50 px-4 py-2 rounded-lg text-xs font-semibold text-white flex items-center space-x-1.5 cursor-pointer shadow-sm"
+                    className="bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-600 hover:from-blue-500 hover:to-indigo-500 disabled:opacity-50 px-5 py-2.5 rounded-xl text-xs font-semibold text-white flex items-center space-x-2 cursor-pointer shadow-md shadow-blue-500/25 active:scale-98 transition-all group"
                   >
                     {isAnalyzingStack ? (
                       <>
-                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        <Loader2 className="w-4 h-4 animate-spin" />
                         <span>Analyzing Tech Stacks...</span>
                       </>
                     ) : wizardStep < 4 ? (
                       <>
                         <span>Next Question</span>
-                        <ArrowRight className="w-3.5 h-3.5" />
+                        <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
                       </>
                     ) : (
                       <>
-                        <Sparkles className="w-3.5 h-3.5" />
+                        <Sparkles className="w-4 h-4" />
                         <span>Generate Tailored Tech Stacks</span>
                       </>
                     )}
