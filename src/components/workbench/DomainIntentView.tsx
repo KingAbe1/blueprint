@@ -190,35 +190,8 @@ export const DomainIntentView: React.FC<DomainIntentViewProps> = ({ onProceedToI
 
   return (
     <div className="flex-1 flex flex-col overflow-y-auto w-full">
-      {/* Top Header Bar */}
-      <div className={`px-8 py-4 border-b flex items-center justify-between sticky top-0 z-20 backdrop-blur-md transition-colors ${
-        isDark ? 'bg-[#0E0F12]/90 border-[#23252C]' : 'bg-white/90 border-slate-200/60 shadow-2xs'
-      }`}>
-        <div className="flex items-center space-x-3">
-          <div className="flex items-center space-x-2">
-            <span className="text-[11px] font-mono font-bold text-blue-500 uppercase tracking-wider">
-              Step 1
-            </span>
-            <span className={`text-xs ${isDark ? 'text-[#5E606B]' : 'text-slate-300'}`}>/</span>
-            <h1 className={`text-sm font-semibold tracking-tight ${isDark ? 'text-white' : 'text-slate-900'}`}>
-              Project Overview & Tech Stack
-            </h1>
-          </div>
-        </div>
-
-        <div className="flex items-center space-x-3">
-          <button
-            onClick={onProceedToInvariants}
-            className="btn-primary-blue px-3.5 py-1.5 rounded-lg text-xs font-semibold text-white flex items-center space-x-1.5 cursor-pointer shadow-sm"
-          >
-            <span>Next: Data & Rules</span>
-            <ArrowRight className="w-3.5 h-3.5" />
-          </button>
-        </div>
-      </div>
-
       {/* Main Document Body */}
-      <div className="p-8 space-y-7 w-full">
+      <div className="p-8 space-y-7 w-full max-w-7xl mx-auto">
         
         {/* Section 1: Project Description */}
         <div className={`rounded-xl border p-6 space-y-4 transition-all focus-within:border-blue-500/70 focus-within:ring-1 focus-within:ring-blue-500/20 ${

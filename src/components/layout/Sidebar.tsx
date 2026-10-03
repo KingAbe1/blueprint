@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { 
   FileText, 
   Database, 
@@ -12,6 +12,7 @@ import {
 import { PhaseTab } from '../../types/project';
 import { useProjects } from '../../context/ProjectContext';
 import { useTheme } from '../../context/ThemeContext';
+import { ProjectDropdown } from '../project/ProjectDropdown';
 
 interface SidebarProps {
   activeTab: PhaseTab;
@@ -28,16 +29,46 @@ export const Sidebar: React.FC<SidebarProps> = ({
 }) => {
   const { activeProject } = useProjects();
   const { isDark } = useTheme();
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
   if (!activeProject) return null;
 
   return (
-    <aside className={`border-r flex flex-col justify-between transition-all duration-200 shrink-0 select-none overflow-y-auto min-h-0 ${
-      isCollapsed ? 'w-14' : 'w-60'
+    <aside className={`border-r flex flex-col justify-between transition-all duration-200 shrink-0 select-none min-h-0 ${
+      isCollapsed ? 'w-14' : 'w-64'
     } ${
       isDark ? 'bg-[#0E0F12] border-[#23252C]' : 'bg-white border-slate-200/60'
     }`}>
-      <div className={`${isCollapsed ? 'p-2 space-y-4' : 'p-3.5 space-y-4'}`}>
+      {/* Top Header of Sidebar: Logo & Project Switcher */}
+      <div className={`h-12 border-b flex items-center shrink-0 px-3 transition-colors ${
+        isDark ? 'border-[#23252C] bg-[#0E0F12]' : 'border-slate-200/60 bg-white'
+      } ${isCollapsed ? 'justify-center' : ''}`}>
+        {!isCollapsed ? (
+          <div className="flex items-center gap-2 min-w-0 flex-1">
+            {/* Logo Mark */}
+            <div className="w-5 h-5 rounded-md bg-blue-600 flex items-center justify-center shadow-sm shrink-0">
+              <div className="w-2 h-2 border-[1.5px] border-white rounded-[1px] rotate-45" />
+            </div>
+
+            {/* Brand + Project Dropdown / Switcher */}
+            <ProjectDropdown
+              isOpen={isDropdownOpen}
+              onClose={() => setIsDropdownOpen(false)}
+              onToggle={() => setIsDropdownOpen(prev => !prev)}
+            />
+          </div>
+        ) : (
+          <button
+            onClick={onToggleCollapse}
+            className="w-7 h-7 rounded-md bg-blue-600 flex items-center justify-center shadow-sm shrink-0 cursor-pointer hover:bg-blue-500 transition-colors"
+            title="Expand Sidebar (⌘B)"
+          >
+            <div className="w-2.5 h-2.5 border-[1.5px] border-white rounded-[1px] rotate-45" />
+          </button>
+        )}
+      </div>
+
+      <div className={`flex-1 overflow-y-auto ${isCollapsed ? 'p-2 space-y-4' : 'p-3.5 space-y-4'}`}>
         
         {/* Phase 1: Planning */}
         <div className="space-y-1">

@@ -15,9 +15,15 @@ interface ProjectDropdownProps {
   isOpen: boolean;
   onClose: () => void;
   onToggle: () => void;
+  compact?: boolean;
 }
 
-export const ProjectDropdown: React.FC<ProjectDropdownProps> = ({ isOpen, onClose, onToggle }) => {
+export const ProjectDropdown: React.FC<ProjectDropdownProps> = ({ 
+  isOpen, 
+  onClose, 
+  onToggle,
+  compact = false 
+}) => {
   const { 
     projects, 
     activeProjectId, 
@@ -43,25 +49,32 @@ export const ProjectDropdown: React.FC<ProjectDropdownProps> = ({ isOpen, onClos
   }, [isOpen, onClose]);
 
   return (
-    <div className="relative" ref={dropdownRef}>
-      <div className="flex items-center space-x-2">
-        <span className={`font-bold text-xs tracking-tight uppercase ${isDark ? 'text-white' : 'text-slate-900'}`}>
-          Blueprint
-        </span>
-        <span className={`text-[11px] ${isDark ? 'text-[#60616B]' : 'text-slate-400'}`}>/</span>
+    <div className="relative min-w-0 flex-1" ref={dropdownRef}>
+      <div className="flex items-center min-w-0 w-full">
+        {!compact && (
+          <div className="flex items-center space-x-2 mr-2 shrink-0">
+            <span className={`font-bold text-xs tracking-tight uppercase ${isDark ? 'text-white' : 'text-slate-900'}`}>
+              Blueprint
+            </span>
+            <span className={`text-[11px] ${isDark ? 'text-[#60616B]' : 'text-slate-400'}`}>/</span>
+          </div>
+        )}
         
         {activeProject ? (
           <button
             onClick={onToggle}
-            className={`flex items-center space-x-1.5 px-2 py-1 rounded-md text-xs font-medium border transition-all cursor-pointer ${
+            className={`flex items-center justify-between space-x-1 px-1.5 py-1 rounded-md text-xs font-medium border transition-all cursor-pointer min-w-0 flex-1 ${
               isDark 
                 ? 'bg-[#18191E] border-[#2B2C33] text-white hover:bg-[#20222A]' 
                 : 'bg-slate-100/80 border-slate-200 text-slate-900 hover:bg-slate-200/80 shadow-xs'
             }`}
+            title={activeProject.name}
           >
-            <FolderOpen className="w-3.5 h-3.5 text-blue-500" />
-            <span className="max-w-[140px] truncate">{activeProject.name}</span>
-            <ChevronDown className="w-3 h-3 text-[#7A7B85]" />
+            <div className="flex items-center space-x-1.5 min-w-0 overflow-hidden">
+              <FolderOpen className="w-3.5 h-3.5 text-blue-500 shrink-0" />
+              <span className="truncate text-xs">{activeProject.name}</span>
+            </div>
+            <ChevronDown className="w-3 h-3 text-[#7A7B85] shrink-0 ml-0.5" />
           </button>
         ) : (
           <span className={`text-xs ${isDark ? 'text-[#9496A1]' : 'text-slate-500'}`}>
@@ -71,7 +84,7 @@ export const ProjectDropdown: React.FC<ProjectDropdownProps> = ({ isOpen, onClos
       </div>
 
       {isOpen && (
-        <div className={`absolute top-full left-16 mt-1.5 w-72 rounded-2xl border shadow-2xl p-2 z-50 animate-in fade-in zoom-in-95 duration-150 ${
+        <div className={`absolute top-full left-0 mt-1.5 w-64 rounded-2xl border shadow-2xl p-2 z-50 animate-in fade-in zoom-in-95 duration-150 ${
           isDark 
             ? 'bg-[#16171C] border-[#2A2B33] text-white' 
             : 'bg-white border-slate-200 text-slate-900 shadow-xl'

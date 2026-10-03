@@ -43,36 +43,43 @@ const AppContent: React.FC = () => {
   }, []);
 
   return (
-    <div className={`h-screen w-screen flex flex-col font-display transition-colors duration-200 select-none overflow-hidden ${
+    <div className={`h-screen w-screen flex font-display transition-colors duration-200 select-none overflow-hidden ${
       isDark 
-        ? 'text-[#F4F4F6] selection:bg-blue-500/30 selection:text-blue-200' 
-        : 'text-slate-900 selection:bg-blue-500/20 selection:text-blue-900'
+        ? 'text-[#F4F4F6] selection:bg-blue-500/30 selection:text-blue-200 bg-[#0E0F12]' 
+        : 'text-slate-900 selection:bg-blue-500/20 selection:text-blue-900 bg-slate-50/50'
     }`}>
-      <Header 
-        isSidebarCollapsed={isSidebarCollapsed} 
-        onToggleSidebar={toggleSidebar} 
-      />
+      {/* Full-Height Left Sidebar */}
+      {activeProject && !isCreatingNew && (
+        <Sidebar 
+          activeTab={activeTab} 
+          onSelectTab={setActiveTab}
+          isCollapsed={isSidebarCollapsed}
+          onToggleCollapse={toggleSidebar}
+        />
+      )}
 
-      <main className="flex-1 flex overflow-hidden min-h-0">
-        {!activeProject || isCreatingNew ? (
-          <CreateProjectView />
-        ) : (
-          <div className="flex-1 flex overflow-hidden min-h-0">
-            <Sidebar 
-              activeTab={activeTab} 
-              onSelectTab={setActiveTab}
-              isCollapsed={isSidebarCollapsed}
-              onToggleCollapse={toggleSidebar}
-            />
-            
-            {activeTab === 'domain-intent' ? (
-              <DomainIntentView onProceedToInvariants={() => setActiveTab('invariants')} />
-            ) : (
-              <InvariantWorkbench />
-            )}
-          </div>
-        )}
-      </main>
+      {/* Right Column: Top Header + Workspace Canvas */}
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+        <Header 
+          activeTab={activeTab}
+          isSidebarCollapsed={isSidebarCollapsed} 
+          onToggleSidebar={toggleSidebar} 
+        />
+
+        <main className="flex-1 flex overflow-hidden min-h-0">
+          {!activeProject || isCreatingNew ? (
+            <CreateProjectView />
+          ) : (
+            <div className="flex-1 flex overflow-hidden min-h-0">
+              {activeTab === 'domain-intent' ? (
+                <DomainIntentView onProceedToInvariants={() => setActiveTab('invariants')} />
+              ) : (
+                <InvariantWorkbench />
+              )}
+            </div>
+          )}
+        </main>
+      </div>
 
       <RenameModal />
       <DeleteModal />

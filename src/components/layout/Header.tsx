@@ -1,38 +1,48 @@
-import React, { useState } from 'react';
-import { Sun, Moon, Plus, PanelLeftClose, PanelLeft, Cpu } from 'lucide-react';
+import React from 'react';
+import { Sun, Moon, Plus, PanelLeft, PanelLeftClose, Cpu } from 'lucide-react';
 import { useProjects } from '../../context/ProjectContext';
 import { useTheme } from '../../context/ThemeContext';
 import { useAI } from '../../context/AIContext';
-import { ProjectDropdown } from '../project/ProjectDropdown';
+import { PhaseTab } from '../../types/project';
 
 interface HeaderProps {
+  activeTab?: PhaseTab;
   isSidebarCollapsed?: boolean;
   onToggleSidebar?: () => void;
-  showSidebarToggle?: boolean;
 }
 
+const TAB_META: Record<PhaseTab, { step: string; title: string }> = {
+  'domain-intent': { step: 'Step 1', title: 'Project Overview & Tech Stack' },
+  'invariants': { step: 'Step 2', title: 'Data & Safety Rules' },
+  'state-machine': { step: 'Step 3', title: 'Status & Steps Flow' },
+  'tdd-spec': { step: 'Step 4', title: 'Quality Checks' },
+  'in-flight': { step: 'Phase 2', title: 'Generate Code' },
+  'post-flight': { step: 'Phase 3', title: 'Final Review Checklist' }
+};
+
 export const Header: React.FC<HeaderProps> = ({ 
+  activeTab = 'domain-intent',
   isSidebarCollapsed = false, 
   onToggleSidebar,
-  showSidebarToggle = true
 }) => {
   const { projects, isCreatingNew, setIsCreatingNew, activeProject } = useProjects();
   const { isDark, toggleTheme } = useTheme();
   const { activeConfig, isAiConfigured, setIsSettingsOpen } = useAI();
-  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+
+  const tabInfo = TAB_META[activeTab] || TAB_META['domain-intent'];
 
   return (
-    <header className={`h-12 border-b px-4 flex items-center justify-between sticky top-0 z-50 backdrop-blur-xl transition-colors duration-200 shrink-0 ${
+    <header className={`h-12 border-b px-5 flex items-center justify-between sticky top-0 z-30 backdrop-blur-xl transition-colors duration-200 shrink-0 ${
       isDark 
         ? 'bg-[#121316]/95 border-[#23242A]' 
         : 'bg-white/95 border-slate-200/60 shadow-2xs'
     }`}>
-      <div className="flex items-center space-x-2.5">
-        {/* Sidebar Collapse/Expand Toggle */}
-        {showSidebarToggle && activeProject && !isCreatingNew && (
+      <div className="flex items-center space-x-3">
+        {/* Sidebar Toggle Button directly next to the step */}
+        {onToggleSidebar && (
           <button
             onClick={onToggleSidebar}
-            className={`p-1.5 rounded-lg border transition-all cursor-pointer flex items-center ${
+            className={`p-1.5 rounded-lg border transition-all cursor-pointer flex items-center justify-center ${
               isDark 
                 ? 'bg-[#18191E] border-[#27282F] text-[#8E8F99] hover:text-white hover:bg-white/[0.06]' 
                 : 'bg-slate-50 border-slate-200/60 text-slate-600 hover:text-slate-900 hover:bg-slate-100 shadow-2xs'
@@ -47,17 +57,24 @@ export const Header: React.FC<HeaderProps> = ({
           </button>
         )}
 
-        {/* Logo Mark */}
-        <div className="w-5 h-5 rounded-md bg-blue-600 flex items-center justify-center shadow-sm">
-          <div className="w-2 h-2 border-[1.5px] border-white rounded-[1px] rotate-45" />
-        </div>
-
-        {/* Project Dropdown / Switcher */}
-        <ProjectDropdown
-          isOpen={isDropdownOpen}
-          onClose={() => setIsDropdownOpen(false)}
-          onToggle={() => setIsDropdownOpen(prev => !prev)}
-        />
+        {/* Top-level Step and Title breadcrumb */}
+        {activeProject && !isCreatingNew ? (
+          <div className="flex items-center space-x-2">
+            <span className="text-[11px] font-mono font-bold text-blue-500 uppercase tracking-wider">
+              {tabInfo.step}
+            </span>
+            <span className={`text-xs ${isDark ? 'text-[#5E606B]' : 'text-slate-300'}`}>/</span>
+            <h1 className={`text-xs sm:text-sm font-semibold tracking-tight ${isDark ? 'text-white' : 'text-slate-900'}`}>
+              {tabInfo.title}
+            </h1>
+          </div>
+        ) : (
+          <div className="flex items-center space-x-2">
+            <h1 className={`text-xs sm:text-sm font-semibold tracking-tight ${isDark ? 'text-white' : 'text-slate-900'}`}>
+              {isCreatingNew ? 'Create New Project' : 'Workspace Setup'}
+            </h1>
+          </div>
+        )}
       </div>
 
       {/* Header Right Actions */}
