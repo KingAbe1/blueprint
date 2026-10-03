@@ -1,5 +1,5 @@
 import { AIProviderConfig, AISettings } from '../types/ai';
-import { DomainEntity } from '../types/project';
+import { DomainEntity, FrameworkRecommendation } from '../types/project';
 import { extractDomainFromObjective } from './domainExtractor';
 
 interface TestResult {
@@ -7,90 +7,150 @@ interface TestResult {
   message: string;
 }
 
+/**
+ * Normalizes provider URLs, formats request bodies, and extracts informative error messages
+ */
+export async function callAIModel(
+  config: AIProviderConfig,
+  prompt: string,
+  options: { temperature?: number; maxTokens?: number } = {}
+): Promise<string> {
+  const { provider, apiKey, baseUrl, model } = config;
+  const temperature = options.temperature ?? 0.3;
+  const maxTokens = options.maxTokens ?? 1500;
+
+  if (provider !== 'ollama' && !apiKey?.trim()) {
+    throw new Error(`API key is missing for ${config.name}. Please configure it in AI Settings.`);
+  }
+
+  // 1. OpenAI, OpenRouter, Custom OpenAI-Compatible
+  if (provider === 'openai' || provider === 'openrouter' || provider === 'custom') {
+    let host = (baseUrl || (provider === 'openai' ? 'https://api.openai.com/v1' : 'https://openrouter.ai/api/v1')).trim().replace(/\/+$/, '');
+    host = host.replace(/\/chat\/completions\/?$/i, '');
+    const url = `${host}/chat/completions`;
+
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey.trim()}`,
+        ...(provider === 'openrouter' ? { 'HTTP-Referer': 'https://blueprint.studio', 'X-Title': 'Blueprint' } : {})
+      },
+      body: JSON.stringify({
+        model: model || 'gpt-4o',
+        messages: [{ role: 'user', content: prompt }],
+        temperature,
+        max_tokens: maxTokens
+      })
+    });
+
+    if (!res.ok) {
+      const errJson = await res.json().catch(() => null);
+      const detail = errJson?.error?.message || errJson?.message || (typeof errJson?.error === 'string' ? errJson.error : `HTTP ${res.status}`);
+      throw new Error(`${config.name} (${model}): ${detail}`);
+    }
+
+    const data = await res.json();
+    return data.choices?.[0]?.message?.content || '';
+  }
+
+  // 2. Anthropic Claude
+  if (provider === 'anthropic') {
+    const url = 'https://api.anthropic.com/v1/messages';
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey.trim(),
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true'
+      },
+      body: JSON.stringify({
+        model: model || 'claude-3-5-sonnet-20241022',
+        messages: [{ role: 'user', content: prompt }],
+        max_tokens: maxTokens,
+        temperature
+      })
+    });
+
+    if (!res.ok) {
+      const errJson = await res.json().catch(() => null);
+      const detail = errJson?.error?.message || errJson?.message || `HTTP ${res.status}`;
+      throw new Error(`Anthropic (${model}): ${detail}`);
+    }
+
+    const data = await res.json();
+    return data.content?.[0]?.text || '';
+  }
+
+  // 3. Google Gemini
+  if (provider === 'gemini') {
+    const cleanModel = (model || 'gemini-1.5-flash').trim().replace(/^models\//i, '');
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${cleanModel}:generateContent?key=${apiKey.trim()}`;
+
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: {
+          temperature,
+          maxOutputTokens: maxTokens
+        }
+      })
+    });
+
+    if (!res.ok) {
+      const errJson = await res.json().catch(() => null);
+      const detail = errJson?.error?.message || errJson?.message || `HTTP ${res.status}`;
+      throw new Error(`Google Gemini (${cleanModel}): ${detail}`);
+    }
+
+    const data = await res.json();
+    return data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+  }
+
+  // 4. Ollama (Local)
+  if (provider === 'ollama') {
+    let host = (baseUrl || 'http://localhost:11434').trim().replace(/\/+$/, '');
+    host = host.replace(/\/api\/generate\/?$/i, '').replace(/\/api\/?$/i, '');
+    const url = `${host}/api/generate`;
+
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: model || 'llama3.2',
+        prompt,
+        stream: false,
+        options: { temperature }
+      })
+    });
+
+    if (!res.ok) {
+      const errJson = await res.json().catch(() => null);
+      const detail = errJson?.error || errJson?.message || `HTTP ${res.status}. Is the model '${model}' downloaded?`;
+      throw new Error(`Ollama (${model}): ${detail}`);
+    }
+
+    const data = await res.json();
+    return data.response || '';
+  }
+
+  throw new Error(`Unsupported provider: ${provider}`);
+}
+
 export async function testAIConnection(config: AIProviderConfig): Promise<TestResult> {
   const { provider, apiKey, baseUrl, model } = config;
 
-  if (provider !== 'ollama' && !apiKey.trim()) {
+  if (provider !== 'ollama' && !apiKey?.trim()) {
     return { success: false, message: 'Please enter an API key.' };
   }
 
   try {
-    if (provider === 'openai') {
-      const res = await fetch('https://api.openai.com/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${apiKey.trim()}`
-        },
-        body: JSON.stringify({
-          model: model || 'gpt-4o-mini',
-          messages: [{ role: 'user', content: 'Say "hello" in one word.' }],
-          max_tokens: 5
-        })
-      });
-
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        return { 
-          success: false, 
-          message: err.error?.message || `OpenAI error (HTTP ${res.status})` 
-        };
-      }
-
-      return { success: true, message: `Connected to OpenAI (${model}) successfully!` };
-    }
-
-    if (provider === 'anthropic') {
-      const res = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-api-key': apiKey.trim(),
-          'anthropic-version': '2023-06-01',
-          'anthropic-dangerous-direct-browser-access': 'true'
-        },
-        body: JSON.stringify({
-          model: model || 'claude-3-5-haiku-20241022',
-          messages: [{ role: 'user', content: 'Say "hello" in one word.' }],
-          max_tokens: 5
-        })
-      });
-
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        return { 
-          success: false, 
-          message: err.error?.message || `Anthropic error (HTTP ${res.status})` 
-        };
-      }
-
-      return { success: true, message: `Connected to Anthropic (${model}) successfully!` };
-    }
-
-    if (provider === 'gemini') {
-      const geminiModel = model || 'gemini-1.5-flash';
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/${geminiModel}:generateContent?key=${apiKey.trim()}`;
-      const res = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: 'Say hello in one word.' }] }]
-        })
-      });
-
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        return { 
-          success: false, 
-          message: err.error?.message || `Google Gemini error (HTTP ${res.status})` 
-        };
-      }
-
-      return { success: true, message: `Connected to Google Gemini (${geminiModel}) successfully!` };
-    }
-
     if (provider === 'ollama') {
-      const host = (baseUrl || 'http://localhost:11434').replace(/\/+$/, '');
+      let host = (baseUrl || 'http://localhost:11434').trim().replace(/\/+$/, '');
+      host = host.replace(/\/api\/tags\/?$/i, '').replace(/\/api\/?$/i, '');
       const res = await fetch(`${host}/api/tags`);
       if (!res.ok) {
         return { success: false, message: `Ollama server responded with HTTP ${res.status}. Is Ollama running?` };
@@ -98,31 +158,8 @@ export async function testAIConnection(config: AIProviderConfig): Promise<TestRe
       return { success: true, message: `Connected to local Ollama server at ${host}!` };
     }
 
-    if (provider === 'openrouter' || provider === 'custom') {
-      const host = (baseUrl || (provider === 'openrouter' ? 'https://openrouter.ai/api/v1' : 'https://api.openai.com/v1')).replace(/\/+$/, '');
-      const res = await fetch(`${host}/chat/completions`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${apiKey.trim()}`,
-          ...(provider === 'openrouter' ? { 'HTTP-Referer': 'https://blueprint.studio', 'X-Title': 'Blueprint' } : {})
-        },
-        body: JSON.stringify({
-          model: model,
-          messages: [{ role: 'user', content: 'Say "hello" in one word.' }],
-          max_tokens: 5
-        })
-      });
-
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        return { success: false, message: err.error?.message || `API error (HTTP ${res.status})` };
-      }
-
-      return { success: true, message: `Connected to ${config.name} (${model}) successfully!` };
-    }
-
-    return { success: false, message: 'Unknown provider.' };
+    const reply = await callAIModel(config, 'Say "hello" in one word.', { maxTokens: 5, temperature: 0.1 });
+    return { success: true, message: `Connected to ${config.name} (${model}) successfully! (Response: ${reply.trim() || 'OK'})` };
   } catch (error: any) {
     return { success: false, message: error?.message || 'Network error connecting to provider.' };
   }
@@ -134,16 +171,11 @@ export async function generateEntitiesWithAI(
   settings: AISettings
 ): Promise<{ entities: DomainEntity[]; source: 'ai' | 'local'; providerName?: string }> {
   const activeConfig = settings.providers[settings.activeProvider];
-  
   const hasKey = activeConfig && (activeConfig.provider === 'ollama' || Boolean(activeConfig.apiKey?.trim()));
 
-  // Fallback to local heuristic extractor if no API key is provided
   if (!hasKey) {
     const localResult = extractDomainFromObjective(projectName, description);
-    return {
-      entities: localResult.entities,
-      source: 'local'
-    };
+    return { entities: localResult.entities, source: 'local' };
   }
 
   const prompt = `You are a software architect assisting in designing a project called "${projectName}".
@@ -160,81 +192,11 @@ Respond ONLY with a valid JSON array of objects in this exact structure:
     "description": "Stores user profile, email address, and billing information."
   }
 ]
-Do not wrap in markdown quotes if possible, or return markdown json code block.`;
+Do not include any text outside the JSON array.`;
 
   try {
-    let rawText = '';
+    const rawText = await callAIModel(activeConfig, prompt, { temperature: 0.2, maxTokens: 1024 });
 
-    if (activeConfig.provider === 'openai' || activeConfig.provider === 'openrouter' || activeConfig.provider === 'custom') {
-      const host = (activeConfig.baseUrl || (activeConfig.provider === 'openai' ? 'https://api.openai.com/v1' : 'https://openrouter.ai/api/v1')).replace(/\/+$/, '');
-      const res = await fetch(`${host}/chat/completions`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${activeConfig.apiKey.trim()}`,
-          ...(activeConfig.provider === 'openrouter' ? { 'HTTP-Referer': 'https://blueprint.studio', 'X-Title': 'Blueprint' } : {})
-        },
-        body: JSON.stringify({
-          model: activeConfig.model,
-          messages: [{ role: 'user', content: prompt }],
-          temperature: 0.2
-        })
-      });
-
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
-      rawText = data.choices?.[0]?.message?.content || '';
-    } else if (activeConfig.provider === 'anthropic') {
-      const res = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-api-key': activeConfig.apiKey.trim(),
-          'anthropic-version': '2023-06-01',
-          'anthropic-dangerous-direct-browser-access': 'true'
-        },
-        body: JSON.stringify({
-          model: activeConfig.model,
-          messages: [{ role: 'user', content: prompt }],
-          max_tokens: 1024,
-          temperature: 0.2
-        })
-      });
-
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
-      rawText = data.content?.[0]?.text || '';
-    } else if (activeConfig.provider === 'gemini') {
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/${activeConfig.model}:generateContent?key=${activeConfig.apiKey.trim()}`;
-      const res = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }]
-        })
-      });
-
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
-      rawText = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
-    } else if (activeConfig.provider === 'ollama') {
-      const host = (activeConfig.baseUrl || 'http://localhost:11434').replace(/\/+$/, '');
-      const res = await fetch(`${host}/api/generate`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          model: activeConfig.model,
-          prompt: prompt,
-          stream: false
-        })
-      });
-
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
-      rawText = data.response || '';
-    }
-
-    // Extract JSON from raw response
     const jsonMatch = rawText.match(/\[[\s\S]*\]/);
     if (jsonMatch) {
       const parsed = JSON.parse(jsonMatch[0]);
@@ -252,7 +214,6 @@ Do not wrap in markdown quotes if possible, or return markdown json code block.`
       }
     }
 
-    // Fallback if parsing fails
     const local = extractDomainFromObjective(projectName, description);
     return { entities: local.entities, source: 'local' };
   } catch (err) {
@@ -266,132 +227,67 @@ export async function expandAndPolishDescription(
   projectName: string,
   currentDescription: string,
   settings: AISettings
-): Promise<{ text: string; source: 'ai' | 'local'; providerName?: string }> {
+): Promise<{ text: string; source: 'ai' | 'local'; providerName?: string; error?: string }> {
   const activeConfig = settings.providers[settings.activeProvider];
   const hasKey = activeConfig && (activeConfig.provider === 'ollama' || Boolean(activeConfig.apiKey?.trim()));
 
-  const fallbackPolish = (input: string, name: string): string => {
-    const topic = input.trim() || name;
-    return `A modern, reliable platform designed for ${topic}.\n\n` +
-      `• Core Goal: Empower users to easily navigate, create, and manage their tasks with intuitive workflows and instant feedback.\n` +
-      `• Key Users: End-users seeking a streamlined experience, and administrators managing team permissions and records.\n` +
-      `• Primary Journeys: Account onboarding, direct item creation and editing, real-time status updates, and secure data storage.\n` +
-      `• Safety Guardrails: Prevent duplicate actions, guarantee data consistency, and safeguard user privacy at every step.`;
-  };
+  const trimmedDesc = (currentDescription || '').trim();
+  const trimmedName = (projectName || '').trim();
 
-  if (!hasKey) {
+  if (trimmedDesc.length < 10 && trimmedName.length < 4) {
     return {
-      text: fallbackPolish(currentDescription, projectName),
-      source: 'local'
+      text: currentDescription,
+      source: 'local',
+      error: 'Please provide at least a short phrase or sentence describing what the app does before expanding.'
     };
   }
 
-  const prompt = `You are an expert product strategist and software architect.
-A founder/developer is building a project called "${projectName}".
-Here is their draft description or idea:
+  if (!hasKey) {
+    return {
+      text: currentDescription,
+      source: 'local',
+      error: 'Connect an AI key (OpenAI, Gemini, Claude, Ollama) in settings to expand and polish with AI.'
+    };
+  }
+
+  const prompt = `You are an expert product architect.
+A developer is building a project called "${projectName || 'Unnamed Project'}".
+Here is their initial description:
 """
-${currentDescription.trim() || projectName}
+${trimmedDesc || trimmedName}
 """
 
-Please expand and polish this into a clear, compelling, and structured product specification (around 3-4 concise paragraphs or bullet points).
-Cover:
-1. What the app does and the primary problem it solves.
-2. Who uses it (target audience & user personas).
-3. The main user journeys and essential features.
-4. Key safety and reliability expectations.
-
-Keep the language accessible to non-technical users while remaining precise and concrete.
-Return ONLY the polished specification text without any preamble or quotes.`;
+Instructions:
+- Expand and polish this into a clear, structured product specification tailored specifically to their idea.
+- Structure your response into 3 concise sections:
+  1. What it does & core value proposition
+  2. Target users & primary workflows
+  3. Key data & reliability expectations
+- Base your expansion strictly on the domain and purpose mentioned in their description.
+- Return ONLY the polished specification text without preamble, introductions, or quotes.`;
 
   try {
-    let resultText = '';
+    const rawText = await callAIModel(activeConfig, prompt, { temperature: 0.4, maxTokens: 1500 });
 
-    if (activeConfig.provider === 'openai' || activeConfig.provider === 'openrouter' || activeConfig.provider === 'custom') {
-      const host = (activeConfig.baseUrl || (activeConfig.provider === 'openai' ? 'https://api.openai.com/v1' : 'https://openrouter.ai/api/v1')).replace(/\/+$/, '');
-      const res = await fetch(`${host}/chat/completions`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${activeConfig.apiKey.trim()}`,
-          ...(activeConfig.provider === 'openrouter' ? { 'HTTP-Referer': 'https://blueprint.studio', 'X-Title': 'Blueprint' } : {})
-        },
-        body: JSON.stringify({
-          model: activeConfig.model,
-          messages: [{ role: 'user', content: prompt }],
-          temperature: 0.4
-        })
-      });
-
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
-      resultText = data.choices?.[0]?.message?.content || '';
-    } else if (activeConfig.provider === 'anthropic') {
-      const res = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-api-key': activeConfig.apiKey.trim(),
-          'anthropic-version': '2023-06-01',
-          'anthropic-dangerous-direct-browser-access': 'true'
-        },
-        body: JSON.stringify({
-          model: activeConfig.model,
-          messages: [{ role: 'user', content: prompt }],
-          max_tokens: 1500,
-          temperature: 0.4
-        })
-      });
-
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
-      resultText = data.content?.[0]?.text || '';
-    } else if (activeConfig.provider === 'gemini') {
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/${activeConfig.model}:generateContent?key=${activeConfig.apiKey.trim()}`;
-      const res = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }]
-        })
-      });
-
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
-      resultText = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
-    } else if (activeConfig.provider === 'ollama') {
-      const host = (activeConfig.baseUrl || 'http://localhost:11434').replace(/\/+$/, '');
-      const res = await fetch(`${host}/api/generate`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          model: activeConfig.model,
-          prompt: prompt,
-          stream: false
-        })
-      });
-
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
-      resultText = data.response || '';
-    }
-
-    if (resultText && resultText.trim().length > 10) {
+    if (rawText && rawText.trim().length > 10) {
       return {
-        text: resultText.trim(),
+        text: rawText.trim(),
         source: 'ai',
         providerName: activeConfig.name
       };
     }
 
     return {
-      text: fallbackPolish(currentDescription, projectName),
-      source: 'local'
+      text: currentDescription,
+      source: 'local',
+      error: 'AI returned an empty response. Please try again with a little more detail.'
     };
-  } catch (err) {
-    console.warn('AI polish failed, using local template:', err);
+  } catch (err: any) {
+    console.warn('AI polish failed:', err);
     return {
-      text: fallbackPolish(currentDescription, projectName),
-      source: 'local'
+      text: currentDescription,
+      source: 'local',
+      error: `AI request failed: ${err?.message || 'Check your AI API key/settings.'}`
     };
   }
 }
@@ -400,7 +296,7 @@ export async function analyzeFrameworksWithAI(
   projectName: string,
   description: string,
   settings: AISettings
-): Promise<{ recommendations: import('../types/project').FrameworkRecommendation[]; source: 'ai' | 'local'; providerName?: string }> {
+): Promise<{ recommendations: FrameworkRecommendation[]; source: 'ai' | 'local'; providerName?: string }> {
   const activeConfig = settings.providers[settings.activeProvider];
   const hasKey = activeConfig && (activeConfig.provider === 'ollama' || Boolean(activeConfig.apiKey?.trim()));
 
@@ -422,7 +318,7 @@ ${description.trim() || projectName}
 Please recommend the TOP 2 or 3 ideal frameworks/tech stacks to build this exact project.
 For each framework, provide:
 - id: lowercase identifier (e.g. "nextjs", "react-vite", "tauri", "fastapi", "expo", "node-hono", "django", "sveltekit")
-- name: full display name (e.g. "Next.js 15 (React / TypeScript)", "FastAPI (Python) + PostgreSQL", "Tauri 2.0 Desktop", etc.)
+- name: full display name (e.g. "Next.js 15 (React / TypeScript)", "FastAPI (Python) + PostgreSQL", "Tauri 2.0 (Rust + React)", "Expo (React Native)")
 - category: one of ["Full-Stack Web", "Frontend SPA", "Desktop App", "Backend API", "Mobile App"]
 - description: a concise 1-sentence description of the stack.
 - whyReasons: an array of 3 specific, concrete reasons why this framework specifically excels for the user's described project requirements (e.g. mention specific needs like payments, auth, offline access, websockets, or AI pipelines).
@@ -446,76 +342,7 @@ Example format:
 ]`;
 
   try {
-    let rawText = '';
-
-    if (activeConfig.provider === 'openai' || activeConfig.provider === 'openrouter' || activeConfig.provider === 'custom') {
-      const host = (activeConfig.baseUrl || (activeConfig.provider === 'openai' ? 'https://api.openai.com/v1' : 'https://openrouter.ai/api/v1')).replace(/\/+$/, '');
-      const res = await fetch(`${host}/chat/completions`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${activeConfig.apiKey.trim()}`,
-          ...(activeConfig.provider === 'openrouter' ? { 'HTTP-Referer': 'https://blueprint.studio', 'X-Title': 'Blueprint' } : {})
-        },
-        body: JSON.stringify({
-          model: activeConfig.model,
-          messages: [{ role: 'user', content: prompt }],
-          temperature: 0.2
-        })
-      });
-
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
-      rawText = data.choices?.[0]?.message?.content || '';
-    } else if (activeConfig.provider === 'anthropic') {
-      const res = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-api-key': activeConfig.apiKey.trim(),
-          'anthropic-version': '2023-06-01',
-          'anthropic-dangerous-direct-browser-access': 'true'
-        },
-        body: JSON.stringify({
-          model: activeConfig.model,
-          messages: [{ role: 'user', content: prompt }],
-          max_tokens: 1500,
-          temperature: 0.2
-        })
-      });
-
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
-      rawText = data.content?.[0]?.text || '';
-    } else if (activeConfig.provider === 'gemini') {
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/${activeConfig.model}:generateContent?key=${activeConfig.apiKey.trim()}`;
-      const res = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }]
-        })
-      });
-
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
-      rawText = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
-    } else if (activeConfig.provider === 'ollama') {
-      const host = (activeConfig.baseUrl || 'http://localhost:11434').replace(/\/+$/, '');
-      const res = await fetch(`${host}/api/generate`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          model: activeConfig.model,
-          prompt: prompt,
-          stream: false
-        })
-      });
-
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
-      rawText = data.response || '';
-    }
+    const rawText = await callAIModel(activeConfig, prompt, { temperature: 0.2, maxTokens: 1500 });
 
     const jsonMatch = rawText.match(/\[[\s\S]*\]/);
     if (jsonMatch) {

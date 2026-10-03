@@ -22,6 +22,7 @@ export interface ProjectSpec {
   description: string;
   targetFramework?: string;
   frameworkRecommendation?: FrameworkRecommendation;
+  frameworkRecommendations?: FrameworkRecommendation[];
   coreEntities?: DomainEntity[];
   criticalWorkflows?: string[];
   nonNegotiables?: string[];

@@ -34,38 +34,11 @@ export const BASE_FRAMEWORKS: Record<string, { name: string; category: Framework
 };
 
 export function recommendFrameworkFromText(projectName: string, description: string): FrameworkRecommendation[] {
-  const text = (projectName + ' ' + description).toLowerCase();
+  const text = (projectName + ' ' + description).toLowerCase().trim();
 
-  // If description is empty, return default top picks
-  if (!description.trim() && !projectName.trim()) {
-    return [
-      {
-        id: 'nextjs',
-        name: BASE_FRAMEWORKS['nextjs'].name,
-        category: BASE_FRAMEWORKS['nextjs'].category,
-        description: BASE_FRAMEWORKS['nextjs'].description,
-        whyReasons: [
-          'Unified full-stack architecture allows building UI and database APIs in one codebase.',
-          'Built-in server-side rendering delivers instant page loads and strong SEO out of the box.',
-          'Broadest ecosystem support for authentication, payments (Stripe), and UI component libraries.'
-        ],
-        bestFor: 'Web applications, SaaS platforms, and customer portals',
-        isRecommended: true
-      },
-      {
-        id: 'react-vite',
-        name: BASE_FRAMEWORKS['react-vite'].name,
-        category: BASE_FRAMEWORKS['react-vite'].category,
-        description: BASE_FRAMEWORKS['react-vite'].description,
-        whyReasons: [
-          'Ultra-fast development feedback with instant hot module reloading.',
-          'Flexible architecture connects seamlessly to Supabase, Firebase, or custom APIs.',
-          'Zero complex server management — deployable directly to free global CDN hosting.'
-        ],
-        bestFor: 'Interactive dashboards, productivity tools, and browser utilities',
-        isRecommended: false
-      }
-    ];
+  // If no information is provided, return empty array (no static defaults)
+  if (!text || (!description.trim() && !projectName.trim())) {
+    return [];
   }
 
   // Feature detection

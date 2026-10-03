@@ -16,7 +16,8 @@ import {
   ShieldCheck,
   Server,
   Layers,
-  ArrowRight
+  ArrowRight,
+  Plus
 } from 'lucide-react';
 import { useAI } from '../../context/AIContext';
 import { useTheme } from '../../context/ThemeContext';
@@ -121,9 +122,48 @@ export const AISettingsModal: React.FC = () => {
   const isActive = settings.activeProvider === selectedTab;
   const hasKey = selectedTab === 'ollama' ? Boolean(currentProviderConfig.baseUrl) : Boolean(currentProviderConfig.apiKey?.trim());
 
+  const handleAddModel = (modelName: string) => {
+    const trimmed = modelName.trim();
+    if (!trimmed) return;
+    const currentList = currentProviderConfig.availableModels || [];
+    if (!currentList.includes(trimmed)) {
+      updateProviderConfig(selectedTab, {
+        model: trimmed,
+        availableModels: [trimmed, ...currentList]
+      });
+    } else {
+      updateProviderConfig(selectedTab, { model: trimmed });
+    }
+  };
+
+  const handleRemoveModel = (modelToRemove: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const currentList = currentProviderConfig.availableModels || [];
+    const updatedList = currentList.filter(m => m !== modelToRemove);
+    const nextModel = currentProviderConfig.model === modelToRemove
+      ? (updatedList[0] || '')
+      : currentProviderConfig.model;
+    
+    updateProviderConfig(selectedTab, {
+      model: nextModel,
+      availableModels: updatedList
+    });
+  };
+
   const handleTestConnection = async () => {
     setIsTesting(true);
     setTestResult(null);
+
+    // Auto-save model to availableModels list if newly typed
+    if (currentProviderConfig.model?.trim()) {
+      const trimmed = currentProviderConfig.model.trim();
+      const currentList = currentProviderConfig.availableModels || [];
+      if (!currentList.includes(trimmed)) {
+        updateProviderConfig(selectedTab, {
+          availableModels: [trimmed, ...currentList]
+        });
+      }
+    }
 
     const res = await testAIConnection(currentProviderConfig);
     setIsTesting(false);
@@ -150,14 +190,7 @@ export const AISettingsModal: React.FC = () => {
               <Cpu className="w-4.5 h-4.5" />
             </div>
             <div>
-              <div className="flex items-center space-x-2">
-                <h2 className="text-sm font-bold tracking-tight">AI Provider & API Keys</h2>
-                <span className={`text-[10px] font-mono px-2 py-0.5 rounded-full border ${
-                  isDark ? 'bg-[#1C1E26] border-[#2D303E] text-slate-300' : 'bg-white border-slate-200 text-slate-600'
-                }`}>
-                  Active: {settings.providers[settings.activeProvider]?.name || 'Anthropic'}
-                </span>
-              </div>
+              <h2 className="text-sm font-bold tracking-tight">AI Provider & API Keys</h2>
               <p className={`text-xs ${isDark ? 'text-[#8E8F99]' : 'text-slate-500'}`}>
                 Connect your private API key to power code generation and domain analysis
               </p>
@@ -176,7 +209,7 @@ export const AISettingsModal: React.FC = () => {
         </div>
 
         {/* Provider Selection Grid / Pills */}
-        <div className={`p-4 border-b ${isDark ? 'border-[#20222A] bg-[#0E0F13]' : 'border-slate-100 bg-slate-50/30'}`}>
+        <div className={`p-4 ${isDark ? 'bg-[#0E0F13]' : 'bg-slate-50/30'}`}>
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2">
             {PROVIDERS_META.map((prov) => {
               const isSelected = selectedTab === prov.id;
@@ -209,7 +242,9 @@ export const AISettingsModal: React.FC = () => {
                         <span className="w-2 h-2 rounded-full bg-emerald-500 shadow-xs" title="Currently Active Provider" />
                       )}
                       {provHasKey && !isCurrentActive && (
-                        <Check className="w-3 h-3 text-emerald-500" title="Key Configured" />
+                        <span title="Key Configured">
+                          <Check className="w-3 h-3 text-emerald-500" />
+                        </span>
                       )}
                     </div>
                   </div>
@@ -227,7 +262,7 @@ export const AISettingsModal: React.FC = () => {
         </div>
 
         {/* Selected Provider Configuration View */}
-        <div className="p-6 space-y-5 overflow-y-auto max-h-[60vh]">
+        <div className="p-6 pb-16 space-y-5 overflow-y-auto max-h-[60vh]">
           
           {/* Active Banner & Quick Actions */}
           <div className={`p-4 rounded-xl border flex items-center justify-between transition-colors ${
@@ -365,34 +400,98 @@ export const AISettingsModal: React.FC = () => {
               </div>
             )}
 
-            {/* Model Selector */}
-            <div className="space-y-1.5">
-              <label className={`text-xs font-semibold flex items-center space-x-1.5 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
-                <Cpu className="w-3.5 h-3.5 text-blue-500" />
-                <span>Preferred Model</span>
-              </label>
-              
-              <div className="relative">
-                <select
-                  value={currentProviderConfig.model}
-                  onChange={(e) => updateProviderConfig(selectedTab, { model: e.target.value })}
-                  className={`w-full text-xs p-2.5 rounded-xl outline-none transition-colors cursor-pointer ${
-                    isDark 
-                      ? 'bg-[#15161C] border border-[#262833] text-white focus:border-blue-500/80' 
-                      : 'bg-[#F8FAFC] border border-slate-200 text-slate-900 focus:border-blue-500'
-                  }`}
-                >
-                  {currentProviderConfig.availableModels.map((m) => (
-                    <option key={m} value={m} className={isDark ? 'bg-[#15161C] text-white' : 'bg-white text-slate-900'}>
-                      {m}
-                    </option>
-                  ))}
-                </select>
+            {/* Manual Preferred Model Input & Saved Models History */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <label className={`text-xs font-semibold flex items-center space-x-1.5 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+                  <Cpu className="w-3.5 h-3.5 text-blue-500" />
+                  <span>Preferred Model ID</span>
+                </label>
+
+                <span className={`text-[11px] ${isDark ? 'text-[#8E8F99]' : 'text-slate-400'}`}>
+                  Type any model name or choose from saved
+                </span>
               </div>
+
+              <div className="flex items-center space-x-2">
+                <div className="relative flex-1">
+                  <input
+                    type="text"
+                    placeholder="e.g. gpt-4o, claude-3-7-sonnet, llama3.3:70b, deepseek-chat..."
+                    value={currentProviderConfig.model || ''}
+                    onChange={(e) => updateProviderConfig(selectedTab, { model: e.target.value })}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        handleAddModel(currentProviderConfig.model);
+                      }
+                    }}
+                    className={`w-full text-xs p-2.5 rounded-xl outline-none font-mono transition-colors ${
+                      isDark 
+                        ? 'bg-[#15161C] border border-[#262833] text-white placeholder-[#5E606B] focus:border-blue-500/80 focus:ring-1 focus:ring-blue-500/20' 
+                        : 'bg-[#F8FAFC] border border-slate-200 text-slate-900 placeholder-slate-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500/20'
+                    }`}
+                  />
+                </div>
+
+                {currentProviderConfig.model?.trim() && !currentProviderConfig.availableModels.includes(currentProviderConfig.model.trim()) && (
+                  <button
+                    type="button"
+                    onClick={() => handleAddModel(currentProviderConfig.model)}
+                    className="btn-primary-blue text-xs px-3 py-2.5 rounded-xl font-semibold text-white flex items-center space-x-1.5 cursor-pointer shrink-0 shadow-xs"
+                    title="Save this model to your list for future use"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>Save Model</span>
+                  </button>
+                )}
+              </div>
+
+              {/* Saved Models Chips */}
+              {currentProviderConfig.availableModels && currentProviderConfig.availableModels.length > 0 && (
+                <div className="space-y-1.5 pt-1">
+                  <div className={`text-[10px] font-mono uppercase tracking-wider ${isDark ? 'text-[#7A7C88]' : 'text-slate-400'}`}>
+                    Saved Models:
+                  </div>
+                  <div className="flex flex-wrap gap-1.5 max-h-28 overflow-y-auto">
+                    {currentProviderConfig.availableModels.map((m) => {
+                      const isSelected = currentProviderConfig.model === m;
+                      return (
+                        <div
+                          key={m}
+                          onClick={() => updateProviderConfig(selectedTab, { model: m })}
+                          className={`group text-xs font-mono px-2.5 py-1 rounded-lg border flex items-center space-x-1.5 cursor-pointer transition-all ${
+                            isSelected
+                              ? isDark 
+                                ? 'bg-blue-600/20 border-blue-500 text-blue-300 shadow-xs' 
+                                : 'bg-blue-50 border-blue-500 text-blue-700 shadow-xs'
+                              : isDark
+                                ? 'bg-[#15161C] border-[#252833] text-slate-400 hover:text-white hover:border-[#353948]'
+                                : 'bg-white border-slate-200 text-slate-600 hover:text-slate-900 hover:border-slate-300'
+                          }`}
+                        >
+                          <span className="truncate max-w-[200px]">{m}</span>
+                          {isSelected && <Check className="w-3 h-3 text-blue-500 shrink-0" />}
+                          <button
+                            type="button"
+                            onClick={(e) => handleRemoveModel(m, e)}
+                            className={`opacity-0 group-hover:opacity-100 hover:text-red-400 p-0.5 rounded transition-opacity ${
+                              isSelected ? 'text-blue-400' : 'text-slate-500'
+                            }`}
+                            title="Remove from saved list"
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Test Connection Row */}
-            <div className="pt-3 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-t border-slate-100 dark:border-[#1E2028]">
+            <div className="pt-2 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
               <button
                 type="button"
                 onClick={handleTestConnection}

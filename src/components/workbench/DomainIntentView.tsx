@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState } from 'react';
 import { 
   FileText, 
   ArrowRight, 
@@ -13,13 +13,14 @@ import {
   Server,
   Smartphone,
   CheckCircle2,
-  RefreshCw
+  RefreshCw,
+  Sparkles,
+  HelpCircle
 } from 'lucide-react';
 import { useProjects } from '../../context/ProjectContext';
 import { useTheme } from '../../context/ThemeContext';
 import { useAI } from '../../context/AIContext';
 import { expandAndPolishDescription, analyzeFrameworksWithAI } from '../../services/aiService';
-import { recommendFrameworkFromText } from '../../services/frameworkRecommender';
 import { FrameworkRecommendation } from '../../types/project';
 
 interface DomainIntentViewProps {
@@ -42,23 +43,14 @@ export const DomainIntentView: React.FC<DomainIntentViewProps> = ({ onProceedToI
 
   const { spec } = activeProject;
 
-  // Compute baseline recommendations from text
-  const baselineRecs = useMemo(() => {
-    return recommendFrameworkFromText(activeProject.name, spec.description || '');
-  }, [activeProject.name, spec.description]);
+  // Recommendations: only those generated for this project (stored in spec or state)
+  const activeRecommendations: FrameworkRecommendation[] = aiRecommendations || spec.frameworkRecommendations || [];
 
-  // Use AI-generated recommendations if available, otherwise baseline
-  const activeRecommendations = aiRecommendations || baselineRecs;
-
-  // Selected framework defaults to top recommended framework if none selected
-  const activeFrameworkId = spec.targetFramework || activeRecommendations[0]?.id || 'nextjs';
+  // Active framework selection
+  const activeFrameworkId = spec.targetFramework || (activeRecommendations.length > 0 ? activeRecommendations[0].id : undefined);
 
   const handleDescriptionChange = (desc: string) => {
     updateProjectSpec(activeProject.id, { description: desc });
-    // Reset AI recommendations so live heuristic analysis kicks in as user types
-    if (aiRecommendations) {
-      setAiRecommendations(null);
-    }
   };
 
   const handleSelectFramework = (fw: FrameworkRecommendation) => {
@@ -95,6 +87,12 @@ export const DomainIntentView: React.FC<DomainIntentViewProps> = ({ onProceedToI
   };
 
   const handleAutoGenerate = async () => {
+    if (!spec.description?.trim() && !activeProject.name.trim()) {
+      setNotification('Please enter a project name or brief description first.');
+      setTimeout(() => setNotification(null), 3000);
+      return;
+    }
+
     setIsGenerating(true);
     setNotification(null);
 
@@ -105,6 +103,13 @@ export const DomainIntentView: React.FC<DomainIntentViewProps> = ({ onProceedToI
         settings
       );
 
+      if (result.error) {
+        setIsGenerating(false);
+        setNotification(result.error);
+        setTimeout(() => setNotification(null), 4500);
+        return;
+      }
+
       // Analyze tech stack dynamically for the polished description
       const stackResult = await analyzeFrameworksWithAI(activeProject.name, result.text, settings);
       const topChoice = stackResult.recommendations[0];
@@ -112,6 +117,7 @@ export const DomainIntentView: React.FC<DomainIntentViewProps> = ({ onProceedToI
       setAiRecommendations(stackResult.recommendations);
       updateProjectSpec(activeProject.id, {
         description: result.text,
+        frameworkRecommendations: stackResult.recommendations,
         targetFramework: topChoice?.id,
         frameworkRecommendation: topChoice
       });
@@ -125,12 +131,18 @@ export const DomainIntentView: React.FC<DomainIntentViewProps> = ({ onProceedToI
       setTimeout(() => setNotification(null), 4000);
     } catch (err) {
       setIsGenerating(false);
-      setNotification('Failed to polish description. Please check your AI API key.');
+      setNotification('Failed to polish description. Please check your AI connection.');
       setTimeout(() => setNotification(null), 4000);
     }
   };
 
   const handleAnalyzeStack = async () => {
+    if (!spec.description?.trim()) {
+      setNotification('Please enter what you are building first so AI can analyze the right stack.');
+      setTimeout(() => setNotification(null), 3500);
+      return;
+    }
+
     setIsAnalyzingStack(true);
     setNotification(null);
 
@@ -139,18 +151,17 @@ export const DomainIntentView: React.FC<DomainIntentViewProps> = ({ onProceedToI
       setAiRecommendations(stackResult.recommendations);
       const topChoice = stackResult.recommendations[0];
 
-      if (topChoice) {
-        updateProjectSpec(activeProject.id, {
-          targetFramework: topChoice.id,
-          frameworkRecommendation: topChoice
-        });
-      }
+      updateProjectSpec(activeProject.id, {
+        frameworkRecommendations: stackResult.recommendations,
+        targetFramework: topChoice?.id,
+        frameworkRecommendation: topChoice
+      });
 
       setIsAnalyzingStack(false);
       if (stackResult.source === 'ai') {
-        setNotification(`Analyzed project and generated custom stack recommendations with ${stackResult.providerName || 'AI'}.`);
+        setNotification(`AI generated custom stack recommendations with ${stackResult.providerName || 'AI'}.`);
       } else {
-        setNotification('Tech stack analyzed for your project.');
+        setNotification('Tech stack analyzed for your project requirements.');
       }
       setTimeout(() => setNotification(null), 4000);
     } catch (err) {
@@ -243,7 +254,7 @@ export const DomainIntentView: React.FC<DomainIntentViewProps> = ({ onProceedToI
                 </>
               ) : (
                 <>
-                  <Cpu className="w-3.5 h-3.5" />
+                  <Sparkles className="w-3.5 h-3.5" />
                   <span>Expand & Polish with AI</span>
                 </>
               )}
@@ -282,7 +293,7 @@ export const DomainIntentView: React.FC<DomainIntentViewProps> = ({ onProceedToI
           )}
         </div>
 
-        {/* Section 2: Framework Recommendation with Clear Rationale */}
+        {/* Section 2: AI Recommended Tech Stack */}
         <div className={`rounded-xl border p-6 space-y-5 transition-colors ${
           isDark ? 'studio-panel-dark' : 'studio-panel-light'
         }`}>
@@ -295,119 +306,175 @@ export const DomainIntentView: React.FC<DomainIntentViewProps> = ({ onProceedToI
                 </h3>
               </div>
               <p className={`text-xs pl-6 ${isDark ? 'text-[#8E8F99]' : 'text-slate-500'}`}>
-                Dynamically analyzed based on your project description. Here is the ideal architecture with specific reasons why.
+                {activeRecommendations.length > 0
+                  ? 'AI-tailored recommendations based on what you are building.'
+                  : 'AI analyzes what you are building above and recommends the ideal tech stack with specific reasons.'}
               </p>
             </div>
 
-            <button
-              onClick={handleAnalyzeStack}
-              disabled={isAnalyzingStack || !spec.description?.trim()}
-              className={`text-xs px-3 py-1.5 rounded-lg border font-semibold flex items-center space-x-1.5 transition-all cursor-pointer shrink-0 ${
-                isDark 
-                  ? 'border-[#2D303B] bg-[#161820] text-slate-200 hover:text-white hover:border-blue-500/50 disabled:opacity-40' 
-                  : 'border-slate-200 bg-white text-slate-700 hover:text-slate-900 hover:border-blue-400 disabled:opacity-40'
-              }`}
-              title="Re-analyze description to get tailored framework recommendations"
-            >
-              {isAnalyzingStack ? (
-                <>
-                  <Loader2 className="w-3.5 h-3.5 animate-spin text-blue-500" />
-                  <span>Analyzing Stack...</span>
-                </>
-              ) : (
-                <>
-                  <RefreshCw className="w-3.5 h-3.5 text-blue-500" />
-                  <span>Re-analyze Stack</span>
-                </>
-              )}
-            </button>
+            {activeRecommendations.length > 0 && (
+              <button
+                onClick={handleAnalyzeStack}
+                disabled={isAnalyzingStack || !spec.description?.trim()}
+                className={`text-xs px-3 py-1.5 rounded-lg border font-semibold flex items-center space-x-1.5 transition-all cursor-pointer shrink-0 ${
+                  isDark 
+                    ? 'border-[#2D303B] bg-[#161820] text-slate-200 hover:text-white hover:border-blue-500/50 disabled:opacity-40' 
+                    : 'border-slate-200 bg-white text-slate-700 hover:text-slate-900 hover:border-blue-400 disabled:opacity-40'
+                }`}
+                title="Re-analyze description to get updated framework recommendations"
+              >
+                {isAnalyzingStack ? (
+                  <>
+                    <Loader2 className="w-3.5 h-3.5 animate-spin text-blue-500" />
+                    <span>Analyzing Stack...</span>
+                  </>
+                ) : (
+                  <>
+                    <RefreshCw className="w-3.5 h-3.5 text-blue-500" />
+                    <span>Re-analyze with AI</span>
+                  </>
+                )}
+              </button>
+            )}
           </div>
+
+          {/* If analyzing stack, show loading state */}
+          {isAnalyzingStack && (
+            <div className={`p-8 rounded-xl border border-dashed flex flex-col items-center justify-center space-y-3 ${
+              isDark ? 'bg-[#121318]/50 border-blue-500/40 text-slate-300' : 'bg-blue-50/40 border-blue-200 text-slate-700'
+            }`}>
+              <Loader2 className="w-6 h-6 animate-spin text-blue-500" />
+              <div className="text-center space-y-1">
+                <p className="text-xs font-semibold">AI Software Architect is analyzing your requirements...</p>
+                <p className={`text-[11px] ${isDark ? 'text-[#8E8F99]' : 'text-slate-500'}`}>
+                  Evaluating database needs, rendering strategies, auth, and runtime scalability.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* If no recommendations yet and not loading, show empty AI trigger card */}
+          {!isAnalyzingStack && activeRecommendations.length === 0 && (
+            <div className={`p-8 rounded-xl border border-dashed flex flex-col items-center justify-center text-center space-y-4 ${
+              isDark ? 'bg-[#121318]/50 border-[#262833]' : 'bg-slate-50/70 border-slate-200'
+            }`}>
+              <div className={`w-12 h-12 rounded-2xl flex items-center justify-center border shadow-xs ${
+                isDark ? 'bg-[#1A1C24] border-[#2A2E3B] text-blue-400' : 'bg-white border-slate-200 text-blue-600'
+              }`}>
+                <Cpu className="w-6 h-6" />
+              </div>
+
+              <div className="max-w-md space-y-1.5">
+                <h4 className={`text-xs font-bold uppercase tracking-wider ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                  No Tech Stack Generated Yet
+                </h4>
+                <p className={`text-xs leading-relaxed ${isDark ? 'text-[#8E8F99]' : 'text-slate-500'}`}>
+                  Describe what your app does in Section 1 above, then click below to generate an AI-tailored tech stack recommendation specifically designed for your system.
+                </p>
+              </div>
+
+              <button
+                onClick={handleAnalyzeStack}
+                disabled={isAnalyzingStack || !spec.description?.trim()}
+                className="btn-primary-blue disabled:opacity-50 px-4 py-2 rounded-lg text-xs font-semibold text-white flex items-center space-x-2 cursor-pointer shadow-sm"
+              >
+                <Sparkles className="w-3.5 h-3.5" />
+                <span>Generate Tech Stack with AI</span>
+              </button>
+            </div>
+          )}
 
           {/* Framework Cards Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {activeRecommendations.map((fw, idx) => {
-              const isSelected = !isCustomSelected && activeFrameworkId === fw.id;
-              const isTopPick = idx === 0;
-              const CatIcon = getCategoryIcon(fw.category);
+          {!isAnalyzingStack && activeRecommendations.length > 0 && (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {activeRecommendations.map((fw, idx) => {
+                const isSelected = !isCustomSelected && activeFrameworkId === fw.id;
+                const isTopPick = idx === 0;
+                const CatIcon = getCategoryIcon(fw.category);
 
-              return (
-                <div
-                  key={fw.id}
-                  onClick={() => handleSelectFramework(fw)}
-                  className={`relative rounded-xl border p-5 flex flex-col justify-between space-y-4 transition-all cursor-pointer ${
-                    isSelected
-                      ? isDark 
-                        ? 'bg-[#151720] border-blue-500 ring-1 ring-blue-500/30 shadow-md' 
-                        : 'bg-blue-50/60 border-blue-600 ring-1 ring-blue-500/20 shadow-sm'
-                      : isDark
-                        ? 'bg-[#101115] border-[#22242E] hover:border-[#323644]'
-                        : 'bg-[#F8FAFC] border-slate-200 hover:border-slate-300'
-                  }`}
-                >
-                  {/* Top Badge & Category */}
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-1.5">
-                        <span className={`text-[10px] font-mono px-2 py-0.5 rounded-full border flex items-center space-x-1 ${
-                          isDark ? 'bg-[#1B1D25] border-[#2C2F3C] text-slate-300' : 'bg-white border-slate-200 text-slate-700'
-                        }`}>
-                          <CatIcon className="w-3 h-3 text-blue-500" />
-                          <span>{fw.category}</span>
-                        </span>
-
-                        {isTopPick && (
-                          <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-500 flex items-center space-x-1">
-                            <Star className="w-2.5 h-2.5 fill-amber-500" />
-                            <span>Top Recommendation</span>
+                return (
+                  <div
+                    key={fw.id}
+                    onClick={() => handleSelectFramework(fw)}
+                    className={`relative rounded-xl border p-5 flex flex-col justify-between space-y-4 transition-all cursor-pointer ${
+                      isSelected
+                        ? isDark 
+                          ? 'bg-[#151720] border-blue-500 ring-1 ring-blue-500/30 shadow-md' 
+                          : 'bg-blue-50/60 border-blue-600 ring-1 ring-blue-500/20 shadow-sm'
+                        : isDark
+                          ? 'bg-[#101115] border-[#22242E] hover:border-[#323644]'
+                          : 'bg-[#F8FAFC] border-slate-200 hover:border-slate-300'
+                    }`}
+                  >
+                    {/* Top Badge & Category */}
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-1.5">
+                          <span className={`text-[10px] font-mono px-2 py-0.5 rounded-full border flex items-center space-x-1 ${
+                            isDark ? 'bg-[#1B1D25] border-[#2C2F3C] text-slate-300' : 'bg-white border-slate-200 text-slate-700'
+                          }`}>
+                            <CatIcon className="w-3 h-3 text-blue-500" />
+                            <span>{fw.category}</span>
                           </span>
-                        )}
+
+                          {isTopPick && (
+                            <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-500 flex items-center space-x-1">
+                              <Star className="w-2.5 h-2.5 fill-amber-500" />
+                              <span>Top Pick</span>
+                            </span>
+                          )}
+                        </div>
+
+                        <div className={`w-4.5 h-4.5 rounded-full border flex items-center justify-center transition-colors ${
+                          isSelected
+                            ? 'bg-blue-600 border-blue-600 text-white'
+                            : isDark ? 'border-[#333644]' : 'border-slate-300'
+                        }`}>
+                          {isSelected && <Check className="w-3 h-3" />}
+                        </div>
                       </div>
 
-                      <div className={`w-4.5 h-4.5 rounded-full border flex items-center justify-center transition-colors ${
-                        isSelected
-                          ? 'bg-blue-600 border-blue-600 text-white'
-                          : isDark ? 'border-[#333644]' : 'border-slate-300'
-                      }`}>
-                        {isSelected && <Check className="w-3 h-3" />}
+                      <div>
+                        <h4 className={`text-sm font-bold tracking-tight ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                          {fw.name}
+                        </h4>
+                        <p className={`text-[11px] leading-relaxed mt-1 ${isDark ? 'text-[#8E8F99]' : 'text-slate-500'}`}>
+                          {fw.description}
+                        </p>
                       </div>
                     </div>
 
-                    <div>
-                      <h4 className={`text-sm font-bold tracking-tight ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                        {fw.name}
-                      </h4>
-                      <p className={`text-[11px] leading-relaxed mt-1 ${isDark ? 'text-[#8E8F99]' : 'text-slate-500'}`}>
-                        {fw.description}
-                      </p>
-                    </div>
-                  </div>
+                    {/* Why this Framework Section */}
+                    {fw.whyReasons && fw.whyReasons.length > 0 && (
+                      <div className={`pt-3 border-t space-y-2 ${isDark ? 'border-[#1E2028]' : 'border-slate-200/80'}`}>
+                        <div className={`text-[10px] font-mono font-semibold uppercase tracking-wider ${
+                          isDark ? 'text-blue-400' : 'text-blue-700'
+                        }`}>
+                          Why this is ideal for your app:
+                        </div>
 
-                  {/* Why this Framework Section */}
-                  <div className={`pt-3 border-t space-y-2 ${isDark ? 'border-[#1E2028]' : 'border-slate-200/80'}`}>
-                    <div className={`text-[10px] font-mono font-semibold uppercase tracking-wider ${
-                      isDark ? 'text-blue-400' : 'text-blue-700'
-                    }`}>
-                      Why this is ideal for your app:
-                    </div>
+                        <ul className="space-y-1.5">
+                          {fw.whyReasons.map((reason, rIdx) => (
+                            <li key={rIdx} className="flex items-start space-x-2 text-[11px] leading-relaxed">
+                              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0 mt-0.5" />
+                              <span className={isDark ? 'text-slate-300' : 'text-slate-700'}>{reason}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
 
-                    <ul className="space-y-1.5">
-                      {fw.whyReasons.map((reason, rIdx) => (
-                        <li key={rIdx} className="flex items-start space-x-2 text-[11px] leading-relaxed">
-                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0 mt-0.5" />
-                          <span className={isDark ? 'text-slate-300' : 'text-slate-700'}>{reason}</span>
-                        </li>
-                      ))}
-                    </ul>
+                    {/* Best For Tag */}
+                    {fw.bestFor && (
+                      <div className={`text-[10px] pt-2 border-t font-mono ${isDark ? 'border-[#1E2028] text-[#71727D]' : 'border-slate-200/80 text-slate-500'}`}>
+                        Best for: {fw.bestFor}
+                      </div>
+                    )}
                   </div>
-
-                  {/* Best For Tag */}
-                  <div className={`text-[10px] pt-2 border-t font-mono ${isDark ? 'border-[#1E2028] text-[#71727D]' : 'border-slate-200/80 text-slate-500'}`}>
-                    Best for: {fw.bestFor}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+                );
+              })}
+            </div>
+          )}
 
           {/* Custom Framework Option */}
           <div className={`pt-3 border-t flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 ${
@@ -451,7 +518,14 @@ export const DomainIntentView: React.FC<DomainIntentViewProps> = ({ onProceedToI
               Ready for the next step?
             </div>
             <div className={`text-xs ${isDark ? 'text-[#8E8F99]' : 'text-slate-500'}`}>
-              Selected stack: <span className="font-semibold text-blue-500">{isCustomSelected ? customFramework : (activeRecommendations.find(f => f.id === activeFrameworkId)?.name || 'Next.js 15')}</span>. Move to Step 2 to set up required data rules.
+              {isCustomSelected && customFramework ? (
+                <>Selected custom stack: <span className="font-semibold text-blue-500">{customFramework}</span>.</>
+              ) : activeFrameworkId && activeRecommendations.find(f => f.id === activeFrameworkId) ? (
+                <>Selected stack: <span className="font-semibold text-blue-500">{activeRecommendations.find(f => f.id === activeFrameworkId)?.name}</span>.</>
+              ) : (
+                <>Generate an AI-recommended tech stack above or choose a custom framework.</>
+              )}{' '}
+              Move to Step 2 to set up required data rules.
             </div>
           </div>
 
