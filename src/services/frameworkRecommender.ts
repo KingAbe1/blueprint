@@ -1,0 +1,175 @@
+import { FrameworkRecommendation } from '../types/project';
+
+export const BASE_FRAMEWORKS: Record<string, { name: string; category: FrameworkRecommendation['category']; description: string }> = {
+  'nextjs': {
+    name: 'Next.js 15 (React / TypeScript)',
+    category: 'Full-Stack Web',
+    description: 'Production full-stack web framework with integrated server actions, API routes, and fast edge rendering.'
+  },
+  'react-vite': {
+    name: 'React + Vite (SPA)',
+    category: 'Frontend SPA',
+    description: 'Lightweight client-side web application with instant HMR and low-overhead deployment.'
+  },
+  'tauri': {
+    name: 'Tauri 2.0 (Rust + Web)',
+    category: 'Desktop App',
+    description: 'Ultra-lightweight native desktop app for macOS, Windows, and Linux with tiny RAM usage.'
+  },
+  'fastapi': {
+    name: 'FastAPI (Python) + PostgreSQL',
+    category: 'Backend API',
+    description: 'High-speed typed async Python backend designed for data processing, AI models, and automation.'
+  },
+  'expo': {
+    name: 'Expo (React Native / Mobile)',
+    category: 'Mobile App',
+    description: 'Universal cross-platform mobile application running natively on iOS and Android.'
+  },
+  'node-hono': {
+    name: 'Node.js (Hono / Express) + TypeScript',
+    category: 'Backend API',
+    description: 'High-performance typed API service with sub-millisecond cold starts and unified TypeScript types.'
+  }
+};
+
+export function recommendFrameworkFromText(projectName: string, description: string): FrameworkRecommendation[] {
+  const text = (projectName + ' ' + description).toLowerCase();
+
+  // If description is empty, return default top picks
+  if (!description.trim() && !projectName.trim()) {
+    return [
+      {
+        id: 'nextjs',
+        name: BASE_FRAMEWORKS['nextjs'].name,
+        category: BASE_FRAMEWORKS['nextjs'].category,
+        description: BASE_FRAMEWORKS['nextjs'].description,
+        whyReasons: [
+          'Unified full-stack architecture allows building UI and database APIs in one codebase.',
+          'Built-in server-side rendering delivers instant page loads and strong SEO out of the box.',
+          'Broadest ecosystem support for authentication, payments (Stripe), and UI component libraries.'
+        ],
+        bestFor: 'Web applications, SaaS platforms, and customer portals',
+        isRecommended: true
+      },
+      {
+        id: 'react-vite',
+        name: BASE_FRAMEWORKS['react-vite'].name,
+        category: BASE_FRAMEWORKS['react-vite'].category,
+        description: BASE_FRAMEWORKS['react-vite'].description,
+        whyReasons: [
+          'Ultra-fast development feedback with instant hot module reloading.',
+          'Flexible architecture connects seamlessly to Supabase, Firebase, or custom APIs.',
+          'Zero complex server management — deployable directly to free global CDN hosting.'
+        ],
+        bestFor: 'Interactive dashboards, productivity tools, and browser utilities',
+        isRecommended: false
+      }
+    ];
+  }
+
+  // Feature detection
+  const isDesktop = text.includes('desktop') || text.includes('macos') || text.includes('windows') || text.includes('native') || text.includes('offline') || text.includes('local file') || text.includes('studio') || text.includes('workstation');
+  const isMobile = text.includes('mobile') || text.includes('ios') || text.includes('android') || text.includes('phone') || text.includes('app store') || text.includes('tablet');
+  const isAI = text.includes('ai') || text.includes('machine learning') || text.includes('llm') || text.includes('python') || text.includes('data analysis') || text.includes('rag') || text.includes('gpt') || text.includes('claude');
+  const isEcomOrPayments = text.includes('pay') || text.includes('cart') || text.includes('store') || text.includes('shop') || text.includes('checkout') || text.includes('stripe') || text.includes('billing') || text.includes('order');
+  const isRealtime = text.includes('chat') || text.includes('real-time') || text.includes('live') || text.includes('stream') || text.includes('websocket') || text.includes('collaboration') || text.includes('notification');
+  const isApiOnly = text.includes('backend') || text.includes('api') || text.includes('microservice') || text.includes('webhook') || text.includes('cron');
+
+  const recommendations: FrameworkRecommendation[] = [];
+
+  // 1. If Desktop match
+  if (isDesktop) {
+    recommendations.push({
+      id: 'tauri',
+      name: BASE_FRAMEWORKS['tauri'].name,
+      category: 'Desktop App',
+      description: 'Native cross-platform desktop application for macOS, Windows, and Linux.',
+      whyReasons: [
+        'Direct offline access to the user’s local computer filesystem and system notifications.',
+        'Extremely lightweight (<30MB RAM), using system webviews instead of resource-heavy Electron.',
+        'Build native desktop tools using modern web tech (React/TypeScript) backed by a secure Rust core.'
+      ],
+      bestFor: `Desktop tools, offline workstations, and local file managers matching ${projectName}`,
+      isRecommended: true
+    });
+  }
+
+  // 2. If Mobile match
+  if (isMobile) {
+    recommendations.push({
+      id: 'expo',
+      name: BASE_FRAMEWORKS['expo'].name,
+      category: 'Mobile App',
+      description: 'Universal mobile application for iOS and Android using a single TypeScript codebase.',
+      whyReasons: [
+        'Single codebase runs natively on both iPhone and Android devices with native UI fluidity.',
+        'Immediate mobile testing: scan a QR code with the Expo Go app to test directly on your phone.',
+        'Full hardware integration: Access cameras, push notifications, FaceID, and device sensors.'
+      ],
+      bestFor: `Mobile apps and on-the-go user experiences matching ${projectName}`,
+      isRecommended: recommendations.length === 0
+    });
+  }
+
+  // 3. If AI / Data match
+  if (isAI) {
+    recommendations.push({
+      id: 'fastapi',
+      name: BASE_FRAMEWORKS['fastapi'].name,
+      category: 'Backend API',
+      description: 'High-speed async Python API backend with native machine learning support.',
+      whyReasons: [
+        'Seamless integration with Python AI ecosystems (OpenAI, LangChain, PyTorch, HuggingFace).',
+        'Automatic interactive API documentation (Swagger UI) generated directly from your code.',
+        'Strict type validation with Pydantic guarantees clean data inputs across your AI pipelines.'
+      ],
+      bestFor: `AI processing backends, data transformation pipelines, and intelligent services`,
+      isRecommended: recommendations.length === 0
+    });
+  }
+
+  // 4. If Full-Stack Web / E-commerce / SaaS
+  if (isEcomOrPayments || !isDesktop || recommendations.length === 0) {
+    const dynamicReasons = [
+      isEcomOrPayments 
+        ? 'Built-in server routes provide secure, idempotent Stripe webhook and checkout handling.'
+        : 'Unified full-stack architecture lets you build user interfaces and database logic together.',
+      isRealtime
+        ? 'Server components and streaming SSR deliver instant UI rendering for live data updates.'
+        : 'Server-side rendering ensures fast page speeds and top search engine discovery.',
+      'Out-of-the-box support for Tailwind CSS, database ORMs (Prisma/Drizzle), and user auth.'
+    ];
+
+    recommendations.push({
+      id: 'nextjs',
+      name: BASE_FRAMEWORKS['nextjs'].name,
+      category: 'Full-Stack Web',
+      description: 'Production-ready full-stack web framework with server actions and edge API routes.',
+      whyReasons: dynamicReasons,
+      bestFor: `SaaS platforms, customer portals, and web services matching ${projectName}`,
+      isRecommended: recommendations.length === 0
+    });
+  }
+
+  // 5. If SPA / Utility match
+  recommendations.push({
+    id: 'react-vite',
+    name: BASE_FRAMEWORKS['react-vite'].name,
+    category: 'Frontend SPA',
+    description: 'Fast client-side web application with instant HMR and minimal overhead.',
+    whyReasons: [
+      'Instant development feedback with sub-second hot module replacement.',
+      'Easily connects to serverless backends like Supabase, Firebase, or custom REST APIs.',
+      'Zero server maintenance — host on any global CDN for free with zero cold starts.'
+    ],
+    bestFor: `Interactive dashboards, client portals, and responsive tools`,
+    isRecommended: recommendations.length === 0
+  });
+
+  // Ensure top item has isRecommended flag
+  return recommendations.slice(0, 3).map((fw, index) => ({
+    ...fw,
+    isRecommended: index === 0
+  }));
+}

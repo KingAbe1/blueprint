@@ -1,20 +1,26 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { 
   FileText, 
-  Plus, 
-  Trash2, 
-  ArrowRight,
-  CheckCircle,
-  Loader2,
-  Box,
-  Cpu,
-  Key
+  ArrowRight, 
+  CheckCircle, 
+  Loader2, 
+  Cpu, 
+  Key, 
+  Layers, 
+  Check, 
+  Star,
+  Globe,
+  Server,
+  Smartphone,
+  CheckCircle2,
+  RefreshCw
 } from 'lucide-react';
 import { useProjects } from '../../context/ProjectContext';
 import { useTheme } from '../../context/ThemeContext';
 import { useAI } from '../../context/AIContext';
-import { DomainEntity } from '../../types/project';
-import { generateEntitiesWithAI } from '../../services/aiService';
+import { expandAndPolishDescription, analyzeFrameworksWithAI } from '../../services/aiService';
+import { recommendFrameworkFromText } from '../../services/frameworkRecommender';
+import { FrameworkRecommendation } from '../../types/project';
 
 interface DomainIntentViewProps {
   onProceedToInvariants: () => void;
@@ -26,17 +32,66 @@ export const DomainIntentView: React.FC<DomainIntentViewProps> = ({ onProceedToI
   const { settings, isAiConfigured, setIsSettingsOpen } = useAI();
 
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isAnalyzingStack, setIsAnalyzingStack] = useState(false);
   const [notification, setNotification] = useState<string | null>(null);
-
-  const [newEntityName, setNewEntityName] = useState('');
-  const [newEntityDesc, setNewEntityDesc] = useState('');
+  const [customFramework, setCustomFramework] = useState('');
+  const [isCustomSelected, setIsCustomSelected] = useState(false);
+  const [aiRecommendations, setAiRecommendations] = useState<FrameworkRecommendation[] | null>(null);
 
   if (!activeProject) return null;
 
   const { spec } = activeProject;
 
+  // Compute baseline recommendations from text
+  const baselineRecs = useMemo(() => {
+    return recommendFrameworkFromText(activeProject.name, spec.description || '');
+  }, [activeProject.name, spec.description]);
+
+  // Use AI-generated recommendations if available, otherwise baseline
+  const activeRecommendations = aiRecommendations || baselineRecs;
+
+  // Selected framework defaults to top recommended framework if none selected
+  const activeFrameworkId = spec.targetFramework || activeRecommendations[0]?.id || 'nextjs';
+
   const handleDescriptionChange = (desc: string) => {
     updateProjectSpec(activeProject.id, { description: desc });
+    // Reset AI recommendations so live heuristic analysis kicks in as user types
+    if (aiRecommendations) {
+      setAiRecommendations(null);
+    }
+  };
+
+  const handleSelectFramework = (fw: FrameworkRecommendation) => {
+    setIsCustomSelected(false);
+    updateProjectSpec(activeProject.id, {
+      targetFramework: fw.id,
+      frameworkRecommendation: fw
+    });
+    setNotification(`Selected ${fw.name}`);
+    setTimeout(() => setNotification(null), 2500);
+  };
+
+  const handleApplyCustomFramework = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!customFramework.trim()) return;
+
+    const customRec: FrameworkRecommendation = {
+      id: 'custom_' + Date.now(),
+      name: customFramework.trim(),
+      category: 'Full-Stack Web',
+      description: 'Custom technology stack specified by user.',
+      whyReasons: ['Custom tailored technology chosen for specific project requirements.'],
+      bestFor: 'Custom architectural setups'
+    };
+
+    setIsCustomSelected(true);
+    updateProjectSpec(activeProject.id, {
+      targetFramework: customRec.id,
+      frameworkRecommendation: customRec
+    });
+
+    setNotification(`Selected custom stack: ${customFramework.trim()}`);
+    setTimeout(() => setNotification(null), 2500);
   };
 
   const handleAutoGenerate = async () => {
@@ -44,55 +99,79 @@ export const DomainIntentView: React.FC<DomainIntentViewProps> = ({ onProceedToI
     setNotification(null);
 
     try {
-      const result = await generateEntitiesWithAI(
+      const result = await expandAndPolishDescription(
         activeProject.name,
         spec.description || '',
         settings
       );
 
+      // Analyze tech stack dynamically for the polished description
+      const stackResult = await analyzeFrameworksWithAI(activeProject.name, result.text, settings);
+      const topChoice = stackResult.recommendations[0];
+
+      setAiRecommendations(stackResult.recommendations);
       updateProjectSpec(activeProject.id, {
-        coreEntities: result.entities
+        description: result.text,
+        targetFramework: topChoice?.id,
+        frameworkRecommendation: topChoice
       });
 
       setIsGenerating(false);
       if (result.source === 'ai') {
-        setNotification(`Generated ${result.entities.length} items with ${result.providerName || 'AI'}.`);
+        setNotification(`Description polished & tailored stack recommended with ${result.providerName || 'AI'}.`);
       } else {
-        setNotification(`Added ${result.entities.length} Key Items.`);
+        setNotification('Description formatted & recommended stack updated.');
       }
       setTimeout(() => setNotification(null), 4000);
     } catch (err) {
       setIsGenerating(false);
-      setNotification('Failed to generate items. Please check your AI API key.');
+      setNotification('Failed to polish description. Please check your AI API key.');
       setTimeout(() => setNotification(null), 4000);
     }
   };
 
-  const handleAddEntity = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newEntityName.trim()) return;
+  const handleAnalyzeStack = async () => {
+    setIsAnalyzingStack(true);
+    setNotification(null);
 
-    const newEntity: DomainEntity = {
-      id: 'ent_' + Date.now(),
-      name: newEntityName.trim(),
-      description: newEntityDesc.trim()
-    };
+    try {
+      const stackResult = await analyzeFrameworksWithAI(activeProject.name, spec.description || '', settings);
+      setAiRecommendations(stackResult.recommendations);
+      const topChoice = stackResult.recommendations[0];
 
-    updateProjectSpec(activeProject.id, {
-      coreEntities: [...(spec.coreEntities || []), newEntity]
-    });
+      if (topChoice) {
+        updateProjectSpec(activeProject.id, {
+          targetFramework: topChoice.id,
+          frameworkRecommendation: topChoice
+        });
+      }
 
-    setNewEntityName('');
-    setNewEntityDesc('');
+      setIsAnalyzingStack(false);
+      if (stackResult.source === 'ai') {
+        setNotification(`Analyzed project and generated custom stack recommendations with ${stackResult.providerName || 'AI'}.`);
+      } else {
+        setNotification('Tech stack analyzed for your project.');
+      }
+      setTimeout(() => setNotification(null), 4000);
+    } catch (err) {
+      setIsAnalyzingStack(false);
+      setNotification('Failed to analyze tech stack.');
+      setTimeout(() => setNotification(null), 3000);
+    }
   };
 
-  const handleRemoveEntity = (id: string) => {
-    updateProjectSpec(activeProject.id, {
-      coreEntities: (spec.coreEntities || []).filter(e => e.id !== id)
-    });
+  const getCategoryIcon = (category: string) => {
+    switch (category) {
+      case 'Desktop App':
+        return Server;
+      case 'Mobile App':
+        return Smartphone;
+      case 'Backend API':
+        return Cpu;
+      default:
+        return Globe;
+    }
   };
-
-  const entityCount = spec.coreEntities?.length || 0;
 
   return (
     <div className="flex-1 flex flex-col overflow-y-auto w-full">
@@ -107,16 +186,8 @@ export const DomainIntentView: React.FC<DomainIntentViewProps> = ({ onProceedToI
             </span>
             <span className={`text-xs ${isDark ? 'text-[#5E606B]' : 'text-slate-300'}`}>/</span>
             <h1 className={`text-sm font-semibold tracking-tight ${isDark ? 'text-white' : 'text-slate-900'}`}>
-              Project Overview & Plan
+              Project Overview & Tech Stack
             </h1>
-          </div>
-          
-          <div className="flex items-center space-x-2 pl-3 border-l border-slate-200/60 dark:border-[#262832]">
-            <span className={`text-[11px] font-mono px-2 py-0.5 rounded border ${
-              isDark ? 'bg-[#18191E] border-[#2B2C33] text-[#A1A1AA]' : 'bg-slate-50 border-slate-200/60 text-slate-600'
-            }`}>
-              {entityCount} {entityCount === 1 ? 'Key Item' : 'Key Items'}
-            </span>
           </div>
         </div>
 
@@ -141,10 +212,10 @@ export const DomainIntentView: React.FC<DomainIntentViewProps> = ({ onProceedToI
       </div>
 
       {/* Main Document Body */}
-      <div className="p-8 space-y-6 w-full">
+      <div className="p-8 space-y-7 w-full">
         
         {/* Section 1: Project Description */}
-        <div className={`rounded-xl border p-5 space-y-3 transition-all focus-within:border-blue-500/70 focus-within:ring-1 focus-within:ring-blue-500/20 ${
+        <div className={`rounded-xl border p-6 space-y-4 transition-all focus-within:border-blue-500/70 focus-within:ring-1 focus-within:ring-blue-500/20 ${
           isDark ? 'studio-panel-dark' : 'studio-panel-light'
         }`}>
           <div className="flex items-center justify-between">
@@ -155,25 +226,25 @@ export const DomainIntentView: React.FC<DomainIntentViewProps> = ({ onProceedToI
                   1. What are you building?
                 </label>
               </div>
-              <p className={`text-[11px] pl-6 ${isDark ? 'text-[#8E8F99]' : 'text-slate-500'}`}>
-                Describe what your app or website does in everyday language.
+              <p className={`text-xs pl-6 ${isDark ? 'text-[#8E8F99]' : 'text-slate-500'}`}>
+                Describe what your app or website does in simple words. What problem does it solve and what should it do?
               </p>
             </div>
 
             <button
               onClick={handleAutoGenerate}
               disabled={isGenerating}
-              className="btn-primary-blue disabled:opacity-50 px-3 py-1.5 rounded-lg text-xs font-semibold text-white flex items-center space-x-1.5 cursor-pointer shrink-0"
+              className="btn-primary-blue disabled:opacity-50 px-3.5 py-2 rounded-lg text-xs font-semibold text-white flex items-center space-x-1.5 cursor-pointer shrink-0 shadow-xs"
             >
               {isGenerating ? (
                 <>
                   <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                  <span>Analyzing idea...</span>
+                  <span>Polishing with AI...</span>
                 </>
               ) : (
                 <>
                   <Cpu className="w-3.5 h-3.5" />
-                  <span>Auto-Fill Key Items</span>
+                  <span>Expand & Polish with AI</span>
                 </>
               )}
             </button>
@@ -181,11 +252,11 @@ export const DomainIntentView: React.FC<DomainIntentViewProps> = ({ onProceedToI
 
           <textarea
             id="system-objective-input"
-            rows={3}
+            rows={5}
             value={spec.description || ''}
             onChange={(e) => handleDescriptionChange(e.target.value)}
-            placeholder="Describe what your app does (e.g. A store where customers can browse items, add them to a cart, pay securely, and get order receipts)..."
-            className={`w-full text-xs leading-relaxed p-3 rounded-lg border outline-none resize-y transition-colors ${
+            placeholder="Describe your app or idea (e.g. An e-commerce store where customers can browse items, add them to a cart, pay securely with Stripe, and receive email receipts with order tracking)..."
+            className={`w-full text-xs leading-relaxed p-4 rounded-xl border outline-none resize-y transition-colors font-sans ${
               isDark 
                 ? 'bg-[#101114] border-[#20222A] text-white placeholder-[#5E606B] focus:border-[#2E313D]' 
                 : 'bg-[#F8FAFC] border-slate-200/80 text-slate-900 placeholder-slate-400 focus:border-slate-300'
@@ -193,17 +264,17 @@ export const DomainIntentView: React.FC<DomainIntentViewProps> = ({ onProceedToI
           />
 
           {!isAiConfigured && (
-            <div className={`text-[11px] flex items-center justify-between pt-1 ${
-              isDark ? 'text-[#8E8F99]' : 'text-slate-500'
+            <div className={`text-xs flex items-center justify-between pt-1 border-t ${
+              isDark ? 'border-[#1E2028] text-[#8E8F99]' : 'border-slate-100 text-slate-500'
             }`}>
               <div className="flex items-center space-x-1.5">
-                <Key className="w-3 h-3 text-blue-500" />
+                <Key className="w-3.5 h-3.5 text-blue-500 shrink-0" />
                 <span>Tip: Connect your own Claude, OpenAI, Gemini, or Ollama API key for deeper intelligence.</span>
               </div>
               <button
                 type="button"
                 onClick={() => setIsSettingsOpen(true)}
-                className="text-blue-500 hover:underline font-medium cursor-pointer"
+                className="text-blue-500 hover:underline font-semibold cursor-pointer shrink-0"
               >
                 Connect AI Key
               </button>
@@ -211,122 +282,176 @@ export const DomainIntentView: React.FC<DomainIntentViewProps> = ({ onProceedToI
           )}
         </div>
 
-        {/* Section 2: Key Items & People (Full Width Clean Layout) */}
-        <div className={`rounded-xl border p-5 space-y-4 transition-colors ${
+        {/* Section 2: Framework Recommendation with Clear Rationale */}
+        <div className={`rounded-xl border p-6 space-y-5 transition-colors ${
           isDark ? 'studio-panel-dark' : 'studio-panel-light'
         }`}>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-2">
-              <Box className="w-4 h-4 text-blue-500" />
-              <div>
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+            <div className="space-y-0.5">
+              <div className="flex items-center space-x-2">
+                <Layers className="w-4 h-4 text-blue-500" />
                 <h3 className={`text-xs font-bold uppercase tracking-wider ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
-                  2. Key Items & People ({entityCount})
+                  2. Recommended Tech Stack & Framework
                 </h3>
-                <p className={`text-[11px] ${isDark ? 'text-[#8E8F99]' : 'text-slate-500'}`}>
-                  The main records, items, or user types in your app (e.g. Customer, Order, Product).
-                </p>
               </div>
+              <p className={`text-xs pl-6 ${isDark ? 'text-[#8E8F99]' : 'text-slate-500'}`}>
+                Dynamically analyzed based on your project description. Here is the ideal architecture with specific reasons why.
+              </p>
             </div>
+
+            <button
+              onClick={handleAnalyzeStack}
+              disabled={isAnalyzingStack || !spec.description?.trim()}
+              className={`text-xs px-3 py-1.5 rounded-lg border font-semibold flex items-center space-x-1.5 transition-all cursor-pointer shrink-0 ${
+                isDark 
+                  ? 'border-[#2D303B] bg-[#161820] text-slate-200 hover:text-white hover:border-blue-500/50 disabled:opacity-40' 
+                  : 'border-slate-200 bg-white text-slate-700 hover:text-slate-900 hover:border-blue-400 disabled:opacity-40'
+              }`}
+              title="Re-analyze description to get tailored framework recommendations"
+            >
+              {isAnalyzingStack ? (
+                <>
+                  <Loader2 className="w-3.5 h-3.5 animate-spin text-blue-500" />
+                  <span>Analyzing Stack...</span>
+                </>
+              ) : (
+                <>
+                  <RefreshCw className="w-3.5 h-3.5 text-blue-500" />
+                  <span>Re-analyze Stack</span>
+                </>
+              )}
+            </button>
           </div>
 
-          {/* Items Grid/List */}
-          {spec.coreEntities && spec.coreEntities.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-              {spec.coreEntities.map((entity) => (
+          {/* Framework Cards Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {activeRecommendations.map((fw, idx) => {
+              const isSelected = !isCustomSelected && activeFrameworkId === fw.id;
+              const isTopPick = idx === 0;
+              const CatIcon = getCategoryIcon(fw.category);
+
+              return (
                 <div
-                  key={entity.id}
-                  className={`p-3 rounded-lg border flex items-start justify-between space-x-3 transition-colors ${
-                    isDark 
-                      ? 'bg-[#101114] border-[#23252C] hover:border-[#32353E]' 
-                      : 'bg-[#F8FAFC] border-slate-200/90 hover:border-slate-300'
+                  key={fw.id}
+                  onClick={() => handleSelectFramework(fw)}
+                  className={`relative rounded-xl border p-5 flex flex-col justify-between space-y-4 transition-all cursor-pointer ${
+                    isSelected
+                      ? isDark 
+                        ? 'bg-[#151720] border-blue-500 ring-1 ring-blue-500/30 shadow-md' 
+                        : 'bg-blue-50/60 border-blue-600 ring-1 ring-blue-500/20 shadow-sm'
+                      : isDark
+                        ? 'bg-[#101115] border-[#22242E] hover:border-[#323644]'
+                        : 'bg-[#F8FAFC] border-slate-200 hover:border-slate-300'
                   }`}
                 >
-                  <div className="min-w-0 flex-1 space-y-0.5">
-                    <div className="flex items-center space-x-2">
-                      <span className={`text-xs font-semibold ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                        {entity.name}
-                      </span>
-                      <span className={`text-[10px] font-mono px-1.5 py-0.2 rounded ${
-                        isDark ? 'bg-blue-500/10 text-blue-400' : 'bg-blue-50 text-blue-700'
+                  {/* Top Badge & Category */}
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-1.5">
+                        <span className={`text-[10px] font-mono px-2 py-0.5 rounded-full border flex items-center space-x-1 ${
+                          isDark ? 'bg-[#1B1D25] border-[#2C2F3C] text-slate-300' : 'bg-white border-slate-200 text-slate-700'
+                        }`}>
+                          <CatIcon className="w-3 h-3 text-blue-500" />
+                          <span>{fw.category}</span>
+                        </span>
+
+                        {isTopPick && (
+                          <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-500 flex items-center space-x-1">
+                            <Star className="w-2.5 h-2.5 fill-amber-500" />
+                            <span>Top Recommendation</span>
+                          </span>
+                        )}
+                      </div>
+
+                      <div className={`w-4.5 h-4.5 rounded-full border flex items-center justify-center transition-colors ${
+                        isSelected
+                          ? 'bg-blue-600 border-blue-600 text-white'
+                          : isDark ? 'border-[#333644]' : 'border-slate-300'
                       }`}>
-                        item
-                      </span>
+                        {isSelected && <Check className="w-3 h-3" />}
+                      </div>
                     </div>
-                    {entity.description && (
-                      <p className={`text-[11px] leading-relaxed ${isDark ? 'text-[#8E8F99]' : 'text-slate-600'}`}>
-                        {entity.description}
+
+                    <div>
+                      <h4 className={`text-sm font-bold tracking-tight ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                        {fw.name}
+                      </h4>
+                      <p className={`text-[11px] leading-relaxed mt-1 ${isDark ? 'text-[#8E8F99]' : 'text-slate-500'}`}>
+                        {fw.description}
                       </p>
-                    )}
+                    </div>
                   </div>
 
-                  <button
-                    onClick={() => handleRemoveEntity(entity.id)}
-                    className="p-1 rounded text-[#71727D] hover:text-red-400 hover:bg-red-500/10 transition-colors cursor-pointer shrink-0"
-                    title="Remove item"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className={`p-8 rounded-lg border border-dashed text-center text-xs ${
-              isDark ? 'border-[#262832] text-[#71727D]' : 'border-slate-200 text-slate-400'
-            }`}>
-              No items added yet. Click "Auto-Fill Key Items" above or add one below.
-            </div>
-          )}
+                  {/* Why this Framework Section */}
+                  <div className={`pt-3 border-t space-y-2 ${isDark ? 'border-[#1E2028]' : 'border-slate-200/80'}`}>
+                    <div className={`text-[10px] font-mono font-semibold uppercase tracking-wider ${
+                      isDark ? 'text-blue-400' : 'text-blue-700'
+                    }`}>
+                      Why this is ideal for your app:
+                    </div>
 
-          {/* Add Item Form */}
-          <form onSubmit={handleAddEntity} className="pt-2 border-t border-slate-100 dark:border-[#1E2028] space-y-2">
-            <div className="text-[11px] font-medium text-slate-500 dark:text-[#8E8F99]">
-              Add a new item or user type:
+                    <ul className="space-y-1.5">
+                      {fw.whyReasons.map((reason, rIdx) => (
+                        <li key={rIdx} className="flex items-start space-x-2 text-[11px] leading-relaxed">
+                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0 mt-0.5" />
+                          <span className={isDark ? 'text-slate-300' : 'text-slate-700'}>{reason}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+
+                  {/* Best For Tag */}
+                  <div className={`text-[10px] pt-2 border-t font-mono ${isDark ? 'border-[#1E2028] text-[#71727D]' : 'border-slate-200/80 text-slate-500'}`}>
+                    Best for: {fw.bestFor}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Custom Framework Option */}
+          <div className={`pt-3 border-t flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 ${
+            isDark ? 'border-[#1E2028]' : 'border-slate-100'
+          }`}>
+            <div className={`text-xs ${isDark ? 'text-[#8E8F99]' : 'text-slate-500'}`}>
+              Prefer a different technology stack? Enter your preferred framework:
             </div>
-            <div className="flex flex-col sm:flex-row gap-2">
+
+            <form onSubmit={handleApplyCustomFramework} className="flex items-center space-x-2 w-full sm:w-auto">
               <input
                 type="text"
-                placeholder="Item Name (e.g. Customer, Order, Product)"
-                value={newEntityName}
-                onChange={(e) => setNewEntityName(e.target.value)}
-                className={`sm:w-1/3 text-xs p-2 rounded-lg outline-none ${
-                  isDark ? 'studio-input-dark' : 'studio-input-light'
-                }`}
-              />
-              <input
-                type="text"
-                placeholder="What is this for? (e.g. Stores customer profile and email)"
-                value={newEntityDesc}
-                onChange={(e) => setNewEntityDesc(e.target.value)}
-                className={`flex-1 text-xs p-2 rounded-lg outline-none ${
+                placeholder="e.g. SvelteKit, Django, Ruby on Rails, Go"
+                value={customFramework}
+                onChange={(e) => setCustomFramework(e.target.value)}
+                className={`text-xs p-2 rounded-lg outline-none w-full sm:w-64 ${
                   isDark ? 'studio-input-dark' : 'studio-input-light'
                 }`}
               />
               <button
                 type="submit"
-                disabled={!newEntityName.trim()}
-                className={`px-4 py-2 rounded-lg border text-xs font-medium flex items-center justify-center space-x-1.5 transition-colors cursor-pointer shrink-0 ${
+                disabled={!customFramework.trim()}
+                className={`text-xs px-3 py-2 rounded-lg border font-semibold transition-colors cursor-pointer shrink-0 ${
                   isDark 
-                    ? 'border-[#27282F] text-slate-300 hover:bg-white/[0.04] disabled:opacity-30' 
+                    ? 'border-[#2D303B] text-slate-300 hover:bg-white/[0.06] disabled:opacity-30' 
                     : 'border-slate-200 text-slate-700 hover:bg-slate-50 disabled:opacity-30'
                 }`}
               >
-                <Plus className="w-3.5 h-3.5" />
-                <span>Add Item</span>
+                Use Custom
               </button>
-            </div>
-          </form>
+            </form>
+          </div>
         </div>
 
         {/* Bottom Synthesis Action Footer */}
-        <div className={`p-4 rounded-xl border flex items-center justify-between transition-colors ${
+        <div className={`p-5 rounded-xl border flex items-center justify-between transition-colors ${
           isDark ? 'bg-[#141519] border-[#23252C]' : 'bg-white border-slate-200/80 shadow-xs'
         }`}>
           <div className="space-y-0.5">
             <div className={`text-xs font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>
               Ready for the next step?
             </div>
-            <div className={`text-[11px] ${isDark ? 'text-[#8E8F99]' : 'text-slate-500'}`}>
-              Move to Step 2 to set up required fields and guardrails.
+            <div className={`text-xs ${isDark ? 'text-[#8E8F99]' : 'text-slate-500'}`}>
+              Selected stack: <span className="font-semibold text-blue-500">{isCustomSelected ? customFramework : (activeRecommendations.find(f => f.id === activeFrameworkId)?.name || 'Next.js 15')}</span>. Move to Step 2 to set up required data rules.
             </div>
           </div>
 

@@ -8,11 +8,23 @@ export interface DomainEntity {
   description: string;
 }
 
+export interface FrameworkRecommendation {
+  id: string;
+  name: string;
+  category: 'Full-Stack Web' | 'Frontend SPA' | 'Desktop App' | 'Backend API' | 'Mobile App';
+  description: string;
+  whyReasons: string[];
+  bestFor: string;
+  isRecommended?: boolean;
+}
+
 export interface ProjectSpec {
   description: string;
-  coreEntities: DomainEntity[];
-  criticalWorkflows: string[];
-  nonNegotiables: string[];
+  targetFramework?: string;
+  frameworkRecommendation?: FrameworkRecommendation;
+  coreEntities?: DomainEntity[];
+  criticalWorkflows?: string[];
+  nonNegotiables?: string[];
 }
 
 export interface Project {
