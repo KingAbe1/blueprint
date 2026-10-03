@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { 
   FileText, 
   ArrowRight, 
-  CheckCircle, 
   Loader2, 
   Cpu, 
   Key, 
@@ -15,14 +14,12 @@ import {
   CheckCircle2,
   RefreshCw,
   Sparkles,
-  HelpCircle,
-  AlertCircle,
-  AlertTriangle,
-  Info
+  HelpCircle
 } from 'lucide-react';
 import { useProjects } from '../../context/ProjectContext';
 import { useTheme } from '../../context/ThemeContext';
 import { useAI } from '../../context/AIContext';
+import { useNotification } from '../../context/NotificationContext';
 import { expandAndPolishDescription, analyzeFrameworksWithAI } from '../../services/aiService';
 import { FrameworkRecommendation } from '../../types/project';
 
@@ -34,10 +31,10 @@ export const DomainIntentView: React.FC<DomainIntentViewProps> = ({ onProceedToI
   const { activeProject, updateProjectSpec } = useProjects();
   const { isDark } = useTheme();
   const { settings, isAiConfigured, setIsSettingsOpen } = useAI();
+  const { notify } = useNotification();
 
   const [isGenerating, setIsGenerating] = useState(false);
   const [isAnalyzingStack, setIsAnalyzingStack] = useState(false);
-  const [statusMsg, setStatusMsg] = useState<{ text: string; type: 'success' | 'warning' | 'error' | 'info' } | null>(null);
   const [customFramework, setCustomFramework] = useState('');
   const [isCustomSelected, setIsCustomSelected] = useState(false);
   const [aiRecommendations, setAiRecommendations] = useState<FrameworkRecommendation[] | null>(null);
@@ -52,13 +49,6 @@ export const DomainIntentView: React.FC<DomainIntentViewProps> = ({ onProceedToI
   // Active framework selection
   const activeFrameworkId = spec.targetFramework || (activeRecommendations.length > 0 ? activeRecommendations[0].id : undefined);
 
-  const showStatus = (text: string, type: 'success' | 'warning' | 'error' | 'info' = 'success', duration = 4500) => {
-    setStatusMsg({ text, type });
-    setTimeout(() => {
-      setStatusMsg(curr => (curr?.text === text ? null : curr));
-    }, duration);
-  };
-
   const handleDescriptionChange = (desc: string) => {
     updateProjectSpec(activeProject.id, { description: desc });
   };
@@ -69,7 +59,7 @@ export const DomainIntentView: React.FC<DomainIntentViewProps> = ({ onProceedToI
       targetFramework: fw.id,
       frameworkRecommendation: fw
     });
-    showStatus(`Selected ${fw.name}`, 'success', 2500);
+    notify.success(`Selected ${fw.name}`);
   };
 
   const handleApplyCustomFramework = (e: React.FormEvent) => {
@@ -91,17 +81,16 @@ export const DomainIntentView: React.FC<DomainIntentViewProps> = ({ onProceedToI
       frameworkRecommendation: customRec
     });
 
-    showStatus(`Selected custom stack: ${customFramework.trim()}`, 'success', 2500);
+    notify.success(`Selected custom stack: ${customFramework.trim()}`);
   };
 
   const handleAutoGenerate = async () => {
     if (!spec.description?.trim() && !activeProject.name.trim()) {
-      showStatus('Please enter a project name or brief description first.', 'warning', 3500);
+      notify.warning('Please enter a project name or brief description first.');
       return;
     }
 
     setIsGenerating(true);
-    setStatusMsg(null);
 
     try {
       const result = await expandAndPolishDescription(
@@ -117,14 +106,7 @@ export const DomainIntentView: React.FC<DomainIntentViewProps> = ({ onProceedToI
 
       // Stop section 1 loading state immediately
       setIsGenerating(false);
-
-      if (result.error) {
-        showStatus(result.error, 'warning', 6000);
-      } else if (result.source === 'ai') {
-        showStatus(`Description expanded & polished with ${result.providerName || 'AI'}.`, 'success', 4000);
-      } else {
-        showStatus('Description structured using local blueprint engine.', 'info', 4000);
-      }
+      notify.success(`Description expanded & polished with ${result.providerName || 'AI'}.`);
 
       // 2. Asynchronously analyze tailored tech stack for the new description with Section 2 spinner
       setIsAnalyzingStack(true);
@@ -139,25 +121,35 @@ export const DomainIntentView: React.FC<DomainIntentViewProps> = ({ onProceedToI
           targetFramework: topChoice?.id,
           frameworkRecommendation: topChoice
         });
-      } catch (stackErr) {
+      } catch (stackErr: any) {
         console.warn('Tech stack analysis failed during auto-generate:', stackErr);
+        notify.warning(stackErr?.message || 'Tech stack analysis failed. Check AI settings.', {
+          action: {
+            label: 'Configure AI Key',
+            onClick: () => setIsSettingsOpen(true)
+          }
+        });
       } finally {
         setIsAnalyzingStack(false);
       }
     } catch (err: any) {
       setIsGenerating(false);
-      showStatus(err?.message || 'Failed to polish description. Check AI settings.', 'error', 5000);
+      notify.error(err?.message || 'Failed to polish description. Check AI settings.', {
+        action: {
+          label: 'Configure AI Key',
+          onClick: () => setIsSettingsOpen(true)
+        }
+      });
     }
   };
 
   const handleAnalyzeStack = async () => {
     if (!spec.description?.trim()) {
-      showStatus('Please enter what you are building first so AI can analyze the right stack.', 'warning', 3500);
+      notify.warning('Please enter what you are building first so AI can analyze the right stack.');
       return;
     }
 
     setIsAnalyzingStack(true);
-    setStatusMsg(null);
 
     try {
       const stackResult = await analyzeFrameworksWithAI(activeProject.name, spec.description || '', settings);
@@ -171,14 +163,15 @@ export const DomainIntentView: React.FC<DomainIntentViewProps> = ({ onProceedToI
       });
 
       setIsAnalyzingStack(false);
-      if (stackResult.source === 'ai') {
-        showStatus(`AI generated custom stack recommendations with ${stackResult.providerName || 'AI'}.`, 'success', 4000);
-      } else {
-        showStatus('Tech stack analyzed for your project requirements.', 'info', 4000);
-      }
+      notify.success(`AI generated custom stack recommendations with ${stackResult.providerName || 'AI'}.`);
     } catch (err: any) {
       setIsAnalyzingStack(false);
-      showStatus(err?.message || 'Failed to analyze tech stack.', 'error', 4000);
+      notify.error(err?.message || 'Failed to analyze tech stack. Check AI settings.', {
+        action: {
+          label: 'Configure AI Key',
+          onClick: () => setIsSettingsOpen(true)
+        }
+      });
     }
   };
 
@@ -214,24 +207,6 @@ export const DomainIntentView: React.FC<DomainIntentViewProps> = ({ onProceedToI
         </div>
 
         <div className="flex items-center space-x-3">
-          {statusMsg && (
-            <div className={`text-xs font-medium px-3 py-1 rounded-md border flex items-center space-x-1.5 animate-in fade-in ${
-              statusMsg.type === 'error'
-                ? isDark ? 'bg-rose-950/60 border-rose-500/40 text-rose-300' : 'bg-rose-50 border-rose-200 text-rose-700'
-                : statusMsg.type === 'warning'
-                ? isDark ? 'bg-amber-950/60 border-amber-500/40 text-amber-300' : 'bg-amber-50 border-amber-200 text-amber-700'
-                : statusMsg.type === 'info'
-                ? isDark ? 'bg-blue-950/60 border-blue-500/40 text-blue-300' : 'bg-blue-50 border-blue-200 text-blue-700'
-                : isDark ? 'bg-emerald-950/60 border-emerald-500/40 text-emerald-300' : 'bg-emerald-50 border-emerald-200 text-emerald-700'
-            }`}>
-              {statusMsg.type === 'error' && <AlertCircle className="w-3.5 h-3.5 text-rose-500" />}
-              {statusMsg.type === 'warning' && <AlertTriangle className="w-3.5 h-3.5 text-amber-500" />}
-              {statusMsg.type === 'info' && <Info className="w-3.5 h-3.5 text-blue-500" />}
-              {statusMsg.type === 'success' && <CheckCircle className="w-3.5 h-3.5 text-emerald-500" />}
-              <span>{statusMsg.text}</span>
-            </div>
-          )}
-
           <button
             onClick={onProceedToInvariants}
             className="btn-primary-blue px-3.5 py-1.5 rounded-lg text-xs font-semibold text-white flex items-center space-x-1.5 cursor-pointer shadow-sm"
@@ -281,86 +256,37 @@ export const DomainIntentView: React.FC<DomainIntentViewProps> = ({ onProceedToI
             </button>
           </div>
 
-          <div className="relative">
-            <textarea
-              id="system-objective-input"
-              rows={5}
-              disabled={isGenerating}
-              value={spec.description || ''}
-              onChange={(e) => handleDescriptionChange(e.target.value)}
-              placeholder="Describe your app or idea (e.g. An e-commerce store where customers can browse items, add them to a cart, pay securely with Stripe, and receive email receipts with order tracking)..."
-              className={`w-full text-xs leading-relaxed p-4 rounded-xl border outline-none resize-y transition-all font-sans ${
-                isDark 
-                  ? 'bg-[#101114] border-[#20222A] text-white placeholder-[#5E606B] focus:border-[#2E313D]' 
-                  : 'bg-[#F8FAFC] border-slate-200/80 text-slate-900 placeholder-slate-400 focus:border-slate-300'
-              } ${isGenerating ? 'opacity-25 blur-[1px]' : ''}`}
-            />
-
-            {/* In-place AI Generating / Polishing Loading Overlay */}
-            {isGenerating && (
-              <div className={`absolute inset-0 rounded-xl flex flex-col items-center justify-center p-6 backdrop-blur-xs border transition-all animate-in fade-in duration-200 ${
-                isDark 
-                  ? 'bg-[#12141C]/85 border-blue-500/40 shadow-lg shadow-blue-500/5' 
-                  : 'bg-white/85 border-blue-400 shadow-md'
-              }`}>
-                <div className="flex items-center space-x-3">
-                  <div className="relative flex items-center justify-center">
-                    <div className="w-8 h-8 rounded-full bg-blue-500/30 animate-ping absolute" />
-                    <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-white shadow-sm">
-                      <Sparkles className="w-4 h-4 animate-spin text-white" />
-                    </div>
-                  </div>
-                  <div>
-                    <h5 className={`text-xs font-bold flex items-center space-x-2 ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                      <span>Polishing & Architecting Specification...</span>
-                    </h5>
-                    <p className={`text-[11px] mt-0.5 ${isDark ? 'text-blue-300/80' : 'text-blue-700'}`}>
-                      Structuring core proposition, user workflows, and reliability expectations
-                    </p>
-                  </div>
-                </div>
-
-                {/* Animated skeleton shimmer bars */}
-                <div className="w-full max-w-md mt-4 space-y-2">
-                  <div className={`h-2 rounded-full w-full animate-pulse ${isDark ? 'bg-blue-500/25' : 'bg-blue-200'}`} />
-                  <div className={`h-2 rounded-full w-5/6 animate-pulse ${isDark ? 'bg-blue-500/20' : 'bg-blue-150'}`} style={{ animationDelay: '150ms' }} />
-                  <div className={`h-2 rounded-full w-3/5 animate-pulse ${isDark ? 'bg-blue-500/15' : 'bg-blue-100'}`} style={{ animationDelay: '300ms' }} />
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Inline alert if statusMsg is active */}
-          {statusMsg && (
-            <div className={`p-3 rounded-lg border text-xs flex items-center justify-between gap-3 animate-in fade-in ${
-              statusMsg.type === 'error'
-                ? isDark ? 'bg-rose-950/40 border-rose-500/30 text-rose-300' : 'bg-rose-50 border-rose-200 text-rose-800'
-                : statusMsg.type === 'warning'
-                ? isDark ? 'bg-amber-950/40 border-amber-500/30 text-amber-300' : 'bg-amber-50 border-amber-200 text-amber-800'
-                : statusMsg.type === 'info'
-                ? isDark ? 'bg-blue-950/40 border-blue-500/30 text-blue-300' : 'bg-blue-50 border-blue-200 text-blue-800'
-                : isDark ? 'bg-emerald-950/40 border-emerald-500/30 text-emerald-300' : 'bg-emerald-50 border-emerald-200 text-emerald-800'
+          {/* If generating/polishing description, show identical clean loading state as Section 2 */}
+          {isGenerating ? (
+            <div className={`p-8 rounded-xl border border-dashed flex flex-col items-center justify-center space-y-3 transition-all animate-in fade-in duration-150 ${
+              isDark ? 'bg-[#121318]/50 border-blue-500/40 text-slate-300' : 'bg-blue-50/40 border-blue-200 text-slate-700'
             }`}>
-              <div className="flex items-center space-x-2">
-                {statusMsg.type === 'error' && <AlertCircle className="w-4 h-4 text-rose-500 shrink-0" />}
-                {statusMsg.type === 'warning' && <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0" />}
-                {statusMsg.type === 'info' && <Info className="w-4 h-4 text-blue-500 shrink-0" />}
-                {statusMsg.type === 'success' && <CheckCircle className="w-4 h-4 text-emerald-500 shrink-0" />}
-                <span>{statusMsg.text}</span>
+              <Loader2 className="w-6 h-6 animate-spin text-blue-500" />
+              <div className="text-center space-y-1">
+                <p className="text-xs font-semibold">AI Software Architect is expanding and polishing your specification...</p>
+                <p className={`text-[11px] ${isDark ? 'text-[#8E8F99]' : 'text-slate-500'}`}>
+                  Structuring core value proposition, primary workflows, and reliability expectations.
+                </p>
               </div>
-              {(statusMsg.type === 'warning' || statusMsg.type === 'error') && (
-                <button
-                  type="button"
-                  onClick={() => setIsSettingsOpen(true)}
-                  className="px-2.5 py-1 rounded bg-white/10 hover:bg-white/20 text-[11px] font-semibold transition-colors cursor-pointer shrink-0"
-                >
-                  Configure AI Key
-                </button>
-              )}
+            </div>
+          ) : (
+            <div className="relative">
+              <textarea
+                id="system-objective-input"
+                rows={5}
+                value={spec.description || ''}
+                onChange={(e) => handleDescriptionChange(e.target.value)}
+                placeholder="Describe your app or idea (e.g. An e-commerce store where customers can browse items, add them to a cart, pay securely with Stripe, and receive email receipts with order tracking)..."
+                className={`w-full text-xs leading-relaxed p-4 rounded-xl border outline-none resize-y transition-all font-sans ${
+                  isDark 
+                    ? 'bg-[#101114] border-[#20222A] text-white placeholder-[#5E606B] focus:border-[#2E313D]' 
+                    : 'bg-[#F8FAFC] border-slate-200/80 text-slate-900 placeholder-slate-400 focus:border-slate-300'
+                }`}
+              />
             </div>
           )}
 
-          {!isAiConfigured && !statusMsg && (
+          {!isAiConfigured && (
             <div className={`text-xs flex items-center justify-between pt-1 border-t ${
               isDark ? 'border-[#1E2028] text-[#8E8F99]' : 'border-slate-100 text-slate-500'
             }`}>

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { ThemeProvider, useTheme } from './context/ThemeContext';
 import { ProjectProvider, useProjects } from './context/ProjectContext';
 import { AIProvider } from './context/AIContext';
+import { NotificationProvider } from './context/NotificationContext';
 import { Header } from './components/layout/Header';
 import { Sidebar } from './components/layout/Sidebar';
 import { CreateProjectView } from './components/project/CreateProjectView';
@@ -83,11 +84,13 @@ const AppContent: React.FC = () => {
 export const App: React.FC = () => {
   return (
     <ThemeProvider>
-      <ProjectProvider>
-        <AIProvider>
-          <AppContent />
-        </AIProvider>
-      </ProjectProvider>
+      <NotificationProvider>
+        <ProjectProvider>
+          <AIProvider>
+            <AppContent />
+          </AIProvider>
+        </ProjectProvider>
+      </NotificationProvider>
     </ThemeProvider>
   );
 };

@@ -1,8 +1,6 @@
 import { AIProviderConfig, AISettings } from '../types/ai';
 import { DomainEntity, FrameworkRecommendation } from '../types/project';
 import { 
-  extractDomainFromObjective, 
-  expandDescriptionLocally, 
   cleanRawDescription,
   formatSpecificationTemplate 
 } from './domainExtractor';
@@ -388,13 +386,12 @@ export async function generateEntitiesWithAI(
   projectName: string,
   description: string,
   settings: AISettings
-): Promise<{ entities: DomainEntity[]; source: 'ai' | 'local'; providerName?: string }> {
+): Promise<{ entities: DomainEntity[]; providerName: string }> {
   const activeConfig = settings.providers[settings.activeProvider];
   const hasKey = activeConfig && (activeConfig.provider === 'ollama' || Boolean(activeConfig.apiKey?.trim()));
 
   if (!hasKey) {
-    const localResult = extractDomainFromObjective(projectName, description);
-    return { entities: localResult.entities, source: 'local' };
+    throw new Error(`API key is required for ${activeConfig?.name || 'AI'}. Please configure it in AI Settings.`);
   }
 
   const prompt = `You are a software architect assisting in designing a project called "${projectName}".
@@ -413,60 +410,43 @@ Respond ONLY with a valid JSON array of objects in this exact structure:
 ]
 Do not include any text outside the JSON array.`;
 
-  try {
-    const rawText = await callAIModel(activeConfig, prompt, { temperature: 0.2, maxTokens: 1024 });
+  const rawText = await callAIModel(activeConfig, prompt, { temperature: 0.2, maxTokens: 1024 });
 
-    const jsonMatch = rawText.match(/\[[\s\S]*\]/);
-    if (jsonMatch) {
-      const parsed = JSON.parse(jsonMatch[0]);
-      if (Array.isArray(parsed) && parsed.length > 0) {
-        const entities: DomainEntity[] = parsed.map((item: any, idx: number) => ({
-          id: 'ent_' + Date.now() + '_' + idx,
-          name: String(item.name || 'Item').trim(),
-          description: String(item.description || '').trim()
-        }));
-        return {
-          entities,
-          source: 'ai',
-          providerName: activeConfig.name
-        };
-      }
+  const jsonMatch = rawText.match(/\[[\s\S]*\]/);
+  if (jsonMatch) {
+    const parsed = JSON.parse(jsonMatch[0]);
+    if (Array.isArray(parsed) && parsed.length > 0) {
+      const entities: DomainEntity[] = parsed.map((item: any, idx: number) => ({
+        id: 'ent_' + Date.now() + '_' + idx,
+        name: String(item.name || 'Item').trim(),
+        description: String(item.description || '').trim()
+      }));
+      return {
+        entities,
+        providerName: activeConfig.name
+      };
     }
-
-    const local = extractDomainFromObjective(projectName, description);
-    return { entities: local.entities, source: 'local' };
-  } catch (err) {
-    console.warn('AI extraction failed, using local domain extractor:', err);
-    const local = extractDomainFromObjective(projectName, description);
-    return { entities: local.entities, source: 'local' };
   }
+
+  throw new Error(`Could not parse domain entities from ${activeConfig.name} response.`);
 }
 
 export async function expandAndPolishDescription(
   projectName: string,
   currentDescription: string,
   settings: AISettings
-): Promise<{ text: string; source: 'ai' | 'local'; providerName?: string; error?: string }> {
+): Promise<{ text: string; providerName: string }> {
   const activeConfig = settings.providers[settings.activeProvider];
   const hasKey = activeConfig && (activeConfig.provider === 'ollama' || Boolean(activeConfig.apiKey?.trim()));
 
   const coreInput = cleanRawDescription(currentDescription) || (projectName || '').trim();
 
   if (coreInput.length < 2) {
-    return {
-      text: currentDescription,
-      source: 'local',
-      error: 'Please enter a project name or brief idea before expanding.'
-    };
+    throw new Error('Please enter a project name or brief idea before expanding.');
   }
 
-  // If no AI key configured, use intelligent local expansion instantly
   if (!hasKey) {
-    const localText = expandDescriptionLocally(projectName, coreInput);
-    return {
-      text: localText,
-      source: 'local'
-    };
+    throw new Error(`API key is required for ${activeConfig?.name || 'AI'}. Please click 'Configure AI Key' to connect.`);
   }
 
   const prompt = `You are an expert software architect.
@@ -495,49 +475,29 @@ Instructions:
 - Base your expansion strictly on the domain and purpose mentioned above.
 - Return ONLY the clean specification text without preamble, introductions, quotes, or markdown code blocks.`;
 
-  try {
-    const rawText = await callAIModel(activeConfig, prompt, { temperature: 0.3, maxTokens: 1200 });
+  const rawText = await callAIModel(activeConfig, prompt, { temperature: 0.3, maxTokens: 1200 });
 
-    if (rawText && rawText.trim().length > 15) {
-      const formatted = formatSpecificationTemplate(rawText);
-      return {
-        text: formatted,
-        source: 'ai',
-        providerName: activeConfig.name
-      };
-    }
-
-    // Fallback to local
-    const localText = expandDescriptionLocally(projectName, coreInput);
+  if (rawText && rawText.trim().length > 15) {
+    const formatted = formatSpecificationTemplate(rawText);
     return {
-      text: localText,
-      source: 'local'
-    };
-  } catch (err: any) {
-    console.warn('AI polish failed, using local blueprint fallback:', err);
-    const localText = expandDescriptionLocally(projectName, coreInput);
-    return {
-      text: localText,
-      source: 'local',
-      error: `AI request failed (${err?.message || 'network error'}). Applied local architectural expansion.`
+      text: formatted,
+      providerName: activeConfig.name
     };
   }
+
+  throw new Error(`Received empty or invalid response from ${activeConfig.name}.`);
 }
 
 export async function analyzeFrameworksWithAI(
   projectName: string,
   description: string,
   settings: AISettings
-): Promise<{ recommendations: FrameworkRecommendation[]; source: 'ai' | 'local'; providerName?: string }> {
+): Promise<{ recommendations: FrameworkRecommendation[]; providerName: string }> {
   const activeConfig = settings.providers[settings.activeProvider];
   const hasKey = activeConfig && (activeConfig.provider === 'ollama' || Boolean(activeConfig.apiKey?.trim()));
 
   if (!hasKey) {
-    const { recommendFrameworkFromText } = await import('./frameworkRecommender');
-    return {
-      recommendations: recommendFrameworkFromText(projectName, description),
-      source: 'local'
-    };
+    throw new Error(`API key is required for ${activeConfig?.name || 'AI'}. Please click 'Configure AI Key' to connect.`);
   }
 
   const prompt = `You are a senior software architect advising on the best tech stack for a new project.
@@ -573,43 +533,29 @@ Example format:
   }
 ]`;
 
-  try {
-    const rawText = await callAIModel(activeConfig, prompt, { temperature: 0.2, maxTokens: 1500 });
+  const rawText = await callAIModel(activeConfig, prompt, { temperature: 0.2, maxTokens: 1500 });
 
-    const jsonMatch = rawText.match(/\[[\s\S]*\]/);
-    if (jsonMatch) {
-      const parsed = JSON.parse(jsonMatch[0]);
-      if (Array.isArray(parsed) && parsed.length > 0) {
-        const recommendations = parsed.map((item: any, idx: number) => ({
-          id: String(item.id || 'fw_' + idx).toLowerCase(),
-          name: String(item.name || 'Framework'),
-          category: item.category || 'Full-Stack Web',
-          description: String(item.description || ''),
-          whyReasons: Array.isArray(item.whyReasons) ? item.whyReasons : ['Optimized for this project architecture.'],
-          bestFor: String(item.bestFor || 'Modern applications'),
-          isRecommended: idx === 0
-        }));
+  const jsonMatch = rawText.match(/\[[\s\S]*\]/);
+  if (jsonMatch) {
+    const parsed = JSON.parse(jsonMatch[0]);
+    if (Array.isArray(parsed) && parsed.length > 0) {
+      const recommendations = parsed.map((item: any, idx: number) => ({
+        id: String(item.id || 'fw_' + idx).toLowerCase(),
+        name: String(item.name || 'Framework'),
+        category: item.category || 'Full-Stack Web',
+        description: String(item.description || ''),
+        whyReasons: Array.isArray(item.whyReasons) ? item.whyReasons : ['Optimized for this project architecture.'],
+        bestFor: String(item.bestFor || 'Modern applications'),
+        isRecommended: idx === 0
+      }));
 
-        return {
-          recommendations,
-          source: 'ai',
-          providerName: activeConfig.name
-        };
-      }
+      return {
+        recommendations,
+        providerName: activeConfig.name
+      };
     }
-
-    const { recommendFrameworkFromText } = await import('./frameworkRecommender');
-    return {
-      recommendations: recommendFrameworkFromText(projectName, description),
-      source: 'local'
-    };
-  } catch (err) {
-    console.warn('AI framework recommendation failed, using local recommender:', err);
-    const { recommendFrameworkFromText } = await import('./frameworkRecommender');
-    return {
-      recommendations: recommendFrameworkFromText(projectName, description),
-      source: 'local'
-    };
   }
+
+  throw new Error(`Could not parse tech stack recommendations from ${activeConfig.name}.`);
 }
 
