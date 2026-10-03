@@ -152,7 +152,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </div>
 
         {/* Subsequent Phases */}
-        <div className={`space-y-1 ${isCollapsed ? 'pt-1' : 'pt-2'} border-t border-slate-100 dark:border-[#1E2028]`}>
+        <div className={`space-y-1 ${isCollapsed ? 'pt-2' : 'pt-3'}`}>
           {!isCollapsed && (
             <div className={`text-[10px] font-mono uppercase tracking-wider font-semibold px-2 py-1 ${
               isDark ? 'text-[#71727D]' : 'text-slate-400'
