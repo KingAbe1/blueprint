@@ -6,23 +6,24 @@ import {
   Eye, 
   EyeOff, 
   ExternalLink, 
-  Loader2, 
   CheckCircle2, 
-  AlertCircle,
-  Cpu,
-  Globe,
-  Radio,
+  Cpu, 
+  Globe, 
+  Radio, 
+  ShieldCheck, 
+  Server, 
+  Layers, 
+  ArrowRight, 
+  Plus,
+  RefreshCw,
   Zap,
-  ShieldCheck,
-  Server,
-  Layers,
-  ArrowRight,
-  Plus
+  AlertCircle,
+  Loader2
 } from 'lucide-react';
 import { useAI } from '../../context/AIContext';
 import { useTheme } from '../../context/ThemeContext';
 import { AIProviderId } from '../../types/ai';
-import { testAIConnection } from '../../services/aiService';
+import { fetchProviderModels, testAIConnection, TestResult } from '../../services/aiService';
 
 interface ProviderMeta {
   id: AIProviderId;
@@ -30,6 +31,7 @@ interface ProviderMeta {
   tagline: string;
   placeholder: string;
   keyPrefix?: string;
+  defaultBaseUrl: string;
   link?: { label: string; url: string };
   icon: React.FC<{ className?: string }>;
 }
@@ -41,6 +43,7 @@ const PROVIDERS_META: ProviderMeta[] = [
     tagline: 'Claude 3.7 Sonnet, Claude 3.5 Sonnet & Haiku',
     placeholder: 'sk-ant-api03-...',
     keyPrefix: 'sk-ant-',
+    defaultBaseUrl: 'https://api.anthropic.com/v1',
     link: { label: 'Get API Key from Anthropic Console', url: 'https://console.anthropic.com/settings/keys' },
     icon: Globe
   },
@@ -50,6 +53,7 @@ const PROVIDERS_META: ProviderMeta[] = [
     tagline: 'GPT-4o, GPT-4o-mini, o3-mini & o1',
     placeholder: 'sk-proj-...',
     keyPrefix: 'sk-',
+    defaultBaseUrl: 'https://api.openai.com/v1',
     link: { label: 'Get API Key from OpenAI Platform', url: 'https://platform.openai.com/api-keys' },
     icon: Cpu
   },
@@ -58,6 +62,7 @@ const PROVIDERS_META: ProviderMeta[] = [
     name: 'Google Gemini',
     tagline: 'Gemini 2.0 Flash & Gemini 1.5 Pro',
     placeholder: 'AIzaSy...',
+    defaultBaseUrl: 'https://generativelanguage.googleapis.com/v1beta',
     link: { label: 'Get API Key from Google AI Studio', url: 'https://aistudio.google.com/app/apikey' },
     icon: Layers
   },
@@ -66,6 +71,7 @@ const PROVIDERS_META: ProviderMeta[] = [
     name: 'Ollama (Local / Offline)',
     tagline: 'Local LLMs via localhost:11434 (No API Key required)',
     placeholder: 'http://localhost:11434',
+    defaultBaseUrl: 'http://localhost:11434',
     link: { label: 'Download Ollama & Models', url: 'https://ollama.com' },
     icon: Server
   },
@@ -75,6 +81,7 @@ const PROVIDERS_META: ProviderMeta[] = [
     tagline: 'Unified gateway to 100+ AI models',
     placeholder: 'sk-or-v1-...',
     keyPrefix: 'sk-or-',
+    defaultBaseUrl: 'https://openrouter.ai/api/v1',
     link: { label: 'Get API Key from OpenRouter', url: 'https://openrouter.ai/keys' },
     icon: Globe
   },
@@ -83,6 +90,7 @@ const PROVIDERS_META: ProviderMeta[] = [
     name: 'Custom Endpoint',
     tagline: 'Any OpenAI-compatible server (Groq, Together, vLLM)',
     placeholder: 'sk-...',
+    defaultBaseUrl: 'https://api.together.xyz/v1',
     icon: Cpu
   }
 ];
@@ -101,8 +109,17 @@ export const AISettingsModal: React.FC = () => {
 
   const [selectedTab, setSelectedTab] = useState<AIProviderId>(settings.activeProvider || 'anthropic');
   const [showKey, setShowKey] = useState(false);
+  const [isFetchingModels, setIsFetchingModels] = useState(false);
+  const [fetchMessage, setFetchMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [isTesting, setIsTesting] = useState(false);
-  const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
+  const [testResult, setTestResult] = useState<TestResult | null>(null);
+
+  // Clear transient status when switching tabs
+  const handleSelectTab = (provId: AIProviderId) => {
+    setSelectedTab(provId);
+    setFetchMessage(null);
+    setTestResult(null);
+  };
 
   // Close on Escape key
   useEffect(() => {
@@ -121,6 +138,45 @@ export const AISettingsModal: React.FC = () => {
   const meta = PROVIDERS_META.find(p => p.id === selectedTab) || PROVIDERS_META[0];
   const isActive = settings.activeProvider === selectedTab;
   const hasKey = selectedTab === 'ollama' ? Boolean(currentProviderConfig.baseUrl) : Boolean(currentProviderConfig.apiKey?.trim());
+
+  const handleFetchModels = async () => {
+    setIsFetchingModels(true);
+    setFetchMessage(null);
+    try {
+      const models = await fetchProviderModels(currentProviderConfig);
+      if (models.length > 0) {
+        const hasCurrent = models.includes(currentProviderConfig.model);
+        const nextModel = hasCurrent ? currentProviderConfig.model : models[0];
+        updateProviderConfig(selectedTab, {
+          availableModels: models,
+          model: nextModel
+        });
+        setFetchMessage({ type: 'success', text: `Discovered ${models.length} live models from ${meta.name}!` });
+      } else {
+        setFetchMessage({ type: 'error', text: 'No models found for this endpoint.' });
+      }
+    } catch (err: any) {
+      setFetchMessage({ type: 'error', text: err?.message || 'Failed to fetch models from server.' });
+    } finally {
+      setIsFetchingModels(false);
+    }
+  };
+
+  const handleTestConnection = async () => {
+    setIsTesting(true);
+    setTestResult(null);
+    try {
+      const res = await testAIConnection(currentProviderConfig);
+      setTestResult(res);
+    } catch (err: any) {
+      setTestResult({
+        success: false,
+        message: err?.message || 'Network error while testing connection.'
+      });
+    } finally {
+      setIsTesting(false);
+    }
+  };
 
   const handleAddModel = (modelName: string) => {
     const trimmed = modelName.trim();
@@ -148,26 +204,6 @@ export const AISettingsModal: React.FC = () => {
       model: nextModel,
       availableModels: updatedList
     });
-  };
-
-  const handleTestConnection = async () => {
-    setIsTesting(true);
-    setTestResult(null);
-
-    // Auto-save model to availableModels list if newly typed
-    if (currentProviderConfig.model?.trim()) {
-      const trimmed = currentProviderConfig.model.trim();
-      const currentList = currentProviderConfig.availableModels || [];
-      if (!currentList.includes(trimmed)) {
-        updateProviderConfig(selectedTab, {
-          availableModels: [trimmed, ...currentList]
-        });
-      }
-    }
-
-    const res = await testAIConnection(currentProviderConfig);
-    setIsTesting(false);
-    setTestResult(res);
   };
 
   return (
@@ -221,10 +257,7 @@ export const AISettingsModal: React.FC = () => {
               return (
                 <button
                   key={prov.id}
-                  onClick={() => {
-                    setSelectedTab(prov.id);
-                    setTestResult(null);
-                  }}
+                  onClick={() => handleSelectTab(prov.id)}
                   className={`relative p-2.5 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between space-y-2 ${
                     isSelected
                       ? isDark
@@ -364,43 +397,41 @@ export const AISettingsModal: React.FC = () => {
               </div>
             )}
 
-            {/* Server Endpoint / Base URL (for Ollama / OpenRouter / Custom) */}
-            {(selectedTab === 'ollama' || selectedTab === 'openrouter' || selectedTab === 'custom') && (
-              <div className="space-y-1.5">
-                <div className="flex items-center justify-between">
-                  <label className={`text-xs font-semibold flex items-center space-x-1.5 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
-                    <Server className="w-3.5 h-3.5 text-blue-500" />
-                    <span>Server Endpoint / Base URL</span>
-                  </label>
+            {/* Server Endpoint / Base URL */}
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <label className={`text-xs font-semibold flex items-center space-x-1.5 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+                  <Server className="w-3.5 h-3.5 text-blue-500" />
+                  <span>Server Endpoint / Base URL</span>
+                </label>
 
-                  {meta.link && selectedTab === 'ollama' && (
-                    <a 
-                      href={meta.link.url} 
-                      target="_blank" 
-                      rel="noopener noreferrer" 
-                      className="text-[11px] text-blue-500 hover:underline flex items-center space-x-1 font-medium cursor-pointer"
-                    >
-                      <span>{meta.link.label}</span>
-                      <ExternalLink className="w-3 h-3" />
-                    </a>
-                  )}
-                </div>
-
-                <input
-                  type="text"
-                  placeholder={selectedTab === 'ollama' ? 'http://localhost:11434' : 'https://api.openai.com/v1'}
-                  value={currentProviderConfig.baseUrl || ''}
-                  onChange={(e) => updateProviderConfig(selectedTab, { baseUrl: e.target.value })}
-                  className={`w-full text-xs p-2.5 rounded-xl outline-none font-mono transition-colors ${
-                    isDark 
-                      ? 'bg-[#15161C] border border-[#262833] text-white placeholder-[#5E606B] focus:border-blue-500/80 focus:ring-1 focus:ring-blue-500/20' 
-                      : 'bg-[#F8FAFC] border border-slate-200 text-slate-900 placeholder-slate-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500/20'
-                  }`}
-                />
+                {meta.link && selectedTab === 'ollama' && (
+                  <a 
+                    href={meta.link.url} 
+                    target="_blank" 
+                    rel="noopener noreferrer" 
+                    className="text-[11px] text-blue-500 hover:underline flex items-center space-x-1 font-medium cursor-pointer"
+                  >
+                    <span>{meta.link.label}</span>
+                    <ExternalLink className="w-3 h-3" />
+                  </a>
+                )}
               </div>
-            )}
 
-            {/* Manual Preferred Model Input & Saved Models History */}
+              <input
+                type="text"
+                placeholder={meta.defaultBaseUrl || 'https://api.openai.com/v1'}
+                value={currentProviderConfig.baseUrl || ''}
+                onChange={(e) => updateProviderConfig(selectedTab, { baseUrl: e.target.value })}
+                className={`w-full text-xs p-2.5 rounded-xl outline-none font-mono transition-colors ${
+                  isDark 
+                    ? 'bg-[#15161C] border border-[#262833] text-white placeholder-[#5E606B] focus:border-blue-500/80 focus:ring-1 focus:ring-blue-500/20' 
+                    : 'bg-[#F8FAFC] border border-slate-200 text-slate-900 placeholder-slate-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500/20'
+                }`}
+              />
+            </div>
+
+            {/* Preferred Model Input & Live Model Discovery */}
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <label className={`text-xs font-semibold flex items-center space-x-1.5 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
@@ -408,16 +439,49 @@ export const AISettingsModal: React.FC = () => {
                   <span>Preferred Model ID</span>
                 </label>
 
-                <span className={`text-[11px] ${isDark ? 'text-[#8E8F99]' : 'text-slate-400'}`}>
-                  Type any model name or choose from saved
-                </span>
+                {/* Dynamic Live Model Fetch Button */}
+                <button
+                  type="button"
+                  onClick={handleFetchModels}
+                  disabled={isFetchingModels || (!hasKey && selectedTab !== 'ollama')}
+                  className={`text-[11px] font-semibold px-2.5 py-1 rounded-lg border flex items-center space-x-1.5 transition-all cursor-pointer ${
+                    isFetchingModels
+                      ? 'opacity-60 cursor-wait'
+                      : isDark
+                        ? 'bg-[#1C1E26] border-[#303342] text-blue-400 hover:bg-[#252834] hover:text-white'
+                        : 'bg-white border-slate-300 text-blue-600 hover:bg-slate-50 hover:text-blue-800 shadow-xs'
+                  }`}
+                  title="Query the provider's /models API live to discover valid models for your account"
+                >
+                  <RefreshCw className={`w-3 h-3 ${isFetchingModels ? 'animate-spin' : ''}`} />
+                  <span>{isFetchingModels ? 'Fetching...' : 'Fetch Live Models'}</span>
+                </button>
               </div>
+
+              {/* Status Message for Model Fetching */}
+              {fetchMessage && (
+                <div
+                  className={`text-[11px] px-3 py-1.5 rounded-lg flex items-center space-x-1.5 ${
+                    fetchMessage.type === 'success'
+                      ? isDark ? 'bg-emerald-950/40 border border-emerald-800/50 text-emerald-300' : 'bg-emerald-50 border border-emerald-200 text-emerald-800'
+                      : isDark ? 'bg-rose-950/40 border border-rose-800/50 text-rose-300' : 'bg-rose-50 border border-rose-200 text-rose-800'
+                  }`}
+                >
+                  {fetchMessage.type === 'success' ? (
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                  ) : (
+                    <AlertCircle className="w-3.5 h-3.5 text-rose-500 shrink-0" />
+                  )}
+                  <span className="truncate">{fetchMessage.text}</span>
+                </div>
+              )}
 
               <div className="flex items-center space-x-2">
                 <div className="relative flex-1">
                   <input
                     type="text"
-                    placeholder="e.g. gpt-4o, claude-3-7-sonnet, llama3.3:70b, deepseek-chat..."
+                    list="fetched-provider-models"
+                    placeholder="e.g. gpt-4o-mini, claude-3-7-sonnet, llama3.3, gemini-2.0-flash..."
                     value={currentProviderConfig.model || ''}
                     onChange={(e) => updateProviderConfig(selectedTab, { model: e.target.value })}
                     onKeyDown={(e) => {
@@ -432,6 +496,13 @@ export const AISettingsModal: React.FC = () => {
                         : 'bg-[#F8FAFC] border border-slate-200 text-slate-900 placeholder-slate-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500/20'
                     }`}
                   />
+
+                  {/* Auto-suggest datalist populated with fetched live models */}
+                  <datalist id="fetched-provider-models">
+                    {(currentProviderConfig.availableModels || []).map((m) => (
+                      <option key={m} value={m} />
+                    ))}
+                  </datalist>
                 </div>
 
                 {currentProviderConfig.model?.trim() && !currentProviderConfig.availableModels.includes(currentProviderConfig.model.trim()) && (
@@ -447,11 +518,11 @@ export const AISettingsModal: React.FC = () => {
                 )}
               </div>
 
-              {/* Saved Models Chips */}
+              {/* Saved & Live Discovered Models Chips */}
               {currentProviderConfig.availableModels && currentProviderConfig.availableModels.length > 0 && (
                 <div className="space-y-1.5 pt-1">
                   <div className={`text-[10px] font-mono uppercase tracking-wider ${isDark ? 'text-[#7A7C88]' : 'text-slate-400'}`}>
-                    Saved Models:
+                    Available Models ({currentProviderConfig.availableModels.length}):
                   </div>
                   <div className="flex flex-wrap gap-1.5 max-h-28 overflow-y-auto">
                     {currentProviderConfig.availableModels.map((m) => {
@@ -478,7 +549,7 @@ export const AISettingsModal: React.FC = () => {
                             className={`opacity-0 group-hover:opacity-100 hover:text-red-400 p-0.5 rounded transition-opacity ${
                               isSelected ? 'text-blue-400' : 'text-slate-500'
                             }`}
-                            title="Remove from saved list"
+                            title="Remove from list"
                           >
                             <X className="w-3 h-3" />
                           </button>
@@ -490,61 +561,63 @@ export const AISettingsModal: React.FC = () => {
               )}
             </div>
 
-            {/* Test Connection Row */}
-            <div className="pt-2 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-              <button
-                type="button"
-                onClick={handleTestConnection}
-                disabled={isTesting}
-                className={`text-xs px-3.5 py-2 rounded-xl border font-semibold flex items-center space-x-2 transition-all cursor-pointer ${
-                  isDark 
-                    ? 'bg-[#181920] border-[#2A2D3A] text-white hover:bg-[#20222C] hover:border-blue-500/50 disabled:opacity-40' 
-                    : 'bg-white border-slate-200 text-slate-800 hover:bg-slate-50 hover:border-blue-400 disabled:opacity-40'
-                }`}
-              >
-                {isTesting ? (
-                  <>
-                    <Loader2 className="w-3.5 h-3.5 animate-spin text-blue-500" />
-                    <span>Verifying connection...</span>
-                  </>
-                ) : (
-                  <>
-                    <Zap className="w-3.5 h-3.5 text-blue-500" />
-                    <span>Test Connection</span>
-                  </>
-                )}
-              </button>
-
-              {testResult && (
-                <div className={`text-xs px-3 py-1.5 rounded-lg border flex items-center space-x-2 animate-in fade-in ${
-                  testResult.success 
-                    ? isDark ? 'bg-emerald-950/40 border-emerald-500/40 text-emerald-300' : 'bg-emerald-50 border-emerald-200 text-emerald-800'
-                    : isDark ? 'bg-red-950/40 border-red-500/40 text-red-300' : 'bg-red-50 border-red-200 text-red-800'
-                }`}>
-                  {testResult.success ? (
-                    <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
-                  ) : (
-                    <AlertCircle className="w-4 h-4 text-red-500 shrink-0" />
-                  )}
-                  <span className="text-xs leading-relaxed">{testResult.message}</span>
-                </div>
-              )}
-            </div>
-
           </div>
 
         </div>
 
-        {/* Modal Footer */}
-        <div className={`px-6 py-4 border-t flex items-center justify-between ${
+        {/* Modal Footer with Test Connection */}
+        <div className={`px-6 py-4 border-t flex flex-wrap items-center justify-between gap-3 ${
           isDark ? 'border-[#22242D] bg-[#14161C]' : 'border-slate-100 bg-slate-50/70'
         }`}>
-          <div className="flex items-center space-x-2 text-[11px] text-slate-400 dark:text-[#71727D]">
-            <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
-            <span>Keys are securely stored in your local computer workspace.</span>
+          <div className="flex items-center space-x-3">
+            <button
+              type="button"
+              onClick={handleTestConnection}
+              disabled={isTesting || (!hasKey && selectedTab !== 'ollama')}
+              className={`text-xs px-3 py-1.5 rounded-lg border font-semibold flex items-center space-x-1.5 transition-all cursor-pointer ${
+                isTesting
+                  ? 'opacity-60 cursor-wait'
+                  : isDark
+                    ? 'bg-[#1C1E26] border-[#303342] text-slate-200 hover:text-white hover:border-slate-500 shadow-xs'
+                    : 'bg-white border-slate-300 text-slate-700 hover:bg-slate-50 hover:text-slate-900 shadow-xs'
+              }`}
+            >
+              {isTesting ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin text-blue-500" />
+              ) : (
+                <Zap className="w-3.5 h-3.5 text-amber-500" />
+              )}
+              <span>{isTesting ? 'Testing...' : 'Test Connection'}</span>
+            </button>
+
+            {/* Test result readout */}
+            {testResult && (
+              <div className={`text-xs flex items-center space-x-1.5 font-medium ${
+                testResult.success 
+                  ? 'text-emerald-500' 
+                  : isDark ? 'text-rose-400' : 'text-rose-600'
+              }`}>
+                {testResult.success ? (
+                  <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
+                ) : (
+                  <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                )}
+                <span className="truncate max-w-[280px]" title={testResult.message}>
+                  {testResult.success 
+                    ? `Connected! (${testResult.latencyMs}ms)` 
+                    : testResult.message
+                  }
+                </span>
+              </div>
+            )}
           </div>
 
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center space-x-3">
+            <div className="hidden sm:flex items-center space-x-1.5 text-[11px] text-slate-400 dark:text-[#71727D]">
+              <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
+              <span>Keys stored locally</span>
+            </div>
+
             <button
               onClick={() => setIsSettingsOpen(false)}
               className="btn-primary-blue px-4 py-1.5 rounded-lg text-xs font-semibold text-white cursor-pointer shadow-sm"

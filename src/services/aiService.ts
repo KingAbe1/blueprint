@@ -1,10 +1,163 @@
 import { AIProviderConfig, AISettings } from '../types/ai';
 import { DomainEntity, FrameworkRecommendation } from '../types/project';
-import { extractDomainFromObjective } from './domainExtractor';
+import { 
+  extractDomainFromObjective, 
+  expandDescriptionLocally, 
+  cleanRawDescription,
+  formatSpecificationTemplate 
+} from './domainExtractor';
 
-interface TestResult {
-  success: boolean;
-  message: string;
+
+/**
+ * Generic model normalization heuristics.
+ * Avoids rigid hardcoding: if a user types numeric shorthand like '4o-mini' or '4o' for OpenAI,
+ * we prefix 'gpt-' automatically without enumerating every model release.
+ */
+export function normalizeModelName(provider: string, rawModel?: string): string {
+  const model = (rawModel || '').trim();
+  if (!model) return model;
+
+  if (provider === 'openai') {
+    if (/^[0-9]/.test(model) && !model.startsWith('gpt-')) {
+      return `gpt-${model}`;
+    }
+  }
+  return model;
+}
+
+/**
+ * Dynamically queries the provider's live models endpoint using user credentials.
+ * Works scalably for OpenAI, OpenRouter, Ollama, Gemini, and Custom OpenAI-compatible endpoints.
+ */
+export async function fetchProviderModels(config: AIProviderConfig): Promise<string[]> {
+  const { provider, apiKey, baseUrl } = config;
+
+  if (provider !== 'ollama' && !apiKey?.trim()) {
+    throw new Error(`Please enter your ${config.name} API key first.`);
+  }
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 12000);
+
+  try {
+    // 1. OpenAI or Custom OpenAI-compatible endpoints (Groq, Together, vLLM, LMStudio, etc.)
+    if (provider === 'openai' || provider === 'custom') {
+      let host = (baseUrl || 'https://api.openai.com/v1').trim().replace(/\/+$/, '');
+      host = host.replace(/\/chat\/completions\/?$/i, '').replace(/\/models\/?$/i, '');
+      const url = `${host}/models`;
+
+      const res = await fetch(url, {
+        method: 'GET',
+        signal: controller.signal,
+        headers: {
+          'Authorization': `Bearer ${apiKey.trim()}`
+        }
+      });
+
+      if (!res.ok) {
+        const errJson = await res.json().catch(() => null);
+        throw new Error(errJson?.error?.message || `Failed to fetch models: HTTP ${res.status}`);
+      }
+
+      const data = await res.json();
+      const list: string[] = (data.data || []).map((m: any) => m.id);
+
+      if (provider === 'openai') {
+        // Filter out non-chat / audio / embedding models and sort chat models nicely
+        const chatModels = list.filter(id => 
+          (id.startsWith('gpt-') || id.startsWith('o1') || id.startsWith('o3') || id.startsWith('chatgpt-')) &&
+          !id.includes('realtime') && !id.includes('audio') && !id.includes('transcription') && !id.includes('embedding')
+        );
+
+        // Sort prioritizing popular everyday models
+        chatModels.sort((a, b) => {
+          const score = (name: string) => {
+            if (name === 'gpt-4o-mini') return 1;
+            if (name === 'gpt-4o') return 2;
+            if (name.startsWith('o3-mini')) return 3;
+            if (name.startsWith('o1-mini')) return 4;
+            if (name.startsWith('o1')) return 5;
+            if (name.startsWith('gpt-4')) return 6;
+            return 20;
+          };
+          const diff = score(a) - score(b);
+          return diff !== 0 ? diff : a.localeCompare(b);
+        });
+
+        return chatModels.length > 0 ? chatModels : list;
+      }
+
+      return list;
+    }
+
+    // 2. OpenRouter (Unified multi-provider catalog)
+    if (provider === 'openrouter') {
+      const res = await fetch('https://openrouter.ai/api/v1/models', {
+        method: 'GET',
+        signal: controller.signal,
+        headers: {
+          'Authorization': `Bearer ${apiKey.trim()}`
+        }
+      });
+
+      if (!res.ok) {
+        throw new Error(`OpenRouter returned HTTP ${res.status}`);
+      }
+
+      const data = await res.json();
+      return (data.data || []).map((m: any) => m.id);
+    }
+
+    // 3. Ollama (Local LLM server)
+    if (provider === 'ollama') {
+      let host = (baseUrl || 'http://localhost:11434').trim().replace(/\/+$/, '');
+      host = host.replace(/\/api\/tags\/?$/i, '').replace(/\/api\/?$/i, '');
+      const res = await fetch(`${host}/api/tags`, {
+        method: 'GET',
+        signal: controller.signal
+      });
+
+      if (!res.ok) {
+        throw new Error(`Ollama server returned HTTP ${res.status}. Is Ollama running on ${host}?`);
+      }
+
+      const data = await res.json();
+      return (data.models || []).map((m: any) => m.name);
+    }
+
+    // 4. Google Gemini
+    if (provider === 'gemini') {
+      const url = `https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(apiKey.trim())}`;
+      const res = await fetch(url, {
+        method: 'GET',
+        signal: controller.signal
+      });
+
+      if (!res.ok) {
+        const errJson = await res.json().catch(() => null);
+        throw new Error(errJson?.error?.message || `Google API returned HTTP ${res.status}`);
+      }
+
+      const data = await res.json();
+      return (data.models || [])
+        .map((m: any) => (m.name || '').replace(/^models\//, ''))
+        .filter((id: string) => id.includes('gemini') && !id.includes('embedding') && !id.includes('aqa'));
+    }
+
+    // 5. Anthropic
+    if (provider === 'anthropic') {
+      return [
+        'claude-3-7-sonnet-20250219',
+        'claude-3-5-sonnet-20241022',
+        'claude-3-5-haiku-20241022',
+        'claude-3-opus-20240229'
+      ];
+    }
+
+    return [];
+  } finally {
+    clearTimeout(timeoutId);
+  }
 }
 
 /**
@@ -15,7 +168,8 @@ export async function callAIModel(
   prompt: string,
   options: { temperature?: number; maxTokens?: number } = {}
 ): Promise<string> {
-  const { provider, apiKey, baseUrl, model } = config;
+  const { provider, apiKey, baseUrl } = config;
+  const model = normalizeModelName(provider, config.model);
   const temperature = options.temperature ?? 0.3;
   const maxTokens = options.maxTokens ?? 1500;
 
@@ -23,145 +177,210 @@ export async function callAIModel(
     throw new Error(`API key is missing for ${config.name}. Please configure it in AI Settings.`);
   }
 
-  // 1. OpenAI, OpenRouter, Custom OpenAI-Compatible
-  if (provider === 'openai' || provider === 'openrouter' || provider === 'custom') {
-    let host = (baseUrl || (provider === 'openai' ? 'https://api.openai.com/v1' : 'https://openrouter.ai/api/v1')).trim().replace(/\/+$/, '');
-    host = host.replace(/\/chat\/completions\/?$/i, '');
-    const url = `${host}/chat/completions`;
+  try {
+    // 1. OpenAI, OpenRouter, Custom OpenAI-Compatible
+    if (provider === 'openai' || provider === 'openrouter' || provider === 'custom') {
+      let host = (baseUrl || (provider === 'openai' ? 'https://api.openai.com/v1' : 'https://openrouter.ai/api/v1')).trim().replace(/\/+$/, '');
+      host = host.replace(/\/chat\/completions\/?$/i, '');
+      const url = `${host}/chat/completions`;
 
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey.trim()}`,
-        ...(provider === 'openrouter' ? { 'HTTP-Referer': 'https://blueprint.studio', 'X-Title': 'Blueprint' } : {})
-      },
-      body: JSON.stringify({
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 20000);
+      const isReasoningModel = (model || '').startsWith('o1') || (model || '').startsWith('o3');
+      const bodyPayload: any = {
         model: model || 'gpt-4o',
-        messages: [{ role: 'user', content: prompt }],
-        temperature,
-        max_tokens: maxTokens
-      })
-    });
+        messages: [{ role: 'user', content: prompt }]
+      };
 
-    if (!res.ok) {
-      const errJson = await res.json().catch(() => null);
-      const detail = errJson?.error?.message || errJson?.message || (typeof errJson?.error === 'string' ? errJson.error : `HTTP ${res.status}`);
-      throw new Error(`${config.name} (${model}): ${detail}`);
+      if (isReasoningModel) {
+        bodyPayload.max_completion_tokens = maxTokens;
+      } else {
+        bodyPayload.temperature = temperature;
+        bodyPayload.max_tokens = maxTokens;
+      }
+
+      const res = await fetch(url, {
+        method: 'POST',
+        signal: controller.signal,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey.trim()}`,
+          ...(provider === 'openrouter' ? { 'HTTP-Referer': 'https://blueprint.studio', 'X-Title': 'Blueprint' } : {})
+        },
+        body: JSON.stringify(bodyPayload)
+      }).finally(() => clearTimeout(timeoutId));
+
+      if (!res.ok) {
+        const errJson = await res.json().catch(() => null);
+        const detail = errJson?.error?.message || errJson?.message || (typeof errJson?.error === 'string' ? errJson.error : `HTTP ${res.status}`);
+        throw new Error(`${config.name} (${model}): ${detail}`);
+      }
+
+      const data = await res.json();
+      return data.choices?.[0]?.message?.content || '';
     }
 
-    const data = await res.json();
-    return data.choices?.[0]?.message?.content || '';
-  }
+    // 2. Anthropic Claude (Non-thinking, fast execution)
+    if (provider === 'anthropic') {
+      let host = (baseUrl || 'https://api.anthropic.com/v1').trim().replace(/\/+$/, '');
+      host = host.replace(/\/messages\/?$/i, '');
+      const url = `${host}/messages`;
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 20000);
 
-  // 2. Anthropic Claude
-  if (provider === 'anthropic') {
-    const url = 'https://api.anthropic.com/v1/messages';
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': apiKey.trim(),
-        'anthropic-version': '2023-06-01',
-        'anthropic-dangerous-direct-browser-access': 'true'
-      },
-      body: JSON.stringify({
-        model: model || 'claude-3-5-sonnet-20241022',
-        messages: [{ role: 'user', content: prompt }],
-        max_tokens: maxTokens,
-        temperature
-      })
-    });
+      const res = await fetch(url, {
+        method: 'POST',
+        signal: controller.signal,
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': apiKey.trim(),
+          'anthropic-version': '2023-06-01',
+          'anthropic-dangerous-direct-browser-access': 'true'
+        },
+        body: JSON.stringify({
+          model: model || 'claude-3-5-sonnet-20241022',
+          messages: [{ role: 'user', content: prompt }],
+          max_tokens: maxTokens,
+          temperature
+        })
+      }).finally(() => clearTimeout(timeoutId));
 
-    if (!res.ok) {
-      const errJson = await res.json().catch(() => null);
-      const detail = errJson?.error?.message || errJson?.message || `HTTP ${res.status}`;
-      throw new Error(`Anthropic (${model}): ${detail}`);
+      if (!res.ok) {
+        const errJson = await res.json().catch(() => null);
+        const detail = errJson?.error?.message || errJson?.message || `HTTP ${res.status}`;
+        throw new Error(`Anthropic (${model}): ${detail}`);
+      }
+
+      const data = await res.json();
+      return data.content?.[0]?.text || '';
     }
 
-    const data = await res.json();
-    return data.content?.[0]?.text || '';
-  }
+    // 3. Google Gemini (Flash, high-speed execution)
+    if (provider === 'gemini') {
+      const cleanModel = (model || 'gemini-2.0-flash').trim().replace(/^models\//i, '');
+      let host = (baseUrl || 'https://generativelanguage.googleapis.com/v1beta').trim().replace(/\/+$/, '');
+      host = host.replace(/\/models\/?$/i, '');
+      const url = `${host}/models/${cleanModel}:generateContent?key=${apiKey.trim()}`;
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 20000);
 
-  // 3. Google Gemini
-  if (provider === 'gemini') {
-    const cleanModel = (model || 'gemini-1.5-flash').trim().replace(/^models\//i, '');
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/${cleanModel}:generateContent?key=${apiKey.trim()}`;
+      const res = await fetch(url, {
+        method: 'POST',
+        signal: controller.signal,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: {
+            temperature,
+            maxOutputTokens: maxTokens
+          }
+        })
+      }).finally(() => clearTimeout(timeoutId));
 
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: {
-          temperature,
-          maxOutputTokens: maxTokens
-        }
-      })
-    });
+      if (!res.ok) {
+        const errJson = await res.json().catch(() => null);
+        const detail = errJson?.error?.message || errJson?.message || `HTTP ${res.status}`;
+        throw new Error(`Google Gemini (${cleanModel}): ${detail}`);
+      }
 
-    if (!res.ok) {
-      const errJson = await res.json().catch(() => null);
-      const detail = errJson?.error?.message || errJson?.message || `HTTP ${res.status}`;
-      throw new Error(`Google Gemini (${cleanModel}): ${detail}`);
+      const data = await res.json();
+      return data.candidates?.[0]?.content?.parts?.[0]?.text || '';
     }
 
-    const data = await res.json();
-    return data.candidates?.[0]?.content?.parts?.[0]?.text || '';
-  }
+    // 4. Ollama (Local)
+    if (provider === 'ollama') {
+      let host = (baseUrl || 'http://localhost:11434').trim().replace(/\/+$/, '');
+      host = host.replace(/\/api\/generate\/?$/i, '').replace(/\/api\/?$/i, '');
+      const url = `${host}/api/generate`;
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 25000);
 
-  // 4. Ollama (Local)
-  if (provider === 'ollama') {
-    let host = (baseUrl || 'http://localhost:11434').trim().replace(/\/+$/, '');
-    host = host.replace(/\/api\/generate\/?$/i, '').replace(/\/api\/?$/i, '');
-    const url = `${host}/api/generate`;
+      const res = await fetch(url, {
+        method: 'POST',
+        signal: controller.signal,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: model || 'llama3.2',
+          prompt,
+          stream: false,
+          options: { temperature }
+        })
+      }).finally(() => clearTimeout(timeoutId));
 
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: model || 'llama3.2',
-        prompt,
-        stream: false,
-        options: { temperature }
-      })
-    });
+      if (!res.ok) {
+        const errJson = await res.json().catch(() => null);
+        const detail = errJson?.error || errJson?.message || `HTTP ${res.status}. Is the model '${model}' downloaded?`;
+        throw new Error(`Ollama (${model}): ${detail}`);
+      }
 
-    if (!res.ok) {
-      const errJson = await res.json().catch(() => null);
-      const detail = errJson?.error || errJson?.message || `HTTP ${res.status}. Is the model '${model}' downloaded?`;
-      throw new Error(`Ollama (${model}): ${detail}`);
+      const data = await res.json();
+      return data.response || '';
     }
 
-    const data = await res.json();
-    return data.response || '';
+    throw new Error(`Unsupported provider: ${provider}`);
+  } catch (err: any) {
+    if (err.name === 'AbortError') {
+      throw new Error(`Request to ${config.name} (${model}) timed out after 20s. Please check your network or server.`);
+    }
+    throw err;
   }
+}
 
-  throw new Error(`Unsupported provider: ${provider}`);
+export interface TestResult {
+  success: boolean;
+  message: string;
+  latencyMs?: number;
+  modelUsed?: string;
 }
 
 export async function testAIConnection(config: AIProviderConfig): Promise<TestResult> {
-  const { provider, apiKey, baseUrl, model } = config;
+  const { provider, apiKey, baseUrl } = config;
+  const model = normalizeModelName(provider, config.model);
 
   if (provider !== 'ollama' && !apiKey?.trim()) {
     return { success: false, message: 'Please enter an API key.' };
   }
+
+  const startTime = performance.now();
 
   try {
     if (provider === 'ollama') {
       let host = (baseUrl || 'http://localhost:11434').trim().replace(/\/+$/, '');
       host = host.replace(/\/api\/tags\/?$/i, '').replace(/\/api\/?$/i, '');
       const res = await fetch(`${host}/api/tags`);
+      const latencyMs = Math.round(performance.now() - startTime);
       if (!res.ok) {
-        return { success: false, message: `Ollama server responded with HTTP ${res.status}. Is Ollama running?` };
+        return { 
+          success: false, 
+          message: `Ollama server responded with HTTP ${res.status}. Is Ollama running?`,
+          latencyMs,
+          modelUsed: model
+        };
       }
-      return { success: true, message: `Connected to local Ollama server at ${host}!` };
+      return { 
+        success: true, 
+        message: `Connected to local Ollama server at ${host}!`,
+        latencyMs,
+        modelUsed: model
+      };
     }
 
     const reply = await callAIModel(config, 'Say "hello" in one word.', { maxTokens: 5, temperature: 0.1 });
-    return { success: true, message: `Connected to ${config.name} (${model}) successfully! (Response: ${reply.trim() || 'OK'})` };
+    const latencyMs = Math.round(performance.now() - startTime);
+    return { 
+      success: true, 
+      message: `Verified connection to ${config.name} (${model})`,
+      latencyMs,
+      modelUsed: model
+    };
   } catch (error: any) {
-    return { success: false, message: error?.message || 'Network error connecting to provider.' };
+    const latencyMs = Math.round(performance.now() - startTime);
+    return { 
+      success: false, 
+      message: error?.message || 'Network error connecting to provider.',
+      latencyMs,
+      modelUsed: model
+    };
   }
 }
 
@@ -231,63 +450,76 @@ export async function expandAndPolishDescription(
   const activeConfig = settings.providers[settings.activeProvider];
   const hasKey = activeConfig && (activeConfig.provider === 'ollama' || Boolean(activeConfig.apiKey?.trim()));
 
-  const trimmedDesc = (currentDescription || '').trim();
-  const trimmedName = (projectName || '').trim();
+  const coreInput = cleanRawDescription(currentDescription) || (projectName || '').trim();
 
-  if (trimmedDesc.length < 10 && trimmedName.length < 4) {
+  if (coreInput.length < 2) {
     return {
       text: currentDescription,
       source: 'local',
-      error: 'Please provide at least a short phrase or sentence describing what the app does before expanding.'
+      error: 'Please enter a project name or brief idea before expanding.'
     };
   }
 
+  // If no AI key configured, use intelligent local expansion instantly
   if (!hasKey) {
+    const localText = expandDescriptionLocally(projectName, coreInput);
     return {
-      text: currentDescription,
-      source: 'local',
-      error: 'Connect an AI key (OpenAI, Gemini, Claude, Ollama) in settings to expand and polish with AI.'
+      text: localText,
+      source: 'local'
     };
   }
 
-  const prompt = `You are an expert product architect.
+  const prompt = `You are an expert software architect.
 A developer is building a project called "${projectName || 'Unnamed Project'}".
-Here is their initial description:
+Here is their core product idea:
 """
-${trimmedDesc || trimmedName}
+${coreInput}
 """
 
 Instructions:
-- Expand and polish this into a clear, structured product specification tailored specifically to their idea.
-- Structure your response into 3 concise sections:
-  1. What it does & core value proposition
-  2. Target users & primary workflows
-  3. Key data & reliability expectations
-- Base your expansion strictly on the domain and purpose mentioned in their description.
-- Return ONLY the polished specification text without preamble, introductions, or quotes.`;
+- Expand and polish this into a clear, professional product specification tailored specifically to their idea.
+- Structure your response into 3 clean sections without using markdown hash tags (do NOT use ### or ####) and without bold asterisks (do NOT use ** or ****):
+1. What It Does & Core Value Proposition:
+(Concise 2-3 sentence overview describing core purpose and value)
+
+2. Target Users & Primary Workflows:
+• (Workflow step 1)
+• (Workflow step 2)
+• (Workflow step 3)
+
+3. Key Data & Reliability Expectations:
+• (Data rule / constraint 1)
+• (Data rule / constraint 2)
+• (Data rule / constraint 3)
+
+- Base your expansion strictly on the domain and purpose mentioned above.
+- Return ONLY the clean specification text without preamble, introductions, quotes, or markdown code blocks.`;
 
   try {
-    const rawText = await callAIModel(activeConfig, prompt, { temperature: 0.4, maxTokens: 1500 });
+    const rawText = await callAIModel(activeConfig, prompt, { temperature: 0.3, maxTokens: 1200 });
 
-    if (rawText && rawText.trim().length > 10) {
+    if (rawText && rawText.trim().length > 15) {
+      const formatted = formatSpecificationTemplate(rawText);
       return {
-        text: rawText.trim(),
+        text: formatted,
         source: 'ai',
         providerName: activeConfig.name
       };
     }
 
+    // Fallback to local
+    const localText = expandDescriptionLocally(projectName, coreInput);
     return {
-      text: currentDescription,
-      source: 'local',
-      error: 'AI returned an empty response. Please try again with a little more detail.'
+      text: localText,
+      source: 'local'
     };
   } catch (err: any) {
-    console.warn('AI polish failed:', err);
+    console.warn('AI polish failed, using local blueprint fallback:', err);
+    const localText = expandDescriptionLocally(projectName, coreInput);
     return {
-      text: currentDescription,
+      text: localText,
       source: 'local',
-      error: `AI request failed: ${err?.message || 'Check your AI API key/settings.'}`
+      error: `AI request failed (${err?.message || 'network error'}). Applied local architectural expansion.`
     };
   }
 }
