@@ -449,7 +449,7 @@ export async function expandAndPolishDescription(
     throw new Error(`API key is required for ${activeConfig?.name || 'AI'}. Please click 'Configure AI Key' to connect.`);
   }
 
-  const prompt = `You are an expert software architect.
+  const prompt = `You are an expert software architect and product designer.
 A developer is building a project called "${projectName || 'Unnamed Project'}".
 Here is their core product idea:
 """
@@ -457,23 +457,12 @@ ${coreInput}
 """
 
 Instructions:
-- Expand and polish this into a clear, professional product specification tailored specifically to their idea.
-- Structure your response into 3 clean sections without using markdown hash tags (do NOT use ### or ####) and without bold asterisks (do NOT use ** or ****):
-1. What It Does & Core Value Proposition:
-(Concise 2-3 sentence overview describing core purpose and value)
-
-2. Target Users & Primary Workflows:
-• (Workflow step 1)
-• (Workflow step 2)
-• (Workflow step 3)
-
-3. Key Data & Reliability Expectations:
-• (Data rule / constraint 1)
-• (Data rule / constraint 2)
-• (Data rule / constraint 3)
-
-- Base your expansion strictly on the domain and purpose mentioned above.
-- Return ONLY the clean specification text without preamble, introductions, quotes, or markdown code blocks.`;
+- Expand and polish this into a clear, compelling, professional product specification focused specifically on "What It Does & Core Value Proposition".
+- Describe the core purpose, key user-facing features, business value, technical capabilities, and primary problem solved by this application.
+- Write in clean, highly readable paragraphs and bullet points focused strictly on the core product value proposition and what it does.
+- Do NOT create separate sections for "Target Users & Primary Workflows" or "Key Data & Reliability Expectations".
+- Do NOT use markdown hash tags (### or ####) or bold asterisks (** or ****).
+- Return ONLY the clean, polished product description text without preamble, introductions, or code blocks.`;
 
   const rawText = await callAIModel(activeConfig, prompt, { temperature: 0.3, maxTokens: 1200 });
 

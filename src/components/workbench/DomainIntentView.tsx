@@ -434,7 +434,7 @@ export const DomainIntentView: React.FC<DomainIntentViewProps> = ({ onProceedToI
               <div className="text-center space-y-1">
                 <p className="text-xs font-semibold">AI Software Architect is expanding and polishing your specification...</p>
                 <p className={`text-[11px] ${isDark ? 'text-[#8E8F99]' : 'text-slate-500'}`}>
-                  Structuring core value proposition, primary workflows, and reliability expectations.
+                  Synthesizing core purpose, value proposition, and key application capabilities.
                 </p>
               </div>
             </div>
@@ -442,11 +442,11 @@ export const DomainIntentView: React.FC<DomainIntentViewProps> = ({ onProceedToI
             <div className="relative space-y-2">
               <textarea
                 id="system-objective-input"
-                rows={5}
+                rows={9}
                 value={spec.description || ''}
                 onChange={(e) => handleDescriptionChange(e.target.value)}
                 placeholder="Describe your app or idea (e.g. An e-commerce store where customers can browse items, add them to a cart, pay securely with Stripe, and receive email receipts with order tracking)..."
-                className={`w-full text-xs leading-relaxed p-4 rounded-xl border outline-none resize-y transition-all font-sans ${
+                className={`w-full text-xs leading-relaxed p-4 rounded-xl border outline-none resize-y transition-all font-sans min-h-[190px] ${
                   isDark 
                     ? 'bg-[#101114] border-[#20222A] text-white placeholder-[#5E606B] focus:border-[#2E313D]' 
                     : 'bg-[#F8FAFC] border-slate-200/80 text-slate-900 placeholder-slate-400 focus:border-slate-300'

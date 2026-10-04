@@ -3,7 +3,7 @@
     "id": "proj_1791027103712",
     "name": "online-store",
     "spec": {
-      "description": "What It Does & Core Value Proposition:  \nThe online-store mobile app serves as a seamless platform for users to discover and purchase products effortlessly. By integrating instant search filtering and secure payment options like Stripe and Apple Pay, it enhances the shopping experience while providing real-time order updates through push notifications.\n\nTarget Users & Primary Workflows:  \n• Users browse the product catalog, utilizing instant search filters to refine their search based on categories, price ranges, and other attributes.  \n• Once a product is selected, users can add it to their cart and proceed to a secure checkout process, choosing from multiple payment options including Stripe and Apple Pay.  \n• After completing the purchase, users receive push notifications regarding order status updates, ensuring they are informed throughout the delivery process.\n\nKey Data & Reliability Expectations:  \n• User data must be securely stored and encrypted to comply with industry standards for payment processing and personal information protection.  \n• The app should maintain a minimum uptime of 99.9% to ensure users can access the platform and complete transactions without interruptions.  \n• Product inventory data must be updated in real-time to reflect availability accurately, preventing overselling and enhancing user trust in the platform.",
+      "description": "The online-store mobile app is designed to revolutionize the shopping experience by providing users with a seamless platform to discover and purchase products effortlessly. Its core purpose is to simplify the online shopping journey, making it more intuitive, efficient, and enjoyable for users while ensuring secure transactions and real-time updates.\n\nKey user-facing features include:\n• Instant Search Filtering: Users can quickly find products that match their preferences through advanced search capabilities, allowing them to filter results based on categories, price ranges, and other relevant criteria.\n• Secure Payment Options: The app integrates trusted payment solutions like Stripe and Apple Pay, providing users with a variety of secure payment methods that enhance their confidence in making purchases.\n• Real-time Order Updates: Users receive timely push notifications regarding their order status, including confirmations, shipping updates, and delivery notifications, keeping them informed throughout the purchasing process.\n• User-friendly Interface: The app is designed with an intuitive layout that enhances navigation, making it easy for users to browse products, read descriptions, and make purchases with minimal effort.\n\nThe business value of the online-store app lies in its ability to increase customer engagement and drive sales. By offering a streamlined shopping experience, the app encourages users to explore more products and make repeat purchases. The integration of secure payment options not only builds trust but also reduces cart abandonment rates, ultimately leading to higher conversion rates.\n\nFrom a technical perspective, the app leverages robust backend systems to ensure fast and reliable performance. It utilizes APIs for payment processing and order management, ensuring that transactions are handled securely and efficiently. The app's architecture supports scalability, allowing it to accommodate a growing user base and an expanding product catalog without compromising performance.\n\nThe primary problem solved by the online-store app is the complexity and frustration often associated with online shopping. By providing a user-friendly platform with instant search capabilities, secure payment options, and real-time updates, the app addresses common pain points such as difficulty in finding products, concerns about payment security, and lack of communication regarding order status. This holistic approach to online shopping not only enhances user satisfaction but also fosters brand loyalty, making the online-store app a valuable asset in the competitive e-commerce landscape.",
       "coreEntities": [],
       "criticalWorkflows": [],
       "nonNegotiables": [],
@@ -12,85 +12,85 @@
       ],
       "frameworkRecommendations": [
         {
-          "id": "nextjs-stripe",
+          "id": "nextjs-postgres",
           "name": "Next.js 15 (TypeScript + React 19)",
           "category": "Full-Stack Web",
           "architecture": "Integrated Full-Stack",
-          "frontendStack": "Next.js 15 App Router + React 19 + TypeScript",
-          "backendStack": "Node.js (Express) + Stripe API",
+          "frontendStack": "Next.js 15 App Router + TypeScript + React 19",
+          "backendStack": "Node.js (Express) + PostgreSQL",
           "stylingStack": "Tailwind CSS v4 + shadcn/ui",
-          "databaseStack": "PostgreSQL + Prisma ORM + Redis",
+          "databaseStack": "PostgreSQL + Prisma ORM",
           "deploymentTarget": "Vercel + Supabase",
-          "description": "This architecture leverages Next.js for a seamless user experience and real-time updates, while ensuring secure payment processing with Stripe.",
+          "description": "This architecture combines a powerful React-based frontend with a robust Node.js backend, leveraging Next.js for server-side rendering and API routes.",
           "whyReasons": [
-            "Strong TypeScript support enhances developer productivity and reduces runtime errors.",
-            "Next.js provides built-in API routes, making it easy to handle server-side logic and secure payment processing.",
-            "PostgreSQL with Prisma ORM ensures data integrity and real-time inventory management."
+            "Next.js provides excellent performance with automatic code splitting and server-side rendering, enhancing user experience.",
+            "PostgreSQL with Prisma ORM ensures data safety and efficient querying, making it suitable for handling complex data relationships.",
+            "The TypeScript ecosystem improves developer velocity with type safety and better tooling support."
           ],
           "bestFor": "High-velocity SaaS apps with real-time requirements",
           "isRecommended": true
         },
         {
-          "id": "flutter-firebase",
-          "name": "Flutter (Dart) + Firebase",
-          "category": "Mobile App",
-          "architecture": "Mobile Native",
-          "frontendStack": "Flutter (Dart)",
-          "backendStack": "Firebase Cloud Functions + Firestore",
-          "stylingStack": "Flutter Material Design",
-          "databaseStack": "Firebase Firestore",
-          "deploymentTarget": "Google Play Store + Apple App Store",
-          "description": "This mobile-native architecture utilizes Flutter for cross-platform development, backed by Firebase for real-time data synchronization and secure authentication.",
+          "id": "react-fastapi",
+          "name": "React (Vite) + FastAPI (Python 3.12)",
+          "category": "Decoupled SPA + API",
+          "architecture": "Separate (Frontend + Backend)",
+          "frontendStack": "React 19 + Vite",
+          "backendStack": "FastAPI (Python 3.12) + SQLAlchemy",
+          "stylingStack": "Mantine UI",
+          "databaseStack": "PostgreSQL + SQLAlchemy 2.0",
+          "deploymentTarget": "Docker + AWS ECS",
+          "description": "This stack separates the frontend and backend, allowing for independent scaling and development, with FastAPI providing high-performance APIs.",
           "whyReasons": [
-            "Firebase provides built-in security features and real-time database capabilities, ensuring data safety and instant updates.",
-            "Flutter's single codebase for both iOS and Android accelerates development and reduces maintenance overhead.",
-            "Firebase Authentication simplifies user management and secure payment integration."
+            "FastAPI's asynchronous capabilities ensure high concurrency and responsiveness, ideal for real-time order updates.",
+            "React with Vite offers a fast development experience with hot module replacement, enhancing developer productivity.",
+            "PostgreSQL and SQLAlchemy provide a robust data management solution with strong support for complex queries and transactions."
           ],
-          "bestFor": "Cross-platform mobile apps with real-time features",
+          "bestFor": "Projects requiring high scalability and rapid development cycles",
           "isRecommended": false
         },
         {
           "id": "elixir-phoenix",
           "name": "Elixir (Phoenix LiveView)",
-          "category": "Decoupled SPA + API",
-          "architecture": "Event-Driven System",
-          "frontendStack": "Phoenix LiveView + Tailwind CSS",
-          "backendStack": "Elixir (Phoenix) + Ecto",
+          "category": "Full-Stack Web",
+          "architecture": "Integrated Full-Stack",
+          "frontendStack": "Phoenix LiveView + Elixir",
+          "backendStack": "Elixir (Phoenix Framework)",
           "stylingStack": "Tailwind CSS v4",
           "databaseStack": "PostgreSQL + Ecto",
-          "deploymentTarget": "Docker + AWS ECS",
-          "description": "This architecture employs Elixir's concurrency model to handle high traffic and real-time updates efficiently, using Phoenix LiveView for a dynamic user experience.",
+          "deploymentTarget": "Docker + Heroku",
+          "description": "This architecture leverages Elixir's concurrency model and Phoenix LiveView for real-time features, providing a seamless user experience.",
           "whyReasons": [
-            "Elixir's lightweight processes allow for handling thousands of concurrent users, ensuring high availability and performance.",
-            "Phoenix LiveView enables real-time updates without complex JavaScript, enhancing user engagement.",
-            "PostgreSQL with Ecto provides robust data management and safety features, crucial for handling sensitive user information."
+            "Elixir's lightweight processes allow for handling a large number of concurrent users, making it ideal for real-time notifications.",
+            "Phoenix LiveView simplifies the development of interactive UIs without needing a separate frontend framework, reducing complexity.",
+            "PostgreSQL with Ecto ensures data integrity and safety, with powerful query capabilities for complex data interactions."
           ],
-          "bestFor": "High-concurrency applications with real-time interactivity",
+          "bestFor": "Real-time applications with high concurrency needs",
           "isRecommended": false
         }
       ],
-      "targetFramework": "nextjs-stripe",
+      "targetFramework": "nextjs-postgres",
       "frameworkRecommendation": {
-        "id": "nextjs-stripe",
+        "id": "nextjs-postgres",
         "name": "Next.js 15 (TypeScript + React 19)",
         "category": "Full-Stack Web",
         "architecture": "Integrated Full-Stack",
-        "frontendStack": "Next.js 15 App Router + React 19 + TypeScript",
-        "backendStack": "Node.js (Express) + Stripe API",
+        "frontendStack": "Next.js 15 App Router + TypeScript + React 19",
+        "backendStack": "Node.js (Express) + PostgreSQL",
         "stylingStack": "Tailwind CSS v4 + shadcn/ui",
-        "databaseStack": "PostgreSQL + Prisma ORM + Redis",
+        "databaseStack": "PostgreSQL + Prisma ORM",
         "deploymentTarget": "Vercel + Supabase",
-        "description": "This architecture leverages Next.js for a seamless user experience and real-time updates, while ensuring secure payment processing with Stripe.",
+        "description": "This architecture combines a powerful React-based frontend with a robust Node.js backend, leveraging Next.js for server-side rendering and API routes.",
         "whyReasons": [
-          "Strong TypeScript support enhances developer productivity and reduces runtime errors.",
-          "Next.js provides built-in API routes, making it easy to handle server-side logic and secure payment processing.",
-          "PostgreSQL with Prisma ORM ensures data integrity and real-time inventory management."
+          "Next.js provides excellent performance with automatic code splitting and server-side rendering, enhancing user experience.",
+          "PostgreSQL with Prisma ORM ensures data safety and efficient querying, making it suitable for handling complex data relationships.",
+          "The TypeScript ecosystem improves developer velocity with type safety and better tooling support."
         ],
         "bestFor": "High-velocity SaaS apps with real-time requirements",
         "isRecommended": true
       }
     },
     "createdAt": 1791027103712,
-    "updatedAt": 1791033011138
+    "updatedAt": 1791035515142
   }
 ]

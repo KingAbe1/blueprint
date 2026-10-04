@@ -48,15 +48,10 @@ export function formatSpecificationTemplate(rawText: string): string {
   text = text.replace(/\*{2,4}([^*]+)\*{2,4}/g, '$1');
   text = text.replace(/(^|[^\*])\*([^*\n]+)\*([^\*]|$)/g, '$1$2$3');
 
-  // 2. Standardize section headers into clean, uniform template headers
-  // Section 1: What It Does & Core Value Proposition
-  text = text.replace(/^#{1,6}\s*(?:1\.?)?\s*(?:What It Does|Overview|Product Overview|Core Value Proposition)[^\n]*/gim, '1. What It Does & Core Value Proposition:');
-  
-  // Section 2: Target Users & Primary Workflows
-  text = text.replace(/^#{1,6}\s*(?:2\.?)?\s*(?:Target Users|Workflows|Primary Workflows|Key Workflows)[^\n]*/gim, '2. Target Users & Primary Workflows:');
-  
-  // Section 3: Key Data & Reliability Expectations
-  text = text.replace(/^#{1,6}\s*(?:3\.?)?\s*(?:Key Data|Reliability|Data & Reliability|Rules & Constraints|Reliability Expectations)[^\n]*/gim, '3. Key Data & Reliability Expectations:');
+  // 2. Strip section header labels if present
+  text = text.replace(/^#{1,6}\s*(?:1\.?)?\s*(?:What It Does|Overview|Product Overview|Core Value Proposition)[^\n]*/gim, '');
+  text = text.replace(/^#{1,6}\s*(?:2\.?)?\s*(?:Target Users|Workflows|Primary Workflows|Key Workflows)[^\n]*/gim, '');
+  text = text.replace(/^#{1,6}\s*(?:3\.?)?\s*(?:Key Data|Reliability|Data & Reliability|Rules & Constraints|Reliability Expectations)[^\n]*/gim, '');
 
   // Any other residual markdown header markers (#### Header) -> Clean Header
   text = text.replace(/^#{1,6}\s*([^\n]+)/gm, '$1');
@@ -64,7 +59,7 @@ export function formatSpecificationTemplate(rawText: string): string {
   // 3. Format bullets into clean bullet glyphs (• )
   text = text.replace(/^[\s]*[-*+]\s+/gm, '• ');
 
-  // 4. Normalize spacing between sections
+  // 4. Normalize spacing between paragraphs
   text = text.replace(/\n{3,}/g, '\n\n');
 
   return text.trim();
