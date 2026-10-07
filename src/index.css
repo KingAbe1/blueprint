@@ -1,4 +1,13 @@
+@import "@fontsource/poppins/latin-400.css";
+@import "@fontsource/poppins/latin-500.css";
+@import "@fontsource/poppins/latin-600.css";
+@import "@fontsource/poppins/latin-700.css";
+@import "@fontsource/jetbrains-mono/latin-400.css";
+@import "@fontsource/jetbrains-mono/latin-500.css";
+@import "@fontsource/jetbrains-mono/latin-600.css";
 @import "tailwindcss";
+
+/* Tailwind source marker: modal and workbench components use utility classes directly. */
 
 @layer base {
   :root {
@@ -420,4 +429,3 @@ body.light ::-webkit-scrollbar-thumb:hover {
   box-shadow: 0 8px 30px -4px rgba(59, 130, 246, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.08);
   transform: translateY(-2px);
 }
-

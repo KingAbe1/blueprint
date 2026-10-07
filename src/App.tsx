@@ -7,28 +7,39 @@ import { Header } from './components/layout/Header';
 import { Sidebar } from './components/layout/Sidebar';
 import { CreateProjectView } from './components/project/CreateProjectView';
 import { DomainIntentView } from './components/workbench/DomainIntentView';
-import { InvariantWorkbench } from './components/workbench/InvariantWorkbench';
+import { ArchitectureMapView } from './components/workbench/ArchitectureMapView';
+import { BuildHandoffView } from './components/workbench/BuildHandoffView';
 import { RenameModal } from './components/modals/RenameModal';
 import { DeleteModal } from './components/modals/DeleteModal';
 import { AISettingsModal } from './components/modals/AISettingsModal';
 import { PhaseTab } from './types/project';
 
+const ACTIVE_TAB_STORAGE_KEY = 'blueprint_active_tab_v1';
+const AVAILABLE_TABS: PhaseTab[] = ['domain-intent', 'architecture-map', 'in-flight'];
+
 const AppContent: React.FC = () => {
   const { activeProject, isCreatingNew } = useProjects();
   const { isDark } = useTheme();
-  const [activeTab, setActiveTab] = useState<PhaseTab>('domain-intent');
+  const [activeTab, setActiveTab] = useState<PhaseTab>(() => {
+    const savedTab = localStorage.getItem(ACTIVE_TAB_STORAGE_KEY) as PhaseTab | null;
+    return savedTab && AVAILABLE_TABS.includes(savedTab) ? savedTab : 'domain-intent';
+  });
   
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(() => {
-    return localStorage.getItem('blueprint_sidebar_collapsed') === 'true';
+    return localStorage.getItem('blueprint_sidebar_collapsed_v2') === 'true';
   });
 
   const toggleSidebar = () => {
     setIsSidebarCollapsed(prev => {
       const next = !prev;
-      localStorage.setItem('blueprint_sidebar_collapsed', String(next));
+      localStorage.setItem('blueprint_sidebar_collapsed_v2', String(next));
       return next;
     });
   };
+
+  useEffect(() => {
+    localStorage.setItem(ACTIVE_TAB_STORAGE_KEY, activeTab);
+  }, [activeTab]);
 
   // Keyboard shortcut ⌘B / Ctrl+B to toggle sidebar
   useEffect(() => {
@@ -45,8 +56,8 @@ const AppContent: React.FC = () => {
   return (
     <div className={`h-screen w-screen flex font-display transition-colors duration-200 select-none overflow-hidden ${
       isDark 
-        ? 'text-[#F4F4F6] selection:bg-blue-500/30 selection:text-blue-200 bg-[#0E0F12]' 
-        : 'text-slate-900 selection:bg-blue-500/20 selection:text-blue-900 bg-slate-50/50'
+        ? 'text-[#F4F4F6] selection:bg-blue-500/30 selection:text-blue-200 bg-[#101113]'
+        : 'text-slate-900 selection:bg-blue-500/20 selection:text-blue-900 bg-slate-50'
     }`}>
       {/* Full-Height Left Sidebar */}
       {activeProject && !isCreatingNew && (
@@ -71,10 +82,17 @@ const AppContent: React.FC = () => {
             <CreateProjectView />
           ) : (
             <div className="flex-1 flex overflow-hidden min-h-0">
-              {activeTab === 'domain-intent' ? (
-                <DomainIntentView onProceedToInvariants={() => setActiveTab('invariants')} />
+              {activeTab === 'in-flight' ? (
+                <BuildHandoffView />
+              ) : activeTab === 'architecture-map' ? (
+                <ArchitectureMapView
+                  onEditDecisions={() => setActiveTab('domain-intent')}
+                  onProceedToHandoff={() => setActiveTab('in-flight')}
+                />
               ) : (
-                <InvariantWorkbench />
+                <DomainIntentView
+                  onOpenArchitectureMap={() => setActiveTab('architecture-map')}
+                />
               )}
             </div>
           )}

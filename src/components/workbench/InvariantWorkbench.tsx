@@ -194,47 +194,34 @@ export const InvariantWorkbench: React.FC = () => {
 
   return (
     <div className="flex-1 flex flex-col overflow-y-auto w-full">
-      <div className="p-6 md:p-8 w-full max-w-7xl mx-auto space-y-6">
+      <div className="w-full space-y-6 px-6 py-8 lg:px-10 lg:py-10 xl:px-12">
         
-        {/* Header Hero Banner */}
-        <div className={`p-6 rounded-2xl border transition-all relative overflow-hidden ${
-          isDark 
-            ? 'studio-panel-dark border-[#232530] shadow-xl' 
-            : 'studio-panel-light border-slate-200/80 shadow-md'
-        }`}>
-          <div className="absolute -right-10 -top-10 w-44 h-44 rounded-full bg-emerald-500/10 blur-3xl pointer-events-none" />
-          
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 relative z-10">
-            <div className="flex items-start space-x-4">
-              <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 shadow-lg ${
-                isDark ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30' : 'bg-emerald-50 text-emerald-600 border border-emerald-200'
+        {/* Page heading */}
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <div className={`mb-2 text-xs font-medium ${isDark ? 'text-[#92949C]' : 'text-slate-500'}`}>Step 2 of 2</div>
+            <div className="flex items-center gap-3">
+              <h1 className={`text-2xl font-semibold tracking-tight ${isDark ? 'text-white' : 'text-slate-950'}`}>
+                Define the data rules
+              </h1>
+              <span className={`rounded-full px-2.5 py-1 text-[10px] font-medium ${
+                isDark ? 'bg-emerald-500/10 text-emerald-300' : 'bg-emerald-50 text-emerald-700'
               }`}>
-                <Database className="w-6 h-6" />
-              </div>
-              <div className="space-y-1">
-                <div className="flex items-center space-x-2">
-                  <h2 className={`text-lg font-bold tracking-tight ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                    Data Invariants & Guardrails
-                  </h2>
-                  <span className={`text-[10px] font-mono px-2 py-0.5 rounded-full font-semibold ${
-                    isDark ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' : 'bg-emerald-100 text-emerald-800'
-                  }`}>
-                    {rules.filter(r => r.enabled).length} Active Guards
-                  </span>
-                </div>
-                <p className={`text-xs leading-relaxed max-w-2xl ${isDark ? 'text-[#8E8F99]' : 'text-slate-600'}`}>
-                  Define mandatory schema assertions, range constraints, and business invariants to prevent invalid data state across your client and database layers.
-                </p>
-              </div>
+                {rules.filter(r => r.enabled).length} active
+              </span>
             </div>
+            <p className={`mt-2 max-w-2xl text-sm leading-6 ${isDark ? 'text-[#92949C]' : 'text-slate-500'}`}>
+              Add the constraints that must always be true, regardless of where data enters the system.
+            </p>
+          </div>
 
-            <div className="flex items-center space-x-2.5">
+            <div className="flex items-center gap-2">
               <button
                 onClick={() => setShowSandbox(!showSandbox)}
-                className={`px-3.5 py-2 rounded-xl text-xs font-semibold border flex items-center space-x-1.5 transition-all cursor-pointer ${
+                className={`flex items-center gap-1.5 rounded-lg border px-3.5 py-2.5 text-xs font-medium transition-colors ${
                   showSandbox
                     ? isDark ? 'bg-purple-500/20 border-purple-500/40 text-purple-300' : 'bg-purple-50 border-purple-300 text-purple-700'
-                    : isDark ? 'bg-[#181920] border-[#2B2C36] text-slate-300 hover:text-white' : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+                    : isDark ? 'bg-white/[0.03] border-white/[0.09] text-slate-300 hover:bg-white/[0.06] hover:text-white' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
                 }`}
               >
                 <Play className="w-3.5 h-3.5" />
@@ -243,13 +230,12 @@ export const InvariantWorkbench: React.FC = () => {
 
               <button
                 onClick={() => setShowAddModal(true)}
-                className="btn-primary-blue px-4 py-2 rounded-xl text-xs font-semibold text-white flex items-center space-x-1.5 cursor-pointer shadow-md hover:shadow-blue-500/20"
+                className="flex items-center gap-1.5 rounded-lg bg-blue-600 px-4 py-2.5 text-xs font-semibold text-white transition-colors hover:bg-blue-500"
               >
                 <Plus className="w-4 h-4" />
-                <span>Add Data Rule</span>
+                <span>Add rule</span>
               </button>
             </div>
-          </div>
         </div>
 
         {/* Live Rule Sandbox Box */}

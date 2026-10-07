@@ -1,10 +1,24 @@
 export type Theme = 'dark' | 'light';
 
-export type PhaseTab = 'domain-intent' | 'invariants' | 'state-machine' | 'tdd-spec' | 'in-flight' | 'post-flight';
+export type PhaseTab = 'domain-intent' | 'architecture-map' | 'in-flight';
 
 export type ArchitecturePreference = string;
 export type StylingPreference = string;
 export type BackendPreference = string;
+export type ArchitectureTopology = 'modular_monolith' | 'microservices' | 'serverless' | 'event_driven' | 'hybrid';
+export type IDETarget = 'cursor' | 'vscode' | 'codex' | 'claude' | 'jetbrains' | 'other';
+
+export interface HandoffFile {
+  path: string;
+  description: string;
+  content: string;
+}
+
+export interface HandoffPackage {
+  generatedAt: number;
+  ide: IDETarget;
+  files: HandoffFile[];
+}
 
 export interface DomainEntity {
   id: string;
@@ -22,27 +36,76 @@ export interface FrameworkRecommendation {
   stylingStack?: string;
   databaseStack?: string;
   deploymentTarget?: string;
+  topology?: ArchitectureTopology;
+  topologyRationale?: string;
+  systemModules?: string[];
   description: string;
   whyReasons: string[];
   bestFor: string;
   isRecommended?: boolean;
 }
 
-export interface InterviewMessage {
+export interface ArchitectureOption {
   id: string;
-  role: 'assistant' | 'user';
-  content: string;
-  options?: { id: string; label: string; description?: string }[];
-  selectedOption?: string;
-  customAnswer?: string;
-  timestamp: number;
+  label: string;
+  description?: string;
+  recommended?: boolean;
+}
+
+export interface ArchitectureQuestion {
+  id: string;
+  category:
+    | 'product'
+    | 'users'
+    | 'platform'
+    | 'approach'
+    | 'ui'
+    | 'access'
+    | 'frontend'
+    | 'topology'
+    | 'backend'
+    | 'api'
+    | 'data'
+    | 'realtime'
+    | 'integrations'
+    | 'security'
+    | 'compliance'
+    | 'scale'
+    | 'reliability'
+    | 'deployment'
+    | 'delivery'
+    | 'testing'
+    | 'observability'
+    | 'operations'
+    | 'budget';
+  question: string;
+  context?: string;
+  options: ArchitectureOption[];
+  allowCustom?: boolean;
+}
+
+export interface ArchitectureAnswer {
+  questionId: string;
+  optionId?: string;
+  value: string;
+  label: string;
+}
+
+export interface ArchitectureFact {
+  category: ArchitectureQuestion['category'];
+  value: string;
+  evidence?: string;
+  source: 'description' | 'ai';
 }
 
 export interface ArchitecturalInterview {
   status: 'idle' | 'in_progress' | 'completed';
   currentQuestionIndex: number;
   totalEstimatedQuestions: number;
-  history: InterviewMessage[];
+  questions: ArchitectureQuestion[];
+  answers: ArchitectureAnswer[];
+  inferredFacts?: ArchitectureFact[];
+  providerName?: string;
   summaryInsights?: string[];
 }
 
@@ -61,6 +124,7 @@ export interface ProjectSpec {
   coreEntities?: DomainEntity[];
   criticalWorkflows?: string[];
   nonNegotiables?: string[];
+  handoff?: HandoffPackage;
 }
 
 export interface Project {
@@ -70,4 +134,3 @@ export interface Project {
   createdAt: number;
   updatedAt: number;
 }
-

@@ -1,14 +1,9 @@
 import React, { useState } from 'react';
-import { 
-  FileText, 
-  Database, 
-  GitBranch, 
-  CheckSquare, 
-  Code2, 
-  ShieldCheck, 
+import {
+  Code2,
+  FileText,
+  Network,
   PanelLeftClose,
-  PanelLeft,
-  Sparkles
 } from 'lucide-react';
 import { PhaseTab } from '../../types/project';
 import { useProjects } from '../../context/ProjectContext';
@@ -22,23 +17,25 @@ interface SidebarProps {
   onToggleCollapse?: () => void;
 }
 
-const PHASE_1_TABS: { id: PhaseTab; icon: typeof FileText; label: string; shortLabel: string; accent: string }[] = [
-  { id: 'domain-intent', icon: FileText, label: '1. Project Overview', shortLabel: '1', accent: 'blue' },
-  { id: 'invariants', icon: Database, label: '2. Data & Rules', shortLabel: '2', accent: 'emerald' },
-  { id: 'state-machine', icon: GitBranch, label: '3. Status & Steps Flow', shortLabel: '3', accent: 'violet' },
-  { id: 'tdd-spec', icon: CheckSquare, label: '4. Quality Checks', shortLabel: '4', accent: 'amber' },
+interface NavigationItem {
+  id: PhaseTab;
+  icon: typeof FileText;
+  label: string;
+  step: string;
+  available: boolean;
+}
+
+const NAVIGATION: NavigationItem[] = [
+  { id: 'domain-intent', icon: FileText, label: 'Product blueprint', step: '1', available: true },
+  { id: 'architecture-map', icon: Network, label: 'Architecture map', step: '2', available: true },
+  { id: 'in-flight', icon: Code2, label: 'Build handoff', step: '3', available: false },
 ];
 
-const PHASE_2_TABS: { id: PhaseTab; icon: typeof Code2; label: string; shortLabel: string; accent: string }[] = [
-  { id: 'in-flight', icon: Code2, label: 'Phase 2: Generate Code', shortLabel: '⚡', accent: 'cyan' },
-  { id: 'post-flight', icon: ShieldCheck, label: 'Phase 3: Final Review', shortLabel: '✓', accent: 'rose' },
-];
-
-export const Sidebar: React.FC<SidebarProps> = ({ 
-  activeTab, 
+export const Sidebar: React.FC<SidebarProps> = ({
+  activeTab,
   onSelectTab,
   isCollapsed = false,
-  onToggleCollapse
+  onToggleCollapse,
 }) => {
   const { activeProject } = useProjects();
   const { isDark } = useTheme();
@@ -46,138 +43,93 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
   if (!activeProject) return null;
 
-  const renderNavButton = (tab: typeof PHASE_1_TABS[0]) => {
-    const isActive = activeTab === tab.id;
-    const Icon = tab.icon;
-
-    return (
-      <button
-        key={tab.id}
-        onClick={() => onSelectTab(tab.id)}
-        className={`w-full flex items-center ${isCollapsed ? 'justify-center px-2 py-2.5' : 'space-x-2.5 px-3 py-2'} rounded-xl text-xs font-medium transition-all duration-200 cursor-pointer text-left group relative ${
-          isActive
-            ? isDark
-              ? 'bg-gradient-to-r from-blue-600/15 to-blue-600/5 text-blue-400 font-semibold shadow-[inset_0_0_0_1px_rgba(59,130,246,0.15)]'
-              : 'bg-gradient-to-r from-blue-50 to-blue-50/30 text-blue-700 font-semibold shadow-[inset_0_0_0_1px_rgba(59,130,246,0.12)]'
-            : isDark
-              ? 'text-[#8E8F99] hover:text-white hover:bg-white/[0.04]'
-              : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'
-        }`}
-        title={tab.label}
-      >
-        {/* Active indicator bar */}
-        {isActive && (
-          <div className={`absolute ${isCollapsed ? 'left-0 top-1/2 -translate-y-1/2 w-[2px] h-4' : 'left-0 top-1/2 -translate-y-1/2 w-[2px] h-5'} rounded-r-full bg-blue-500 transition-all`} />
-        )}
-
-        <div className={`relative ${isActive ? '' : 'group-hover:scale-110'} transition-transform duration-200`}>
-          <Icon className="w-3.5 h-3.5 shrink-0" />
-        </div>
-        {!isCollapsed && <span className="truncate">{tab.label}</span>}
-      </button>
-    );
-  };
-
   return (
-    <aside className={`border-r flex flex-col justify-between transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] shrink-0 select-none min-h-0 ${
-      isCollapsed ? 'w-14' : 'w-64'
-    } ${
-      isDark 
-        ? 'bg-[#0A0B0E] border-white/[0.06]' 
-        : 'bg-white border-slate-200/60'
-    }`}>
-      {/* Top Header of Sidebar: Logo & Project Switcher */}
-      <div className={`h-12 border-b flex items-center shrink-0 px-3 transition-all duration-300 ${
-        isDark ? 'border-white/[0.06]' : 'border-slate-200/60'
-      } ${isCollapsed ? 'justify-center' : ''}`}>
-        {!isCollapsed ? (
-          <div className="flex items-center gap-2 min-w-0 flex-1">
-            {/* Logo Mark with gradient */}
-            <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-sm shadow-blue-500/20 shrink-0 group cursor-default">
-              <div className="w-2.5 h-2.5 border-[1.5px] border-white rounded-[2px] rotate-45 transition-transform group-hover:scale-110" />
-            </div>
-
-            {/* Brand + Project Dropdown / Switcher */}
+    <aside className={`flex shrink-0 flex-col border-r transition-[width] duration-200 ${
+      isCollapsed ? 'w-[60px]' : 'w-56'
+    } ${isDark ? 'border-white/[0.07] bg-[#0C0D0F]' : 'border-slate-200 bg-white'}`}>
+      <div className={`flex h-14 shrink-0 items-center border-b px-3 ${
+        isDark ? 'border-white/[0.07]' : 'border-slate-200'
+      }`}>
+        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-blue-600">
+          <div className="h-3 w-3 rotate-45 rounded-[2px] border-2 border-white" />
+        </div>
+        {!isCollapsed && (
+          <div className="ml-2 min-w-0 flex-1">
             <ProjectDropdown
               isOpen={isDropdownOpen}
               onClose={() => setIsDropdownOpen(false)}
-              onToggle={() => setIsDropdownOpen(prev => !prev)}
+              onToggle={() => setIsDropdownOpen(value => !value)}
             />
           </div>
-        ) : (
-          <button
-            onClick={onToggleCollapse}
-            className="w-7 h-7 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-sm shadow-blue-500/20 shrink-0 cursor-pointer hover:shadow-blue-500/30 hover:scale-105 transition-all duration-200"
-            title="Expand Sidebar (⌘B)"
-          >
-            <div className="w-2.5 h-2.5 border-[1.5px] border-white rounded-[1px] rotate-45" />
-          </button>
         )}
       </div>
 
-      <div className={`flex-1 overflow-y-auto ${isCollapsed ? 'p-2 space-y-5' : 'p-3 space-y-5'}`}>
-        
-        {/* Phase 1: Planning */}
-        <div className="space-y-1">
-          {!isCollapsed && (
-            <div className={`text-[10px] font-mono uppercase tracking-wider font-semibold px-3 py-1.5 flex items-center space-x-1.5 ${
-              isDark ? 'text-[#5A5C66]' : 'text-slate-400'
-            }`}>
-              <Sparkles className="w-3 h-3" />
-              <span>Phase 1 · Blueprint</span>
-            </div>
-          )}
-
-          <nav className="space-y-0.5">
-            {PHASE_1_TABS.map(renderNavButton)}
-          </nav>
-        </div>
-
-        {/* Divider */}
-        <div className={`mx-2 ${isDark ? 'border-t border-white/[0.04]' : 'border-t border-slate-100'}`} />
-
-        {/* Subsequent Phases */}
-        <div className="space-y-1">
-          {!isCollapsed && (
-            <div className={`text-[10px] font-mono uppercase tracking-wider font-semibold px-3 py-1.5 flex items-center space-x-1.5 ${
-              isDark ? 'text-[#5A5C66]' : 'text-slate-400'
-            }`}>
-              <Code2 className="w-3 h-3" />
-              <span>Building & Review</span>
-            </div>
-          )}
-
-          <nav className="space-y-0.5">
-            {PHASE_2_TABS.map(renderNavButton)}
-          </nav>
-        </div>
-
-      </div>
-
-      {/* Footer Toggle Bar */}
-      <div className={`p-2.5 border-t flex items-center ${isCollapsed ? 'justify-center' : 'justify-between'} ${
-        isDark ? 'border-white/[0.04]' : 'border-slate-100'
-      }`}>
+      <div className="flex-1 overflow-y-auto px-2 py-5">
         {!isCollapsed && (
-          <div className={`text-[11px] font-medium flex items-center space-x-1.5 ${isDark ? 'text-[#5A5C66]' : 'text-slate-400'}`}>
-            <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-            <span>Blueprint Studio</span>
-          </div>
+          <p className={`mb-2 px-2 text-[10px] font-semibold uppercase tracking-[0.16em] ${
+            isDark ? 'text-[#62646B]' : 'text-slate-400'
+          }`}>Blueprint</p>
         )}
-        
+
+        <nav className="space-y-1">
+          {NAVIGATION.map(item => {
+            const Icon = item.icon;
+            const isActive = activeTab === item.id;
+            const isHandoffReady = Boolean(
+              activeProject.spec.interview?.status === 'completed'
+              && (activeProject.spec.frameworkRecommendation || activeProject.spec.frameworkRecommendations?.[0]),
+            );
+            const isAvailable = item.id === 'in-flight' ? isHandoffReady : item.available;
+            return (
+              <button
+                key={item.id}
+                type="button"
+                disabled={!isAvailable}
+                onClick={() => isAvailable && onSelectTab(item.id)}
+                title={isAvailable ? item.label : item.id === 'in-flight' ? `${item.label} · Complete the architecture first` : `${item.label} · Coming soon`}
+                className={`group flex w-full items-center rounded-lg text-left transition-colors ${
+                  isCollapsed ? 'h-10 justify-center' : 'h-10 gap-3 px-2.5'
+                } ${
+                  isActive
+                    ? isDark ? 'bg-white/[0.07] text-white' : 'bg-slate-100 text-slate-950'
+                    : isAvailable
+                      ? isDark ? 'text-[#92949C] hover:bg-white/[0.04] hover:text-white' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'
+                      : isDark ? 'cursor-not-allowed text-[#494B51]' : 'cursor-not-allowed text-slate-300'
+                }`}
+              >
+                <Icon className={`h-4 w-4 shrink-0 ${isActive ? 'text-blue-500' : ''}`} />
+                {!isCollapsed && (
+                  <>
+                    <span className="min-w-0 flex-1 truncate text-xs font-medium">{item.label}</span>
+                    {isAvailable ? (
+                      <span className={`text-[10px] tabular-nums ${isDark ? 'text-[#62646B]' : 'text-slate-400'}`}>{item.step}</span>
+                    ) : (
+                      <span className={`rounded px-1.5 py-0.5 text-[9px] font-medium ${
+                        isDark ? 'bg-white/[0.04] text-[#62646B]' : 'bg-slate-100 text-slate-400'
+                      }`}>Soon</span>
+                    )}
+                  </>
+                )}
+              </button>
+            );
+          })}
+        </nav>
+      </div>
+
+      <div className={`flex h-12 shrink-0 items-center border-t px-3 ${
+        isCollapsed ? 'justify-center' : 'justify-between'
+      } ${isDark ? 'border-white/[0.07]' : 'border-slate-200'}`}>
+        {!isCollapsed && <span className={`text-[10px] ${isDark ? 'text-[#62646B]' : 'text-slate-400'}`}>Blueprint Studio</span>}
         {onToggleCollapse && (
           <button
+            type="button"
             onClick={onToggleCollapse}
-            className={`p-1.5 rounded-lg text-xs transition-all duration-200 cursor-pointer group ${
-              isDark ? 'text-[#8E8F99] hover:text-white hover:bg-white/[0.06]' : 'text-slate-400 hover:text-slate-800 hover:bg-slate-100'
+            className={`rounded-md p-1.5 transition-colors ${
+              isDark ? 'text-[#7B7D85] hover:bg-white/[0.06] hover:text-white' : 'text-slate-400 hover:bg-slate-100 hover:text-slate-700'
             }`}
-            title={isCollapsed ? "Expand Sidebar (⌘B)" : "Collapse Sidebar (⌘B)"}
+            title={isCollapsed ? 'Expand sidebar (⌘B)' : 'Collapse sidebar (⌘B)'}
           >
-            {isCollapsed ? (
-              <PanelLeft className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
-            ) : (
-              <PanelLeftClose className="w-3.5 h-3.5 group-hover:-translate-x-0.5 transition-transform" />
-            )}
+            <PanelLeftClose className={`h-4 w-4 transition-transform ${isCollapsed ? 'rotate-180' : ''}`} />
           </button>
         )}
       </div>

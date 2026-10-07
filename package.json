@@ -14,6 +14,9 @@
     "app": "tauri dev"
   },
   "dependencies": {
+    "@fontsource/jetbrains-mono": "^5.3.0",
+    "@fontsource/poppins": "^5.3.0",
+    "@tauri-apps/plugin-dialog": "^2.8.1",
     "lucide-react": "^1.50.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8"

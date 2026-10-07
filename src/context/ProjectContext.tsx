@@ -30,6 +30,8 @@ const defaultSpec: ProjectSpec = {
   nonNegotiables: []
 };
 
+const CREATING_NEW_STORAGE_KEY = 'blueprint_is_creating_new';
+
 const ProjectContext = createContext<ProjectContextType | undefined>(undefined);
 
 export const ProjectProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
@@ -60,7 +62,9 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({ children })
     return null;
   });
 
-  const [isCreatingNew, setIsCreatingNew] = useState(false);
+  const [isCreatingNew, setIsCreatingNew] = useState(() =>
+    localStorage.getItem(CREATING_NEW_STORAGE_KEY) === 'true',
+  );
   const [editingProjectId, setEditingProjectId] = useState<string | null>(null);
   const [projectToDelete, setProjectToDelete] = useState<Project | null>(null);
   const [storageSource, setStorageSource] = useState<'disk' | 'local'>('local');
@@ -112,6 +116,10 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({ children })
       localStorage.removeItem('blueprint_project_name');
     }
   }, [activeProjectId, projects]);
+
+  useEffect(() => {
+    localStorage.setItem(CREATING_NEW_STORAGE_KEY, String(isCreatingNew));
+  }, [isCreatingNew]);
 
   const activeProject = projects.find(p => p.id === activeProjectId);
 
@@ -248,4 +256,3 @@ export const useProjects = (): ProjectContextType => {
   }
   return context;
 };
-

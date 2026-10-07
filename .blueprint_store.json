@@ -3,7 +3,7 @@
     "id": "proj_1791027103712",
     "name": "online-store",
     "spec": {
-      "description": "The online-store mobile app is designed to revolutionize the shopping experience by providing users with a seamless platform to discover and purchase products effortlessly. Its core purpose is to simplify the online shopping journey, making it more intuitive, efficient, and enjoyable for users while ensuring secure transactions and real-time updates.\n\nKey user-facing features include:\n• Instant Search Filtering: Users can quickly find products that match their preferences through advanced search capabilities, allowing them to filter results based on categories, price ranges, and other relevant criteria.\n• Secure Payment Options: The app integrates trusted payment solutions like Stripe and Apple Pay, providing users with a variety of secure payment methods that enhance their confidence in making purchases.\n• Real-time Order Updates: Users receive timely push notifications regarding their order status, including confirmations, shipping updates, and delivery notifications, keeping them informed throughout the purchasing process.\n• User-friendly Interface: The app is designed with an intuitive layout that enhances navigation, making it easy for users to browse products, read descriptions, and make purchases with minimal effort.\n\nThe business value of the online-store app lies in its ability to increase customer engagement and drive sales. By offering a streamlined shopping experience, the app encourages users to explore more products and make repeat purchases. The integration of secure payment options not only builds trust but also reduces cart abandonment rates, ultimately leading to higher conversion rates.\n\nFrom a technical perspective, the app leverages robust backend systems to ensure fast and reliable performance. It utilizes APIs for payment processing and order management, ensuring that transactions are handled securely and efficiently. The app's architecture supports scalability, allowing it to accommodate a growing user base and an expanding product catalog without compromising performance.\n\nThe primary problem solved by the online-store app is the complexity and frustration often associated with online shopping. By providing a user-friendly platform with instant search capabilities, secure payment options, and real-time updates, the app addresses common pain points such as difficulty in finding products, concerns about payment security, and lack of communication regarding order status. This holistic approach to online shopping not only enhances user satisfaction but also fosters brand loyalty, making the online-store app a valuable asset in the competitive e-commerce landscape.",
+      "description": "The online-store mobile app is designed to transform the shopping experience by offering users a seamless platform for discovering and purchasing products with ease. Its core purpose is to simplify the online shopping journey, making it more intuitive, efficient, and enjoyable while ensuring secure transactions and real-time updates.\n\nKey user-facing features include:\n• Instant Search Filtering: Users can swiftly locate products that align with their preferences through advanced search capabilities. They can filter results based on categories, price ranges, and other relevant criteria, enhancing their ability to find exactly what they need without hassle.\n• Secure Payment Options: The app integrates trusted payment solutions such as Stripe and Apple Pay, providing users with a variety of secure payment methods. This integration not only enhances user confidence in making purchases but also ensures that transactions are processed safely.\n• Real-time Order Updates: Users receive timely push notifications regarding their order status, including confirmations, shipping updates, and delivery notifications. This feature keeps users informed throughout the purchasing process, reducing uncertainty and enhancing their overall experience.\n• User-friendly Interface: The app boasts an intuitive layout that improves navigation, making it easy for users to browse products, read descriptions, and complete purchases with minimal effort. This design focus contributes to a more engaging shopping experience.\n\nThe business value of the online-store app lies in its ability to increase customer engagement and drive sales. By offering a streamlined shopping experience, the app encourages users to explore a wider range of products and make repeat purchases. The integration of secure payment options not only builds trust but also reduces cart abandonment rates, ultimately leading to higher conversion rates.\n\nFrom a technical perspective, the app leverages robust backend systems to ensure fast and reliable performance. It utilizes APIs for payment processing and order management, ensuring that transactions are handled securely and efficiently. The architecture of the app supports scalability, allowing it to accommodate a growing user base and an expanding product catalog without compromising performance.\n\nThe primary problem solved by the online-store app is the complexity and frustration often associated with online shopping. By providing a user-friendly platform with instant search capabilities, secure payment options, and real-time updates, the app addresses common pain points such as difficulty in finding products, concerns about payment security, and lack of communication regarding order status. This holistic approach to online shopping not only enhances user satisfaction but also fosters brand loyalty, making the online-store app a valuable asset in the competitive e-commerce landscape.",
       "coreEntities": [],
       "criticalWorkflows": [],
       "nonNegotiables": [],
@@ -12,85 +12,876 @@
       ],
       "frameworkRecommendations": [
         {
-          "id": "nextjs-postgres",
-          "name": "Next.js 15 (TypeScript + React 19)",
-          "category": "Full-Stack Web",
-          "architecture": "Integrated Full-Stack",
-          "frontendStack": "Next.js 15 App Router + TypeScript + React 19",
-          "backendStack": "Node.js (Express) + PostgreSQL",
-          "stylingStack": "Tailwind CSS v4 + shadcn/ui",
-          "databaseStack": "PostgreSQL + Prisma ORM",
-          "deploymentTarget": "Vercel + Supabase",
-          "description": "This architecture combines a powerful React-based frontend with a robust Node.js backend, leveraging Next.js for server-side rendering and API routes.",
+          "id": "expo-supabase",
+          "name": "Expo / React Native + Supabase (PostgreSQL)",
+          "category": "Mobile App",
+          "architecture": "Mobile Native",
+          "frontendStack": "React Native + Expo",
+          "backendStack": "Supabase (PostgreSQL) + Edge Functions",
+          "stylingStack": "Tailwind CSS v4 + NativeWind",
+          "databaseStack": "Supabase PostgreSQL",
+          "deploymentTarget": "Expo EAS Build & Submit + Apple App Store / Google Play; Native Installers (iOS / Android)",
+          "description": "This architecture leverages Expo for mobile development and Supabase for backend services, providing a seamless and scalable solution for the online-store app.",
           "whyReasons": [
-            "Next.js provides excellent performance with automatic code splitting and server-side rendering, enhancing user experience.",
-            "PostgreSQL with Prisma ORM ensures data safety and efficient querying, making it suitable for handling complex data relationships.",
-            "The TypeScript ecosystem improves developer velocity with type safety and better tooling support."
+            "Supabase offers a robust PostgreSQL database with Row Level Security, ensuring data safety for sensitive information like accounts and payments.",
+            "React Native allows for shared code across iOS and Android, enhancing developer velocity and reducing maintenance overhead.",
+            "The integration of real-time capabilities and push notifications through Supabase enhances user engagement with timely order updates."
           ],
-          "bestFor": "High-velocity SaaS apps with real-time requirements",
+          "bestFor": "Scalable mobile applications with a focus on user experience and security.",
           "isRecommended": true
-        },
-        {
-          "id": "react-fastapi",
-          "name": "React (Vite) + FastAPI (Python 3.12)",
-          "category": "Decoupled SPA + API",
-          "architecture": "Separate (Frontend + Backend)",
-          "frontendStack": "React 19 + Vite",
-          "backendStack": "FastAPI (Python 3.12) + SQLAlchemy",
-          "stylingStack": "Mantine UI",
-          "databaseStack": "PostgreSQL + SQLAlchemy 2.0",
-          "deploymentTarget": "Docker + AWS ECS",
-          "description": "This stack separates the frontend and backend, allowing for independent scaling and development, with FastAPI providing high-performance APIs.",
-          "whyReasons": [
-            "FastAPI's asynchronous capabilities ensure high concurrency and responsiveness, ideal for real-time order updates.",
-            "React with Vite offers a fast development experience with hot module replacement, enhancing developer productivity.",
-            "PostgreSQL and SQLAlchemy provide a robust data management solution with strong support for complex queries and transactions."
-          ],
-          "bestFor": "Projects requiring high scalability and rapid development cycles",
-          "isRecommended": false
-        },
-        {
-          "id": "elixir-phoenix",
-          "name": "Elixir (Phoenix LiveView)",
-          "category": "Full-Stack Web",
-          "architecture": "Integrated Full-Stack",
-          "frontendStack": "Phoenix LiveView + Elixir",
-          "backendStack": "Elixir (Phoenix Framework)",
-          "stylingStack": "Tailwind CSS v4",
-          "databaseStack": "PostgreSQL + Ecto",
-          "deploymentTarget": "Docker + Heroku",
-          "description": "This architecture leverages Elixir's concurrency model and Phoenix LiveView for real-time features, providing a seamless user experience.",
-          "whyReasons": [
-            "Elixir's lightweight processes allow for handling a large number of concurrent users, making it ideal for real-time notifications.",
-            "Phoenix LiveView simplifies the development of interactive UIs without needing a separate frontend framework, reducing complexity.",
-            "PostgreSQL with Ecto ensures data integrity and safety, with powerful query capabilities for complex data interactions."
-          ],
-          "bestFor": "Real-time applications with high concurrency needs",
-          "isRecommended": false
         }
       ],
-      "targetFramework": "nextjs-postgres",
+      "targetFramework": "expo-supabase",
       "frameworkRecommendation": {
-        "id": "nextjs-postgres",
-        "name": "Next.js 15 (TypeScript + React 19)",
-        "category": "Full-Stack Web",
-        "architecture": "Integrated Full-Stack",
-        "frontendStack": "Next.js 15 App Router + TypeScript + React 19",
-        "backendStack": "Node.js (Express) + PostgreSQL",
-        "stylingStack": "Tailwind CSS v4 + shadcn/ui",
-        "databaseStack": "PostgreSQL + Prisma ORM",
-        "deploymentTarget": "Vercel + Supabase",
-        "description": "This architecture combines a powerful React-based frontend with a robust Node.js backend, leveraging Next.js for server-side rendering and API routes.",
+        "id": "expo-supabase",
+        "name": "Expo / React Native + Supabase (PostgreSQL)",
+        "category": "Mobile App",
+        "architecture": "Mobile Native",
+        "frontendStack": "React Native + Expo",
+        "backendStack": "Supabase (PostgreSQL) + Edge Functions",
+        "stylingStack": "Tailwind CSS v4 + NativeWind",
+        "databaseStack": "Supabase PostgreSQL",
+        "deploymentTarget": "Expo EAS Build & Submit + Apple App Store / Google Play; Native Installers (iOS / Android)",
+        "description": "This architecture leverages Expo for mobile development and Supabase for backend services, providing a seamless and scalable solution for the online-store app.",
         "whyReasons": [
-          "Next.js provides excellent performance with automatic code splitting and server-side rendering, enhancing user experience.",
-          "PostgreSQL with Prisma ORM ensures data safety and efficient querying, making it suitable for handling complex data relationships.",
-          "The TypeScript ecosystem improves developer velocity with type safety and better tooling support."
+          "Supabase offers a robust PostgreSQL database with Row Level Security, ensuring data safety for sensitive information like accounts and payments.",
+          "React Native allows for shared code across iOS and Android, enhancing developer velocity and reducing maintenance overhead.",
+          "The integration of real-time capabilities and push notifications through Supabase enhances user engagement with timely order updates."
         ],
-        "bestFor": "High-velocity SaaS apps with real-time requirements",
+        "bestFor": "Scalable mobile applications with a focus on user experience and security.",
         "isRecommended": true
+      },
+      "interview": {
+        "status": "completed",
+        "currentQuestionIndex": 19,
+        "totalEstimatedQuestions": 20,
+        "questions": [
+          {
+            "id": "guided_product",
+            "category": "product",
+            "question": "What should the first release optimize for?",
+            "context": "Choose the launch ambition; features can expand after the first complete release.",
+            "allowCustom": true,
+            "options": [
+              {
+                "id": "focused",
+                "label": "A focused first release",
+                "description": "Ship the smallest complete customer journey and learn quickly.",
+                "recommended": true
+              },
+              {
+                "id": "market_ready",
+                "label": "A polished public launch",
+                "description": "Include onboarding, support, analytics, and operational tools.",
+                "recommended": false
+              },
+              {
+                "id": "enterprise",
+                "label": "An enterprise-ready launch",
+                "description": "Include advanced controls, audit history, and administration from day one.",
+                "recommended": false
+              }
+            ]
+          },
+          {
+            "id": "guided_users",
+            "category": "users",
+            "question": "Who needs their own workspace or controls?",
+            "context": "This defines roles, permissions, and administrative experiences.",
+            "allowCustom": true,
+            "options": [
+              {
+                "id": "users_admins",
+                "label": "Customers and store administrators",
+                "description": "Separate the main experience from protected management controls.",
+                "recommended": true
+              },
+              {
+                "id": "one_role",
+                "label": "One type of user",
+                "description": "Keep access and navigation simple for the first release.",
+                "recommended": false
+              },
+              {
+                "id": "teams",
+                "label": "Organizations and teams",
+                "description": "Support owners, managers, and collaborators with different access.",
+                "recommended": false
+              }
+            ]
+          },
+          {
+            "id": "guided_ui",
+            "category": "ui",
+            "question": "How should the product feel to people using it?",
+            "context": "Blueprint will translate the desired experience into interface technology.",
+            "allowCustom": true,
+            "options": [
+              {
+                "id": "familiar",
+                "label": "Familiar, clean, and accessible",
+                "description": "Use established patterns that are easy to learn.",
+                "recommended": false
+              },
+              {
+                "id": "device_native",
+                "label": "Natural on each device",
+                "description": "Follow the behavior people expect on iPhone and Android.",
+                "recommended": true
+              },
+              {
+                "id": "consistent",
+                "label": "Consistent everywhere",
+                "description": "Keep the experience closely matched across platforms.",
+                "recommended": false
+              },
+              {
+                "id": "branded",
+                "label": "Highly distinctive and branded",
+                "description": "Prioritize a unique visual identity.",
+                "recommended": false
+              }
+            ]
+          },
+          {
+            "id": "user_access",
+            "category": "access",
+            "question": "What user roles do you want to support in the app?",
+            "context": "Defining roles will help manage permissions and access to features.",
+            "allowCustom": true,
+            "options": [
+              {
+                "id": "customers_only",
+                "label": "Only customers",
+                "description": "Focus on a straightforward experience for end-users.",
+                "recommended": false
+              },
+              {
+                "id": "admins_and_customers",
+                "label": "Admins and customers",
+                "description": "Allow admin users to manage products and orders, enhancing control.",
+                "recommended": true
+              },
+              {
+                "id": "vendors_and_customers",
+                "label": "Vendors and customers",
+                "description": "Enable vendors to manage their own products, promoting a marketplace model.",
+                "recommended": false
+              }
+            ]
+          },
+          {
+            "id": "guided_frontend",
+            "category": "frontend",
+            "question": "How should iPhone and Android development be balanced?",
+            "context": "Choose the team and experience tradeoff, not a framework name.",
+            "allowCustom": true,
+            "options": [
+              {
+                "id": "shared",
+                "label": "Share most work across both phones",
+                "description": "Move faster with one main interface codebase.",
+                "recommended": true
+              },
+              {
+                "id": "separate",
+                "label": "Build separately for each phone platform",
+                "description": "Accept more work for deeper platform-specific control.",
+                "recommended": false
+              },
+              {
+                "id": "hybrid",
+                "label": "Share the core and customize key screens",
+                "description": "Balance development speed with platform-specific polish.",
+                "recommended": false
+              },
+              {
+                "id": "decide",
+                "label": "Let Blueprint decide",
+                "description": "Select the screen technology from all interview answers.",
+                "recommended": false
+              }
+            ]
+          },
+          {
+            "id": "guided_backend",
+            "category": "backend",
+            "question": "How much behind-the-scenes infrastructure should the team manage?",
+            "context": "This powers business rules, scheduled work, payments, and notifications.",
+            "allowCustom": true,
+            "options": [
+              {
+                "id": "managed",
+                "label": "As little as possible",
+                "description": "Use managed services and keep maintenance low.",
+                "recommended": true
+              },
+              {
+                "id": "balanced",
+                "label": "A balanced amount of control",
+                "description": "Use a conventional application service that remains easy to operate.",
+                "recommended": false
+              },
+              {
+                "id": "full_control",
+                "label": "Full control for unusual needs",
+                "description": "Accept more complexity for specialized performance or hosting.",
+                "recommended": false
+              },
+              {
+                "id": "decide",
+                "label": "Let Blueprint decide",
+                "description": "Choose from the workflows, scale, and team capacity.",
+                "recommended": false
+              }
+            ]
+          },
+          {
+            "id": "guided_api",
+            "category": "api",
+            "question": "Who else needs to connect to this product?",
+            "context": "Blueprint will design the connection method and documentation from this answer.",
+            "allowCustom": true,
+            "options": [
+              {
+                "id": "our_apps",
+                "label": "Only our own app",
+                "description": "Keep connections private and optimized for first-party screens.",
+                "recommended": true
+              },
+              {
+                "id": "partners",
+                "label": "A few trusted partners",
+                "description": "Provide stable access for selected outside systems.",
+                "recommended": false
+              },
+              {
+                "id": "public",
+                "label": "Outside developers",
+                "description": "Provide public, versioned access with keys and limits.",
+                "recommended": false
+              },
+              {
+                "id": "live_systems",
+                "label": "Many systems with live updates",
+                "description": "Support frequent two-way updates and background work.",
+                "recommended": false
+              }
+            ]
+          },
+          {
+            "id": "guided_data",
+            "category": "data",
+            "question": "What kind of information must stay most dependable?",
+            "context": "Blueprint will choose storage that protects accuracy, search, and reporting.",
+            "allowCustom": true,
+            "options": [
+              {
+                "id": "connected_records",
+                "label": "Accounts, products, inventory, orders, and payments",
+                "description": "Prioritize accuracy when related information changes together.",
+                "recommended": true
+              },
+              {
+                "id": "content",
+                "label": "Flexible content and documents",
+                "description": "Prioritize changing content shapes and simple publishing.",
+                "recommended": false
+              },
+              {
+                "id": "device_data",
+                "label": "Information stored on each device",
+                "description": "Keep the product useful without a connection and synchronize later.",
+                "recommended": false
+              },
+              {
+                "id": "decide",
+                "label": "Let Blueprint decide",
+                "description": "Choose storage from the product workflows.",
+                "recommended": false
+              }
+            ]
+          },
+          {
+            "id": "guided_realtime",
+            "category": "realtime",
+            "question": "What should happen when the connection is slow or unavailable?",
+            "context": "This determines what is cached and whether people can continue working.",
+            "allowCustom": true,
+            "options": [
+              {
+                "id": "online",
+                "label": "Require a connection for changes",
+                "description": "Keep the system simpler and show clear retry states.",
+                "recommended": true
+              },
+              {
+                "id": "read_offline",
+                "label": "Allow viewing saved information offline",
+                "description": "Cache useful content but require a connection for changes.",
+                "recommended": false
+              },
+              {
+                "id": "full_offline",
+                "label": "Allow full use offline",
+                "description": "Save changes on the device and combine them safely later.",
+                "recommended": false
+              }
+            ]
+          },
+          {
+            "id": "guided_integrations",
+            "category": "integrations",
+            "question": "Which outside services must work at launch besides payments?",
+            "context": "Every connection adds setup, testing, and failure handling.",
+            "allowCustom": true,
+            "options": [
+              {
+                "id": "essential",
+                "label": "Order messages and analytics",
+                "description": "Cover the main customer journey with few dependencies.",
+                "recommended": true
+              },
+              {
+                "id": "full_suite",
+                "label": "Shipping, tax, inventory, messages, and analytics",
+                "description": "Connect the wider operating workflow from day one.",
+                "recommended": false
+              },
+              {
+                "id": "later",
+                "label": "Add most integrations later",
+                "description": "Keep the first release smaller and easier to operate.",
+                "recommended": false
+              },
+              {
+                "id": "decide",
+                "label": "Let Blueprint prioritize them",
+                "description": "Create an integration plan from the product description.",
+                "recommended": false
+              }
+            ]
+          },
+          {
+            "id": "guided_security",
+            "category": "security",
+            "question": "How sensitive is the information and activity in this product?",
+            "context": "Blueprint will translate the risk into concrete protection and review steps.",
+            "allowCustom": true,
+            "options": [
+              {
+                "id": "standard",
+                "label": "Normal customer and business information",
+                "description": "Use strong standard protection for accounts and administrative actions.",
+                "recommended": false
+              },
+              {
+                "id": "payments",
+                "label": "Payments or other sensitive transactions",
+                "description": "Add stricter access history, monitoring, and provider boundaries.",
+                "recommended": true
+              },
+              {
+                "id": "high_risk",
+                "label": "Highly sensitive or regulated information",
+                "description": "Use formal security reviews and stronger isolation.",
+                "recommended": false
+              }
+            ]
+          },
+          {
+            "id": "guided_compliance",
+            "category": "compliance",
+            "question": "Are there legal or industry rules the first release must follow?",
+            "context": "Choose the situation; specialists can confirm the exact obligations later.",
+            "allowCustom": true,
+            "options": [
+              {
+                "id": "privacy",
+                "label": "General consumer privacy rules",
+                "description": "Support consent, data export, deletion, and privacy-safe defaults.",
+                "recommended": false
+              },
+              {
+                "id": "payments",
+                "label": "Payment-industry rules",
+                "description": "Keep card data with approved payment providers and document responsibilities.",
+                "recommended": true
+              },
+              {
+                "id": "regulated",
+                "label": "Health, finance, government, or enterprise rules",
+                "description": "Plan for stronger controls and evidence.",
+                "recommended": false
+              },
+              {
+                "id": "unknown",
+                "label": "Not sure yet",
+                "description": "Use a strong baseline and flag this for review.",
+                "recommended": false
+              }
+            ]
+          },
+          {
+            "id": "scale_expectations",
+            "category": "scale",
+            "question": "What is your expected user base at launch?",
+            "context": "This will help determine the scalability requirements of the backend.",
+            "allowCustom": true,
+            "options": [
+              {
+                "id": "small_scale",
+                "label": "Less than 1,000 users",
+                "description": "A small user base that requires minimal resources.",
+                "recommended": false
+              },
+              {
+                "id": "medium_scale",
+                "label": "1,000 to 10,000 users",
+                "description": "A moderate user base that needs a balanced approach to resources.",
+                "recommended": true
+              },
+              {
+                "id": "large_scale",
+                "label": "More than 10,000 users",
+                "description": "A large user base that requires robust infrastructure and planning.",
+                "recommended": false
+              }
+            ]
+          },
+          {
+            "id": "reliability_needs",
+            "category": "reliability",
+            "question": "What level of downtime can you tolerate for the app?",
+            "context": "This will influence the architecture and redundancy strategies.",
+            "allowCustom": true,
+            "options": [
+              {
+                "id": "minimal_downtime",
+                "label": "Less than 1 hour per month",
+                "description": "Requires high availability and redundancy measures.",
+                "recommended": true
+              },
+              {
+                "id": "moderate_downtime",
+                "label": "Up to 5 hours per month",
+                "description": "Allows for some maintenance windows but still needs reliability.",
+                "recommended": false
+              },
+              {
+                "id": "flexible_downtime",
+                "label": "More than 5 hours per month",
+                "description": "Can accommodate longer downtimes for updates and maintenance.",
+                "recommended": false
+              }
+            ]
+          },
+          {
+            "id": "guided_deployment",
+            "category": "deployment",
+            "question": "How much hosting infrastructure does the team want to manage?",
+            "context": "Blueprint will choose hosting that balances maintenance, control, and cost.",
+            "allowCustom": true,
+            "options": [
+              {
+                "id": "minimal",
+                "label": "As little as possible",
+                "description": "Use managed hosting and databases so the team can focus on the product.",
+                "recommended": true
+              },
+              {
+                "id": "some_control",
+                "label": "Some control through a major cloud",
+                "description": "Accept more setup for wider infrastructure choices.",
+                "recommended": false
+              },
+              {
+                "id": "portable",
+                "label": "Keep it easy to move later",
+                "description": "Package the system so it can run with different providers.",
+                "recommended": false
+              },
+              {
+                "id": "self_hosted",
+                "label": "Manage our own servers",
+                "description": "Keep full control and accept the maintenance responsibility.",
+                "recommended": false
+              }
+            ]
+          },
+          {
+            "id": "guided_delivery",
+            "category": "delivery",
+            "question": "How carefully should updates be checked before users receive them?",
+            "context": "This determines previews, approvals, automatic checks, and rollback.",
+            "allowCustom": true,
+            "options": [
+              {
+                "id": "standard",
+                "label": "A standard safe release process",
+                "description": "Check changes automatically, test them before launch, and support rollback.",
+                "recommended": true
+              },
+              {
+                "id": "preview",
+                "label": "A private preview for every change",
+                "description": "Let the team review each feature separately.",
+                "recommended": false
+              },
+              {
+                "id": "simple",
+                "label": "Simple releases for a small team",
+                "description": "Use fewer steps for an early, lower-risk product.",
+                "recommended": false
+              },
+              {
+                "id": "formal",
+                "label": "Formal approval before release",
+                "description": "Require evidence, named approval, and complete history.",
+                "recommended": false
+              }
+            ]
+          },
+          {
+            "id": "testing_strategy",
+            "category": "testing",
+            "question": "What level of testing do you want before launching the app?",
+            "context": "This will help ensure the app is reliable and user-friendly.",
+            "allowCustom": true,
+            "options": [
+              {
+                "id": "basic_testing",
+                "label": "Basic functionality testing",
+                "description": "Tests core features but may miss edge cases.",
+                "recommended": false
+              },
+              {
+                "id": "comprehensive_testing",
+                "label": "Comprehensive testing",
+                "description": "Includes user experience, performance, and security testing.",
+                "recommended": true
+              },
+              {
+                "id": "beta_testing",
+                "label": "Beta testing with real users",
+                "description": "Involves users in testing to gather feedback before full launch.",
+                "recommended": false
+              }
+            ]
+          },
+          {
+            "id": "guided_observability",
+            "category": "observability",
+            "question": "How should the team learn that something is going wrong?",
+            "context": "Choose the alerting depth; Blueprint will select the monitoring tools.",
+            "allowCustom": true,
+            "options": [
+              {
+                "id": "useful",
+                "label": "Useful alerts and clear dashboards",
+                "description": "Track errors, speed, system health, and important business events.",
+                "recommended": true
+              },
+              {
+                "id": "essential",
+                "label": "Only essential alerts",
+                "description": "Notify the team when the product is down or a critical journey fails.",
+                "recommended": false
+              },
+              {
+                "id": "formal",
+                "label": "Formal reliability targets",
+                "description": "Measure agreed availability and speed goals over time.",
+                "recommended": false
+              }
+            ]
+          },
+          {
+            "id": "operational_ownership",
+            "category": "operations",
+            "question": "Who will be responsible for maintaining the app after launch?",
+            "context": "This will help define roles and responsibilities for ongoing support.",
+            "allowCustom": true,
+            "options": [
+              {
+                "id": "in-house_team",
+                "label": "In-house team",
+                "description": "Your team will handle maintenance and updates.",
+                "recommended": false
+              },
+              {
+                "id": "outsourced_support",
+                "label": "Outsourced support",
+                "description": "A third-party service will manage ongoing operations.",
+                "recommended": true
+              },
+              {
+                "id": "shared_responsibility",
+                "label": "Shared responsibility",
+                "description": "Both in-house and outsourced teams will collaborate on maintenance.",
+                "recommended": false
+              }
+            ]
+          },
+          {
+            "id": "guided_budget",
+            "category": "budget",
+            "question": "What cost approach should guide the system after launch?",
+            "context": "This concerns ongoing hosting and service costs, not the development budget.",
+            "allowCustom": true,
+            "options": [
+              {
+                "id": "lean",
+                "label": "Keep early running costs low",
+                "description": "Prefer usage-based services and grow spending with demand.",
+                "recommended": true
+              },
+              {
+                "id": "balanced",
+                "label": "Balance cost and reliability",
+                "description": "Pay for dependable safeguards without enterprise overhead.",
+                "recommended": false
+              },
+              {
+                "id": "reliability",
+                "label": "Prioritize reliability over cost",
+                "description": "Fund redundancy, faster recovery, and deeper monitoring.",
+                "recommended": false
+              },
+              {
+                "id": "fixed",
+                "label": "Work within a specific monthly limit",
+                "description": "Enter the amount as a custom answer.",
+                "recommended": false
+              }
+            ]
+          }
+        ],
+        "answers": [
+          {
+            "questionId": "guided_product",
+            "optionId": "focused",
+            "value": "focused",
+            "label": "A focused first release"
+          },
+          {
+            "questionId": "guided_users",
+            "optionId": "users_admins",
+            "value": "users_admins",
+            "label": "Customers and store administrators"
+          },
+          {
+            "questionId": "guided_ui",
+            "optionId": "device_native",
+            "value": "device_native",
+            "label": "Natural on each device"
+          },
+          {
+            "questionId": "user_access",
+            "optionId": "admins_and_customers",
+            "value": "admins_and_customers",
+            "label": "Admins and customers"
+          },
+          {
+            "questionId": "guided_frontend",
+            "optionId": "shared",
+            "value": "shared",
+            "label": "Share most work across both phones"
+          },
+          {
+            "questionId": "guided_backend",
+            "optionId": "managed",
+            "value": "managed",
+            "label": "As little as possible"
+          },
+          {
+            "questionId": "guided_api",
+            "optionId": "our_apps",
+            "value": "our_apps",
+            "label": "Only our own app"
+          },
+          {
+            "questionId": "guided_data",
+            "optionId": "connected_records",
+            "value": "connected_records",
+            "label": "Accounts, products, inventory, orders, and payments"
+          },
+          {
+            "questionId": "guided_realtime",
+            "optionId": "online",
+            "value": "online",
+            "label": "Require a connection for changes"
+          },
+          {
+            "questionId": "guided_integrations",
+            "optionId": "essential",
+            "value": "essential",
+            "label": "Order messages and analytics"
+          },
+          {
+            "questionId": "guided_security",
+            "optionId": "payments",
+            "value": "payments",
+            "label": "Payments or other sensitive transactions"
+          },
+          {
+            "questionId": "guided_compliance",
+            "optionId": "payments",
+            "value": "payments",
+            "label": "Payment-industry rules"
+          },
+          {
+            "questionId": "scale_expectations",
+            "optionId": "medium_scale",
+            "value": "medium_scale",
+            "label": "1,000 to 10,000 users"
+          },
+          {
+            "questionId": "reliability_needs",
+            "optionId": "minimal_downtime",
+            "value": "minimal_downtime",
+            "label": "Less than 1 hour per month"
+          },
+          {
+            "questionId": "guided_deployment",
+            "optionId": "minimal",
+            "value": "minimal",
+            "label": "As little as possible"
+          },
+          {
+            "questionId": "guided_delivery",
+            "optionId": "standard",
+            "value": "standard",
+            "label": "A standard safe release process"
+          },
+          {
+            "questionId": "testing_strategy",
+            "optionId": "comprehensive_testing",
+            "value": "comprehensive_testing",
+            "label": "Comprehensive testing"
+          },
+          {
+            "questionId": "guided_observability",
+            "optionId": "useful",
+            "value": "useful",
+            "label": "Useful alerts and clear dashboards"
+          },
+          {
+            "questionId": "operational_ownership",
+            "optionId": "outsourced_support",
+            "value": "outsourced_support",
+            "label": "Outsourced support"
+          },
+          {
+            "questionId": "guided_budget",
+            "optionId": "lean",
+            "value": "lean",
+            "label": "Keep early running costs low"
+          }
+        ],
+        "inferredFacts": [
+          {
+            "category": "platform",
+            "value": "iOS and Android mobile application",
+            "evidence": "The description explicitly identifies the product as a mobile app.",
+            "source": "description"
+          },
+          {
+            "category": "integrations",
+            "value": "Stripe and Apple Pay",
+            "evidence": "The app integrates trusted payment solutions such as Stripe and Apple Pay.",
+            "source": "ai"
+          },
+          {
+            "category": "realtime",
+            "value": "push notifications",
+            "evidence": "Users receive timely push notifications regarding their order status.",
+            "source": "ai"
+          }
+        ],
+        "providerName": "OpenAI",
+        "summaryInsights": [
+          "Product scope: A focused first release",
+          "Users & workflows: Customers and store administrators",
+          "User experience: Natural on each device",
+          "Sign-in & access: Admins and customers",
+          "App screens: Share most work across both phones",
+          "Behind the scenes: As little as possible",
+          "Connections: Only our own app",
+          "Data & storage: Accounts, products, inventory, orders, and payments",
+          "Realtime & offline: Require a connection for changes",
+          "Integrations: Order messages and analytics",
+          "Security & privacy: Payments or other sensitive transactions",
+          "Compliance: Payment-industry rules",
+          "Expected usage: 1,000 to 10,000 users",
+          "Backups & recovery: Less than 1 hour per month",
+          "Hosting & deployment: As little as possible",
+          "Releasing updates: A standard safe release process",
+          "Quality checks: Comprehensive testing",
+          "Monitoring & alerts: Useful alerts and clear dashboards",
+          "Team ownership: Outsourced support",
+          "Cost constraints: Keep early running costs low"
+        ]
+      },
+      "customRequirements": "Target platform — Already specified in description\nDecision: iOS and Android mobile application\n\nIntegrations — Already specified in description\nDecision: Stripe and Apple Pay\n\nRealtime & offline — Already specified in description\nDecision: push notifications\n\nProduct scope — What should the first release optimize for?\nAnswer: A focused first release\n\nUsers & workflows — Who needs their own workspace or controls?\nAnswer: Customers and store administrators\n\nUser experience — How should the product feel to people using it?\nAnswer: Natural on each device\n\nSign-in & access — What user roles do you want to support in the app?\nAnswer: Admins and customers\n\nApp screens — How should iPhone and Android development be balanced?\nAnswer: Share most work across both phones\n\nBehind the scenes — How much behind-the-scenes infrastructure should the team manage?\nAnswer: As little as possible\n\nConnections — Who else needs to connect to this product?\nAnswer: Only our own app\n\nData & storage — What kind of information must stay most dependable?\nAnswer: Accounts, products, inventory, orders, and payments\n\nRealtime & offline — What should happen when the connection is slow or unavailable?\nAnswer: Require a connection for changes\n\nIntegrations — Which outside services must work at launch besides payments?\nAnswer: Order messages and analytics\n\nSecurity & privacy — How sensitive is the information and activity in this product?\nAnswer: Payments or other sensitive transactions\n\nCompliance — Are there legal or industry rules the first release must follow?\nAnswer: Payment-industry rules\n\nExpected usage — What is your expected user base at launch?\nAnswer: 1,000 to 10,000 users\n\nBackups & recovery — What level of downtime can you tolerate for the app?\nAnswer: Less than 1 hour per month\n\nHosting & deployment — How much hosting infrastructure does the team want to manage?\nAnswer: As little as possible\n\nReleasing updates — How carefully should updates be checked before users receive them?\nAnswer: A standard safe release process\n\nQuality checks — What level of testing do you want before launching the app?\nAnswer: Comprehensive testing\n\nMonitoring & alerts — How should the team learn that something is going wrong?\nAnswer: Useful alerts and clear dashboards\n\nTeam ownership — Who will be responsible for maintaining the app after launch?\nAnswer: Outsourced support\n\nCost constraints — What cost approach should guide the system after launch?\nAnswer: Keep early running costs low",
+      "handoff": {
+        "generatedAt": 1791199533408,
+        "ide": "cursor",
+        "files": [
+          {
+            "path": "AGENTS.md",
+            "description": "Primary instructions for coding agents",
+            "content": "# online-store: Agent Instructions\n\nThis repository is governed by the product blueprint in `blueprint/`. Read the documents in this order before making implementation decisions:\n\n1. `blueprint/PRODUCT.md`\n2. `blueprint/ARCHITECTURE.md`\n3. `blueprint/ROADMAP.md`\n4. `blueprint/REQUIREMENTS.md`\n5. `blueprint/ACCEPTANCE_CRITERIA.md`\n6. `blueprint/INTEGRATIONS.md` and `blueprint/OPERATIONS.md`\n\n## Working agreement\n\n- Implement one roadmap milestone at a time and preserve its stated dependencies.\n- Treat the architecture decisions as constraints. Do not replace the selected stack or modular monolith without recording a new decision.\n- Keep domain boundaries explicit: Accounts & access, Catalog, Cart & checkout, Orders & inventory, Payments, Notifications.\n- Prefer the smallest implementation that satisfies the acceptance criteria.\n- Add or update automated tests for behavior changed in a milestone.\n- Never commit credentials. Use environment variables and update `.env.example` with names only.\n- Before declaring a milestone complete, run the relevant tests and verify its acceptance criteria.\n- If the documents conflict or leave a high-impact decision unresolved, stop and surface the conflict instead of silently inventing a requirement.\n\nGenerated by Blueprint on 2026-10-05.\n"
+          },
+          {
+            "path": "blueprint/PRODUCT.md",
+            "description": "Product intent, users, and scope",
+            "content": "# online-store: Product Blueprint\n\n## Product intent\n\nThe online-store mobile app is designed to transform the shopping experience by offering users a seamless platform for discovering and purchasing products with ease. Its core purpose is to simplify the online shopping journey, making it more intuitive, efficient, and enjoyable while ensuring secure transactions and real-time updates.\n\nKey user-facing features include:\n• Instant Search Filtering: Users can swiftly locate products that align with their preferences through advanced search capabilities. They can filter results based on categories, price ranges, and other relevant criteria, enhancing their ability to find exactly what they need without hassle.\n• Secure Payment Options: The app integrates trusted payment solutions such as Stripe and Apple Pay, providing users with a variety of secure payment methods. This integration not only enhances user confidence in making purchases but also ensures that transactions are processed safely.\n• Real-time Order Updates: Users receive timely push notifications regarding their order status, including confirmations, shipping updates, and delivery notifications. This feature keeps users informed throughout the purchasing process, reducing uncertainty and enhancing their overall experience.\n• User-friendly Interface: The app boasts an intuitive layout that improves navigation, making it easy for users to browse products, read descriptions, and complete purchases with minimal effort. This design focus contributes to a more engaging shopping experience.\n\nThe business value of the online-store app lies in its ability to increase customer engagement and drive sales. By offering a streamlined shopping experience, the app encourages users to explore a wider range of products and make repeat purchases. The integration of secure payment options not only builds trust but also reduces cart abandonment rates, ultimately leading to higher conversion rates.\n\nFrom a technical perspective, the app leverages robust backend systems to ensure fast and reliable performance. It utilizes APIs for payment processing and order management, ensuring that transactions are handled securely and efficiently. The architecture of the app supports scalability, allowing it to accommodate a growing user base and an expanding product catalog without compromising performance.\n\nThe primary problem solved by the online-store app is the complexity and frustration often associated with online shopping. By providing a user-friendly platform with instant search capabilities, secure payment options, and real-time updates, the app addresses common pain points such as difficulty in finding products, concerns about payment security, and lack of communication regarding order status. This holistic approach to online shopping not only enhances user satisfaction but also fosters brand loyalty, making the online-store app a valuable asset in the competitive e-commerce landscape.\n\n## First-release direction\n\n- **Scope:** A focused first release\n- **Users and roles:** Customers and store administrators\n- **Target platform:** iOS and Android mobile application\n- **Experience:** Natural on each device\n- **Identity and access:** Admins and customers\n\n## Product boundaries\n\nThe first release should prioritize the complete user journeys implied by the description and architecture interview. Capabilities not required for those journeys should remain deferred until a roadmap decision introduces them.\n\n## Source of truth\n\nWhen implementation details compete with product intent, preserve the user-visible behavior and constraints documented here and record any necessary architectural change explicitly.\n"
+          },
+          {
+            "path": "blueprint/ARCHITECTURE.md",
+            "description": "Selected stack, topology, and module boundaries",
+            "content": "# online-store: Architecture\n\n## Selected architecture\n\n- **Stack:** Expo / React Native + Supabase (PostgreSQL)\n- **System shape:** Modular monolith\n- **Frontend:** React Native + Expo\n- **Backend:** Supabase (PostgreSQL) + Edge Functions\n- **Data:** Supabase PostgreSQL\n- **Deployment:** Expo EAS Build & Submit + Apple App Store / Google Play; Native Installers (iOS / Android)\n\nThis architecture leverages Expo for mobile development and Supabase for backend services, providing a seamless and scalable solution for the online-store app.\n\n## Why this shape\n\nUse one deployable application with clear internal modules. This keeps delivery and operations simple while preserving boundaries that can be separated later if evidence justifies it.\n\n## Domain boundaries\n\n- **Accounts & access:** Own the behavior and data associated with accounts & access. Communicate through explicit interfaces rather than reaching into another module’s internals.\n- **Catalog:** Own the behavior and data associated with catalog. Communicate through explicit interfaces rather than reaching into another module’s internals.\n- **Cart & checkout:** Own the behavior and data associated with cart & checkout. Communicate through explicit interfaces rather than reaching into another module’s internals.\n- **Orders & inventory:** Own the behavior and data associated with orders & inventory. Communicate through explicit interfaces rather than reaching into another module’s internals.\n- **Payments:** Own the behavior and data associated with payments. Communicate through explicit interfaces rather than reaching into another module’s internals.\n- **Notifications:** Own the behavior and data associated with notifications. Communicate through explicit interfaces rather than reaching into another module’s internals.\n\n## System flow\n\n```mermaid\nflowchart LR\n  U[Users] --> C[React Native + Expo]\n  C --> A[Identity and access]\n  C --> S[Modular monolith]\n  S --> D[Supabase PostgreSQL]\n  S --> I[External integrations]\n  S --> O[Monitoring and recovery]\n```\n\n## Architecture decisions\n\n| Area | Decision | Source |\n| --- | --- | --- |\n| Target platform | iOS and Android mobile application | Product description |\n| Integrations | Stripe and Apple Pay | Product description |\n| Realtime and offline behavior | push notifications | Product description |\n| Product scope | A focused first release | Architecture interview |\n| Users and roles | Customers and store administrators | Architecture interview |\n| User experience | Natural on each device | Architecture interview |\n| Identity and access | Admins and customers | Architecture interview |\n| Frontend | Share most work across both phones | Architecture interview |\n| Backend | As little as possible | Architecture interview |\n| Connections and API | Only our own app | Architecture interview |\n| Data and storage | Accounts, products, inventory, orders, and payments | Architecture interview |\n| Realtime and offline behavior | Require a connection for changes | Architecture interview |\n| Integrations | Order messages and analytics | Architecture interview |\n| Security and privacy | Payments or other sensitive transactions | Architecture interview |\n| Compliance | Payment-industry rules | Architecture interview |\n| Scale and performance | 1,000 to 10,000 users | Architecture interview |\n| Reliability and recovery | Less than 1 hour per month | Architecture interview |\n| Hosting and deployment | As little as possible | Architecture interview |\n| Release process | A standard safe release process | Architecture interview |\n| Testing and quality | Comprehensive testing | Architecture interview |\n| Monitoring and alerts | Useful alerts and clear dashboards | Architecture interview |\n| Operational ownership | Outsourced support | Architecture interview |\n| Cost posture | Keep early running costs low | Architecture interview |\n"
+          },
+          {
+            "path": "blueprint/ROADMAP.md",
+            "description": "Ordered implementation milestones and dependencies",
+            "content": "# online-store: Development Roadmap\n\nBuild vertical, demonstrable slices. Do not build every database or infrastructure layer before proving a complete user journey.\n\n## Milestone 0 — Foundation and walking skeleton\n\n**Goal:** Prove the client, application layer, data store, automated checks, and deployment path work together.\n\n- Establish the repository structure for modular monolith.\n- Configure local, test, staging, and production environment conventions.\n- Add automated formatting, type checking, and a minimal test pipeline.\n- Implement one thin end-to-end read/write path with health monitoring.\n- Document required environment variables in `.env.example` without values.\n\n**Exit criteria:** A small end-to-end feature is testable locally and deployable through the selected release path.\n\n## Milestone 1 — Accounts & access\n\n**Goal:** Deliver the smallest production-usable accounts & access capability.\n\n- Define the module’s public responsibilities and boundaries.\n- Implement its primary user journey end to end.\n- Add authorization and failure handling at the boundary.\n- Add automated tests for its highest-risk behavior.\n- Add the signals needed to understand failures in production.\n\n**Depends on:** Milestone 0\n\n**Exit criteria:** The capability works through the real product interface, persists correctly, and satisfies its acceptance criteria.\n\n## Milestone 2 — Catalog\n\n**Goal:** Deliver the smallest production-usable catalog capability.\n\n- Define the module’s public responsibilities and boundaries.\n- Implement its primary user journey end to end.\n- Add authorization and failure handling at the boundary.\n- Add automated tests for its highest-risk behavior.\n- Add the signals needed to understand failures in production.\n\n**Depends on:** Milestone 1\n\n**Exit criteria:** The capability works through the real product interface, persists correctly, and satisfies its acceptance criteria.\n\n## Milestone 3 — Cart & checkout\n\n**Goal:** Deliver the smallest production-usable cart & checkout capability.\n\n- Define the module’s public responsibilities and boundaries.\n- Implement its primary user journey end to end.\n- Add authorization and failure handling at the boundary.\n- Add automated tests for its highest-risk behavior.\n- Add the signals needed to understand failures in production.\n\n**Depends on:** Milestone 2\n\n**Exit criteria:** The capability works through the real product interface, persists correctly, and satisfies its acceptance criteria.\n\n## Milestone 4 — Orders & inventory\n\n**Goal:** Deliver the smallest production-usable orders & inventory capability.\n\n- Define the module’s public responsibilities and boundaries.\n- Implement its primary user journey end to end.\n- Add authorization and failure handling at the boundary.\n- Add automated tests for its highest-risk behavior.\n- Add the signals needed to understand failures in production.\n\n**Depends on:** Milestone 3\n\n**Exit criteria:** The capability works through the real product interface, persists correctly, and satisfies its acceptance criteria.\n\n## Milestone 5 — Payments\n\n**Goal:** Deliver the smallest production-usable payments capability.\n\n- Define the module’s public responsibilities and boundaries.\n- Implement its primary user journey end to end.\n- Add authorization and failure handling at the boundary.\n- Add automated tests for its highest-risk behavior.\n- Add the signals needed to understand failures in production.\n\n**Depends on:** Milestone 4\n\n**Exit criteria:** The capability works through the real product interface, persists correctly, and satisfies its acceptance criteria.\n\n## Milestone 6 — Notifications\n\n**Goal:** Deliver the smallest production-usable notifications capability.\n\n- Define the module’s public responsibilities and boundaries.\n- Implement its primary user journey end to end.\n- Add authorization and failure handling at the boundary.\n- Add automated tests for its highest-risk behavior.\n- Add the signals needed to understand failures in production.\n\n**Depends on:** Milestone 5\n\n**Exit criteria:** The capability works through the real product interface, persists correctly, and satisfies its acceptance criteria.\n\n## Milestone 7 — Integration hardening\n\n- Validate Stripe and Apple Pay · Order messages and analytics using test or sandbox accounts.\n- Handle timeouts, retries, duplicate events, and reconciliation.\n- Confirm secrets are stored outside the repository.\n- Exercise critical workflows when an external provider is unavailable.\n\n## Milestone 8 — Release readiness\n\n- Complete security and privacy review for the documented risk level.\n- Verify monitoring, alerting, backups, restore procedures, and rollback.\n- Run the complete acceptance suite on the release candidate.\n- Complete Expo EAS Build & Submit + Apple App Store / Google Play; Native Installers (iOS / Android).\n- Record intentionally deferred scope for the next roadmap cycle.\n"
+          },
+          {
+            "path": "blueprint/REQUIREMENTS.md",
+            "description": "Functional and non-functional constraints",
+            "content": "# online-store: Requirements\n\n## Functional areas\n\n- **Accounts & access:** Support the complete user-facing and operational workflows associated with this domain.\n- **Catalog:** Support the complete user-facing and operational workflows associated with this domain.\n- **Cart & checkout:** Support the complete user-facing and operational workflows associated with this domain.\n- **Orders & inventory:** Support the complete user-facing and operational workflows associated with this domain.\n- **Payments:** Support the complete user-facing and operational workflows associated with this domain.\n- **Notifications:** Support the complete user-facing and operational workflows associated with this domain.\n\n## Non-functional requirements\n\n- **Security and privacy:** Payments or other sensitive transactions · Payment-industry rules\n- **Scale and performance:** 1,000 to 10,000 users\n- **Realtime and offline behavior:** push notifications · Require a connection for changes\n- **Reliability and recovery:** Less than 1 hour per month\n- **Testing:** Comprehensive testing\n- **Monitoring:** Useful alerts and clear dashboards\n- **Cost posture:** Keep early running costs low\n\n## Constraint handling\n\nTranslate these outcomes into measurable implementation targets during Milestone 0. Do not invent stricter requirements that add material complexity without a documented product need.\n"
+          },
+          {
+            "path": "blueprint/INTEGRATIONS.md",
+            "description": "External services and safe integration rules",
+            "content": "# online-store: Integrations\n\n## Required connections\n\nStripe and Apple Pay · Order messages and analytics\n\n## Implementation rules\n\n- Keep provider credentials in environment-managed secrets, never source control.\n- Verify webhook or callback authenticity where supported.\n- Make externally triggered mutations idempotent so retries cannot duplicate work.\n- Record provider identifiers needed for reconciliation and support.\n- Use bounded retries with backoff; do not retry permanent failures indefinitely.\n- Provide a visible recovery path when a provider is unavailable.\n- Use provider sandbox environments in automated and pre-release testing.\n\n## Access model\n\nOnly our own app\n"
+          },
+          {
+            "path": "blueprint/OPERATIONS.md",
+            "description": "Deployment, monitoring, recovery, and ownership",
+            "content": "# online-store: Operations\n\n## Hosting and delivery\n\n- **Hosting posture:** As little as possible\n- **Release controls:** A standard safe release process\n- **Deployment target:** Expo EAS Build & Submit + Apple App Store / Google Play; Native Installers (iOS / Android)\n\n## Reliability\n\n- **Recovery expectation:** Less than 1 hour per month\n- **Monitoring and alerts:** Useful alerts and clear dashboards\n- **Operational owner:** Outsourced support\n\n## Required runbooks\n\n- Deployment and rollback\n- Credential rotation\n- Database backup verification and restore\n- External-provider outage response\n- High-error-rate or unavailable-service response\n- Customer-impacting incident communication\n\nEvery runbook must name an owner, the trigger for using it, verification steps, and the safe rollback or recovery action.\n"
+          },
+          {
+            "path": "blueprint/ACCEPTANCE_CRITERIA.md",
+            "description": "Definition of done for agents and reviewers",
+            "content": "# online-store: Acceptance Criteria\n\n## Product-level definition of done\n\n- A new user can complete the primary product journey on iOS and Android mobile application.\n- Every protected action enforces the documented identity and access decision.\n- Failures are visible, recoverable, and do not silently corrupt or duplicate information.\n- Critical user journeys have automated coverage appropriate to: Comprehensive testing.\n- The deployed system exposes the health and failure signals required by: Useful alerts and clear dashboards.\n- No credentials or private keys are committed to the repository.\n\n## Module completion checklist\n\n### Accounts & access\n\n- [ ] Primary user journey works through the real interface.\n- [ ] Access rules are enforced on the trusted application boundary.\n- [ ] Invalid and duplicate operations fail safely.\n- [ ] Highest-risk behavior has automated tests.\n- [ ] Production failures produce useful logs or alerts.\n\n### Catalog\n\n- [ ] Primary user journey works through the real interface.\n- [ ] Access rules are enforced on the trusted application boundary.\n- [ ] Invalid and duplicate operations fail safely.\n- [ ] Highest-risk behavior has automated tests.\n- [ ] Production failures produce useful logs or alerts.\n\n### Cart & checkout\n\n- [ ] Primary user journey works through the real interface.\n- [ ] Access rules are enforced on the trusted application boundary.\n- [ ] Invalid and duplicate operations fail safely.\n- [ ] Highest-risk behavior has automated tests.\n- [ ] Production failures produce useful logs or alerts.\n\n### Orders & inventory\n\n- [ ] Primary user journey works through the real interface.\n- [ ] Access rules are enforced on the trusted application boundary.\n- [ ] Invalid and duplicate operations fail safely.\n- [ ] Highest-risk behavior has automated tests.\n- [ ] Production failures produce useful logs or alerts.\n\n### Payments\n\n- [ ] Primary user journey works through the real interface.\n- [ ] Access rules are enforced on the trusted application boundary.\n- [ ] Invalid and duplicate operations fail safely.\n- [ ] Highest-risk behavior has automated tests.\n- [ ] Production failures produce useful logs or alerts.\n\n### Notifications\n\n- [ ] Primary user journey works through the real interface.\n- [ ] Access rules are enforced on the trusted application boundary.\n- [ ] Invalid and duplicate operations fail safely.\n- [ ] Highest-risk behavior has automated tests.\n- [ ] Production failures produce useful logs or alerts.\n\n## Release gate\n\n- [ ] All milestone exit criteria are satisfied.\n- [ ] Integration sandbox tests pass.\n- [ ] Backup and rollback procedures have been exercised.\n- [ ] Deferred scope is documented and not partially shipped.\n"
+          },
+          {
+            "path": ".cursor/rules/blueprint.mdc",
+            "description": "Cursor rule pointing to the blueprint source of truth",
+            "content": "---\ndescription: Follow the approved online-store product blueprint and roadmap\nalwaysApply: true\n---\n\nRead `AGENTS.md` and the referenced `blueprint/*.md` documents before planning or implementing work. Preserve the selected architecture and complete one roadmap milestone at a time. Do not commit secrets or silently invent high-impact product requirements.\n"
+          },
+          {
+            "path": "blueprint/MANIFEST.md",
+            "description": "Generated-file inventory and refresh metadata",
+            "content": "# Blueprint handoff manifest\n\n- **Project:** online-store\n- **Project slug:** online-store\n- **Generated:** 2026-10-05\n- **Target IDE:** cursor\n- **Blueprint topology:** Modular monolith\n\nThe files in this package were generated from the approved Blueprint product description and architecture interview. Review changes before regenerating over files that have been edited by hand.\n"
+          }
+        ]
       }
     },
     "createdAt": 1791027103712,
-    "updatedAt": 1791035515142
+    "updatedAt": 1791199533413
   }
 ]
