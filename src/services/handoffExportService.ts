@@ -2,11 +2,14 @@ import { HandoffFile } from '../types/project';
 
 interface BrowserDirectoryHandle {
   name: string;
+  entries(): AsyncIterable<[string, BrowserDirectoryHandle | BrowserFileHandle]>;
   getDirectoryHandle(name: string, options?: { create?: boolean }): Promise<BrowserDirectoryHandle>;
   getFileHandle(name: string, options?: { create?: boolean }): Promise<BrowserFileHandle>;
 }
 
 interface BrowserFileHandle {
+  name: string;
+  getFile(): Promise<File>;
   createWritable(): Promise<{
     write(content: string): Promise<void>;
     close(): Promise<void>;

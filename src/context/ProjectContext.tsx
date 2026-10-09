@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { Project, ProjectSpec } from '../types/project';
+import { CodebaseAnalysis } from '../types/codebase';
 import { storageService } from '../services/storageService';
 
 interface ProjectContextType {
@@ -16,6 +17,8 @@ interface ProjectContextType {
   setProjectToDelete: (project: Project | null) => void;
   setActiveProjectId: (id: string | null) => void;
   createProject: (name: string, description?: string) => Project | null;
+  createCodebaseProject: (analysis: CodebaseAnalysis) => Project;
+  updateCodebaseAnalysis: (id: string, analysis: CodebaseAnalysis) => void;
   renameProject: (id: string, newName: string) => void;
   updateProjectSpec: (id: string, updatedSpec: Partial<ProjectSpec>) => void;
   deleteProject: (id: string) => void;
@@ -144,6 +147,41 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({ children })
     return newProject;
   };
 
+  const createCodebaseProject = (analysis: CodebaseAnalysis): Project => {
+    const summary = [
+      `Existing codebase: ${analysis.rootName}`,
+      analysis.languages.length > 0
+        ? `Languages: ${analysis.languages.slice(0, 5).map(language => language.name).join(', ')}.`
+        : '',
+      analysis.frameworks.length > 0
+        ? `Detected tools and frameworks: ${analysis.frameworks.join(', ')}.`
+        : '',
+      analysis.entryPoints.length > 0
+        ? `Entry points: ${analysis.entryPoints.join(', ')}.`
+        : '',
+    ].filter(Boolean).join('\n');
+    const now = Date.now();
+    const project: Project = {
+      id: 'proj_' + now,
+      name: analysis.rootName,
+      spec: { ...defaultSpec, description: summary },
+      codebaseAnalysis: analysis,
+      createdAt: now,
+      updatedAt: now,
+    };
+
+    setProjects(previous => [project, ...previous]);
+    setActiveProjectId(project.id);
+    setIsCreatingNew(false);
+    return project;
+  };
+
+  const updateCodebaseAnalysis = (id: string, analysis: CodebaseAnalysis) => {
+    setProjects(previous => previous.map(project => project.id === id
+      ? { ...project, codebaseAnalysis: analysis, updatedAt: Date.now() }
+      : project));
+  };
+
   const renameProject = (id: string, newName: string) => {
     const trimmed = newName.trim();
     if (!trimmed) return;
@@ -237,6 +275,8 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({ children })
         setProjectToDelete,
         setActiveProjectId,
         createProject,
+        createCodebaseProject,
+        updateCodebaseAnalysis,
         renameProject,
         updateProjectSpec,
         deleteProject,

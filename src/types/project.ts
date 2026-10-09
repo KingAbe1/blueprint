@@ -1,3 +1,5 @@
+import { CodebaseAnalysis } from './codebase';
+
 export type Theme = 'dark' | 'light';
 
 export type PhaseTab = 'domain-intent' | 'architecture-map' | 'in-flight';
@@ -131,6 +133,7 @@ export interface Project {
   id: string;
   name: string;
   spec: ProjectSpec;
+  codebaseAnalysis?: CodebaseAnalysis;
   createdAt: number;
   updatedAt: number;
 }

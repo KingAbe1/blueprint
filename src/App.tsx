@@ -3,9 +3,12 @@ import { ThemeProvider, useTheme } from './context/ThemeContext';
 import { ProjectProvider, useProjects } from './context/ProjectContext';
 import { AIProvider } from './context/AIContext';
 import { NotificationProvider } from './context/NotificationContext';
+import { GitHubProvider } from './context/GitHubContext';
 import { Header } from './components/layout/Header';
 import { Sidebar } from './components/layout/Sidebar';
 import { CreateProjectView } from './components/project/CreateProjectView';
+import { CodebaseAnalysisView } from './components/project/CodebaseAnalysisView';
+import { reanalyzeCodebase } from './services/codebaseAnalysisService';
 import { DomainIntentView } from './components/workbench/DomainIntentView';
 import { ArchitectureMapView } from './components/workbench/ArchitectureMapView';
 import { BuildHandoffView } from './components/workbench/BuildHandoffView';
@@ -18,7 +21,7 @@ const ACTIVE_TAB_STORAGE_KEY = 'blueprint_active_tab_v1';
 const AVAILABLE_TABS: PhaseTab[] = ['domain-intent', 'architecture-map', 'in-flight'];
 
 const AppContent: React.FC = () => {
-  const { activeProject, isCreatingNew } = useProjects();
+  const { activeProject, isCreatingNew, setIsCreatingNew, updateCodebaseAnalysis, setProjectToDelete } = useProjects();
   const { isDark } = useTheme();
   const [activeTab, setActiveTab] = useState<PhaseTab>(() => {
     const savedTab = localStorage.getItem(ACTIVE_TAB_STORAGE_KEY) as PhaseTab | null;
@@ -60,7 +63,7 @@ const AppContent: React.FC = () => {
         : 'text-slate-900 selection:bg-blue-500/20 selection:text-blue-900 bg-slate-50'
     }`}>
       {/* Full-Height Left Sidebar */}
-      {activeProject && !isCreatingNew && (
+      {activeProject && !activeProject.codebaseAnalysis && !isCreatingNew && (
         <Sidebar 
           activeTab={activeTab} 
           onSelectTab={setActiveTab}
@@ -80,6 +83,16 @@ const AppContent: React.FC = () => {
         <main className="flex-1 flex overflow-hidden min-h-0">
           {!activeProject || isCreatingNew ? (
             <CreateProjectView />
+          ) : activeProject.codebaseAnalysis ? (
+            <CodebaseAnalysisView
+              analysis={activeProject.codebaseAnalysis}
+              projectId={activeProject.id}
+              onDelete={() => setProjectToDelete(activeProject)}
+              onRescan={async () => {
+                const analysis = await reanalyzeCodebase(activeProject.codebaseAnalysis!);
+                if (analysis) updateCodebaseAnalysis(activeProject.id, analysis);
+              }}
+            />
           ) : (
             <div className="flex-1 flex overflow-hidden min-h-0">
               {activeTab === 'in-flight' ? (
@@ -111,9 +124,11 @@ export const App: React.FC = () => {
     <ThemeProvider>
       <NotificationProvider>
         <ProjectProvider>
-          <AIProvider>
-            <AppContent />
-          </AIProvider>
+          <GitHubProvider>
+            <AIProvider>
+              <AppContent />
+            </AIProvider>
+          </GitHubProvider>
         </ProjectProvider>
       </NotificationProvider>
     </ThemeProvider>

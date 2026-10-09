@@ -1,0 +1,802 @@
+import { CodebaseAnalysis, CodebaseSource, PipelineAssessment, QualityAssessment, QualityFinding, SourceContentMetrics } from '../types/codebase';
+import { assessArchitecture, assessNextJsOverview, configuredTestToolSignals, suggestImprovements } from './architectureAnalysisService';
+import { IGNORED_DIRECTORIES, MANIFEST_FILES, normalizedName } from './codebaseAnalysisConstants';
+import { BrowserDirectoryHandle, isDirectoryHandle, loadDirectoryHandle, saveDirectoryHandle } from './browserDirectoryAccess';
+export { getQualityReviewCandidatePaths, readQualityReviewSources } from './qualityReviewSourceService';
+export type { QualityReviewSourceFile } from './qualityReviewSourceService';
+import { LANGUAGE_SOURCE_RULES, NEXT_SOURCE_RULES, TOOLCHAIN_QUALITY_RULES } from './codeQualityRules';
+import { extractNpmDependencyInventory } from './dependencyRiskService';
+
+const EXTENSION_LANGUAGES: Record<string, string> = {
+  ts: 'TypeScript', tsx: 'TypeScript', mts: 'TypeScript', cts: 'TypeScript',
+  js: 'JavaScript', jsx: 'JavaScript', mjs: 'JavaScript', cjs: 'JavaScript',
+  py: 'Python', pyw: 'Python', rs: 'Rust', go: 'Go', java: 'Java', kt: 'Kotlin',
+  kts: 'Kotlin', swift: 'Swift', dart: 'Dart', php: 'PHP', rb: 'Ruby',
+  cs: 'C#', c: 'C', h: 'C/C++', cc: 'C++', cpp: 'C++', hpp: 'C++',
+  css: 'CSS', scss: 'SCSS', html: 'HTML', vue: 'Vue', svelte: 'Svelte',
+  sql: 'SQL', sh: 'Shell', bash: 'Shell', yaml: 'YAML', yml: 'YAML',
+};
+
+const SOURCE_EXTENSIONS = new Set(Object.keys(EXTENSION_LANGUAGES));
+const NEXT_SOURCE_EXTENSIONS = new Set(['js', 'jsx', 'mjs', 'cjs', 'ts', 'tsx', 'mts', 'cts']);
+const SOURCE_CONTENT_MAX_FILE_BYTES = 512 * 1024;
+const SOURCE_CONTENT_MAX_TOTAL_BYTES = 24 * 1024 * 1024;
+const LOCKFILE_MAX_BYTES = 10 * 1024 * 1024;
+
+function createEmptySourceMetrics(): SourceContentMetrics {
+  return { analyzedFiles: 0, skippedFiles: 0, linesOfCode: 0, todoMarkers: 0, largeFiles: [] };
+}
+
+function addSourceContentMetric(path: string, content: string, metrics: SourceContentMetrics) {
+  const lines = content.split(/\r\n|\n|\r/);
+  const lineCount = lines.filter(line => line.trim().length > 0).length;
+  const todoMarkers = (content.match(/\b(?:TODO|FIXME|XXX|HACK)\b/gi) || []).length;
+  metrics.analyzedFiles += 1;
+  metrics.linesOfCode += lineCount;
+  metrics.todoMarkers += todoMarkers;
+  if (lineCount > 500) {
+    metrics.largeFiles.push({ path, lines: lineCount, todoMarkers });
+    metrics.largeFiles.sort((a, b) => b.lines - a.lines);
+    metrics.largeFiles = metrics.largeFiles.slice(0, 20);
+  }
+}
+
+function sourceLineAt(content: string, index: number) {
+  return content.slice(0, index).split(/\r\n|\n|\r/).length;
+}
+
+function createSourceSnippet(content: string, focusLine: number, redactSecrets = false) {
+  const sourceLines = content.split(/\r\n|\n|\r/);
+  const startLine = Math.max(1, focusLine - 2);
+  const endLine = Math.min(sourceLines.length, startLine + 4);
+  const lines = sourceLines.slice(startLine - 1, endLine).map(line => {
+    const visibleLine = redactSecrets ? line.replace(/(['"`])[^'"`\r\n]{8,}\1/g, '$1••••••$1') : line;
+    return visibleLine.length > 180 ? `${visibleLine.slice(0, 177)}…` : visibleLine;
+  });
+  return { startLine, focusLine, lines };
+}
+
+function normalizeImportPath(importer: string, specifier: string) {
+  const stack = importer.split('/').slice(0, -1);
+  for (const part of specifier.split('/')) {
+    if (!part || part === '.') continue;
+    if (part === '..') stack.pop();
+    else stack.push(part);
+  }
+  return stack.join('/');
+}
+
+function hasNextJsProjectSignal(paths: string[], manifests: Record<string, string>) {
+  const hasNextConfig = paths.some(path => /(^|\/)next\.config\.(?:[cm]?js|[cm]?ts)$/i.test(path.replace(/\\/g, '/')));
+  const hasNextDependency = Object.entries(manifests).some(([path, content]) => /(^|\/)package\.json$/i.test(path.replace(/\\/g, '/')) && /["']next["']\s*:/i.test(content));
+  return hasNextConfig || hasNextDependency;
+}
+
+async function inspectSourceCode(source: CodebaseSource): Promise<{ findings: QualityFinding[]; parsedFiles: number; skippedFiles: number }> {
+  const contents = source.sourceContents || {};
+  const contentEntries = Object.entries(contents).sort(([left], [right]) => left.localeCompare(right));
+  const isNextProject = hasNextJsProjectSignal(source.paths, source.manifests);
+  const findings: QualityFinding[] = [];
+  const sourcePathSet = new Set(source.paths.map(path => path.replace(/\\/g, '/').toLowerCase()));
+  // Next.js is the first complete language/framework profile. Keep file-level
+  // rules and parsing within its JavaScript/TypeScript sources until another
+  // profile is deliberately implemented and assessed.
+  const jsEntries = isNextProject
+    ? contentEntries.filter(([path]) => NEXT_SOURCE_EXTENSIONS.has(normalizedName(path).split('.').pop() || ''))
+    : [];
+  const MAX_AST_FILES = 1500;
+  const entriesToParse = jsEntries.slice(0, MAX_AST_FILES);
+  const skippedFiles = jsEntries.length - entriesToParse.length;
+  const textPatterns: Array<{ pattern: RegExp; title: string; detail: string; priority: QualityFinding['priority'] }> = [
+    { pattern: /\b(?:eval\s*\(|new\s+Function\s*\()/i, title: 'Dynamic code execution', detail: 'This code appears to execute a string as code. Review whether it can be replaced with an explicit, safer operation.', priority: 'high' },
+    { pattern: /\bdangerouslySetInnerHTML\b|\.innerHTML\s*=/i, title: 'Direct HTML injection API', detail: 'This code writes HTML directly into a page. Verify that untrusted input is escaped or sanitized before it reaches this path.', priority: 'medium' },
+    { pattern: /\bshell\s*=\s*True\b/i, title: 'Shell execution enabled', detail: 'A process call appears to invoke a shell. Avoid building the command from untrusted input; argument arrays are safer.', priority: 'medium' },
+    { pattern: /\bverify\s*=\s*False\b/i, title: 'TLS certificate verification disabled', detail: 'A network request may skip certificate validation. Keep verification enabled outside narrowly controlled local tests.', priority: 'high' },
+    { pattern: /\b(?:password|secret|api[_-]?key|access[_-]?token)\b\s*[:=]\s*(['"`])[^'"`\r\n]{8,}\1/i, title: 'Possible hard-coded credential', detail: 'A credential-like value appears to be assigned directly in source. Move real secrets to a secret store or environment variable.', priority: 'high' },
+  ];
+  for (const [path, content] of contentEntries) {
+    const extension = normalizedName(path).split('.').pop() || '';
+    if (!isNextProject || !NEXT_SOURCE_EXTENSIONS.has(extension)) continue;
+    for (const { pattern, title, detail, priority } of textPatterns) {
+      pattern.lastIndex = 0;
+      const match = pattern.exec(content);
+      if (!match) continue;
+      const line = sourceLineAt(content, match.index);
+      const matchedLine = content.split(/\r\n|\n|\r/)[line - 1] || '';
+      if (title === 'Possible hard-coded credential' && /process\.env|import\.meta\.env|example|placeholder|your[_ -].*(?:key|token|secret)/i.test(matchedLine)) continue;
+      findings.push({ title, detail, priority, evidence: [`${path}:${line}`], codeSnippet: createSourceSnippet(content, line, title === 'Possible hard-coded credential') });
+    }
+    for (const rule of LANGUAGE_SOURCE_RULES) {
+      if (!rule.extensions.includes(extension) || rule.except?.test(content)) continue;
+      const match = rule.pattern.exec(content);
+      if (!match) continue;
+      const line = sourceLineAt(content, match.index);
+      findings.push({ title: rule.title, detail: rule.detail, priority: rule.priority, evidence: [`${path}:${line}`], codeSnippet: createSourceSnippet(content, line) });
+    }
+    if (isNextProject) {
+      const normalizedPath = path.replace(/\\/g, '/');
+      for (const rule of NEXT_SOURCE_RULES) {
+        if (!rule.pathPattern.test(normalizedPath) || rule.except?.test(content)) continue;
+        rule.pattern.lastIndex = 0;
+        const match = rule.pattern.exec(content);
+        if (!match) continue;
+        const line = sourceLineAt(content, match.index);
+        findings.push({ title: rule.title, detail: rule.detail, priority: rule.priority, evidence: [`${path}:${line}`], codeSnippet: createSourceSnippet(content, line) });
+      }
+    }
+  }
+
+  if (!entriesToParse.length) return { findings, parsedFiles: 0, skippedFiles };
+  const ts = await import('typescript');
+  const duplicateBodies = new Map<string, Array<{ path: string; name: string; line: number }>>();
+  const importEdges = new Map<string, string[]>();
+  let parsedFiles = 0;
+  const isFunctionNode = (node: import('typescript').Node): node is import('typescript').FunctionLikeDeclaration =>
+    ts.isFunctionDeclaration(node) || ts.isFunctionExpression(node) || ts.isArrowFunction(node)
+    || ts.isMethodDeclaration(node) || ts.isConstructorDeclaration(node)
+    || ts.isGetAccessorDeclaration(node) || ts.isSetAccessorDeclaration(node);
+
+  for (const [path, content] of entriesToParse) {
+    parsedFiles += 1;
+    const extension = path.split('.').pop()?.toLowerCase();
+    const scriptKind = extension === 'tsx' ? ts.ScriptKind.TSX : extension === 'jsx' ? ts.ScriptKind.JSX
+      : ['js', 'mjs', 'cjs', 'mjsx'].includes(extension || '') ? ts.ScriptKind.JS : ts.ScriptKind.TS;
+    const file = ts.createSourceFile(path, content, ts.ScriptTarget.Latest, true, scriptKind);
+    const parseDiagnostics = (file as import('typescript').SourceFile & { parseDiagnostics?: readonly import('typescript').Diagnostic[] }).parseDiagnostics || [];
+    for (const diagnostic of parseDiagnostics.slice(0, 2)) {
+      const line = diagnostic.start === undefined ? 1 : file.getLineAndCharacterOfPosition(diagnostic.start).line + 1;
+      findings.push({ title: 'Source syntax issue', detail: ts.flattenDiagnosticMessageText(diagnostic.messageText, ' '), priority: 'high', evidence: [`${path}:${line}`], codeSnippet: createSourceSnippet(content, line) });
+    }
+
+    const imports: string[] = [];
+    const visit = (node: import('typescript').Node, currentFunction?: import('typescript').Node) => {
+      if (ts.isImportDeclaration(node) || ts.isExportDeclaration(node)) {
+        const specifier = node.moduleSpecifier;
+        if (specifier && ts.isStringLiteral(specifier) && specifier.text.startsWith('.')) imports.push(specifier.text);
+      }
+      if (ts.isCallExpression(node) && node.expression.kind === ts.SyntaxKind.ImportKeyword && node.arguments[0] && ts.isStringLiteral(node.arguments[0]) && node.arguments[0].text.startsWith('.')) {
+        imports.push(node.arguments[0].text);
+      }
+      if (currentFunction && node !== currentFunction && isFunctionNode(node)) {
+        ts.forEachChild(node, child => visit(child, node));
+        return;
+      }
+      if (currentFunction && (ts.isIfStatement(node) || ts.isForStatement(node) || ts.isForInStatement(node) || ts.isForOfStatement(node)
+        || ts.isWhileStatement(node) || ts.isDoStatement(node) || ts.isCatchClause(node) || ts.isConditionalExpression(node)
+        || (ts.isCaseClause(node) && node.expression !== undefined)
+        || (ts.isBinaryExpression(node) && [ts.SyntaxKind.AmpersandAmpersandToken, ts.SyntaxKind.BarBarToken, ts.SyntaxKind.QuestionQuestionToken].includes(node.operatorToken.kind)))) {
+        complexityByFunction.set(currentFunction, (complexityByFunction.get(currentFunction) || 1) + 1);
+      }
+      ts.forEachChild(node, child => visit(child, isFunctionNode(node) ? node : currentFunction));
+    };
+    const complexityByFunction = new Map<import('typescript').Node, number>();
+    visit(file);
+
+    const visitFunctions = (node: import('typescript').Node) => {
+      if (isFunctionNode(node) && node.body) {
+        const start = file.getLineAndCharacterOfPosition(node.getStart(file)).line + 1;
+        const end = file.getLineAndCharacterOfPosition(node.getEnd()).line + 1;
+        const lineCount = end - start + 1;
+        const complexity = complexityByFunction.get(node) || 1;
+        const name = 'name' in node && node.name && ts.isIdentifier(node.name) ? node.name.text : 'anonymous function';
+        if (complexity >= 12 || lineCount >= 80) {
+          findings.push({ title: complexity >= 12 ? 'High-complexity function' : 'Oversized function', detail: `${name} spans ${lineCount} lines and has a branch-complexity estimate of ${complexity}. Smaller functions are usually easier to test and change safely.`, priority: complexity >= 18 ? 'high' : 'medium', evidence: [`${path}:${start}–${end}`, `Estimated complexity: ${complexity}`], codeSnippet: createSourceSnippet(content, start) });
+        }
+        const bodyText = node.body.getText(file).replace(/\s+/g, ' ').trim();
+        if (bodyText.length >= 160) {
+          const locations = duplicateBodies.get(bodyText) || [];
+          locations.push({ path, name, line: start });
+          duplicateBodies.set(bodyText, locations);
+        }
+      }
+      ts.forEachChild(node, visitFunctions);
+    };
+    visitFunctions(file);
+    importEdges.set(path.replace(/\\/g, '/').toLowerCase(), imports.map(specifier => normalizeImportPath(path, specifier).toLowerCase()));
+  }
+
+  for (const [body, locations] of duplicateBodies) {
+    const uniquePaths = [...new Map(locations.map(location => [`${location.path}:${location.line}`, location])).values()];
+    if (uniquePaths.length < 2) continue;
+    const firstLocation = uniquePaths[0];
+    const firstContent = contents[firstLocation.path];
+    findings.push({ title: 'Repeated function body', detail: 'The same normalized function body appears in multiple places. Consider sharing the logic or documenting why both copies should evolve independently.', priority: 'low', evidence: uniquePaths.slice(0, 3).map(item => `${item.path}:${item.line}`), codeSnippet: firstContent ? createSourceSnippet(firstContent, firstLocation.line) : undefined });
+  }
+
+  for (const [importer, dependencies] of importEdges) {
+    const resolvedDependencies: string[] = [];
+    for (const dependency of dependencies) {
+      const candidates = [dependency, ...['.ts', '.tsx', '.js', '.jsx', '.mts', '.cts', '.mjs', '.cjs', '.json'].map(extension => `${dependency}${extension}`), ...['index.ts', 'index.tsx', 'index.js', 'index.jsx'].map(index => `${dependency}/${index}`)];
+      const resolved = candidates.find(candidate => sourcePathSet.has(candidate));
+      if (!resolved) {
+        const originalPath = contentEntries.find(([path]) => path.toLowerCase() === importer)?.[0] || importer;
+        findings.push({ title: 'Local import target not found in scan', detail: 'A relative import did not match any scanned file. It may use a generated file, a configured alias, or an extension the scan does not recognize.', priority: 'low', evidence: [`${originalPath} → ${dependency}`] });
+      } else resolvedDependencies.push(resolved);
+    }
+    importEdges.set(importer, resolvedDependencies);
+  }
+
+  const visitedImports = new Set<string>();
+  const activeImports: string[] = [];
+  const seenCycles = new Set<string>();
+  const findImportCycles = (path: string) => {
+    if (visitedImports.has(path)) return;
+    activeImports.push(path);
+    for (const dependency of importEdges.get(path) || []) {
+      const cycleStart = activeImports.indexOf(dependency);
+      if (cycleStart >= 0) {
+        const cycle = activeImports.slice(cycleStart);
+        const cycleKey = [...cycle].sort().join('|');
+        if (!seenCycles.has(cycleKey)) {
+          seenCycles.add(cycleKey);
+          const evidence = cycle.slice(0, 4).map(item => contentEntries.find(([candidate]) => candidate.toLowerCase() === item)?.[0] || item);
+          findings.push({ title: 'Circular module dependency', detail: 'These files import one another in a cycle. Cycles can make initialization order and module boundaries harder to reason about.', priority: 'medium', evidence });
+        }
+      } else if (!visitedImports.has(dependency)) findImportCycles(dependency);
+    }
+    activeImports.pop();
+    visitedImports.add(path);
+  };
+  for (const path of importEdges.keys()) findImportCycles(path);
+
+  return { findings, parsedFiles, skippedFiles };
+}
+function isRecognizedTestFile(path: string) {
+  const lowerPath = path.toLowerCase();
+  const fileName = normalizedName(lowerPath);
+  return /\.(?:test|spec)\.[^.]+$/.test(lowerPath)
+    || /\.(?:cy|feature)\.[^.]+$/.test(lowerPath)
+    || /(^|\/)(__tests__|tests?|e2e)\//.test(lowerPath)
+    || /(^|\/)cypress\/(?:e2e|integration)\//.test(lowerPath)
+    || (/\.py$/.test(lowerPath) && (/^test_[^/]+\.py$/.test(fileName) || /_test\.py$/.test(fileName)))
+    || /_test\.go$/.test(fileName)
+    || /(?:test|tests|it)\.(?:java|kt|kts)$/.test(fileName)
+    || /tests?\.cs$/.test(fileName);
+}
+
+
+function extractPackageScripts(source: CodebaseSource) {
+  const packageEntries = Object.entries(source.manifests)
+    .filter(([path]) => normalizedName(path) === 'package.json')
+    .sort(([left], [right]) => left.localeCompare(right));
+  const rootPackage = packageEntries.find(([path]) => path === 'package.json') || packageEntries[0];
+  if (!rootPackage) return [];
+
+  try {
+    const packageData = JSON.parse(rootPackage[1]);
+    const packageManager = typeof packageData.packageManager === 'string'
+      ? packageData.packageManager.split('@')[0]
+      : source.paths.includes('pnpm-lock.yaml')
+        ? 'pnpm'
+        : source.paths.includes('yarn.lock')
+          ? 'yarn'
+          : source.paths.includes('bun.lockb') || source.paths.includes('bun.lock')
+            ? 'bun'
+            : 'npm';
+    const runPrefix = packageManager === 'npm' ? 'npm run' : packageManager === 'bun' ? 'bun run' : packageManager;
+    return Object.entries(packageData.scripts || {})
+      .filter((entry): entry is [string, string] => typeof entry[1] === 'string')
+      .map(([name, command]) => ({ name, command, runCommand: `${runPrefix} ${name}` }))
+      .sort((a, b) => a.name.localeCompare(b.name))
+      .slice(0, 12);
+  } catch {
+    return [];
+  }
+}
+
+function detectFrameworks(source: CodebaseSource): string[] {
+  const frameworks = new Set<string>();
+  const packageText = Object.entries(source.manifests)
+    .filter(([path]) => normalizedName(path) === 'package.json')
+    .map(([, content]) => content);
+
+  for (const content of packageText) {
+    try {
+      const packageData = JSON.parse(content);
+      const dependencies = {
+        ...packageData.dependencies,
+        ...packageData.devDependencies,
+        ...packageData.peerDependencies,
+      } as Record<string, string>;
+      const has = (name: string) => Object.hasOwn(dependencies, name);
+
+      const matches: Array<[string, string]> = [
+        ['next', 'Next.js'], ['react', 'React'], ['react-native', 'React Native'],
+        ['expo', 'Expo'], ['vue', 'Vue'], ['nuxt', 'Nuxt'], ['svelte', 'Svelte'],
+        ['@sveltejs/kit', 'SvelteKit'], ['@angular/core', 'Angular'],
+        ['express', 'Express'], ['@nestjs/core', 'NestJS'], ['fastify', 'Fastify'],
+        ['vite', 'Vite'], ['tailwindcss', 'Tailwind CSS'], ['prisma', 'Prisma'],
+        ['drizzle-orm', 'Drizzle ORM'], ['electron', 'Electron'],
+        ['@tauri-apps/api', 'Tauri'], ['vitest', 'Vitest'], ['jest', 'Jest'],
+        ['playwright', 'Playwright'], ['@playwright/test', 'Playwright'], ['cypress', 'Cypress'], ['@testing-library/react', 'React Testing Library'],
+      ];
+      for (const [dependency, label] of matches) if (has(dependency)) frameworks.add(label);
+    } catch {
+      // A malformed or non-JSON package manifest is still listed as evidence, but not parsed.
+    }
+  }
+
+  const allManifestText = Object.entries(source.manifests)
+    .filter(([path]) => normalizedName(path) !== 'readme.md')
+    .map(([, content]) => content.toLowerCase())
+    .join('\n');
+  const frameworkSignals: Array<[RegExp, string]> = [
+    [/\btauri\b/, 'Tauri'], [/\baxum\b/, 'Axum'], [/\bactix-web\b/, 'Actix Web'],
+    [/\btokio\b/, 'Tokio'], [/\bfastapi\b/, 'FastAPI'], [/\bdjango\b/, 'Django'],
+    [/\bflask\b/, 'Flask'], [/\bpytest\b/, 'Pytest'], [/\bgin-gonic\/gin\b/, 'Gin'],
+    [/\bgithub\.com\/labstack\/echo\b/, 'Echo'], [/\bgithub\.com\/gofiber\/fiber\b/, 'Fiber'],
+  ];
+  for (const [signal, label] of frameworkSignals) if (signal.test(allManifestText)) frameworks.add(label);
+
+  return [...frameworks];
+}
+
+function categoryForFinding(title: string): QualityFinding['category'] {
+  if (/credential|dynamic code|html injection|shell|tls|certificate|deserialization|pickle|yaml loading|unsafe c\/c\+\+|binaryformatter|sensitive value|sql query|unencrypted http|diagnostic logging/i.test(title)) return 'security';
+  if (/test/i.test(title)) return 'testing';
+  if (/ci workflow|workflow|build step/i.test(title)) return 'delivery';
+  if (/readme|documentation/i.test(title)) return 'documentation';
+  if (/folder|project root|circular module|import target/i.test(title)) return 'structure';
+  if (/next\.js|server component|router api|router data|route handler|page or layout|syntax issue|parse|error handler|exception handler|exception swallowed|forced error handling|forced optional unwrap|forced null assertion|panic-prone|function result discarded/i.test(title)) return 'correctness';
+  if (/large source|todo|complexity|function body|debug logging|typescript checking/i.test(title)) return 'maintainability';
+  return 'tooling';
+}
+
+function stableRuleId(title: string) {
+  return title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 48) || 'quality-finding';
+}
+
+function normalizeQualityFinding(finding: QualityFinding): QualityFinding {
+  const category = finding.category || categoryForFinding(finding.title);
+  const ruleId = finding.ruleId || stableRuleId(finding.title);
+  const locationEvidence = finding.evidence.find(item => /:\d+(?:[–-]\d+)?$/.test(item));
+  const locationMatch = locationEvidence?.match(/^(.*):(\d+)(?:[–-]\d+)?$/);
+  let hash = 2166136261;
+  for (const character of `${ruleId}|${finding.evidence.join('|')}`) hash = Math.imul(hash ^ character.charCodeAt(0), 16777619);
+  return {
+    ...finding,
+    id: finding.id || `${ruleId}-${(hash >>> 0).toString(36)}`,
+    ruleId,
+    category,
+    confidence: finding.confidence || (/syntax issue/i.test(finding.title) ? 'high' : 'medium'),
+    source: finding.source || 'blueprint-static',
+    location: finding.location || (locationMatch ? { path: locationMatch[1], line: Number(locationMatch[2]) } : undefined),
+  };
+}
+
+function assessQualityChecks(
+  paths: string[],
+  scripts: NonNullable<CodebaseAnalysis['scripts']>,
+  testFilesCount: number,
+  sourceMetrics: SourceContentMetrics,
+  manifests: Record<string, string>,
+  deepAnalysis: Awaited<ReturnType<typeof inspectSourceCode>>,
+  findings: QualityFinding[],
+): QualityAssessment['checks'] {
+  const lowerPaths = paths.map(path => path.toLowerCase());
+  const manifestContents = Object.values(manifests).join('\n').toLowerCase();
+  const detectedLanguages = new Set(paths.map(path => EXTENSION_LANGUAGES[normalizedName(path).split('.').pop() || '']).filter(Boolean));
+  const workflows = Object.entries(manifests).filter(([path]) => path.startsWith('.github/workflows/'));
+  const workflowText = workflows.map(([, content]) => content).join('\n').toLowerCase();
+  const workflowHasTests = /\b(test|vitest|jest|pytest|cargo test|go test)\b/.test(workflowText);
+  const workflowHasBuild = /\b(build|compile|cargo build|npm run build|pnpm build)\b/.test(workflowText);
+  const jsPathCount = paths.filter(path => /\.(?:[cm]?[jt]sx?)$/i.test(path)).length;
+  const isNextProject = hasNextJsProjectSignal(paths, manifests);
+  const nextProfilePathCount = isNextProject ? jsPathCount : 0;
+  const nextProfileFilesNotInspected = Math.max(0, nextProfilePathCount - deepAnalysis.parsedFiles - deepAnalysis.skippedFiles);
+  const syntaxIssues = findings.filter(finding => finding.title === 'Source syntax issue').length;
+  const codeFindings = (category: NonNullable<QualityFinding['category']>) => findings.filter(finding => finding.category === category).length;
+  const check = (id: string, name: string, category: NonNullable<QualityFinding['category']>, status: NonNullable<QualityAssessment['checks']>[number]['status'], summary: string) => ({ id, name, category, status, summary, findingCount: codeFindings(category) });
+
+  const checks: NonNullable<QualityAssessment['checks']> = [];
+  if (isNextProject && nextProfilePathCount > 0) checks.push(
+    check('source-parse', 'Next.js JavaScript / TypeScript parsing', 'correctness', deepAnalysis.skippedFiles > 0 || nextProfileFilesNotInspected > 0 ? 'incomplete' : syntaxIssues > 0 ? 'issues' : 'passed', deepAnalysis.skippedFiles > 0 || nextProfileFilesNotInspected > 0 ? `${deepAnalysis.parsedFiles} parsed; ${deepAnalysis.skippedFiles + nextProfileFilesNotInspected} profile files were not inspected.` : syntaxIssues > 0 ? `${syntaxIssues} syntax issue(s) detected. This does not include type-checking.` : `${deepAnalysis.parsedFiles} Next.js JavaScript/TypeScript file(s) parsed with no syntax issues detected; type-checking was not run.`),
+  );
+  else checks.push(check('nextjs-profile', 'Next.js / TypeScript code profile', 'correctness', 'unsupported', 'Deep source-level checks currently support Next.js JavaScript/TypeScript projects. Other languages and frameworks are identified, but their dedicated analysis profiles have not been implemented yet.'));
+  checks.push(
+    check('source-patterns', 'Next.js source risk patterns', 'security', !isNextProject || deepAnalysis.parsedFiles === 0 ? 'unsupported' : codeFindings('security') > 0 ? 'issues' : deepAnalysis.skippedFiles > 0 || nextProfileFilesNotInspected > 0 ? 'incomplete' : 'passed', !isNextProject || deepAnalysis.parsedFiles === 0 ? 'Risk-pattern review is currently enabled for the Next.js JavaScript/TypeScript profile only.' : codeFindings('security') > 0 ? 'Review the flagged patterns in Next.js JavaScript/TypeScript files; findings are signals, not proof of a vulnerability.' : 'No configured risk patterns matched the inspected Next.js JavaScript/TypeScript files; this is not a complete security audit.'),
+    check('maintainability', 'Maintainability signals', 'maintainability', sourceMetrics.analyzedFiles === 0 ? 'unsupported' : codeFindings('maintainability') > 0 ? 'issues' : sourceMetrics.skippedFiles > 0 ? 'incomplete' : 'passed', sourceMetrics.analyzedFiles === 0 ? 'Source contents were not available to inspect.' : codeFindings('maintainability') > 0 ? 'Large files, TODO markers, or complex/repeated functions need review.' : 'No configured maintainability thresholds were crossed in inspected files.'),
+    check('ci-workflows', 'CI workflows', 'delivery', workflows.length === 0 ? 'not-configured' : !workflowHasTests || !workflowHasBuild ? 'issues' : 'not-run', workflows.length === 0 ? 'No GitHub Actions workflow was found in the scan.' : !workflowHasTests || !workflowHasBuild ? `Workflow found; test step ${workflowHasTests ? 'detected' : 'not detected'}, build step ${workflowHasBuild ? 'detected' : 'not detected'}.` : 'Test and build signals detected in workflow files; Blueprint did not execute the workflow.'),
+    check('folder-structure', 'Folder structure', 'structure', sourceMetrics.analyzedFiles === 0 ? 'unsupported' : codeFindings('structure') > 0 ? 'issues' : 'passed', sourceMetrics.analyzedFiles === 0 ? 'No source files were available to assess.' : codeFindings('structure') > 0 ? 'Review the reported folder or module-boundary signals.' : 'No configured folder-structure concerns were detected.'),
+    check('documentation', 'Project documentation', 'documentation', codeFindings('documentation') > 0 ? 'issues' : lowerPaths.some(path => /(^|\/)readme(?:\.[^/]*)?$/.test(path)) ? 'passed' : 'not-configured', lowerPaths.some(path => /(^|\/)readme(?:\.[^/]*)?$/.test(path)) ? 'README detected; documentation content was not evaluated.' : 'No README file was detected.'),
+  );
+
+  const workflowAndManifestText = `${manifestContents}\n${workflowText}`;
+  TOOLCHAIN_QUALITY_RULES.forEach(rule => {
+    if (!rule.languages.some(language => detectedLanguages.has(language))) return;
+    const matchedPath = (rule.pathPatterns || []).some(pattern => lowerPaths.some(path => pattern.test(path)));
+    const matchedManifest = (rule.manifestPatterns || []).some(pattern => pattern.test(workflowAndManifestText));
+    const matchedScript = (rule.scriptPatterns || []).some(pattern => scripts.some(script => pattern.test(`${script.name} ${script.command}`.toLowerCase())));
+    const testFiles = rule.category === 'testing' && (rule.testFilePatterns || []).some(pattern => lowerPaths.some(path => pattern.test(path)));
+    const configured = matchedPath || matchedManifest || matchedScript;
+    checks.push({
+      id: `tool-${rule.id}`,
+      name: `${rule.name} (${rule.languages.filter(language => detectedLanguages.has(language)).join(', ')})`,
+      category: rule.category || 'tooling',
+      status: configured ? 'not-run' : testFiles ? 'incomplete' : 'not-configured',
+      summary: configured ? `${rule.name} configuration or command detected; Blueprint did not run it${rule.category === 'testing' ? (testFiles ? ' Test files were also found.' : '') : ''}` : testFiles ? `Test files were found, but no recognized ${rule.name} runner or configuration was detected.` : `No recognized ${rule.name} configuration or command was detected for this language.`,
+      findingCount: 0,
+    });
+  });
+
+  if (![...detectedLanguages].some(language => TOOLCHAIN_QUALITY_RULES.some(rule => rule.category === 'testing' && rule.languages.includes(language)))) {
+    checks.push(check('tests', 'Automated tests', 'testing', testFilesCount > 0 ? 'incomplete' : 'not-configured', testFilesCount > 0 ? `${testFilesCount} test-like file(s) found; no language-specific runner profile is available.` : 'No test files or supported test runner configuration were detected.'));
+  }
+
+  return checks;
+}
+
+function assessCodeQuality(
+  paths: string[],
+  directories: string[],
+  scripts: NonNullable<CodebaseAnalysis['scripts']>,
+  testFilesCount: number,
+  sourceMetrics: SourceContentMetrics,
+  manifests: Record<string, string>,
+  deepAnalysis: Awaited<ReturnType<typeof inspectSourceCode>>,
+): QualityAssessment {
+  const normalizedPaths = paths.map(path => path.replace(/\\/g, '/'));
+  const lowerPaths = normalizedPaths.map(path => path.toLowerCase());
+  const scriptNames = new Set(scripts.map(script => script.name.toLowerCase()));
+  const hasTestConfig = lowerPaths.some(path => /(^|\/)(?:(?:vitest|jest|playwright|cypress)\.config\.[^/]+|pytest\.ini|tox\.ini)$/i.test(path));
+  const hasTestScript = [...scriptNames].some(name => /test|spec/.test(name));
+  const hasWorkflow = Object.keys(manifests).some(path => path.startsWith('.github/workflows/') && /\.ya?ml$/i.test(path));
+  const workflowContents = Object.entries(manifests).filter(([path]) => path.startsWith('.github/workflows/')).map(([, content]) => content).join('\n').toLowerCase();
+  const workflowHasTests = /\b(test|vitest|jest|pytest|cargo test|go test)\b/.test(workflowContents);
+  const workflowHasBuild = /\b(build|compile|cargo build|npm run build|pnpm build)\b/.test(workflowContents);
+  const hasReadme = lowerPaths.some(path => /(^|\/)readme(?:\.[^/]*)?$/.test(path));
+  const hasDocs = lowerPaths.some(path => /(^|\/)(docs?|documentation)\//.test(path));
+  const sourcePaths = normalizedPaths.filter(path => SOURCE_EXTENSIONS.has(normalizedName(path).split('.').pop() || ''));
+  const rootLevelSourceFiles = sourcePaths.filter(path => !path.includes('/')).length;
+  const rootSourceRatio = sourcePaths.length ? rootLevelSourceFiles / sourcePaths.length : 0;
+  const averageSourceDepth = sourcePaths.length
+    ? sourcePaths.reduce((total, path) => total + path.split('/').length, 0) / sourcePaths.length
+    : 0;
+
+  let testingScore = 0;
+  if (testFilesCount > 0) testingScore += 13;
+  if (hasTestConfig) testingScore += 4;
+  if (hasTestScript) testingScore += 3;
+
+  let maintainabilityScore = sourceMetrics.analyzedFiles > 0 ? 25 : 12;
+  maintainabilityScore -= Math.min(12, sourceMetrics.largeFiles.length * 4);
+  maintainabilityScore -= Math.min(8, Math.ceil(sourceMetrics.todoMarkers / 5));
+  maintainabilityScore = Math.max(0, maintainabilityScore);
+
+  let organizationScore = sourcePaths.length > 0 ? 15 : 9;
+  if (sourcePaths.length > 0 && rootSourceRatio > 0.3 && rootLevelSourceFiles >= 5) {
+    organizationScore -= Math.min(10, Math.ceil((rootSourceRatio - 0.3) * 18));
+  }
+  if (averageSourceDepth > 5) organizationScore -= Math.min(6, Math.ceil(averageSourceDepth - 5));
+  if (directories.length === 0 && sourcePaths.length >= 10) organizationScore -= 4;
+  organizationScore = Math.max(0, organizationScore);
+
+  let automationScore = hasWorkflow ? 8 : 0;
+  if (hasWorkflow && workflowHasTests) automationScore += 4;
+  if (hasWorkflow && workflowHasBuild) automationScore += 3;
+  if (!hasWorkflow && (scriptNames.has('build') || hasTestScript)) automationScore = 3;
+
+  const documentationScore = (hasReadme ? 7 : 0) + (hasDocs ? 3 : 0);
+  const securityFindings = deepAnalysis.findings.filter(finding => categoryForFinding(finding.title) === 'security');
+  const isNextProject = hasNextJsProjectSignal(normalizedPaths, manifests);
+  const correctnessPaths = isNextProject ? sourcePaths.filter(path => NEXT_SOURCE_EXTENSIONS.has(normalizedName(path).split('.').pop() || '')) : [];
+  const nextProfileFilesNotInspected = Math.max(0, correctnessPaths.length - deepAnalysis.parsedFiles - deepAnalysis.skippedFiles);
+  const securityAssessed = isNextProject && deepAnalysis.parsedFiles > 0;
+  const correctnessPathSet = new Set(correctnessPaths);
+  const correctnessFindings = deepAnalysis.findings.filter(finding => categoryForFinding(finding.title) === 'correctness'
+    && finding.evidence.some(evidence => [...correctnessPathSet].some(path => evidence.startsWith(`${path}:`))));
+  const correctnessAssessed = isNextProject && deepAnalysis.parsedFiles > 0 && correctnessPaths.length > 0;
+  const correctnessPartial = correctnessAssessed && (deepAnalysis.skippedFiles > 0 || nextProfileFilesNotInspected > 0);
+  const securityScore = securityAssessed
+    ? Math.max(0, 10 - Math.min(10, securityFindings.reduce((penalty, finding) => penalty + (finding.priority === 'high' ? 3 : finding.priority === 'medium' ? 2 : 1), 0)))
+    : 0;
+  const correctnessScore = correctnessAssessed
+    ? Math.max(0, 5 - Math.min(5, correctnessFindings.reduce((penalty, finding) => penalty + (finding.priority === 'high' ? 2 : 1), 0)))
+    : 0;
+  const dimensions = [
+    { name: 'Tests', score: testingScore, maxScore: 20, summary: testFilesCount > 0 ? `${testFilesCount} test files${hasTestConfig ? ' and test tooling' : ''} detected.` : hasTestConfig || hasTestScript ? 'Test tooling is configured, but no test files were found.' : 'No test files, test configuration, or test script were detected.' },
+    { name: 'Code maintainability', score: maintainabilityScore, maxScore: 25, summary: sourceMetrics.analyzedFiles > 0 ? `${sourceMetrics.analyzedFiles} source files inspected · ${sourceMetrics.linesOfCode.toLocaleString()} non-empty lines.` : 'Source contents were not available to inspect.' },
+    { name: 'Folder structure', score: organizationScore, maxScore: 15, summary: sourcePaths.length ? `${directories.length} folders · ${rootLevelSourceFiles} source files at the project root.` : 'No source files were available to assess organization.' },
+    { name: 'CI checks', score: automationScore, maxScore: 15, summary: hasWorkflow ? `Workflow detected${workflowHasTests ? ' with test signals' : ''}${workflowHasBuild ? ' with build signals' : ''}.` : 'No CI workflow was detected.' },
+    { name: 'Documentation', score: documentationScore, maxScore: 10, summary: `${hasReadme ? 'README found' : 'No README found'}${hasDocs ? ' · documentation folder found' : ''}.` },
+    { name: 'Security risks', score: securityScore, maxScore: securityAssessed ? 10 : 0, assessmentStatus: securityAssessed ? (deepAnalysis.skippedFiles || nextProfileFilesNotInspected ? 'partial' as const : 'reviewed' as const) : 'not-assessed' as const, summary: securityAssessed ? `${securityFindings.length} configured risk pattern${securityFindings.length === 1 ? '' : 's'} flagged in the Next.js JavaScript/TypeScript profile across ${deepAnalysis.parsedFiles} inspected files. Other language profiles are not enabled yet; no match does not guarantee security.` : 'The first code-level profile is for Next.js JavaScript/TypeScript projects; no supported profile source was available to inspect.' },
+    { name: 'Code correctness', score: correctnessScore, maxScore: correctnessAssessed ? 5 : 0, assessmentStatus: !correctnessAssessed ? 'not-assessed' as const : correctnessPartial ? 'partial' as const : 'reviewed' as const, summary: correctnessAssessed ? `${correctnessFindings.length} Next.js/React correctness signal${correctnessFindings.length === 1 ? '' : 's'} flagged across ${correctnessPaths.length} source files. Checks cover App Router boundaries, route/page exports, React hook placement, and JavaScript/TypeScript syntax. ${correctnessPartial ? 'Some files were skipped or are outside this first profile.' : 'Only configured static rules were checked.'}` : 'No Next.js source profile was available; correctness is not scored as a pass.' },
+  ];
+
+  const findings: QualityFinding[] = [];
+  if (!testFilesCount) {
+    findings.push({ title: 'No test files detected', detail: hasTestConfig || hasTestScript ? 'Test tooling appears to be configured, but the scan found no test files. Add coverage for a critical user flow or business rule.' : 'No tests, test setup, or test script were detected. Add a small automated test suite around a critical user flow or business rule.', priority: 'high', evidence: [...(hasTestConfig ? ['Test configuration detected'] : []), ...(hasTestScript ? ['Test script detected'] : []), 'Scanned paths contain no common test files'].slice(0, 3) });
+  }
+  if (!hasWorkflow) findings.push({ title: 'No CI workflow detected', detail: 'There is no GitHub Actions workflow in the scanned files. A CI pipeline can run checks on every change and catch regressions before merge.', priority: 'medium', evidence: ['No .github/workflows/*.yml or *.yaml file found'] });
+  else {
+    if (!workflowHasTests) findings.push({ title: 'CI workflow has no clear test step', detail: 'The detected workflow files do not contain an obvious test command. Verify tests run in CI so failures are caught before changes are merged.', priority: 'medium', evidence: Object.keys(manifests).filter(path => path.startsWith('.github/workflows/')).slice(0, 2) });
+    if (!workflowHasBuild) findings.push({ title: 'CI workflow has no clear build step', detail: 'The detected workflow files do not contain an obvious build command. Consider validating that the application still compiles in CI.', priority: 'low', evidence: Object.keys(manifests).filter(path => path.startsWith('.github/workflows/')).slice(0, 2) });
+  }
+  if (sourceMetrics.largeFiles.length) findings.push({ title: `${sourceMetrics.largeFiles.length} large source file${sourceMetrics.largeFiles.length === 1 ? '' : 's'} detected`, detail: 'Files over 500 non-empty lines can be harder to review and change safely. Consider splitting responsibilities where the code structure supports it.', priority: 'medium', evidence: sourceMetrics.largeFiles.slice(0, 4).map(file => `${file.path} · ${file.lines} lines`) });
+  if (sourceMetrics.todoMarkers > 0) findings.push({ title: `${sourceMetrics.todoMarkers} TODO/FIXME markers found`, detail: 'These comments may be intentional, but reviewing them helps distinguish planned work from forgotten follow-ups.', priority: sourceMetrics.todoMarkers >= 10 ? 'medium' : 'low', evidence: [`${sourceMetrics.todoMarkers} markers across ${sourceMetrics.analyzedFiles} inspected source files`] });
+  if (sourcePaths.length >= 5 && rootSourceRatio > 0.3) findings.push({ title: 'Many source files sit at the project root', detail: 'Grouping related files into clear feature or layer folders can make the codebase easier to navigate as it grows.', priority: 'low', evidence: [`${rootLevelSourceFiles} of ${sourcePaths.length} source files (${Math.round(rootSourceRatio * 100)}%) are at the root`] });
+  if (!hasReadme) findings.push({ title: 'No README detected', detail: 'Add setup, run, and test instructions so a new contributor can get oriented without guessing.', priority: 'low', evidence: ['No README file found in scanned paths'] });
+  findings.push(...deepAnalysis.findings);
+
+  const availableScore = dimensions.reduce((total, dimension) => total + dimension.score, 0);
+  const availableMaxScore = dimensions.reduce((total, dimension) => total + dimension.maxScore, 0);
+  const score = availableMaxScore ? Math.round((availableScore / availableMaxScore) * 100) : 0;
+  const coverageRatio = sourcePaths.length ? sourceMetrics.analyzedFiles / sourcePaths.length : 0;
+  const sortedFindings = findings
+    .sort((a, b) => ({ high: 0, medium: 1, low: 2 }[a.priority] - { high: 0, medium: 1, low: 2 }[b.priority]))
+  const MAX_VISIBLE_FINDINGS = 50;
+  const allNormalizedFindings = sortedFindings
+    .map(normalizeQualityFinding);
+  const normalizedFindings = allNormalizedFindings
+    .slice(0, MAX_VISIBLE_FINDINGS)
+  return {
+    score,
+    confidence: coverageRatio >= 0.8 && !sourceMetrics.skippedFiles && !deepAnalysis.skippedFiles ? 'high' : coverageRatio >= 0.5 ? 'medium' : 'low',
+    dimensions,
+    findings: normalizedFindings,
+    findingsOmitted: Math.max(0, sortedFindings.length - MAX_VISIBLE_FINDINGS),
+    checks: assessQualityChecks(paths, scripts, testFilesCount, sourceMetrics, manifests, deepAnalysis, allNormalizedFindings),
+    analyzedSourceFiles: sourceMetrics.analyzedFiles,
+    linesOfCode: sourceMetrics.linesOfCode,
+    todoMarkers: sourceMetrics.todoMarkers,
+    deepAnalysis: {
+      parsedJavaScriptFiles: deepAnalysis.parsedFiles,
+      skippedJavaScriptFiles: deepAnalysis.skippedFiles,
+      sourceFilesAvailable: sourceMetrics.analyzedFiles,
+    },
+  };
+}
+
+function assessPipeline(source: CodebaseSource, paths: string[]): PipelineAssessment {
+  const workflows = Object.entries(source.manifests)
+    .filter(([path]) => path.startsWith('.github/workflows/') && /\.ya?ml$/i.test(path))
+    .map(([path, content]) => {
+      const name = content.match(/^\s*name:\s*["']?([^\r\n"']+)/m)?.[1]?.trim() || path.split('/').pop() || 'Workflow';
+      const triggers: string[] = [];
+      const onBlock = content.match(/^on:\s*(?:\r?\n)((?:[ \t]+[^\r\n]*\r?\n?)*)/m)?.[1] || '';
+      const inlineOn = content.match(/^on:[ \t]*([^\r\n]+)/m)?.[1]?.trim();
+      if (inlineOn && inlineOn !== '{}') triggers.push(inlineOn.replace(/[\[\]'\"]/g, '').trim());
+      else for (const match of onBlock.matchAll(/^  ([\w-]+):/gm)) triggers.push(match[1]);
+      const jobsSection = content.split(/^jobs:\s*$/m)[1]?.split(/^\S/m)[0] || '';
+      const jobs = [...jobsSection.matchAll(/^  ([\w-]+):/gm)].map(match => match[1]).slice(0, 8);
+      const deploySignals = [...new Set((content.match(/(?:deploy|publish|release|upload-pages|wrangler deploy|vercel deploy|netlify deploy|aws-actions|azure\/webapps)/gi) || []).map(signal => signal.toLowerCase()))].slice(0, 5);
+      return { path, name, triggers: triggers.slice(0, 6), jobs, deploySignals };
+    });
+  const deploymentTargets = new Set<string>();
+  for (const path of paths) {
+    const lower = path.toLowerCase();
+    if (/(^|\/)(dockerfile|docker-compose\.ya?ml|compose\.ya?ml)$/.test(lower)) deploymentTargets.add('Docker / containers');
+    if (/(^|\/)vercel\.json$/.test(lower)) deploymentTargets.add('Vercel');
+    if (/(^|\/)netlify\.toml$/.test(lower)) deploymentTargets.add('Netlify');
+    if (/(^|\/)wrangler\.toml$/.test(lower)) deploymentTargets.add('Cloudflare Workers');
+    if (/(^|\/)fly\.toml$/.test(lower)) deploymentTargets.add('Fly.io');
+    if (/(^|\/)(serverless\.ya?ml|sam\.ya?ml)$/.test(lower)) deploymentTargets.add('AWS Serverless');
+    if (/(^|\/)(kustomization\.ya?ml)$/.test(lower) || /(^|\/)helm\/[^/]+\/chart\.yaml$/.test(lower)) deploymentTargets.add('Kubernetes');
+    if (/(^|\/)terraform\/.*\.tf$/.test(lower) || /(^|\/)main\.tf$/.test(lower)) deploymentTargets.add('Terraform infrastructure');
+  }
+  for (const workflow of workflows) {
+    for (const signal of workflow.deploySignals) {
+      if (signal.includes('vercel')) deploymentTargets.add('Vercel');
+      if (signal.includes('netlify')) deploymentTargets.add('Netlify');
+      if (signal.includes('wrangler')) deploymentTargets.add('Cloudflare Workers');
+      if (signal.includes('aws')) deploymentTargets.add('AWS');
+      if (signal.includes('azure')) deploymentTargets.add('Azure');
+    }
+  }
+  return { workflows, deploymentTargets: [...deploymentTargets], liveStatus: 'Not checked. Connect GitHub to see recent workflow runs and deployment status.' };
+}
+
+export async function analyzeCodebaseSource(source: CodebaseSource): Promise<CodebaseAnalysis> {
+  const paths = [...new Set(source.paths)].sort((a, b) => a.localeCompare(b));
+  const languageCounts = new Map<string, number>();
+  const topLevelCounts = new Map<string, number>();
+  const nestedDirectoryCounts = new Map<string, number>();
+  const entryPoints = new Set<string>();
+  const testSignals = new Set<string>();
+  let testFilesCount = 0;
+
+  for (const path of paths) {
+    const lowerPath = path.toLowerCase();
+    const fileName = normalizedName(path);
+    const extension = fileName.includes('.') ? fileName.split('.').pop() || '' : '';
+    const language = EXTENSION_LANGUAGES[extension];
+    if (language) languageCounts.set(language, (languageCounts.get(language) || 0) + 1);
+
+    const firstSegment = path.split('/')[0];
+    if (path.includes('/')) topLevelCounts.set(firstSegment, (topLevelCounts.get(firstSegment) || 0) + 1);
+
+    const pathSegments = path.split('/');
+    if (pathSegments.length >= 3) {
+      const nestedDirectory = `${pathSegments[0]}/${pathSegments[1]}`;
+      nestedDirectoryCounts.set(nestedDirectory, (nestedDirectoryCounts.get(nestedDirectory) || 0) + 1);
+    }
+
+    if (/^(src\/)?(main|index)\.(tsx?|jsx?|mjs|cjs|py|rs|go|java|kt|swift|dart)$/.test(lowerPath)
+      || /^(app|main)\.(py|go|rs|rb|php)$/.test(lowerPath)
+      || /^(src\/)?main\.rs$/.test(lowerPath)
+      || /^manage\.py$/.test(lowerPath)
+      || /^src\/tauri\/src\/main\.rs$/.test(lowerPath)
+      || /^src-tauri\/src\/main\.rs$/.test(lowerPath)
+      || /(^|\/)(?:src\/)?app\/(?:page|layout)\.(?:tsx?|jsx?)$/.test(lowerPath)
+      || /(^|\/)(?:src\/)?pages\/(?:index|_app)\.(?:tsx?|jsx?)$/.test(lowerPath)
+      || /^index\.html$/.test(lowerPath)) {
+      entryPoints.add(path);
+    }
+
+    if (isRecognizedTestFile(path)) {
+      testSignals.add(path);
+      testFilesCount += 1;
+    }
+  }
+
+  configuredTestToolSignals(paths).forEach(signal => testSignals.add(signal));
+
+  const languages = [...languageCounts.entries()]
+    .map(([name, files]) => ({ name, files }))
+    .sort((a, b) => b.files - a.files || a.name.localeCompare(b.name));
+  const scripts = extractPackageScripts(source);
+  const testFiles = paths.filter(isRecognizedTestFile);
+  const sourceMetrics = source.sourceMetrics || createEmptySourceMetrics();
+  const deepAnalysis = await inspectSourceCode(source);
+  const nextProject = hasNextJsProjectSignal(paths, source.manifests);
+  const dependencyInventory = extractNpmDependencyInventory(paths, source.manifests, nextProject);
+
+  return {
+    rootName: source.rootName,
+    rootPath: source.rootPath,
+    directoryHandleId: source.directoryHandleId,
+    scannedAt: Date.now(),
+    filesScanned: paths.length,
+    sourceFiles: paths.filter(path => SOURCE_EXTENSIONS.has(normalizedName(path).split('.').pop() || '')).length,
+    truncated: Boolean(source.truncated),
+    languages,
+    frameworks: detectFrameworks(source),
+    nextjs: assessNextJsOverview(source, paths),
+    dependencyInventory,
+    entryPoints: [...entryPoints].sort(),
+    testSignals: [...testSignals].sort(),
+    structurePaths: paths,
+    structureDirectories: source.directories || [],
+    topLevelDirectories: [...topLevelCounts.entries()]
+      .map(([name, files]) => ({ name, files }))
+      .sort((a, b) => b.files - a.files || a.name.localeCompare(b.name))
+      .slice(0, 12),
+    scripts,
+    nestedDirectories: [...nestedDirectoryCounts.entries()]
+      .map(([path, files]) => {
+        const [parent, name] = path.split('/');
+        return { parent, name, files };
+      })
+      .sort((a, b) => a.parent.localeCompare(b.parent) || b.files - a.files || a.name.localeCompare(b.name))
+      .slice(0, 24),
+    testFilesCount,
+    quality: assessCodeQuality(paths, source.directories || [], scripts, testFiles.length, sourceMetrics, source.manifests, deepAnalysis),
+    architecture: assessArchitecture(source, paths),
+    suggestions: suggestImprovements(paths, scripts, testFiles.length, hasNextJsProjectSignal(paths, source.manifests)),
+    git: source.git,
+    pipeline: assessPipeline(source, paths),
+  };
+}
+
+async function scanBrowserDirectory(root: BrowserDirectoryHandle, rootPath: string, existingHandleId?: string): Promise<CodebaseSource> {
+  const directoryHandleId = existingHandleId || await saveDirectoryHandle(root);
+  const paths: string[] = [];
+  const directories: string[] = [];
+  const manifests: Record<string, string> = {};
+  const sourceContents: Record<string, string> = {};
+  const sourceMetrics = createEmptySourceMetrics();
+  const MAX_FILES = 15000;
+  const MAX_ENTRIES = 30000;
+  let sourceBytesRead = 0;
+  let truncated = false;
+  let gitTracked = false;
+  let entriesScanned = 0;
+  const pending: Array<{ directory: BrowserDirectoryHandle; prefix: string }> = [{ directory: root, prefix: '' }];
+
+  while (pending.length > 0 && !truncated) {
+    const { directory, prefix } = pending.pop()!;
+    for await (const [name, entry] of directory.entries()) {
+      if (!prefix && name === '.git') {
+        gitTracked = true;
+        continue;
+      }
+      entriesScanned += 1;
+      if (paths.length >= MAX_FILES || entriesScanned >= MAX_ENTRIES) {
+        truncated = true;
+        break;
+      }
+      if (isDirectoryHandle(entry)) {
+        if (IGNORED_DIRECTORIES.has(name)) continue;
+        const directoryPath = prefix ? `${prefix}/${name}` : name;
+        directories.push(directoryPath);
+        pending.push({ directory: entry, prefix: directoryPath });
+        continue;
+      }
+
+      const path = prefix ? `${prefix}/${name}` : name;
+      paths.push(path);
+      const isWorkflow = path.startsWith('.github/workflows/') && /\.ya?ml$/i.test(name);
+      const extension = normalizedName(path).split('.').pop() || '';
+      const isSourceFile = SOURCE_EXTENSIONS.has(extension);
+      if (!MANIFEST_FILES.has(name.toLowerCase()) && !isWorkflow && !isSourceFile) continue;
+      try {
+        const file = await entry.getFile();
+        if (isSourceFile) {
+          if (file.size <= SOURCE_CONTENT_MAX_FILE_BYTES && sourceBytesRead + file.size <= SOURCE_CONTENT_MAX_TOTAL_BYTES) {
+            const content = await file.text();
+            sourceBytesRead += file.size;
+            sourceContents[path] = content;
+            addSourceContentMetric(path, content, sourceMetrics);
+          } else sourceMetrics.skippedFiles += 1;
+        }
+        const isLockfile = ['package-lock.json', 'npm-shrinkwrap.json'].includes(name.toLowerCase());
+        if ((MANIFEST_FILES.has(name.toLowerCase()) || isWorkflow) && file.size <= (isLockfile ? LOCKFILE_MAX_BYTES : 256 * 1024)) manifests[path] = await file.text();
+      } catch {
+        // Keep the path in the report if a manifest cannot be read.
+        if (isSourceFile) sourceMetrics.skippedFiles += 1;
+      }
+    }
+  }
+
+  return { rootName: root.name, rootPath, directoryHandleId, paths, directories, manifests, sourceMetrics, sourceContents, truncated, git: { tracked: gitTracked } };
+}
+
+export async function chooseAndAnalyzeCodebase(): Promise<CodebaseAnalysis | null> {
+  if (window.__TAURI_INTERNALS__) {
+    const { open } = await import('@tauri-apps/plugin-dialog');
+    const { invoke } = await import('@tauri-apps/api/core');
+    const selected = await open({
+      directory: true,
+      multiple: false,
+      title: 'Choose a codebase to analyze',
+    });
+    if (!selected || Array.isArray(selected)) return null;
+    const source = await invoke<CodebaseSource>('read_codebase', { rootPath: selected });
+    return analyzeCodebaseSource(source);
+  }
+
+  if (!window.showDirectoryPicker) {
+    throw new Error('Folder scanning is not supported in this browser. Use Blueprint Studio desktop or a Chromium browser.');
+  }
+
+  let root: BrowserDirectoryHandle;
+  try {
+    root = await window.showDirectoryPicker({ mode: 'read' });
+  } catch (error) {
+    if ((error as { name?: string })?.name === 'AbortError') return null;
+    throw error;
+  }
+  const source = await scanBrowserDirectory(root, root.name);
+  return analyzeCodebaseSource(source);
+}
+
+export async function reanalyzeCodebase(analysis: CodebaseAnalysis): Promise<CodebaseAnalysis | null> {
+  if (window.__TAURI_INTERNALS__) {
+    try {
+      const { invoke } = await import('@tauri-apps/api/core');
+      const source = await invoke<CodebaseSource>('read_codebase', { rootPath: analysis.rootPath });
+      return analyzeCodebaseSource(source);
+    } catch {
+      // The folder may have moved or been removed. Fall through to the folder picker as recovery.
+    }
+  } else if (analysis.directoryHandleId) {
+    const handle = await loadDirectoryHandle(analysis.directoryHandleId);
+    if (handle) {
+      try {
+        let permission = await handle.queryPermission?.({ mode: 'read' });
+        if (!permission || permission === 'prompt') permission = await handle.requestPermission?.({ mode: 'read' });
+        if (permission === 'granted' || (!permission && !handle.queryPermission && !handle.requestPermission)) {
+          return analyzeCodebaseSource(await scanBrowserDirectory(handle, analysis.rootPath, analysis.directoryHandleId));
+        }
+      } catch {
+        // Use the picker below if the browser no longer grants access to the saved handle.
+      }
+    }
+  }
+
+  const replacement = await chooseAndAnalyzeCodebase();
+  if (replacement && replacement.rootName !== analysis.rootName) {
+    throw new Error(`Selected “${replacement.rootName}”. Choose the original “${analysis.rootName}” folder to re-analyze this project.`);
+  }
+  return replacement;
+}

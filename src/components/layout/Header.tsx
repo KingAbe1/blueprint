@@ -53,7 +53,7 @@ export const Header: React.FC<HeaderProps> = ({
             </span>
             <span className={isDark ? 'text-[#4F5157]' : 'text-slate-300'}>/</span>
             <span className={`truncate ${isDark ? 'text-[#8E9098]' : 'text-slate-500'}`}>
-              {TAB_TITLES[activeTab]}
+              {activeProject.codebaseAnalysis ? 'Codebase overview' : TAB_TITLES[activeTab]}
             </span>
           </div>
         ) : (
