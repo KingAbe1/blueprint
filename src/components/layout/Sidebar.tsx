@@ -4,10 +4,12 @@ import {
   FileText,
   Network,
   PanelLeftClose,
+  LogOut,
 } from 'lucide-react';
 import { PhaseTab } from '../../types/project';
 import { useProjects } from '../../context/ProjectContext';
 import { useTheme } from '../../context/ThemeContext';
+import { useAuth } from '../../context/AuthContext';
 import { ProjectDropdown } from '../project/ProjectDropdown';
 
 interface SidebarProps {
@@ -39,6 +41,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 }) => {
   const { activeProject } = useProjects();
   const { isDark } = useTheme();
+  const { user, logout } = useAuth();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
   if (!activeProject) return null;
@@ -115,6 +118,50 @@ export const Sidebar: React.FC<SidebarProps> = ({
           })}
         </nav>
       </div>
+
+      {user && (
+        <div className={`p-2 border-t ${isDark ? 'border-white/[0.07]' : 'border-slate-200'}`}>
+          {isCollapsed ? (
+            <div className="flex justify-center" title={`Signed in as ${user.name}`}>
+              {user.avatarUrl ? (
+                <img src={user.avatarUrl} alt={user.name} className="w-7 h-7 rounded-lg object-cover ring-1 ring-blue-500/30" />
+              ) : (
+                <div className="w-7 h-7 rounded-lg bg-blue-600 text-white font-mono text-[10px] font-bold flex items-center justify-center">
+                  {user.name.charAt(0)}
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className={`flex items-center justify-between p-1.5 rounded-xl border ${
+              isDark ? 'border-white/[0.06] bg-white/[0.02]' : 'border-slate-200/80 bg-slate-50'
+            }`}>
+              <div className="flex items-center space-x-2 min-w-0 flex-1 mr-1">
+                {user.avatarUrl ? (
+                  <img src={user.avatarUrl} alt={user.name} className="w-6 h-6 rounded-md object-cover ring-1 ring-blue-500/30 shrink-0" />
+                ) : (
+                  <div className="w-6 h-6 rounded-md bg-blue-600 text-white font-mono text-[10px] font-bold flex items-center justify-center shrink-0">
+                    {user.name.charAt(0)}
+                  </div>
+                )}
+                <div className="min-w-0 flex-1">
+                  <div className="text-[11px] font-semibold truncate leading-tight">{user.name}</div>
+                  <div className={`text-[10px] truncate ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>{user.role}</div>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={logout}
+                title="Sign out"
+                className={`p-1 rounded-md transition-colors ${
+                  isDark ? 'text-slate-400 hover:text-rose-400 hover:bg-rose-500/10' : 'text-slate-400 hover:text-rose-600 hover:bg-rose-50'
+                }`}
+              >
+                <LogOut className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          )}
+        </div>
+      )}
 
       <div className={`flex h-12 shrink-0 items-center border-t px-3 ${
         isCollapsed ? 'justify-center' : 'justify-between'

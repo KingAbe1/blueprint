@@ -3,9 +3,11 @@ import { ThemeProvider, useTheme } from './context/ThemeContext';
 import { ProjectProvider, useProjects } from './context/ProjectContext';
 import { AIProvider } from './context/AIContext';
 import { NotificationProvider } from './context/NotificationContext';
+import { AuthProvider, useAuth } from './context/AuthContext';
 import { GitHubProvider } from './context/GitHubContext';
 import { Header } from './components/layout/Header';
 import { Sidebar } from './components/layout/Sidebar';
+import { LoginView } from './components/auth/LoginView';
 import { CreateProjectView } from './components/project/CreateProjectView';
 import { CodebaseAnalysisView } from './components/project/CodebaseAnalysisView';
 import { reanalyzeCodebase } from './services/codebaseAnalysisService';
@@ -21,6 +23,7 @@ const ACTIVE_TAB_STORAGE_KEY = 'blueprint_active_tab_v1';
 const AVAILABLE_TABS: PhaseTab[] = ['domain-intent', 'architecture-map', 'in-flight'];
 
 const AppContent: React.FC = () => {
+  const { isAuthenticated } = useAuth();
   const { activeProject, isCreatingNew, setIsCreatingNew, updateCodebaseAnalysis, setProjectToDelete } = useProjects();
   const { isDark } = useTheme();
   const [activeTab, setActiveTab] = useState<PhaseTab>(() => {
@@ -55,6 +58,11 @@ const AppContent: React.FC = () => {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
+
+  // Show login screen before selecting a project or adding existing project
+  if (!isAuthenticated) {
+    return <LoginView />;
+  }
 
   return (
     <div className={`h-screen w-screen flex font-display transition-colors duration-200 select-none overflow-hidden ${
@@ -123,13 +131,15 @@ export const App: React.FC = () => {
   return (
     <ThemeProvider>
       <NotificationProvider>
-        <ProjectProvider>
-          <GitHubProvider>
-            <AIProvider>
-              <AppContent />
-            </AIProvider>
-          </GitHubProvider>
-        </ProjectProvider>
+        <AuthProvider>
+          <ProjectProvider>
+            <GitHubProvider>
+              <AIProvider>
+                <AppContent />
+              </AIProvider>
+            </GitHubProvider>
+          </ProjectProvider>
+        </AuthProvider>
       </NotificationProvider>
     </ThemeProvider>
   );

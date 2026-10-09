@@ -65,6 +65,19 @@
 }
 
 /* ============================================
+   NATIVE DESKTOP UTILITIES (macOS / Tauri / Electron)
+   ============================================ */
+
+.drag-window {
+  -webkit-app-region: drag;
+  user-select: none;
+}
+
+.no-drag {
+  -webkit-app-region: no-drag;
+}
+
+/* ============================================
    PREMIUM ANIMATIONS & KEYFRAMES
    ============================================ */
 

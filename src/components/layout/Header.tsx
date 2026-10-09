@@ -4,6 +4,7 @@ import { useProjects } from '../../context/ProjectContext';
 import { useTheme } from '../../context/ThemeContext';
 import { useAI } from '../../context/AIContext';
 import { PhaseTab } from '../../types/project';
+import { UserProfileDropdown } from '../auth/UserProfileDropdown';
 
 interface HeaderProps {
   activeTab?: PhaseTab;
@@ -102,6 +103,10 @@ export const Header: React.FC<HeaderProps> = ({
         >
           {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
         </button>
+
+        <div className={`h-4 w-[1px] mx-1 ${isDark ? 'bg-white/[0.1]' : 'bg-slate-200'}`} />
+
+        <UserProfileDropdown />
       </div>
     </header>
   );
