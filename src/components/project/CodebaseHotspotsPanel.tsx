@@ -148,7 +148,7 @@ export const CodebaseHotspotsPanel: React.FC<CodebaseHotspotsPanelProps> = ({ an
                   </button>
 
                   {isExpanded && (
-                    <div className="px-3 pb-3 pt-1 border-t border-inherit space-y-2">
+                    <div className={`px-3 pb-3 pt-1 border-t ${isDark ? 'border-white/[0.06]' : 'border-slate-200/70'} space-y-2`}>
                       {fileFindings.map((f, i) => (
                         <div
                           key={i}

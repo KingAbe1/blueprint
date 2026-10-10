@@ -245,7 +245,7 @@ export const DependencySecurityPanel: React.FC<DependencySecurityPanelProps> = (
                     </div>
 
                     {advisory.fixedVersions.length > 0 && (
-                      <div className={`mt-2.5 pt-2 border-t border-inherit flex items-center gap-2 text-[11px]`}>
+                      <div className={`mt-2.5 pt-2 border-t ${isDark ? 'border-white/[0.06]' : 'border-slate-200/70'} flex items-center gap-2 text-[11px]`}>
                         <span className="font-semibold text-emerald-500">Fix Available:</span>
                         <span className={`font-mono ${isDark ? 'text-slate-200' : 'text-slate-800'}`}>
                           Upgrade to {advisory.fixedVersions.join(', ')}

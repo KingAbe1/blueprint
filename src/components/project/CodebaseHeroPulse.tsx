@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { CodebaseAnalysis } from '../../types/codebase';
 import { useTheme } from '../../context/ThemeContext';
+import { sanitizeDatabaseName } from '../../services/architectureAnalysisService';
 
 interface CodebaseHeroPulseProps {
   analysis: CodebaseAnalysis;
@@ -24,6 +25,7 @@ export const CodebaseHeroPulse: React.FC<CodebaseHeroPulseProps> = ({ analysis }
   const cardBg = isDark
     ? 'bg-[#141518] border-white/[0.08] hover:border-white/[0.14] transition-all duration-150'
     : 'bg-white border-slate-200/90 shadow-2xs hover:border-slate-300 transition-all duration-150';
+  const cardDivider = isDark ? 'border-white/[0.06]' : 'border-slate-200/70';
 
   // Smart deduplication for stack badges
   const frameworks = (analysis.frameworks || []).filter(f => {
@@ -31,12 +33,17 @@ export const CodebaseHeroPulse: React.FC<CodebaseHeroPulseProps> = ({ analysis }
     return true;
   });
 
+  const sanitizedDb = sanitizeDatabaseName(
+    analysis.architecture?.database.name,
+    analysis.architecture?.database.evidence
+  );
+
   const primaryTech = [
     analysis.nextjs ? `Next.js ${analysis.nextjs.version || ''}`.trim() : null,
     frameworks[0] || null,
     analysis.languages[0]?.name || null,
-    analysis.architecture?.database.name && analysis.architecture.database.name !== 'Not assessed'
-      ? analysis.architecture.database.name
+    sanitizedDb && sanitizedDb !== 'Not assessed' && sanitizedDb !== 'No database signal detected'
+      ? sanitizedDb
       : null,
   ].filter((item, index, self): item is string => Boolean(item) && self.indexOf(item) === index);
 
@@ -85,7 +92,7 @@ export const CodebaseHeroPulse: React.FC<CodebaseHeroPulseProps> = ({ analysis }
           </div>
         </div>
 
-        <div className="mt-3 pt-2.5 border-t border-inherit flex flex-wrap gap-1.5">
+        <div className={`mt-3 pt-2.5 border-t ${cardDivider} flex flex-wrap gap-1.5`}>
           {primaryTech.slice(0, 3).map(tech => (
             <span
               key={tech}
@@ -134,7 +141,7 @@ export const CodebaseHeroPulse: React.FC<CodebaseHeroPulseProps> = ({ analysis }
         </div>
 
         {/* Mini Language Proportion Strip */}
-        <div className="mt-3 pt-2.5 border-t border-inherit">
+        <div className={`mt-3 pt-2.5 border-t ${cardDivider}`}>
           <div className="h-1.5 w-full rounded-full overflow-hidden flex bg-white/[0.06] gap-0.5">
             {topLanguages.map((lang, idx) => {
               const pct = (lang.files / totalLangFiles) * 100;
@@ -192,7 +199,7 @@ export const CodebaseHeroPulse: React.FC<CodebaseHeroPulseProps> = ({ analysis }
           </div>
         </div>
 
-        <div className="mt-3 pt-2.5 border-t border-inherit flex items-center justify-between text-[10px]">
+        <div className={`mt-3 pt-2.5 border-t ${cardDivider} flex items-center justify-between text-[10px]`}>
           <span className={`flex items-center gap-1 truncate ${muted}`}>
             <GitCommit className="h-3 w-3 shrink-0" />
             <span className="truncate">{analysis.git?.latestCommit ? analysis.git.latestCommit.slice(0, 24) : 'Ready'}</span>
@@ -238,7 +245,7 @@ export const CodebaseHeroPulse: React.FC<CodebaseHeroPulseProps> = ({ analysis }
           </p>
         </div>
 
-        <div className="mt-3 pt-2.5 border-t border-inherit flex items-center justify-between text-[10px]">
+        <div className={`mt-3 pt-2.5 border-t ${cardDivider} flex items-center justify-between text-[10px]`}>
           <span className={muted}>
             Findings: <strong className={isDark ? 'text-slate-200' : 'text-slate-800'}>{analysis.quality?.findings?.length || 0}</strong>
           </span>

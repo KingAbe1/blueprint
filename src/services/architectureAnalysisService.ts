@@ -144,27 +144,81 @@ export function assessArchitecture(source: CodebaseSource, paths: string[]): Arc
     summary += ' Next.js route conventions were inspected from file paths; this does not prove that the app builds or how it is deployed.';
   }
 
-  const manifestText = Object.entries(source.manifests).map(([path, content]) => `${path}\n${content}`).join('\n').toLowerCase();
-  const databaseSignals: Array<[RegExp, string]> = [
-    [/@prisma\/client|\bprisma\b/, 'Prisma'],
-    [/drizzle-orm|drizzle-kit/, 'Drizzle ORM'],
-    [/\bpg\b|psycopg|asyncpg|npgsql|postgresql/, 'PostgreSQL'],
-    [/mysql2?|pymysql|mysqlclient/, 'MySQL'],
-    [/mongodb|mongoose|pymongo/, 'MongoDB'],
-    [/better-sqlite3|sqlite3|rusqlite|sqlx.*sqlite/, 'SQLite'],
-    [/redis|ioredis/, 'Redis'],
-    [/sequelize|typeorm|knex/, 'SQL database client/ORM'],
-    [/sqlalchemy/, 'SQLAlchemy (database engine unclear)'],
-  ];
-  const matchedDatabases = databaseSignals.filter(([signal]) => signal.test(manifestText)).map(([, name]) => name);
+  // Check prisma/schema.prisma directly for explicit provider configuration
+  let prismaProvider: string | null = null;
+  const schemaPrismaContent = Object.entries(source.manifests).find(([path]) => path.toLowerCase().endsWith('schema.prisma'))?.[1];
+  if (schemaPrismaContent) {
+    const match = schemaPrismaContent.match(/datasource\s+db\s*\{[^}]*provider\s*=\s*["']([^"']+)["']/i)
+      || schemaPrismaContent.match(/provider\s*=\s*["']([^"']+)["']/i);
+    if (match) {
+      const raw = match[1].toLowerCase();
+      if (raw === 'postgresql' || raw === 'postgres') prismaProvider = 'PostgreSQL';
+      else if (raw === 'mysql') prismaProvider = 'MySQL';
+      else if (raw === 'sqlite') prismaProvider = 'SQLite';
+      else if (raw === 'mongodb') prismaProvider = 'MongoDB';
+      else if (raw === 'cockroachdb') prismaProvider = 'CockroachDB';
+      else if (raw === 'sqlserver') prismaProvider = 'SQL Server';
+      else prismaProvider = match[1];
+    }
+  }
+
+  // Extract direct declared dependencies from package.json (ignore transitive lockfiles!)
+  const directDeps = new Set<string>();
+  for (const [path, content] of Object.entries(source.manifests)) {
+    if (normalizedName(path) === 'package.json') {
+      try {
+        const parsed = JSON.parse(content) as { dependencies?: Record<string, string>; devDependencies?: Record<string, string> };
+        Object.keys(parsed.dependencies || {}).forEach(k => directDeps.add(k.toLowerCase()));
+        Object.keys(parsed.devDependencies || {}).forEach(k => directDeps.add(k.toLowerCase()));
+      } catch {
+        // ignore
+      }
+    }
+  }
+
+  const hasPrisma = directDeps.has('@prisma/client') || directDeps.has('prisma') || paths.some(p => p.toLowerCase().includes('schema.prisma'));
+  const hasDrizzle = directDeps.has('drizzle-orm') || directDeps.has('drizzle-kit');
+  const hasPg = directDeps.has('pg') || directDeps.has('postgres') || directDeps.has('@prisma/adapter-pg') || directDeps.has('psycopg2') || directDeps.has('asyncpg');
+  const hasMysql = directDeps.has('mysql2') || directDeps.has('mysql') || directDeps.has('pymysql');
+  const hasSqlite = directDeps.has('better-sqlite3') || directDeps.has('sqlite3') || directDeps.has('rusqlite');
+  const hasMongo = directDeps.has('mongodb') || directDeps.has('mongoose') || directDeps.has('pymongo');
+  const hasRedis = directDeps.has('redis') || directDeps.has('ioredis');
+
   const schemaPaths = paths.filter(path => /(^|\/)(prisma\/schema\.prisma|migrations?\/|schema\.sql$|drizzle\/)/i.test(path));
-  let database: ArchitectureAssessment['database'] = { name: 'No database signal detected', confidence: 'low', evidence: ['No recognizable database client, ORM, schema, or migration path found in scanned manifests and filenames.'] };
-  if (matchedDatabases.length) {
+  let database: ArchitectureAssessment['database'] = {
+    name: 'No database signal detected',
+    confidence: 'low',
+    evidence: ['No recognizable database client, ORM, schema, or migration path found in scanned manifests.'],
+  };
+
+  if (hasPrisma) {
+    const engine = prismaProvider || (hasPg ? 'PostgreSQL' : hasMysql ? 'MySQL' : hasSqlite ? 'SQLite' : hasMongo ? 'MongoDB' : null);
+    const dbName = engine ? `${engine} (Prisma ORM)` : 'Prisma ORM';
     database = {
-      name: [...new Set(matchedDatabases)].join(', '),
-      confidence: matchedDatabases.some(name => ['PostgreSQL', 'MySQL', 'MongoDB', 'SQLite', 'Redis'].includes(name)) ? 'medium' : 'low',
-      evidence: [...new Set(matchedDatabases)].slice(0, 3).map(name => `Dependency or manifest signal: ${name}`),
+      name: dbName,
+      confidence: engine ? 'high' : 'medium',
+      evidence: [
+        `Prisma schema declared: ${engine ? `${engine} provider` : 'schema.prisma'}`,
+        ...(schemaPaths.length ? [`Found schema manifest: ${schemaPaths[0]}`] : []),
+      ],
     };
+  } else if (hasDrizzle) {
+    const engine = hasPg ? 'PostgreSQL' : hasMysql ? 'MySQL' : hasSqlite ? 'SQLite' : 'SQL';
+    database = {
+      name: `${engine} (Drizzle ORM)`,
+      confidence: 'high',
+      evidence: [`Drizzle ORM configured with ${engine} driver`],
+    };
+  } else if (hasPg) {
+    database = { name: 'PostgreSQL', confidence: 'high', evidence: ['Direct PostgreSQL client driver found in dependencies'] };
+  } else if (hasMysql) {
+    database = { name: 'MySQL', confidence: 'high', evidence: ['Direct MySQL driver found in dependencies'] };
+  } else if (hasSqlite) {
+    database = { name: 'SQLite', confidence: 'high', evidence: ['Direct SQLite driver found in dependencies'] };
+  } else if (hasMongo) {
+    database = { name: 'MongoDB', confidence: 'high', evidence: ['Direct MongoDB driver/client found in dependencies'] };
+  } else if (hasRedis) {
+    database = { name: 'Redis (Cache / Key-Value)', confidence: 'medium', evidence: ['Direct Redis client found in dependencies'] };
   } else if (schemaPaths.length) {
     database = { name: 'Database schema present; engine unclear', confidence: 'medium', evidence: schemaPaths.slice(0, 3).map(path => `Found ${path}`) };
   }
@@ -193,3 +247,37 @@ export function suggestImprovements(paths: string[], scripts: NonNullable<Codeba
   }
   return suggestions.slice(0, 3);
 }
+
+export function sanitizeDatabaseName(name?: string, evidence?: string[]): string {
+  if (!name || name === 'Not assessed' || name === 'No database signal detected') {
+    return name || 'Not assessed';
+  }
+  // If legacy multi-database string is encountered (e.g. "Prisma, PostgreSQL, MySQL, SQLite")
+  if (name.includes(',') && (name.includes('PostgreSQL') || name.includes('MySQL') || name.includes('SQLite'))) {
+    const evidenceStr = (evidence || []).join(' ').toLowerCase();
+    if (evidenceStr.includes('postgresql') || evidenceStr.includes('adapter-pg') || evidenceStr.includes('pg')) {
+      return name.toLowerCase().includes('prisma') ? 'PostgreSQL (Prisma ORM)' : 'PostgreSQL';
+    }
+    if (evidenceStr.includes('mysql')) {
+      return name.toLowerCase().includes('prisma') ? 'MySQL (Prisma ORM)' : 'MySQL';
+    }
+    if (evidenceStr.includes('sqlite')) {
+      return name.toLowerCase().includes('prisma') ? 'SQLite (Prisma ORM)' : 'SQLite';
+    }
+    return name.toLowerCase().includes('prisma') ? 'PostgreSQL (Prisma ORM)' : 'PostgreSQL';
+  }
+  return name;
+}
+
+export function sanitizeDatabaseEvidence(evidence?: string[], dbName?: string): string[] {
+  if (!evidence || !evidence.length) return [];
+  const normalizedDb = (dbName || '').toLowerCase();
+  return evidence.filter(e => {
+    const lower = e.toLowerCase();
+    if (normalizedDb.includes('postgresql') && (lower.includes('mysql') || lower.includes('sqlite'))) return false;
+    if (normalizedDb.includes('mysql') && (lower.includes('postgresql') || lower.includes('sqlite'))) return false;
+    if (normalizedDb.includes('sqlite') && (lower.includes('postgresql') || lower.includes('mysql'))) return false;
+    return true;
+  });
+}
+

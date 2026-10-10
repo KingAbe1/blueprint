@@ -25,6 +25,7 @@ import {
   Sparkles,
   ArrowRight,
   FileCode,
+  Copy,
 } from 'lucide-react';
 import { CodebaseAnalysis } from '../../types/codebase';
 import { StartupAndTestsPanel } from './StartupAndTestsPanel';
@@ -41,8 +42,69 @@ import { CodebaseHotspotsPanel } from './CodebaseHotspotsPanel';
 import { useTheme } from '../../context/ThemeContext';
 import { useGitHub } from '../../context/GitHubContext';
 import { parseGitHubRemote } from '../../services/githubService';
+import { sanitizeDatabaseName, sanitizeDatabaseEvidence } from '../../services/architectureAnalysisService';
 
 export type ProjectSection = 'overview' | 'analysis' | 'quality';
+
+interface IDEOption {
+  id: string;
+  name: string;
+  shortName: string;
+  getProtocolUrl: (path: string) => string;
+  getCliCommand: (path: string) => string;
+}
+
+const SUPPORTED_IDES: IDEOption[] = [
+  {
+    id: 'vscode',
+    name: 'Visual Studio Code',
+    shortName: 'VS Code',
+    getProtocolUrl: (path) => `vscode://file/${encodeURI(path)}`,
+    getCliCommand: (path) => `code "${path}"`,
+  },
+  {
+    id: 'cursor',
+    name: 'Cursor',
+    shortName: 'Cursor',
+    getProtocolUrl: (path) => `cursor://file/${encodeURI(path)}`,
+    getCliCommand: (path) => `cursor "${path}"`,
+  },
+  {
+    id: 'windsurf',
+    name: 'Windsurf',
+    shortName: 'Windsurf',
+    getProtocolUrl: (path) => `windsurf://file/${encodeURI(path)}`,
+    getCliCommand: (path) => `windsurf "${path}"`,
+  },
+  {
+    id: 'webstorm',
+    name: 'WebStorm',
+    shortName: 'WebStorm',
+    getProtocolUrl: (path) => `webstorm://open?file=${encodeURI(path)}`,
+    getCliCommand: (path) => `webstorm "${path}"`,
+  },
+  {
+    id: 'idea',
+    name: 'IntelliJ IDEA',
+    shortName: 'IntelliJ',
+    getProtocolUrl: (path) => `idea://open?file=${encodeURI(path)}`,
+    getCliCommand: (path) => `idea "${path}"`,
+  },
+  {
+    id: 'zed',
+    name: 'Zed',
+    shortName: 'Zed',
+    getProtocolUrl: (path) => `zed://file/${encodeURI(path)}`,
+    getCliCommand: (path) => `zed "${path}"`,
+  },
+  {
+    id: 'sublime',
+    name: 'Sublime Text',
+    shortName: 'Sublime',
+    getProtocolUrl: (path) => `subl://open?url=file://${encodeURI(path)}`,
+    getCliCommand: (path) => `subl "${path}"`,
+  },
+];
 
 interface CodebaseAnalysisViewProps {
   analysis: CodebaseAnalysis;
@@ -80,6 +142,53 @@ export const CodebaseAnalysisView: React.FC<CodebaseAnalysisViewProps> = ({
   const [githubConnectError, setGitHubConnectError] = useState<string | null>(null);
   const [copiedAction, setCopiedAction] = useState<string | null>(null);
   const [showMoreActions, setShowMoreActions] = useState(false);
+  const [showIdeDropdown, setShowIdeDropdown] = useState(false);
+
+  // Preferred IDE state with persistence
+  const [selectedIdeId, setSelectedIdeId] = useState<string>(() => {
+    try {
+      return window.localStorage.getItem('blueprint:preferred-ide') || 'vscode';
+    } catch {
+      return 'vscode';
+    }
+  });
+
+  const selectedIde = SUPPORTED_IDES.find(ide => ide.id === selectedIdeId) || SUPPORTED_IDES[0];
+
+  const changePreferredIde = (ideId: string) => {
+    setSelectedIdeId(ideId);
+    try {
+      window.localStorage.setItem('blueprint:preferred-ide', ideId);
+    } catch {
+      // ignore
+    }
+  };
+
+  const launchIDE = (ide: IDEOption) => {
+    const protocolUrl = ide.getProtocolUrl(analysis.rootPath);
+    try {
+      const a = document.createElement('a');
+      a.href = protocolUrl;
+      a.style.display = 'none';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setCopiedAction(`opened:${ide.id}`);
+      setTimeout(() => setCopiedAction(null), 2500);
+    } catch {
+      window.location.assign(protocolUrl);
+    }
+  };
+
+  // Sanitized database and evidence for display
+  const overviewDbName = sanitizeDatabaseName(
+    analysis.architecture?.database.name,
+    analysis.architecture?.database.evidence
+  );
+  const overviewDbEvidence = sanitizeDatabaseEvidence(
+    analysis.architecture?.database.evidence,
+    overviewDbName
+  );
 
   // Analysis sub-tab switcher
   const [analysisInspectorTab, setAnalysisInspectorTab] = useState<'packages' | 'hotspots' | 'startup' | 'scripts'>('packages');
@@ -204,88 +313,192 @@ export const CodebaseAnalysisView: React.FC<CodebaseAnalysisViewProps> = ({
       <div className={`flex shrink-0 items-center justify-between px-4 sm:px-6 h-12 border-b select-none z-10 ${
         isDark ? 'border-white/[0.08] bg-[#121316]' : 'border-slate-200/90 bg-white'
       }`}>
-        {/* Left: Project identity badge */}
-        <div className="flex items-center gap-2.5 min-w-0">
-          <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-blue-600/10 text-blue-500 border border-blue-500/20">
-            <Folder className="h-3.5 w-3.5" />
-          </div>
+        {/* Left: Project identity badge + Left-Aligned Segmented Tab Switcher */}
+        <div className="flex items-center gap-3 sm:gap-4 min-w-0">
           <div className="flex items-center gap-2 min-w-0">
-            <span className="font-semibold text-xs tracking-tight truncate" title={analysis.rootName}>
-              {analysis.rootName}
-            </span>
-            {analysis.rootPath && analysis.rootPath !== analysis.rootName && (
-              <span className={`hidden sm:inline-block font-mono text-[10px] px-1.5 py-0.5 rounded border max-w-[200px] truncate ${
-                isDark ? 'border-white/[0.06] bg-white/[0.03] text-slate-400' : 'border-slate-200 bg-slate-50 text-slate-600'
-              }`} title={analysis.rootPath}>
-                {analysis.rootPath.includes('/') ? `~/${analysis.rootPath.split('/').filter(Boolean).slice(-2).join('/')}` : analysis.rootPath}
+            <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-blue-600/10 text-blue-500 border border-blue-500/20">
+              <Folder className="h-3.5 w-3.5" />
+            </div>
+            <div className="flex items-center gap-2 min-w-0">
+              <span className="font-semibold text-xs tracking-tight truncate max-w-[130px] sm:max-w-[200px]" title={analysis.rootName}>
+                {analysis.rootName}
               </span>
-            )}
-            {analysis.git?.tracked && (
-              <span className={`hidden md:inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full font-medium ${
-                isDark ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-              }`}>
-                <GitBranch className="h-2.5 w-2.5" />
-                {analysis.git.branch || 'main'}
-              </span>
-            )}
+              {analysis.rootPath && analysis.rootPath !== analysis.rootName && (
+                <span className={`hidden xl:inline-block font-mono text-[10px] px-1.5 py-0.5 rounded border max-w-[180px] truncate ${
+                  isDark ? 'border-white/[0.06] bg-white/[0.03] text-slate-400' : 'border-slate-200 bg-slate-50 text-slate-600'
+                }`} title={analysis.rootPath}>
+                  {analysis.rootPath.includes('/') ? `~/${analysis.rootPath.split('/').filter(Boolean).slice(-2).join('/')}` : analysis.rootPath}
+                </span>
+              )}
+              {analysis.git?.tracked && (
+                <span className={`hidden md:inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full font-medium ${
+                  isDark ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                }`}>
+                  <GitBranch className="h-2.5 w-2.5" />
+                  {analysis.git.branch || 'main'}
+                </span>
+              )}
+            </div>
           </div>
-        </div>
 
-        {/* Center: Desktop Segmented Tab Switcher */}
-        <nav aria-label="Project sections" className={`flex p-0.5 rounded-lg border ${
-          isDark ? 'border-white/[0.08] bg-black/40' : 'border-slate-200 bg-slate-100/90'
-        }`}>
-          {[
-            { id: 'overview', label: 'Overview', icon: LayoutDashboard },
-            { id: 'analysis', label: 'Code Analysis', icon: FileCode2 },
-            { id: 'quality', label: 'Quality & Risks', icon: ShieldCheck, badge: analysis.quality?.score ? `${analysis.quality.score}` : undefined },
-          ].map(tab => {
-            const isSelected = activePage === tab.id;
-            const Icon = tab.icon;
-            return (
-              <button
-                key={tab.id}
-                type="button"
-                onClick={() => selectProjectSection(tab.id as ProjectSection)}
-                className={`flex items-center gap-1.5 px-3 py-1 rounded-md text-[11px] font-medium transition-all ${
-                  isSelected
-                    ? (isDark
-                        ? 'bg-white/[0.12] text-white shadow-xs ring-1 ring-white/10 font-semibold'
-                        : 'bg-white text-slate-950 shadow-xs border border-slate-200/80 font-semibold')
-                    : (isDark ? 'text-slate-400 hover:text-slate-200 hover:bg-white/[0.03]' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50')
-                }`}
-              >
-                <Icon className={`h-3.5 w-3.5 ${isSelected ? (isDark ? 'text-blue-400' : 'text-blue-600') : ''}`} />
-                <span>{tab.label}</span>
-                {tab.badge && (
-                  <span className={`ml-0.5 px-1.5 py-0.2 rounded-full font-mono text-[9px] font-semibold ${
-                    Number(tab.badge) < 60
-                      ? 'bg-amber-500/20 text-amber-300'
-                      : 'bg-emerald-500/20 text-emerald-300'
-                  }`}>
-                    {tab.badge}
-                  </span>
-                )}
-              </button>
-            );
-          })}
-        </nav>
+          {/* Thin vertical separator */}
+          <div className={`hidden sm:block h-4 w-px ${isDark ? 'bg-white/[0.08]' : 'bg-slate-200'}`} />
+
+          {/* Unified Left-Aligned Segmented Tab Switcher */}
+          <nav aria-label="Project sections" className={`flex p-0.5 rounded-lg border ${
+            isDark ? 'border-white/[0.08] bg-black/40' : 'border-slate-200 bg-slate-100/90'
+          }`}>
+            {[
+              { id: 'overview', label: 'Overview', icon: LayoutDashboard },
+              { id: 'analysis', label: 'Code Analysis', icon: FileCode2 },
+              { id: 'quality', label: 'Quality & Risks', icon: ShieldCheck, badge: analysis.quality?.score ? `${analysis.quality.score}` : undefined },
+            ].map(tab => {
+              const isSelected = activePage === tab.id;
+              const Icon = tab.icon;
+              return (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => selectProjectSection(tab.id as ProjectSection)}
+                  className={`flex items-center gap-1.5 px-3 py-1 rounded-md text-[11px] font-medium transition-all ${
+                    isSelected
+                      ? (isDark
+                          ? 'bg-white/[0.12] text-white shadow-xs ring-1 ring-white/10 font-semibold'
+                          : 'bg-white text-slate-950 shadow-xs border border-slate-200/80 font-semibold')
+                      : (isDark ? 'text-slate-400 hover:text-slate-200 hover:bg-white/[0.03]' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50')
+                  }`}
+                >
+                  <Icon className={`h-3.5 w-3.5 ${isSelected ? (isDark ? 'text-blue-400' : 'text-blue-600') : ''}`} />
+                  <span>{tab.label}</span>
+                  {tab.badge && (
+                    <span className={`ml-0.5 px-1.5 py-0.2 rounded-full font-mono text-[9px] font-semibold ${
+                      Number(tab.badge) < 60
+                        ? 'bg-amber-500/20 text-amber-300'
+                        : 'bg-emerald-500/20 text-emerald-300'
+                    }`}>
+                      {tab.badge}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </nav>
+        </div>
 
         {/* Right: Desktop Action Toolbar */}
         <div className="flex items-center gap-1.5 shrink-0">
-          <button
-            type="button"
-            onClick={() => copyToClipboard(`cd "${analysis.rootPath}" && code .`, 'code')}
-            title="Open in VS Code (`code .`)"
-            className={`hidden sm:inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-[11px] font-medium transition-colors ${
+          {/* Dynamic Multi-IDE Launcher Split Button */}
+          <div className="relative inline-flex items-center">
+            <div className={`inline-flex items-center rounded-md border text-[11px] font-medium transition-colors ${
               isDark
-                ? 'border-white/[0.08] bg-white/[0.03] text-slate-300 hover:bg-white/[0.08] hover:text-white'
-                : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50 hover:text-slate-900 shadow-2xs'
-            }`}
-          >
-            {copiedAction === 'code' ? <Check className="h-3 w-3 text-emerald-500" /> : <Terminal className="h-3 w-3 text-blue-500" />}
-            <span>{copiedAction === 'code' ? 'Copied' : 'VS Code'}</span>
-          </button>
+                ? 'border-white/[0.08] bg-white/[0.03] text-slate-300'
+                : 'border-slate-200 bg-white text-slate-700 shadow-2xs'
+            }`}>
+              <button
+                type="button"
+                onClick={() => launchIDE(selectedIde)}
+                title={`Open project in ${selectedIde.name} (${selectedIde.getProtocolUrl(analysis.rootPath)})`}
+                className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-l-md transition-colors ${
+                  isDark ? 'hover:bg-white/[0.08] hover:text-white' : 'hover:bg-slate-50 hover:text-slate-900'
+                }`}
+              >
+                {copiedAction === `opened:${selectedIde.id}` ? (
+                  <Check className="h-3 w-3 text-emerald-500" />
+                ) : (
+                  <ExternalLink className="h-3 w-3 text-blue-500" />
+                )}
+                <span>
+                  {copiedAction === `opened:${selectedIde.id}`
+                    ? `Opening…`
+                    : selectedIde.shortName}
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setShowIdeDropdown(v => !v)}
+                title="Choose IDE or copy CLI command"
+                className={`px-1.5 py-1 border-l transition-colors ${
+                  isDark
+                    ? 'border-white/[0.08] hover:bg-white/[0.08] text-slate-400 hover:text-white'
+                    : 'border-slate-200 hover:bg-slate-50 text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                <ChevronDown className="h-3 w-3" />
+              </button>
+            </div>
+
+            {showIdeDropdown && (
+              <div
+                className={`absolute right-0 top-full mt-1.5 w-60 rounded-xl border p-1.5 shadow-2xl z-30 ${
+                  isDark ? 'border-white/[0.1] bg-[#16171B]' : 'border-slate-200 bg-white'
+                }`}
+                onMouseLeave={() => setShowIdeDropdown(false)}
+              >
+                <div className="px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+                  Open Project In IDE
+                </div>
+
+                <div className="space-y-0.5">
+                  {SUPPORTED_IDES.map(ide => {
+                    const isCurrent = ide.id === selectedIde.id;
+                    return (
+                      <button
+                        key={ide.id}
+                        type="button"
+                        onClick={() => {
+                          changePreferredIde(ide.id);
+                          launchIDE(ide);
+                          setShowIdeDropdown(false);
+                        }}
+                        className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-left text-xs transition-colors ${
+                          isCurrent
+                            ? (isDark ? 'bg-blue-500/15 text-blue-300 font-medium' : 'bg-blue-50 text-blue-700 font-medium')
+                            : (isDark ? 'text-slate-300 hover:bg-white/[0.06] hover:text-white' : 'text-slate-700 hover:bg-slate-100')
+                        }`}
+                      >
+                        <div className="flex items-center gap-2">
+                          <ExternalLink className="h-3 w-3 text-blue-400 shrink-0" />
+                          <span>{ide.name}</span>
+                        </div>
+                        {isCurrent && <Check className="h-3 w-3 text-blue-500 shrink-0" />}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <div className={`my-1 border-t ${isDark ? 'border-white/[0.06]' : 'border-slate-100'}`} />
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    copyToClipboard(`cd "${analysis.rootPath}" && ${selectedIde.getCliCommand('.')}`, 'cli');
+                    setShowIdeDropdown(false);
+                  }}
+                  className={`w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-left text-xs transition-colors ${
+                    isDark ? 'text-slate-300 hover:bg-white/[0.06] hover:text-white' : 'text-slate-700 hover:bg-slate-100'
+                  }`}
+                >
+                  <Terminal className="h-3 w-3 text-slate-400 shrink-0" />
+                  <span className="truncate">Copy CLI command</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    copyToClipboard(analysis.rootPath, 'path');
+                    setShowIdeDropdown(false);
+                  }}
+                  className={`w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-left text-xs transition-colors ${
+                    isDark ? 'text-slate-300 hover:bg-white/[0.06] hover:text-white' : 'text-slate-700 hover:bg-slate-100'
+                  }`}
+                >
+                  <Copy className="h-3 w-3 text-slate-400 shrink-0" />
+                  <span>Copy Directory Path</span>
+                </button>
+              </div>
+            )}
+          </div>
 
           <button
             type="button"
@@ -377,297 +590,291 @@ export const CodebaseAnalysisView: React.FC<CodebaseAnalysisViewProps> = ({
           )}
 
           {/* ---------------------------------------------------- */}
-          {/* TAB 1: OVERVIEW                                      */}
+          {/* TAB 1: OVERVIEW (Zero-Lag Persistent DOM)             */}
           {/* ---------------------------------------------------- */}
-          {activePage === 'overview' && (
-            <div className="space-y-5 animate-in fade-in duration-200">
-              {/* Desktop KPI Hero Pulse Strip */}
-              <CodebaseHeroPulse analysis={analysis} />
+          <div className={activePage === 'overview' ? 'space-y-5' : 'hidden'} role="tabpanel">
+            {/* Desktop KPI Hero Pulse Strip */}
+            <CodebaseHeroPulse analysis={analysis} />
 
-              {/* Connected Visual Topology Diagram */}
-              <ArchitectureTopologyDiagram analysis={analysis} />
+            {/* Connected Visual Topology Diagram */}
+            <ArchitectureTopologyDiagram analysis={analysis} />
 
-              {/* Balanced 2-Column Architecture & Delivery Deep Dive */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 items-start">
-                {/* Left Card: Application Architecture & Surface */}
-                <section className={`rounded-xl border p-5 ${panel}`}>
-                  <div className="flex items-center gap-2 mb-3.5">
-                    <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-blue-500/15 text-blue-400 border border-blue-500/20">
-                      <Workflow className="h-3.5 w-3.5" />
-                    </div>
-                    <h3 className={`text-xs font-semibold uppercase tracking-wider ${muted}`}>
-                      Architecture & Data Signals
-                    </h3>
+            {/* Balanced 2-Column Architecture & Delivery Deep Dive */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 items-start">
+              {/* Left Card: Application Architecture & Surface */}
+              <section className={`rounded-xl border p-5 ${panel}`}>
+                <div className="flex items-center gap-2 mb-3.5">
+                  <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-blue-500/15 text-blue-400 border border-blue-500/20">
+                    <Workflow className="h-3.5 w-3.5" />
                   </div>
-
-                  <div className="space-y-3">
-                    {/* Topology Shape */}
-                    <div className={`rounded-xl p-3.5 border ${isDark ? 'bg-white/[0.025] border-white/[0.06]' : 'bg-slate-50 border-slate-200/70'}`}>
-                      <div className="flex items-center justify-between">
-                        <span className={`text-[10px] font-semibold uppercase ${muted}`}>Topology Shape</span>
-                        <span className={`text-[9px] font-semibold px-2 py-0.5 rounded-full border ${
-                          analysis.architecture?.confidence === 'high'
-                            ? (isDark ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-400' : 'border-emerald-200 bg-emerald-50 text-emerald-700')
-                            : (isDark ? 'border-blue-500/30 bg-blue-500/10 text-blue-400' : 'border-blue-200 bg-blue-50 text-blue-700')
-                        }`}>
-                          {analysis.architecture?.confidence || 'low'} confidence
-                        </span>
-                      </div>
-                      <p className={`mt-1.5 text-sm font-semibold ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                        {analysis.architecture?.topology || 'Not enough evidence'}
-                      </p>
-                      <p className={`mt-1 text-xs leading-relaxed ${muted}`}>
-                        {analysis.architecture?.summary}
-                      </p>
-                    </div>
-
-                    {/* Database & Storage */}
-                    <div className={`rounded-xl p-3.5 border ${isDark ? 'bg-white/[0.025] border-white/[0.06]' : 'bg-slate-50 border-slate-200/70'}`}>
-                      <div className="flex items-center justify-between mb-1">
-                        <div className="flex items-center gap-1.5">
-                          <Database className="h-3.5 w-3.5 text-violet-500" />
-                          <span className={`text-[10px] font-semibold uppercase ${muted}`}>Storage & Database</span>
-                        </div>
-                        <span className={`text-[9px] font-mono px-1.5 py-0.2 rounded ${
-                          isDark ? 'bg-violet-500/10 text-violet-300' : 'bg-violet-50 text-violet-700'
-                        }`}>
-                          {analysis.architecture?.database.confidence || 'inferred'}
-                        </span>
-                      </div>
-                      <p className={`text-sm font-semibold ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                        {analysis.architecture?.database.name || 'Not assessed'}
-                      </p>
-                      {(analysis.architecture?.database.evidence || []).slice(0, 3).map((item, idx) => (
-                        <p key={idx} className={`mt-1 text-[11px] leading-4 ${muted}`}>• {item}</p>
-                      ))}
-                    </div>
-
-                    {/* Next.js Route Structure */}
-                    {analysis.nextjs && (
-                      <div className={`rounded-xl p-3.5 border ${isDark ? 'bg-white/[0.025] border-white/[0.06]' : 'bg-slate-50 border-slate-200/70'}`}>
-                        <div className="flex items-center justify-between">
-                          <span className={`text-[10px] font-semibold uppercase ${muted}`}>Next.js Route Structure</span>
-                          {analysis.nextjs.version && <span className="font-mono text-[10px] text-blue-400">v{analysis.nextjs.version}</span>}
-                        </div>
-                        <p className={`mt-1 text-sm font-semibold ${isDark ? 'text-white' : 'text-slate-900'}`}>{analysis.nextjs.router}</p>
-                        <div className="mt-2.5 grid grid-cols-3 gap-2">
-                          <div className={`p-2.5 rounded-lg text-center border ${isDark ? 'bg-black/25 border-white/[0.05]' : 'bg-white border-slate-200/60'}`}>
-                            <p className="font-bold text-sm">{analysis.nextjs.appRouteCount}</p>
-                            <p className={`text-[9px] mt-0.5 ${muted}`}>App Pages</p>
-                          </div>
-                          <div className={`p-2.5 rounded-lg text-center border ${isDark ? 'bg-black/25 border-white/[0.05]' : 'bg-white border-slate-200/60'}`}>
-                            <p className="font-bold text-sm">{analysis.nextjs.pagesRouteCount}</p>
-                            <p className={`text-[9px] mt-0.5 ${muted}`}>Pages Routes</p>
-                          </div>
-                          <div className={`p-2.5 rounded-lg text-center border ${isDark ? 'bg-black/25 border-white/[0.05]' : 'bg-white border-slate-200/60'}`}>
-                            <p className="font-bold text-sm">{analysis.nextjs.apiRouteCount}</p>
-                            <p className={`text-[9px] mt-0.5 ${muted}`}>API Endpoints</p>
-                          </div>
-                        </div>
-
-                        {/* Route examples pills */}
-                        {analysis.nextjs.routeExamples.length > 0 && (
-                          <div className="mt-2.5 pt-2 border-t border-inherit flex flex-wrap gap-1">
-                            {analysis.nextjs.routeExamples.slice(0, 3).map(route => (
-                              <span key={route} className={`font-mono text-[10px] px-2 py-0.5 rounded border ${
-                                isDark ? 'border-white/[0.05] bg-white/[0.02] text-slate-300' : 'border-slate-200 bg-white text-slate-700'
-                              }`}>
-                                {route}
-                              </span>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                </section>
-
-                {/* Right Card: Source Control, Delivery & Prioritized Recommendations */}
-                <section className={`rounded-xl border p-5 ${panel}`}>
-                  <div className="flex items-center justify-between mb-3.5">
-                    <div className="flex items-center gap-2">
-                      <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-emerald-500/15 text-emerald-400 border border-emerald-500/20">
-                        <GitBranch className="h-3.5 w-3.5" />
-                      </div>
-                      <h3 className={`text-xs font-semibold uppercase tracking-wider ${muted}`}>
-                        Source Control & Delivery
-                      </h3>
-                    </div>
-                    {supportsGitHub && !githubConnected && (
-                      <button
-                        type="button"
-                        onClick={openGitHubDialog}
-                        className="text-[10px] font-semibold text-blue-500 hover:underline"
-                      >
-                        Connect GitHub Actions
-                      </button>
-                    )}
-                  </div>
-
-                  <div className="space-y-3">
-                    {/* Git Repository Info */}
-                    <div className={`rounded-xl p-3.5 border ${isDark ? 'bg-white/[0.025] border-white/[0.06]' : 'bg-slate-50 border-slate-200/70'}`}>
-                      <div className="flex items-center justify-between text-xs">
-                        <span className="font-semibold">{analysis.git?.tracked ? 'Git Tracked Repository' : 'Unversioned Local Directory'}</span>
-                        {analysis.git?.branch && (
-                          <span className={`font-mono text-[10px] font-medium px-2 py-0.5 rounded-full border ${
-                            isDark ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-400' : 'border-emerald-200 bg-emerald-50 text-emerald-700'
-                          }`}>
-                            {analysis.git.branch}
-                          </span>
-                        )}
-                      </div>
-                      {analysis.git?.latestCommit && (
-                        <p className={`mt-2 flex items-center gap-1.5 font-mono text-[11px] truncate ${muted}`}>
-                          <GitCommit className="h-3.5 w-3.5 shrink-0 text-emerald-500" />
-                          <span className="truncate">{analysis.git.latestCommit}</span>
-                        </p>
-                      )}
-                      <div className="mt-2.5 pt-2 border-t border-inherit flex items-center justify-between text-[11px]">
-                        <span className={muted}>Status</span>
-                        <span className={`font-medium ${analysis.git?.tracked ? 'text-emerald-400' : muted}`}>
-                          {analysis.git?.changedFiles ? `${analysis.git.changedFiles} pending changes` : 'Working tree clean'}
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Runtime & Tooling Stack */}
-                    <div className={`rounded-xl p-3.5 border ${isDark ? 'bg-white/[0.025] border-white/[0.06]' : 'bg-slate-50 border-slate-200/70'}`}>
-                      <div className="flex items-center gap-1.5 mb-2">
-                        <Cpu className="h-3.5 w-3.5 text-blue-500" />
-                        <span className={`text-[10px] font-semibold uppercase ${muted}`}>Runtime & Build Environment</span>
-                      </div>
-                      <div className="grid grid-cols-2 gap-2 text-xs">
-                        <div className={`p-2 rounded-lg border ${isDark ? 'bg-black/20 border-white/[0.04]' : 'bg-white border-slate-200/60'}`}>
-                          <span className={`text-[10px] block ${muted}`}>Package Ecosystem</span>
-                          <span className="font-semibold text-xs mt-0.5 block">{analysis.dependencyInventory?.ecosystem.toUpperCase() || 'NPM'}</span>
-                        </div>
-                        <div className={`p-2 rounded-lg border ${isDark ? 'bg-black/20 border-white/[0.04]' : 'bg-white border-slate-200/60'}`}>
-                          <span className={`text-[10px] block ${muted}`}>CI/CD Workflows</span>
-                          <span className="font-semibold text-xs mt-0.5 block">{analysis.pipeline?.workflows.length ? `${analysis.pipeline.workflows.length} Workflows` : 'None Configured'}</span>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Prioritized Architectural Recommendations */}
-                    <div>
-                      <p className={`text-[10px] font-semibold uppercase tracking-wider mb-2 ${muted}`}>
-                        Recommended Next Steps
-                      </p>
-                      <div className="space-y-2">
-                        {(analysis.suggestions || []).slice(0, 3).map((sug, i) => (
-                          <div key={i} className={`p-3 rounded-xl border text-xs ${
-                            isDark ? 'border-white/[0.06] bg-black/25' : 'border-slate-200/80 bg-white'
-                          }`}>
-                            <div className="flex items-center justify-between gap-2">
-                              <p className="font-semibold text-xs">{sug.title}</p>
-                              <span className={`text-[9px] font-semibold px-1.5 py-0.2 rounded ${
-                                isDark ? 'bg-blue-500/20 text-blue-300' : 'bg-blue-50 text-blue-700'
-                              }`}>
-                                Action
-                              </span>
-                            </div>
-                            <p className={`mt-1 text-[11px] leading-relaxed ${muted}`}>{sug.detail}</p>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                </section>
-              </div>
-            </div>
-          )}
-
-          {/* ---------------------------------------------------- */}
-          {/* TAB 2: CODE ANALYSIS                                 */}
-          {/* ---------------------------------------------------- */}
-          {activePage === 'analysis' && (
-            <div className="space-y-5 animate-in fade-in duration-200">
-              {/* Language Distribution Bar */}
-              <LanguageDistributionBar languages={analysis.languages} />
-
-              {/* 2-Column IDE-style Layout: Left Tree (40%), Right Inspector (60%) */}
-              <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
-                {/* Left 5 Cols: Searchable Project Structure Tree */}
-                <div className="lg:col-span-5 space-y-4">
-                  <ProjectStructureTree analysis={analysis} />
-
-                  {/* Volume Summary Box */}
-                  <div className={`p-4 rounded-xl border ${panel}`}>
-                    <p className={`text-[10px] font-semibold uppercase tracking-wider mb-2.5 ${muted}`}>Repository Volume</p>
-                    <div className="grid grid-cols-2 gap-3 text-center">
-                      <div className={`p-3 rounded-lg border ${isDark ? 'bg-white/[0.02] border-white/[0.05]' : 'bg-slate-50 border-slate-200/70'}`}>
-                        <p className="text-xl font-bold">{analysis.filesScanned.toLocaleString()}</p>
-                        <p className={`text-[10px] mt-0.5 ${muted}`}>Files Scanned</p>
-                      </div>
-                      <div className={`p-3 rounded-lg border ${isDark ? 'bg-white/[0.02] border-white/[0.05]' : 'bg-slate-50 border-slate-200/70'}`}>
-                        <p className="text-xl font-bold">{analysis.sourceFiles.toLocaleString()}</p>
-                        <p className={`text-[10px] mt-0.5 ${muted}`}>Source Files</p>
-                      </div>
-                    </div>
-                  </div>
+                  <h3 className={`text-xs font-semibold uppercase tracking-wider ${muted}`}>
+                    Architecture & Data Signals
+                  </h3>
                 </div>
 
-                {/* Right 7 Cols: Inspector Panels Switcher */}
-                <div className="lg:col-span-7 space-y-4">
-                  {/* Inspector Segmented Switcher */}
-                  <div className={`flex items-center justify-between p-1 rounded-xl border ${
-                    isDark ? 'border-white/[0.08] bg-black/25' : 'border-slate-200 bg-slate-100/70'
-                  }`}>
-                    {[
-                      { id: 'packages', label: `Packages (${analysis.dependencyInventory?.packages.length || 0})` },
-                      { id: 'hotspots', label: 'Complexity & Debt' },
-                      { id: 'startup', label: 'Entry & Tests' },
-                      { id: 'scripts', label: `Scripts (${analysis.scripts?.length || 0})` },
-                    ].map(tab => (
-                      <button
-                        key={tab.id}
-                        type="button"
-                        onClick={() => setAnalysisInspectorTab(tab.id as typeof analysisInspectorTab)}
-                        className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-medium transition-all ${
-                          analysisInspectorTab === tab.id
-                            ? (isDark ? 'bg-[#1E2024] text-white shadow-xs border border-white/[0.08]' : 'bg-white text-slate-900 shadow-xs border border-slate-200/70')
-                            : (isDark ? 'text-slate-400 hover:text-slate-200' : 'text-slate-600 hover:text-slate-900')
-                        }`}
-                      >
-                        {tab.label}
-                      </button>
+                <div className="space-y-3">
+                  {/* Topology Shape */}
+                  <div className={`rounded-xl p-3.5 border ${isDark ? 'bg-white/[0.025] border-white/[0.06]' : 'bg-slate-50 border-slate-200/70'}`}>
+                    <div className="flex items-center justify-between">
+                      <span className={`text-[10px] font-semibold uppercase ${muted}`}>Topology Shape</span>
+                      <span className={`text-[9px] font-semibold px-2 py-0.5 rounded-full border ${
+                        analysis.architecture?.confidence === 'high'
+                          ? (isDark ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-400' : 'border-emerald-200 bg-emerald-50 text-emerald-700')
+                          : (isDark ? 'border-blue-500/30 bg-blue-500/10 text-blue-400' : 'border-blue-200 bg-blue-50 text-blue-700')
+                      }`}>
+                        {analysis.architecture?.confidence || 'low'} confidence
+                      </span>
+                    </div>
+                    <p className={`mt-1.5 text-sm font-semibold ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                      {analysis.architecture?.topology || 'Not enough evidence'}
+                    </p>
+                    <p className={`mt-1 text-xs leading-relaxed ${muted}`}>
+                      {analysis.architecture?.summary}
+                    </p>
+                  </div>
+
+                  {/* Database & Storage */}
+                  <div className={`rounded-xl p-3.5 border ${isDark ? 'bg-white/[0.025] border-white/[0.06]' : 'bg-slate-50 border-slate-200/70'}`}>
+                    <div className="flex items-center justify-between mb-1">
+                      <div className="flex items-center gap-1.5">
+                        <Database className="h-3.5 w-3.5 text-violet-500" />
+                        <span className={`text-[10px] font-semibold uppercase ${muted}`}>Storage & Database</span>
+                      </div>
+                      <span className={`text-[9px] font-mono px-1.5 py-0.2 rounded ${
+                        isDark ? 'bg-violet-500/10 text-violet-300' : 'bg-violet-50 text-violet-700'
+                      }`}>
+                        {analysis.architecture?.database.confidence || 'inferred'}
+                      </span>
+                    </div>
+                    <p className={`text-sm font-semibold ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                      {overviewDbName}
+                    </p>
+                    {overviewDbEvidence.slice(0, 3).map((item, idx) => (
+                      <p key={idx} className={`mt-1 text-[11px] leading-4 ${muted}`}>• {item}</p>
                     ))}
                   </div>
 
-                  {/* Active Inspector Panel Content */}
+                  {/* Next.js Route Structure */}
+                  {analysis.nextjs && (
+                    <div className={`rounded-xl p-3.5 border ${isDark ? 'bg-white/[0.025] border-white/[0.06]' : 'bg-slate-50 border-slate-200/70'}`}>
+                      <div className="flex items-center justify-between">
+                        <span className={`text-[10px] font-semibold uppercase ${muted}`}>Next.js Route Structure</span>
+                        {analysis.nextjs.version && <span className="font-mono text-[10px] text-blue-400">v{analysis.nextjs.version}</span>}
+                      </div>
+                      <p className={`mt-1 text-sm font-semibold ${isDark ? 'text-white' : 'text-slate-900'}`}>{analysis.nextjs.router}</p>
+                      <div className="mt-2.5 grid grid-cols-3 gap-2">
+                        <div className={`p-2.5 rounded-lg text-center border ${isDark ? 'bg-black/25 border-white/[0.05]' : 'bg-white border-slate-200/60'}`}>
+                          <p className="font-bold text-sm">{analysis.nextjs.appRouteCount}</p>
+                          <p className={`text-[9px] mt-0.5 ${muted}`}>App Pages</p>
+                        </div>
+                        <div className={`p-2.5 rounded-lg text-center border ${isDark ? 'bg-black/25 border-white/[0.05]' : 'bg-white border-slate-200/60'}`}>
+                          <p className="font-bold text-sm">{analysis.nextjs.pagesRouteCount}</p>
+                          <p className={`text-[9px] mt-0.5 ${muted}`}>Pages Routes</p>
+                        </div>
+                        <div className={`p-2.5 rounded-lg text-center border ${isDark ? 'bg-black/25 border-white/[0.05]' : 'bg-white border-slate-200/60'}`}>
+                          <p className="font-bold text-sm">{analysis.nextjs.apiRouteCount}</p>
+                          <p className={`text-[9px] mt-0.5 ${muted}`}>API Endpoints</p>
+                        </div>
+                      </div>
+
+                      {/* Route examples pills */}
+                      {analysis.nextjs.routeExamples.length > 0 && (
+                        <div className={`mt-2.5 pt-2 border-t ${isDark ? 'border-white/[0.06]' : 'border-slate-200/70'} flex flex-wrap gap-1`}>
+                          {analysis.nextjs.routeExamples.slice(0, 3).map(route => (
+                            <span key={route} className={`font-mono text-[10px] px-2 py-0.5 rounded border ${
+                              isDark ? 'border-white/[0.05] bg-white/[0.02] text-slate-300' : 'border-slate-200 bg-white text-slate-700'
+                            }`}>
+                              {route}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </section>
+
+              {/* Right Card: Source Control, Delivery & Prioritized Recommendations */}
+              <section className={`rounded-xl border p-5 ${panel}`}>
+                <div className="flex items-center justify-between mb-3.5">
+                  <div className="flex items-center gap-2">
+                    <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-emerald-500/15 text-emerald-400 border border-emerald-500/20">
+                      <GitBranch className="h-3.5 w-3.5" />
+                    </div>
+                    <h3 className={`text-xs font-semibold uppercase tracking-wider ${muted}`}>
+                      Source Control & Delivery
+                    </h3>
+                  </div>
+                  {supportsGitHub && !githubConnected && (
+                    <button
+                      type="button"
+                      onClick={openGitHubDialog}
+                      className="text-[10px] font-semibold text-blue-500 hover:underline"
+                    >
+                      Connect GitHub Actions
+                    </button>
+                  )}
+                </div>
+
+                <div className="space-y-3">
+                  {/* Git Repository Info */}
+                  <div className={`rounded-xl p-3.5 border ${isDark ? 'bg-white/[0.025] border-white/[0.06]' : 'bg-slate-50 border-slate-200/70'}`}>
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="font-semibold">{analysis.git?.tracked ? 'Git Tracked Repository' : 'Unversioned Local Directory'}</span>
+                      {analysis.git?.branch && (
+                        <span className={`font-mono text-[10px] font-medium px-2 py-0.5 rounded-full border ${
+                          isDark ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-400' : 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                        }`}>
+                          {analysis.git.branch}
+                        </span>
+                      )}
+                    </div>
+                    {analysis.git?.latestCommit && (
+                      <p className={`mt-2 flex items-center gap-1.5 font-mono text-[11px] truncate ${muted}`}>
+                        <GitCommit className="h-3.5 w-3.5 shrink-0 text-emerald-500" />
+                        <span className="truncate">{analysis.git.latestCommit}</span>
+                      </p>
+                    )}
+                    <div className={`mt-2.5 pt-2 border-t ${isDark ? 'border-white/[0.06]' : 'border-slate-200/70'} flex items-center justify-between text-[11px]`}>
+                      <span className={muted}>Status</span>
+                      <span className={`font-medium ${analysis.git?.tracked ? 'text-emerald-400' : muted}`}>
+                        {analysis.git?.changedFiles ? `${analysis.git.changedFiles} pending changes` : 'Working tree clean'}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Runtime & Tooling Stack */}
+                  <div className={`rounded-xl p-3.5 border ${isDark ? 'bg-white/[0.025] border-white/[0.06]' : 'bg-slate-50 border-slate-200/70'}`}>
+                    <div className="flex items-center gap-1.5 mb-2">
+                      <Cpu className="h-3.5 w-3.5 text-blue-500" />
+                      <span className={`text-[10px] font-semibold uppercase ${muted}`}>Runtime & Build Environment</span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 text-xs">
+                      <div className={`p-2 rounded-lg border ${isDark ? 'bg-black/20 border-white/[0.04]' : 'bg-white border-slate-200/60'}`}>
+                        <span className={`text-[10px] block ${muted}`}>Package Ecosystem</span>
+                        <span className="font-semibold text-xs mt-0.5 block">{analysis.dependencyInventory?.ecosystem.toUpperCase() || 'NPM'}</span>
+                      </div>
+                      <div className={`p-2 rounded-lg border ${isDark ? 'bg-black/20 border-white/[0.04]' : 'bg-white border-slate-200/60'}`}>
+                        <span className={`text-[10px] block ${muted}`}>CI/CD Workflows</span>
+                        <span className="font-semibold text-xs mt-0.5 block">{analysis.pipeline?.workflows.length ? `${analysis.pipeline.workflows.length} Workflows` : 'None Configured'}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Prioritized Architectural Recommendations */}
                   <div>
-                    {analysisInspectorTab === 'packages' && (
-                      <DependencyInventoryPanel inventory={analysis.dependencyInventory} />
-                    )}
-                    {analysisInspectorTab === 'hotspots' && (
-                      <CodebaseHotspotsPanel analysis={analysis} />
-                    )}
-                    {analysisInspectorTab === 'startup' && (
-                      <StartupAndTestsPanel analysis={analysis} />
-                    )}
-                    {analysisInspectorTab === 'scripts' && (
-                      <UsefulCommandsPanel scripts={visibleScripts} />
-                    )}
+                    <p className={`text-[10px] font-semibold uppercase tracking-wider mb-2 ${muted}`}>
+                      Recommended Next Steps
+                    </p>
+                    <div className="space-y-2">
+                      {(analysis.suggestions || []).slice(0, 3).map((sug, i) => (
+                        <div key={i} className={`p-3 rounded-xl border text-xs ${
+                          isDark ? 'border-white/[0.06] bg-black/25' : 'border-slate-200/80 bg-white'
+                        }`}>
+                          <div className="flex items-center justify-between gap-2">
+                            <p className="font-semibold text-xs">{sug.title}</p>
+                            <span className={`text-[9px] font-semibold px-1.5 py-0.2 rounded ${
+                              isDark ? 'bg-blue-500/20 text-blue-300' : 'bg-blue-50 text-blue-700'
+                            }`}>
+                              Action
+                            </span>
+                          </div>
+                          <p className={`mt-1 text-[11px] leading-relaxed ${muted}`}>{sug.detail}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </section>
+            </div>
+          </div>
+
+          {/* ---------------------------------------------------- */}
+          {/* TAB 2: CODE ANALYSIS (Zero-Lag Persistent DOM)        */}
+          {/* ---------------------------------------------------- */}
+          <div className={activePage === 'analysis' ? 'space-y-5' : 'hidden'} role="tabpanel">
+            {/* Language Distribution Bar */}
+            <LanguageDistributionBar languages={analysis.languages} />
+
+            {/* 2-Column IDE-style Layout: Left Tree (40%), Right Inspector (60%) */}
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
+              {/* Left 5 Cols: Searchable Project Structure Tree */}
+              <div className="lg:col-span-5 space-y-4">
+                <ProjectStructureTree analysis={analysis} />
+
+                {/* Volume Summary Box */}
+                <div className={`p-4 rounded-xl border ${panel}`}>
+                  <p className={`text-[10px] font-semibold uppercase tracking-wider mb-2.5 ${muted}`}>Repository Volume</p>
+                  <div className="grid grid-cols-2 gap-3 text-center">
+                    <div className={`p-3 rounded-lg border ${isDark ? 'bg-white/[0.02] border-white/[0.05]' : 'bg-slate-50 border-slate-200/70'}`}>
+                      <p className="text-xl font-bold">{analysis.filesScanned.toLocaleString()}</p>
+                      <p className={`text-[10px] mt-0.5 ${muted}`}>Files Scanned</p>
+                    </div>
+                    <div className={`p-3 rounded-lg border ${isDark ? 'bg-white/[0.02] border-white/[0.05]' : 'bg-slate-50 border-slate-200/70'}`}>
+                      <p className="text-xl font-bold">{analysis.sourceFiles.toLocaleString()}</p>
+                      <p className={`text-[10px] mt-0.5 ${muted}`}>Source Files</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Right 7 Cols: Inspector Panels Switcher */}
+              <div className="lg:col-span-7 space-y-4">
+                {/* Inspector Segmented Switcher */}
+                <div className={`flex items-center justify-between p-1 rounded-xl border ${
+                  isDark ? 'border-white/[0.08] bg-black/25' : 'border-slate-200 bg-slate-100/70'
+                }`}>
+                  {[
+                    { id: 'packages', label: `Packages (${analysis.dependencyInventory?.packages.length || 0})` },
+                    { id: 'hotspots', label: 'Complexity & Debt' },
+                    { id: 'startup', label: 'Entry & Tests' },
+                    { id: 'scripts', label: `Scripts (${analysis.scripts?.length || 0})` },
+                  ].map(tab => (
+                    <button
+                      key={tab.id}
+                      type="button"
+                      onClick={() => setAnalysisInspectorTab(tab.id as typeof analysisInspectorTab)}
+                      className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-medium transition-all ${
+                        analysisInspectorTab === tab.id
+                          ? (isDark ? 'bg-[#1E2024] text-white shadow-xs border border-white/[0.08]' : 'bg-white text-slate-900 shadow-xs border border-slate-200/70')
+                          : (isDark ? 'text-slate-400 hover:text-slate-200' : 'text-slate-600 hover:text-slate-900')
+                      }`}
+                    >
+                      {tab.label}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Zero-Lag Active Inspector Panel Content */}
+                <div>
+                  <div className={analysisInspectorTab === 'packages' ? 'block' : 'hidden'}>
+                    <DependencyInventoryPanel inventory={analysis.dependencyInventory} />
+                  </div>
+                  <div className={analysisInspectorTab === 'hotspots' ? 'block' : 'hidden'}>
+                    <CodebaseHotspotsPanel analysis={analysis} />
+                  </div>
+                  <div className={analysisInspectorTab === 'startup' ? 'block' : 'hidden'}>
+                    <StartupAndTestsPanel analysis={analysis} />
+                  </div>
+                  <div className={analysisInspectorTab === 'scripts' ? 'block' : 'hidden'}>
+                    <UsefulCommandsPanel scripts={visibleScripts} />
                   </div>
                 </div>
               </div>
             </div>
-          )}
+          </div>
 
           {/* ---------------------------------------------------- */}
-          {/* TAB 3: QUALITY & RISKS                               */}
+          {/* TAB 3: QUALITY & RISKS (Zero-Lag Persistent DOM)      */}
           {/* ---------------------------------------------------- */}
-          {activePage === 'quality' && (
-            <div className="space-y-5 animate-in fade-in duration-200">
-              <CodebaseQualityView
-                analysis={analysis}
-                onRescan={rescan}
-                isRescanning={isRescanning}
-                onUpdateAnalysis={onUpdateAnalysis}
-              />
-            </div>
-          )}
+          <div className={activePage === 'quality' ? 'space-y-5' : 'hidden'} role="tabpanel">
+            <CodebaseQualityView
+              analysis={analysis}
+              onRescan={rescan}
+              isRescanning={isRescanning}
+              onUpdateAnalysis={onUpdateAnalysis}
+            />
+          </div>
         </div>
       </div>
 

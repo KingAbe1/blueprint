@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { CodebaseAnalysis } from '../../types/codebase';
 import { useTheme } from '../../context/ThemeContext';
+import { sanitizeDatabaseName, sanitizeDatabaseEvidence } from '../../services/architectureAnalysisService';
 
 interface ArchitectureTopologyDiagramProps {
   analysis: CodebaseAnalysis;
@@ -31,7 +32,10 @@ export const ArchitectureTopologyDiagram: React.FC<ArchitectureTopologyDiagramPr
 
   const topology = analysis.architecture?.topology || 'Modular Application';
   const confidence = analysis.architecture?.confidence || 'medium';
-  const databaseName = analysis.architecture?.database.name || 'Not Detected';
+  const rawDbName = analysis.architecture?.database.name;
+  const rawDbEvidence = analysis.architecture?.database.evidence;
+  const databaseName = sanitizeDatabaseName(rawDbName, rawDbEvidence) || 'Not Detected';
+  const databaseEvidence = sanitizeDatabaseEvidence(rawDbEvidence, databaseName);
   const dbConfidence = analysis.architecture?.database.confidence || 'low';
 
   // Details data for the interactive node inspector
@@ -90,14 +94,14 @@ export const ArchitectureTopologyDiagram: React.FC<ArchitectureTopologyDiagramPr
       metrics: [
         { label: 'Detected Engine', value: databaseName !== 'Not assessed' ? databaseName : 'None' },
         { label: 'Signal Confidence', value: dbConfidence.toUpperCase() },
-        { label: 'Schema Manifests', value: (analysis.architecture?.database.evidence || []).length > 0 ? 'Detected' : 'Unconfirmed' },
+        { label: 'Schema Manifests', value: databaseEvidence.length > 0 ? 'Detected' : 'Unconfirmed' },
       ],
       signals: [
         `Database Engine: ${databaseName}`,
         `Signal Confidence: ${dbConfidence.toUpperCase()}`,
-        ...(analysis.architecture?.database.evidence || []).slice(0, 3),
+        ...databaseEvidence.slice(0, 3),
       ],
-      files: (analysis.architecture?.database.evidence || []).filter(e => e.includes('.') || e.includes('/')).slice(0, 4),
+      files: databaseEvidence.filter(e => e.includes('.') || e.includes('/')).slice(0, 4),
       status: databaseName !== 'Not assessed' ? 'Detected' : 'Unconfirmed',
       statusColor: databaseName !== 'Not assessed'
         ? (isDark ? 'text-violet-400 bg-violet-500/10 border border-violet-500/20' : 'text-violet-700 bg-violet-50 border border-violet-200')
@@ -219,7 +223,9 @@ export const ArchitectureTopologyDiagram: React.FC<ArchitectureTopologyDiagramPr
       <div className={`mt-3.5 rounded-xl border p-4 ${
         isDark ? 'border-white/[0.07] bg-black/25' : 'border-slate-200/90 bg-slate-50/60'
       }`}>
-        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-inherit pb-3 mb-3.5">
+        <div className={`flex flex-wrap items-center justify-between gap-2 border-b pb-3 mb-3.5 ${
+          isDark ? 'border-white/[0.06]' : 'border-slate-200/70'
+        }`}>
           <div>
             <div className="flex items-center gap-2">
               <span className="font-mono text-[10px] font-semibold text-blue-500">

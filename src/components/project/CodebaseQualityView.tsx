@@ -142,8 +142,10 @@ export const CodebaseQualityView: React.FC<CodebaseQualityViewProps> = ({
           {/* Top Health Scorecard Banner - Balanced 2-Section Grid */}
           <section className={`rounded-xl border p-4 sm:p-5 ${panel}`}>
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-center">
-              {/* Left Column: Radial Score & Health Status (5 cols) */}
-              <div className="lg:col-span-4 flex flex-col justify-between h-full border-b lg:border-b-0 lg:border-r border-inherit pb-4 lg:pb-0 lg:pr-5">
+              {/* Left Column: Radial Score & Health Status (4 cols) */}
+              <div className={`lg:col-span-4 flex flex-col justify-between h-full pb-4 lg:pb-0 lg:pr-6 border-b lg:border-b-0 ${
+                isDark ? 'border-white/[0.06]' : 'border-slate-200/70'
+              }`}>
                 <div className="flex items-center gap-4">
                   <div
                     className="relative flex h-16 w-16 shrink-0 items-center justify-center rounded-full p-[5px]"
@@ -169,7 +171,9 @@ export const CodebaseQualityView: React.FC<CodebaseQualityViewProps> = ({
                   </div>
                 </div>
 
-                <div className="mt-4 flex items-center justify-between pt-3 border-t border-inherit">
+                <div className={`mt-4 flex items-center justify-between pt-3 border-t ${
+                  isDark ? 'border-white/[0.06]' : 'border-slate-200/70'
+                }`}>
                   <span className={`text-[11px] ${muted}`}>
                     {highPriorityCount} critical/high findings
                   </span>
@@ -406,7 +410,9 @@ export const CodebaseQualityView: React.FC<CodebaseQualityViewProps> = ({
                 {selectedFinding ? (
                   <div>
                     {/* Header with Title and Badges */}
-                    <div className="flex flex-wrap items-start justify-between gap-2 pb-3 border-b border-inherit">
+                    <div className={`flex flex-wrap items-start justify-between gap-2 pb-3 border-b ${
+                      isDark ? 'border-white/[0.06]' : 'border-slate-200/70'
+                    }`}>
                       <div>
                         <div className="flex flex-wrap items-center gap-1.5 mb-1">
                           <span className={`rounded-full px-2 py-0.5 text-[9px] font-semibold uppercase ${
