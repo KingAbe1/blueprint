@@ -96,6 +96,7 @@ const AppContent: React.FC = () => {
               analysis={activeProject.codebaseAnalysis}
               projectId={activeProject.id}
               onDelete={() => setProjectToDelete(activeProject)}
+              onUpdateAnalysis={analysis => updateCodebaseAnalysis(activeProject.id, analysis)}
               onRescan={async () => {
                 const analysis = await reanalyzeCodebase(activeProject.codebaseAnalysis!);
                 if (analysis) updateCodebaseAnalysis(activeProject.id, analysis);

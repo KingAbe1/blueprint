@@ -6579,10 +6579,2702 @@
         "workflows": [],
         "deploymentTargets": [],
         "liveStatus": "Not checked. Connect GitHub to see recent workflow runs and deployment status."
+      },
+      "dependencyRisk": {
+        "provider": "OSV.dev",
+        "scannedAt": 1791633132364,
+        "packagesChecked": 678,
+        "advisories": [
+          {
+            "id": "GHSA-2xp9-vwfh-vxw4",
+            "packageName": "next",
+            "version": "16.1.1",
+            "severity": "critical",
+            "summary": "Next.js: Unauthenticated Remote Code Execution in Image Optimization API when AVIF files are used",
+            "fixedVersions": [
+              "15.5.24",
+              "16.3.3"
+            ],
+            "references": [
+              "https://github.com/strukturag/libheif/security/advisories/GHSA-g89c-p67h-r497",
+              "https://github.com/vercel/next.js/security/advisories/GHSA-2xp9-vwfh-vxw4",
+              "https://github.com/vercel/next.js/pull/97875"
+            ]
+          },
+          {
+            "id": "GHSA-p293-qw3h-jr36",
+            "packageName": "next",
+            "version": "16.1.1",
+            "severity": "critical",
+            "summary": "Next.js: Unauthenticated Remote Code Execution on windows-hosted servers",
+            "fixedVersions": [
+              "15.5.24",
+              "16.3.3"
+            ],
+            "references": [
+              "https://github.com/vercel/next.js/security/advisories/GHSA-p293-qw3h-jr36",
+              "https://nvd.nist.gov/vuln/detail/CVE-2026-75604",
+              "https://github.com/vercel/next.js/commit/968b9fcb26bdeb8e0a861a9df05361474666d51b"
+            ]
+          },
+          {
+            "id": "GHSA-wc8c-qw6v-h7f6",
+            "packageName": "@hono/node-server",
+            "version": "1.19.6",
+            "severity": "high",
+            "summary": "@hono/node-server has authorization bypass for protected static paths via encoded slashes in Serve Static Middleware",
+            "fixedVersions": [
+              "1.19.10"
+            ],
+            "references": [
+              "https://github.com/honojs/node-server/security/advisories/GHSA-wc8c-qw6v-h7f6",
+              "https://nvd.nist.gov/vuln/detail/CVE-2026-29087",
+              "https://github.com/honojs/node-server/commit/455015be1697dd89974a68b70350ea7b2d126d2e"
+            ]
+          },
+          {
+            "id": "GHSA-3jxr-9vmj-r5cp",
+            "packageName": "brace-expansion",
+            "version": "1.1.12",
+            "severity": "high",
+            "summary": "brace-expansion: DoS via exponential-time expansion of consecutive non-expanding {} groups",
+            "fixedVersions": [
+              "5.0.7",
+              "1.1.16",
+              "2.1.2"
+            ],
+            "references": [
+              "https://github.com/juliangruber/brace-expansion/security/advisories/GHSA-3jxr-9vmj-r5cp",
+              "https://nvd.nist.gov/vuln/detail/CVE-2026-13149",
+              "https://github.com/juliangruber/brace-expansion/pull/122"
+            ]
+          },
+          {
+            "id": "GHSA-3jxr-9vmj-r5cp",
+            "packageName": "brace-expansion",
+            "version": "2.0.2",
+            "severity": "high",
+            "summary": "brace-expansion: DoS via exponential-time expansion of consecutive non-expanding {} groups",
+            "fixedVersions": [
+              "5.0.7",
+              "1.1.16",
+              "2.1.2"
+            ],
+            "references": [
+              "https://github.com/juliangruber/brace-expansion/security/advisories/GHSA-3jxr-9vmj-r5cp",
+              "https://nvd.nist.gov/vuln/detail/CVE-2026-13149",
+              "https://github.com/juliangruber/brace-expansion/pull/122"
+            ]
+          },
+          {
+            "id": "GHSA-6j4f-fj2g-mc7p",
+            "packageName": "brace-expansion",
+            "version": "1.1.12",
+            "severity": "high",
+            "summary": "brace-expansion: DoS via uncontrolled recursion in parseCommaParts causing stack exhaustion",
+            "fixedVersions": [
+              "5.0.10",
+              "3.0.7",
+              "2.1.5",
+              "1.1.19"
+            ],
+            "references": [
+              "https://github.com/juliangruber/brace-expansion/security/advisories/GHSA-6j4f-fj2g-mc7p",
+              "https://nvd.nist.gov/vuln/detail/CVE-2026-102276",
+              "https://github.com/juliangruber/brace-expansion/commit/0bcbfc0a5928c3073d48f42999d1ce4fc1c42fbc"
+            ]
+          },
+          {
+            "id": "GHSA-6j4f-fj2g-mc7p",
+            "packageName": "brace-expansion",
+            "version": "2.0.2",
+            "severity": "high",
+            "summary": "brace-expansion: DoS via uncontrolled recursion in parseCommaParts causing stack exhaustion",
+            "fixedVersions": [
+              "5.0.10",
+              "3.0.7",
+              "2.1.5",
+              "1.1.19"
+            ],
+            "references": [
+              "https://github.com/juliangruber/brace-expansion/security/advisories/GHSA-6j4f-fj2g-mc7p",
+              "https://nvd.nist.gov/vuln/detail/CVE-2026-102276",
+              "https://github.com/juliangruber/brace-expansion/commit/0bcbfc0a5928c3073d48f42999d1ce4fc1c42fbc"
+            ]
+          },
+          {
+            "id": "GHSA-mh99-v99m-4gvg",
+            "packageName": "brace-expansion",
+            "version": "1.1.12",
+            "severity": "high",
+            "summary": "brace-expansion: DoS via unbounded expansion length causing an out-of-memory process crash",
+            "fixedVersions": [
+              "5.0.8",
+              "3.0.3",
+              "2.1.3",
+              "1.1.17"
+            ],
+            "references": [
+              "https://github.com/juliangruber/brace-expansion/security/advisories/GHSA-mh99-v99m-4gvg",
+              "https://nvd.nist.gov/vuln/detail/CVE-2026-14257",
+              "https://github.com/juliangruber/brace-expansion/pull/129"
+            ]
+          },
+          {
+            "id": "GHSA-mh99-v99m-4gvg",
+            "packageName": "brace-expansion",
+            "version": "2.0.2",
+            "severity": "high",
+            "summary": "brace-expansion: DoS via unbounded expansion length causing an out-of-memory process crash",
+            "fixedVersions": [
+              "5.0.8",
+              "3.0.3",
+              "2.1.3",
+              "1.1.17"
+            ],
+            "references": [
+              "https://github.com/juliangruber/brace-expansion/security/advisories/GHSA-mh99-v99m-4gvg",
+              "https://nvd.nist.gov/vuln/detail/CVE-2026-14257",
+              "https://github.com/juliangruber/brace-expansion/pull/129"
+            ]
+          },
+          {
+            "id": "GHSA-qhr7-859c-m2p7",
+            "packageName": "brace-expansion",
+            "version": "1.1.12",
+            "severity": "high",
+            "summary": "brace-expansion: DoS via uncontrolled recursion on nested brace groups causing stack exhaustion",
+            "fixedVersions": [
+              "5.0.11",
+              "3.0.8",
+              "2.1.6",
+              "1.1.20"
+            ],
+            "references": [
+              "https://github.com/juliangruber/brace-expansion/security/advisories/GHSA-qhr7-859c-m2p7",
+              "https://nvd.nist.gov/vuln/detail/CVE-2026-102278",
+              "https://github.com/juliangruber/brace-expansion/commit/1efee7c397c191da6287a78ec19512476a966a7b"
+            ]
+          },
+          {
+            "id": "GHSA-qhr7-859c-m2p7",
+            "packageName": "brace-expansion",
+            "version": "2.0.2",
+            "severity": "high",
+            "summary": "brace-expansion: DoS via uncontrolled recursion on nested brace groups causing stack exhaustion",
+            "fixedVersions": [
+              "5.0.11",
+              "3.0.8",
+              "2.1.6",
+              "1.1.20"
+            ],
+            "references": [
+              "https://github.com/juliangruber/brace-expansion/security/advisories/GHSA-qhr7-859c-m2p7",
+              "https://nvd.nist.gov/vuln/detail/CVE-2026-102278",
+              "https://github.com/juliangruber/brace-expansion/commit/1efee7c397c191da6287a78ec19512476a966a7b"
+            ]
+          },
+          {
+            "id": "GHSA-rgw5-rvv9-x895",
+            "packageName": "brace-expansion",
+            "version": "1.1.12",
+            "severity": "high",
+            "summary": "brace-expansion: DoS via unbounded intermediate arrays, bypassing the CVE-2026-14257 mitigation",
+            "fixedVersions": [
+              "1.1.18",
+              "2.1.4",
+              "3.0.6",
+              "5.0.9"
+            ],
+            "references": [
+              "https://github.com/juliangruber/brace-expansion/security/advisories/GHSA-rgw5-rvv9-x895",
+              "https://nvd.nist.gov/vuln/detail/CVE-2026-69152",
+              "https://github.com/juliangruber/brace-expansion/commit/139d015104e71433ad52a41d19467c48ecbb2c7d"
+            ]
+          },
+          {
+            "id": "GHSA-rgw5-rvv9-x895",
+            "packageName": "brace-expansion",
+            "version": "2.0.2",
+            "severity": "high",
+            "summary": "brace-expansion: DoS via unbounded intermediate arrays, bypassing the CVE-2026-14257 mitigation",
+            "fixedVersions": [
+              "1.1.18",
+              "2.1.4",
+              "3.0.6",
+              "5.0.9"
+            ],
+            "references": [
+              "https://github.com/juliangruber/brace-expansion/security/advisories/GHSA-rgw5-rvv9-x895",
+              "https://nvd.nist.gov/vuln/detail/CVE-2026-69152",
+              "https://github.com/juliangruber/brace-expansion/commit/139d015104e71433ad52a41d19467c48ecbb2c7d"
+            ]
+          },
+          {
+            "id": "GHSA-vfj7-8cjw-p6xm",
+            "packageName": "braces",
+            "version": "3.0.3",
+            "severity": "high",
+            "summary": "braces vulnerable to stack-exhaustion denial of service through deeply nested patterns",
+            "fixedVersions": [],
+            "references": [
+              "https://nvd.nist.gov/vuln/detail/CVE-2026-93687",
+              "https://github.com/micromatch/braces/issues/70",
+              "https://github.com/micromatch/braces"
+            ]
+          },
+          {
+            "id": "GHSA-73wf-gq98-2v4g",
+            "packageName": "browserslist",
+            "version": "4.28.1",
+            "severity": "high",
+            "summary": "Browserslist: Uncaught crash / prototype write via untrusted browserslist-stats.json custom stats (normalizeStats)",
+            "fixedVersions": [
+              "4.28.7"
+            ],
+            "references": [
+              "https://github.com/browserslist/browserslist/security/advisories/GHSA-73wf-gq98-2v4g",
+              "https://nvd.nist.gov/vuln/detail/CVE-2026-73088",
+              "https://github.com/browserslist/browserslist/commit/f9914ad9effc865ccc27d816255625890b31ca51"
+            ]
+          },
+          {
+            "id": "GHSA-c83g-rgw3-j3cx",
+            "packageName": "browserslist",
+            "version": "4.28.1",
+            "severity": "high",
+            "summary": "Browserslist: Unbounded memory growth (no cache eviction) via distinct query results, leading to eventual OOM",
+            "fixedVersions": [
+              "4.28.7"
+            ],
+            "references": [
+              "https://github.com/browserslist/browserslist/security/advisories/GHSA-c83g-rgw3-j3cx",
+              "https://nvd.nist.gov/vuln/detail/CVE-2026-73089",
+              "https://github.com/browserslist/browserslist/commit/f2931a3ff2a3a31abf84ef01a7400b270aad6405"
+            ]
+          },
+          {
+            "id": "GHSA-ggr8-5vv4-36mx",
+            "packageName": "deepmerge-ts",
+            "version": "7.1.5",
+            "severity": "high",
+            "summary": "DeepmergeTS has stack exhaustion when merging recursive object graphs",
+            "fixedVersions": [
+              "8.0.0"
+            ],
+            "references": [
+              "https://github.com/RebeccaStevens/deepmerge-ts/security/advisories/GHSA-ggr8-5vv4-36mx",
+              "https://github.com/RebeccaStevens/deepmerge-ts",
+              "https://github.com/RebeccaStevens/deepmerge-ts/releases/tag/v8.0.0"
+            ]
+          },
+          {
+            "id": "GHSA-737v-mqg7-c878",
+            "packageName": "defu",
+            "version": "6.1.4",
+            "severity": "high",
+            "summary": "defu: Prototype pollution via `__proto__` key in defaults argument",
+            "fixedVersions": [
+              "6.1.5"
+            ],
+            "references": [
+              "https://github.com/unjs/defu/security/advisories/GHSA-737v-mqg7-c878",
+              "https://nvd.nist.gov/vuln/detail/CVE-2026-35209",
+              "https://github.com/unjs/defu/pull/156"
+            ]
+          },
+          {
+            "id": "GHSA-38f7-945m-qr2g",
+            "packageName": "effect",
+            "version": "3.18.4",
+            "severity": "high",
+            "summary": "Effect `AsyncLocalStorage` context lost/contaminated inside Effect fibers under concurrent load with RPC",
+            "fixedVersions": [
+              "3.20.0"
+            ],
+            "references": [
+              "https://github.com/Effect-TS/effect/security/advisories/GHSA-38f7-945m-qr2g",
+              "https://nvd.nist.gov/vuln/detail/CVE-2026-32887",
+              "https://github.com/Effect-TS/effect"
+            ]
+          },
+          {
+            "id": "GHSA-25h7-pfq9-p65f",
+            "packageName": "flatted",
+            "version": "3.3.3",
+            "severity": "high",
+            "summary": "flatted vulnerable to unbounded recursion DoS in parse() revive phase",
+            "fixedVersions": [
+              "3.4.0"
+            ],
+            "references": [
+              "https://github.com/WebReflection/flatted/security/advisories/GHSA-25h7-pfq9-p65f",
+              "https://nvd.nist.gov/vuln/detail/CVE-2026-32141",
+              "https://github.com/WebReflection/flatted/pull/88"
+            ]
+          },
+          {
+            "id": "GHSA-rf6f-7fwh-wjgh",
+            "packageName": "flatted",
+            "version": "3.3.3",
+            "severity": "high",
+            "summary": "Prototype Pollution via parse() in NodeJS flatted",
+            "fixedVersions": [
+              "3.4.2"
+            ],
+            "references": [
+              "https://github.com/WebReflection/flatted/security/advisories/GHSA-rf6f-7fwh-wjgh",
+              "https://nvd.nist.gov/vuln/detail/CVE-2026-33228",
+              "https://github.com/WebReflection/flatted/commit/885ddcc33cf9657caf38c57c7be45ae1c5272802"
+            ]
+          },
+          {
+            "id": "GHSA-3vhc-576x-3qv4",
+            "packageName": "hono",
+            "version": "4.10.6",
+            "severity": "high",
+            "summary": "Hono JWK Auth Middleware has JWT algorithm confusion when JWK lacks \"alg\" (untrusted header.alg fallback)",
+            "fixedVersions": [
+              "4.11.4"
+            ],
+            "references": [
+              "https://github.com/honojs/hono/security/advisories/GHSA-3vhc-576x-3qv4",
+              "https://nvd.nist.gov/vuln/detail/CVE-2026-22818",
+              "https://github.com/honojs/hono/commit/190f6e28e2ca85ce3d1f2f54db1310f5f3eab134"
+            ]
+          },
+          {
+            "id": "GHSA-88fw-hqm2-52qc",
+            "packageName": "hono",
+            "version": "4.10.6",
+            "severity": "high",
+            "summary": "hono: CORS Middleware reflects any Origin with credentials when `origin` defaults to the wildcard",
+            "fixedVersions": [
+              "4.12.25"
+            ],
+            "references": [
+              "https://github.com/honojs/hono/security/advisories/GHSA-88fw-hqm2-52qc",
+              "https://nvd.nist.gov/vuln/detail/CVE-2026-54290",
+              "https://github.com/honojs/hono"
+            ]
+          },
+          {
+            "id": "GHSA-f67f-6cw9-8mq4",
+            "packageName": "hono",
+            "version": "4.10.6",
+            "severity": "high",
+            "summary": "Hono JWT Middleware's JWT Algorithm Confusion via Unsafe Default (HS256) Allows Token Forgery and Auth Bypass",
+            "fixedVersions": [
+              "4.11.4"
+            ],
+            "references": [
+              "https://github.com/honojs/hono/security/advisories/GHSA-f67f-6cw9-8mq4",
+              "https://nvd.nist.gov/vuln/detail/CVE-2026-22817",
+              "https://github.com/honojs/hono/commit/cc0aa7ae327ed84cc391d29086dec2a3e44e7a1f"
+            ]
+          },
+          {
+            "id": "GHSA-q5qw-h33p-qvwr",
+            "packageName": "hono",
+            "version": "4.10.6",
+            "severity": "high",
+            "summary": "Hono vulnerable to arbitrary file access via serveStatic vulnerability ",
+            "fixedVersions": [
+              "4.12.4"
+            ],
+            "references": [
+              "https://github.com/honojs/hono/security/advisories/GHSA-q5qw-h33p-qvwr",
+              "https://nvd.nist.gov/vuln/detail/CVE-2026-29045",
+              "https://github.com/honojs/hono/commit/6a0607a929d888893f0c91d92dce2fcfdb3662a3"
+            ]
+          },
+          {
+            "id": "GHSA-mwp4-54f8-5fhr",
+            "packageName": "ip-address",
+            "version": "10.2.0",
+            "severity": "high",
+            "summary": "ip-address: Address4 decodes leading-zero octets as decimal while resolvers decode them as octal, allowing SSRF and trust-boundary bypass",
+            "fixedVersions": [
+              "10.3.1"
+            ],
+            "references": [
+              "https://github.com/beaugunderson/ip-address/security/advisories/GHSA-mwp4-54f8-5fhr",
+              "https://github.com/beaugunderson/ip-address/commit/56368cb3d66c73ba0ee9b6b834fd31b22c2fd71e",
+              "https://github.com/beaugunderson/ip-address"
+            ]
+          },
+          {
+            "id": "GHSA-2883-xcg3-v3hh",
+            "packageName": "js-yaml",
+            "version": "4.1.1",
+            "severity": "high",
+            "summary": "js-yaml: maxTotalMergeKeys does not limit CPU use for empty merge sources",
+            "fixedVersions": [
+              "4.3.2",
+              "3.15.2"
+            ],
+            "references": [
+              "https://github.com/nodeca/js-yaml/security/advisories/GHSA-2883-xcg3-v3hh",
+              "https://nvd.nist.gov/vuln/detail/CVE-2026-84375",
+              "https://github.com/nodeca/js-yaml/pull/797"
+            ]
+          },
+          {
+            "id": "GHSA-52cp-r559-cp3m",
+            "packageName": "js-yaml",
+            "version": "4.1.1",
+            "severity": "high",
+            "summary": "js-yaml: YAML merge-key chains can force quadratic CPU consumption",
+            "fixedVersions": [
+              "3.15.0",
+              "4.3.0"
+            ],
+            "references": [
+              "https://github.com/nodeca/js-yaml/security/advisories/GHSA-52cp-r559-cp3m",
+              "https://nvd.nist.gov/vuln/detail/CVE-2026-59869",
+              "https://github.com/nodeca/js-yaml/commit/24f13e79ee1343a7e30bd6f6c9d9cdbf0ac9b2b7"
+            ]
+          },
+          {
+            "id": "GHSA-5p4m-2wfm-xmqj",
+            "packageName": "js-yaml",
+            "version": "4.1.1",
+            "severity": "high",
+            "summary": "JS-YAML: Quadratic CPU consumption in !!omap resolution (3.x and 4.x) — CVE-2026-59870 fix not backported",
+            "fixedVersions": [
+              "4.3.1",
+              "3.15.1"
+            ],
+            "references": [
+              "https://github.com/nodeca/js-yaml/security/advisories/GHSA-5p4m-2wfm-xmqj",
+              "https://github.com/nodeca/js-yaml"
+            ]
+          },
+          {
+            "id": "GHSA-r5fr-rjxr-66jc",
+            "packageName": "lodash",
+            "version": "4.17.21",
+            "severity": "high",
+            "summary": "lodash vulnerable to Code Injection via `_.template` imports key names",
+            "fixedVersions": [
+              "4.18.0"
+            ],
+            "references": [
+              "https://github.com/lodash/lodash/security/advisories/GHSA-r5fr-rjxr-66jc",
+              "https://nvd.nist.gov/vuln/detail/CVE-2026-4800",
+              "https://github.com/lodash/lodash/commit/3469357cff396a26c363f8c1b5a91dde28ba4b1c"
+            ]
+          },
+          {
+            "id": "GHSA-23c5-xmqv-rm74",
+            "packageName": "minimatch",
+            "version": "3.1.2",
+            "severity": "high",
+            "summary": "minimatch ReDoS: nested *() extglobs generate catastrophically backtracking regular expressions",
+            "fixedVersions": [
+              "10.2.3",
+              "9.0.7",
+              "8.0.6",
+              "7.4.8"
+            ],
+            "references": [
+              "https://github.com/isaacs/minimatch/security/advisories/GHSA-23c5-xmqv-rm74",
+              "https://nvd.nist.gov/vuln/detail/CVE-2026-27904",
+              "https://github.com/isaacs/minimatch/commit/11d0df6165d15a955462316b26d52e5efae06fce"
+            ]
+          },
+          {
+            "id": "GHSA-23c5-xmqv-rm74",
+            "packageName": "minimatch",
+            "version": "9.0.5",
+            "severity": "high",
+            "summary": "minimatch ReDoS: nested *() extglobs generate catastrophically backtracking regular expressions",
+            "fixedVersions": [
+              "10.2.3",
+              "9.0.7",
+              "8.0.6",
+              "7.4.8"
+            ],
+            "references": [
+              "https://github.com/isaacs/minimatch/security/advisories/GHSA-23c5-xmqv-rm74",
+              "https://nvd.nist.gov/vuln/detail/CVE-2026-27904",
+              "https://github.com/isaacs/minimatch/commit/11d0df6165d15a955462316b26d52e5efae06fce"
+            ]
+          },
+          {
+            "id": "GHSA-3ppc-4f35-3m26",
+            "packageName": "minimatch",
+            "version": "3.1.2",
+            "severity": "high",
+            "summary": "minimatch has a ReDoS via repeated wildcards with non-matching literal in pattern",
+            "fixedVersions": [
+              "10.2.1",
+              "9.0.6",
+              "8.0.5",
+              "7.4.7"
+            ],
+            "references": [
+              "https://github.com/isaacs/minimatch/security/advisories/GHSA-3ppc-4f35-3m26",
+              "https://nvd.nist.gov/vuln/detail/CVE-2026-26996",
+              "https://github.com/isaacs/minimatch/commit/2e111f3a79abc00fa73110195de2c0f2351904f5"
+            ]
+          },
+          {
+            "id": "GHSA-3ppc-4f35-3m26",
+            "packageName": "minimatch",
+            "version": "9.0.5",
+            "severity": "high",
+            "summary": "minimatch has a ReDoS via repeated wildcards with non-matching literal in pattern",
+            "fixedVersions": [
+              "10.2.1",
+              "9.0.6",
+              "8.0.5",
+              "7.4.7"
+            ],
+            "references": [
+              "https://github.com/isaacs/minimatch/security/advisories/GHSA-3ppc-4f35-3m26",
+              "https://nvd.nist.gov/vuln/detail/CVE-2026-26996",
+              "https://github.com/isaacs/minimatch/commit/2e111f3a79abc00fa73110195de2c0f2351904f5"
+            ]
+          },
+          {
+            "id": "GHSA-7r86-cg39-jmmj",
+            "packageName": "minimatch",
+            "version": "3.1.2",
+            "severity": "high",
+            "summary": "minimatch has ReDoS: matchOne() combinatorial backtracking via multiple non-adjacent GLOBSTAR segments",
+            "fixedVersions": [
+              "10.2.3",
+              "9.0.7",
+              "8.0.6",
+              "7.4.8"
+            ],
+            "references": [
+              "https://github.com/isaacs/minimatch/security/advisories/GHSA-7r86-cg39-jmmj",
+              "https://nvd.nist.gov/vuln/detail/CVE-2026-27903",
+              "https://github.com/isaacs/minimatch/commit/0bf499aa45f5059b56809cc3b75ff3eafeb8d748"
+            ]
+          },
+          {
+            "id": "GHSA-7r86-cg39-jmmj",
+            "packageName": "minimatch",
+            "version": "9.0.5",
+            "severity": "high",
+            "summary": "minimatch has ReDoS: matchOne() combinatorial backtracking via multiple non-adjacent GLOBSTAR segments",
+            "fixedVersions": [
+              "10.2.3",
+              "9.0.7",
+              "8.0.6",
+              "7.4.8"
+            ],
+            "references": [
+              "https://github.com/isaacs/minimatch/security/advisories/GHSA-7r86-cg39-jmmj",
+              "https://nvd.nist.gov/vuln/detail/CVE-2026-27903",
+              "https://github.com/isaacs/minimatch/commit/0bf499aa45f5059b56809cc3b75ff3eafeb8d748"
+            ]
+          },
+          {
+            "id": "GHSA-3f6p-5ww8-9rcr",
+            "packageName": "mysql2",
+            "version": "3.15.3",
+            "severity": "high",
+            "summary": "MySQL2: Auth Plugin Downgrade to mysql_clear_password Leaks Plaintext Credentials",
+            "fixedVersions": [
+              "3.22.0"
+            ],
+            "references": [
+              "https://github.com/sidorares/node-mysql2/security/advisories/GHSA-3f6p-5ww8-9rcr",
+              "https://github.com/sidorares/node-mysql2/issues/1617",
+              "https://github.com/sidorares/node-mysql2/pull/4236"
+            ]
+          },
+          {
+            "id": "GHSA-28wg-ghj8-5hjv",
+            "packageName": "nanoid",
+            "version": "3.3.11",
+            "severity": "high",
+            "summary": "nanoid: non-secure generators can loop indefinitely with negative size",
+            "fixedVersions": [
+              "3.3.16",
+              "5.1.16"
+            ],
+            "references": [
+              "https://nvd.nist.gov/vuln/detail/CVE-2026-67214",
+              "https://github.com/ai/nanoid/pull/600",
+              "https://github.com/ai/nanoid/pull/601"
+            ]
+          },
+          {
+            "id": "GHSA-2v37-7h3g-55p8",
+            "packageName": "nanoid",
+            "version": "3.3.11",
+            "severity": "high",
+            "summary": "nanoid: custom generators can loop indefinitely when size is zero",
+            "fixedVersions": [
+              "3.3.18",
+              "5.1.6"
+            ],
+            "references": [
+              "https://nvd.nist.gov/vuln/detail/CVE-2026-67213",
+              "https://github.com/ai/nanoid/commit/cb3626d0f3342fdf179cd425fd9c4fbb92c7d0e7",
+              "https://github.com/ai/nanoid/commit/e10f8d40ce9d1ab47f66d65a16b48086432730d0"
+            ]
+          },
+          {
+            "id": "GHSA-xwg4-73v4-xw9w",
+            "packageName": "nanoid",
+            "version": "3.3.11",
+            "severity": "high",
+            "summary": "nanoid: Integer Overflow or Wraparound",
+            "fixedVersions": [
+              "3.3.12",
+              "5.1.11"
+            ],
+            "references": [
+              "https://github.com/ai/nanoid/security/advisories/GHSA-xwg4-73v4-xw9w",
+              "https://nvd.nist.gov/vuln/detail/CVE-2026-73086",
+              "https://github.com/ai/nanoid/commit/7087969281cab8ba8ae3babf1894e819068b3bb4"
+            ]
+          },
+          {
+            "id": "GHSA-267c-6grr-h53f",
+            "packageName": "next",
+            "version": "16.1.1",
+            "severity": "high",
+            "summary": "Next.js has a Middleware / Proxy bypass in App Router applications via segment-prefetch routes",
+            "fixedVersions": [
+              "15.5.16",
+              "16.2.5"
+            ],
+            "references": [
+              "https://github.com/vercel/next.js/security/advisories/GHSA-267c-6grr-h53f",
+              "https://nvd.nist.gov/vuln/detail/CVE-2026-44575",
+              "https://github.com/vercel/next.js"
+            ]
+          },
+          {
+            "id": "GHSA-26hh-7cqf-hhc6",
+            "packageName": "next",
+            "version": "16.1.1",
+            "severity": "high",
+            "summary": "Next.js has a Middleware / Proxy bypass in App Router applications via segment-prefetch routes - Incomplete Fix Follow-Up",
+            "fixedVersions": [
+              "15.5.18",
+              "16.2.6"
+            ],
+            "references": [
+              "https://github.com/vercel/next.js/security/advisories/GHSA-267c-6grr-h53f",
+              "https://github.com/vercel/next.js/security/advisories/GHSA-26hh-7cqf-hhc6",
+              "https://nvd.nist.gov/vuln/detail/CVE-2026-45109"
+            ]
+          },
+          {
+            "id": "GHSA-36qx-fr4f-26g5",
+            "packageName": "next",
+            "version": "16.1.1",
+            "severity": "high",
+            "summary": "Next.js has a Middleware / Proxy bypass in Pages Router applications using i18n",
+            "fixedVersions": [
+              "15.5.16",
+              "16.2.5"
+            ],
+            "references": [
+              "https://github.com/vercel/next.js/security/advisories/GHSA-36qx-fr4f-26g5",
+              "https://nvd.nist.gov/vuln/detail/CVE-2026-44573",
+              "https://github.com/vercel/next.js"
+            ]
+          },
+          {
+            "id": "GHSA-492v-c6pp-mqqv",
+            "packageName": "next",
+            "version": "16.1.1",
+            "severity": "high",
+            "summary": "Next.js has a Middleware / Proxy bypass through dynamic route parameter injection",
+            "fixedVersions": [
+              "15.5.16",
+              "16.2.5"
+            ],
+            "references": [
+              "https://github.com/vercel/next.js/security/advisories/GHSA-492v-c6pp-mqqv",
+              "https://nvd.nist.gov/vuln/detail/CVE-2026-44574",
+              "https://github.com/vercel/next.js"
+            ]
+          },
+          {
+            "id": "GHSA-6gpp-xcg3-4w24",
+            "packageName": "next",
+            "version": "16.1.1",
+            "severity": "high",
+            "summary": "Next.js: Middleware / Proxy bypass in App Router applications using Turbopack and single locale",
+            "fixedVersions": [
+              "16.2.11"
+            ],
+            "references": [
+              "https://github.com/vercel/next.js/security/advisories/GHSA-6gpp-xcg3-4w24",
+              "https://github.com/vercel/next.js/pull/96014",
+              "https://github.com/vercel/next.js/commit/6bf4df14508ad6c0cd46af50c6051ee42f2d9151"
+            ]
+          },
+          {
+            "id": "GHSA-89xv-2m56-2m9x",
+            "packageName": "next",
+            "version": "16.1.1",
+            "severity": "high",
+            "summary": "Next.js: Server-Side Request Forgery in Server Actions on custom servers",
+            "fixedVersions": [
+              "15.5.21",
+              "16.2.11"
+            ],
+            "references": [
+              "https://github.com/vercel/next.js/security/advisories/GHSA-89xv-2m56-2m9x",
+              "https://github.com/vercel/next.js/commit/b51206321854193208c0805ba42acc49287f942b",
+              "https://github.com/vercel/next.js/commit/e3e5666ccead3a15162793d697af5e48b7cc0498"
+            ]
+          },
+          {
+            "id": "GHSA-8h8q-6873-q5fj",
+            "packageName": "next",
+            "version": "16.1.1",
+            "severity": "high",
+            "summary": "Next.js Vulnerable to Denial of Service with Server Components",
+            "fixedVersions": [
+              "15.5.16",
+              "16.2.5"
+            ],
+            "references": [
+              "https://github.com/facebook/react/security/advisories/GHSA-rv78-f8rc-xrxh",
+              "https://github.com/vercel/next.js/security/advisories/GHSA-8h8q-6873-q5fj",
+              "https://github.com/vitejs/vite-plugin-react/security/advisories/GHSA-w94c-4vhp-22gx"
+            ]
+          },
+          {
+            "id": "GHSA-c4j6-fc7j-m34r",
+            "packageName": "next",
+            "version": "16.1.1",
+            "severity": "high",
+            "summary": "Next.js vulnerable to server-side request forgery in applications using WebSocket upgrades",
+            "fixedVersions": [
+              "15.5.16",
+              "16.2.5"
+            ],
+            "references": [
+              "https://github.com/vercel/next.js/security/advisories/GHSA-c4j6-fc7j-m34r",
+              "https://nvd.nist.gov/vuln/detail/CVE-2026-44578",
+              "https://github.com/vercel/next.js"
+            ]
+          },
+          {
+            "id": "GHSA-cjq9-62q9-8jv4",
+            "packageName": "next",
+            "version": "16.1.1",
+            "severity": "high",
+            "summary": "Next.js has Server-Side Request Forgery in Image Optimization",
+            "fixedVersions": [
+              "16.3.8"
+            ],
+            "references": [
+              "https://github.com/vercel/next.js/security/advisories/GHSA-cjq9-62q9-8jv4",
+              "https://nvd.nist.gov/vuln/detail/CVE-2026-94483",
+              "https://github.com/vercel/next.js/commit/e002ad68bd676bb0ed0c87bb22e3590304763e0b"
+            ]
+          },
+          {
+            "id": "GHSA-h25m-26qc-wcjf",
+            "packageName": "next",
+            "version": "16.1.1",
+            "severity": "high",
+            "summary": "Next.js HTTP request deserialization can lead to DoS when using insecure React Server Components",
+            "fixedVersions": [
+              "15.0.8",
+              "15.1.12",
+              "15.2.9",
+              "15.3.9"
+            ],
+            "references": [
+              "https://github.com/facebook/react/security/advisories/GHSA-83fc-fqcc-2hmg",
+              "https://github.com/vercel/next.js/security/advisories/GHSA-h25m-26qc-wcjf",
+              "https://nvd.nist.gov/vuln/detail/CVE-2026-23864"
+            ]
+          },
+          {
+            "id": "GHSA-m99w-x7hq-7vfj",
+            "packageName": "next",
+            "version": "16.1.1",
+            "severity": "high",
+            "summary": "Next.js: Denial of Service in App Router using Server Actions",
+            "fixedVersions": [
+              "15.5.21",
+              "16.2.11"
+            ],
+            "references": [
+              "https://github.com/vercel/next.js/security/advisories/GHSA-m99w-x7hq-7vfj",
+              "https://github.com/vercel/next.js/pull/96013",
+              "https://github.com/vercel/next.js/commit/019628571641dec57aaf349ba0c360e3964e6f12"
+            ]
+          },
+          {
+            "id": "GHSA-mg66-mrh9-m8jx",
+            "packageName": "next",
+            "version": "16.1.1",
+            "severity": "high",
+            "summary": "Next.js vulnerable to Denial of Service via connection exhaustion in applications using Cache Components",
+            "fixedVersions": [
+              "15.5.16",
+              "16.2.5"
+            ],
+            "references": [
+              "https://github.com/vercel/next.js/security/advisories/GHSA-mg66-mrh9-m8jx",
+              "https://nvd.nist.gov/vuln/detail/CVE-2026-44579",
+              "https://github.com/vercel/next.js"
+            ]
+          },
+          {
+            "id": "GHSA-p9j2-gv94-2wf4",
+            "packageName": "next",
+            "version": "16.1.1",
+            "severity": "high",
+            "summary": "Next.js: Server-Side Request Forgery in rewrites via attacker-controlled destination hostname",
+            "fixedVersions": [
+              "15.5.21",
+              "16.2.11"
+            ],
+            "references": [
+              "https://github.com/vercel/next.js/security/advisories/GHSA-p9j2-gv94-2wf4",
+              "https://github.com/vercel/next.js/commit/35f501357e9b0fe7c950b0d6aa8fcf5343f707e9",
+              "https://github.com/vercel/next.js/commit/d3033266c6dff23f7be71e19341fe3a8c6e2c599"
+            ]
+          },
+          {
+            "id": "GHSA-q4gf-8mx6-v5v3",
+            "packageName": "next",
+            "version": "16.1.1",
+            "severity": "high",
+            "summary": "Next.js has a Denial of Service with Server Components",
+            "fixedVersions": [
+              "15.5.15",
+              "16.2.3"
+            ],
+            "references": [
+              "https://github.com/vercel/next.js/security/advisories/GHSA-q4gf-8mx6-v5v3",
+              "https://github.com/vercel/next.js",
+              "https://vercel.com/changelog/summary-of-cve-2026-23869"
+            ]
+          },
+          {
+            "id": "GHSA-c2c7-rcm5-vvqj",
+            "packageName": "picomatch",
+            "version": "2.3.1",
+            "severity": "high",
+            "summary": "Picomatch has a ReDoS vulnerability via extglob quantifiers",
+            "fixedVersions": [
+              "4.0.4",
+              "3.0.2",
+              "2.3.2"
+            ],
+            "references": [
+              "https://github.com/micromatch/picomatch/security/advisories/GHSA-c2c7-rcm5-vvqj",
+              "https://nvd.nist.gov/vuln/detail/CVE-2026-33671",
+              "https://github.com/micromatch/picomatch/commit/5eceecd27543b8e056b9307d69e105ea03618a7d"
+            ]
+          },
+          {
+            "id": "GHSA-c2c7-rcm5-vvqj",
+            "packageName": "picomatch",
+            "version": "4.0.3",
+            "severity": "high",
+            "summary": "Picomatch has a ReDoS vulnerability via extglob quantifiers",
+            "fixedVersions": [
+              "4.0.4",
+              "3.0.2",
+              "2.3.2"
+            ],
+            "references": [
+              "https://github.com/micromatch/picomatch/security/advisories/GHSA-c2c7-rcm5-vvqj",
+              "https://nvd.nist.gov/vuln/detail/CVE-2026-33671",
+              "https://github.com/micromatch/picomatch/commit/5eceecd27543b8e056b9307d69e105ea03618a7d"
+            ]
+          },
+          {
+            "id": "GHSA-6g55-p6wh-862q",
+            "packageName": "postcss",
+            "version": "8.4.31",
+            "severity": "high",
+            "summary": "PostCSS: Arbitrary file read and information disclosure via attacker-controlled sourceMappingURL in CSS comments",
+            "fixedVersions": [
+              "8.5.12"
+            ],
+            "references": [
+              "https://github.com/postcss/postcss/security/advisories/GHSA-6g55-p6wh-862q",
+              "https://github.com/postcss/postcss/commit/aaec7b78b3ce2792585b4b300ef1bd5dd5b3e8ad",
+              "https://github.com/postcss/postcss/commit/c64b7488d2731dfa16213739b42c34faf5a9eba3"
+            ]
+          },
+          {
+            "id": "GHSA-6g55-p6wh-862q",
+            "packageName": "postcss",
+            "version": "8.5.6",
+            "severity": "high",
+            "summary": "PostCSS: Arbitrary file read and information disclosure via attacker-controlled sourceMappingURL in CSS comments",
+            "fixedVersions": [
+              "8.5.12"
+            ],
+            "references": [
+              "https://github.com/postcss/postcss/security/advisories/GHSA-6g55-p6wh-862q",
+              "https://github.com/postcss/postcss/commit/aaec7b78b3ce2792585b4b300ef1bd5dd5b3e8ad",
+              "https://github.com/postcss/postcss/commit/c64b7488d2731dfa16213739b42c34faf5a9eba3"
+            ]
+          },
+          {
+            "id": "GHSA-r28c-9q8g-f849",
+            "packageName": "postcss",
+            "version": "8.4.31",
+            "severity": "high",
+            "summary": "PostCSS: Path Traversal in Previous Source Map Auto-Loading (sourceMappingURL) leads to Arbitrary .map File Disclosure",
+            "fixedVersions": [
+              "8.5.18"
+            ],
+            "references": [
+              "https://github.com/postcss/postcss/security/advisories/GHSA-r28c-9q8g-f849",
+              "https://github.com/postcss/postcss/commit/95663d3eb7ba26f4854dd19d3b4f4425760cf56c",
+              "https://github.com/postcss/postcss"
+            ]
+          },
+          {
+            "id": "GHSA-r28c-9q8g-f849",
+            "packageName": "postcss",
+            "version": "8.5.6",
+            "severity": "high",
+            "summary": "PostCSS: Path Traversal in Previous Source Map Auto-Loading (sourceMappingURL) leads to Arbitrary .map File Disclosure",
+            "fixedVersions": [
+              "8.5.18"
+            ],
+            "references": [
+              "https://github.com/postcss/postcss/security/advisories/GHSA-r28c-9q8g-f849",
+              "https://github.com/postcss/postcss/commit/95663d3eb7ba26f4854dd19d3b4f4425760cf56c",
+              "https://github.com/postcss/postcss"
+            ]
+          },
+          {
+            "id": "GHSA-f88m-g3jw-g9cj",
+            "packageName": "sharp",
+            "version": "0.34.5",
+            "severity": "high",
+            "summary": "sharp inherited vulnerabilities in libvips: CVE-2026-33327, CVE-2026-33328, CVE-2026-35590, CVE-2026-35591",
+            "fixedVersions": [
+              "0.35.0"
+            ],
+            "references": [
+              "https://github.com/libvips/libvips/security/advisories/GHSA-2fcj-gj27-279x",
+              "https://github.com/libvips/libvips/security/advisories/GHSA-523x-vhfw-6r76",
+              "https://github.com/libvips/libvips/security/advisories/GHSA-jmwm-wc68-mhwm"
+            ]
+          },
+          {
+            "id": "GHSA-rgj7-g3m4-5g8c",
+            "packageName": "sharp",
+            "version": "0.34.5",
+            "severity": "high",
+            "summary": "sharp: Vulnerabilities in libheif: GHSA-g89c-p67h-r497 and GHSA-2jg2-4ch7-h545",
+            "fixedVersions": [
+              "0.35.4"
+            ],
+            "references": [
+              "https://github.com/lovell/sharp/security/advisories/GHSA-rgj7-g3m4-5g8c",
+              "https://github.com/strukturag/libheif/security/advisories/GHSA-2jg2-4ch7-h545",
+              "https://github.com/strukturag/libheif/security/advisories/GHSA-g89c-p67h-r497"
+            ]
+          },
+          {
+            "id": "GHSA-wq5f-xc86-pv6w",
+            "packageName": "sharp",
+            "version": "0.34.5",
+            "severity": "high",
+            "summary": "sharp : Vulnerability in librsvg dependency CVE-2026-96889",
+            "fixedVersions": [
+              "0.35.5"
+            ],
+            "references": [
+              "https://github.com/lovell/sharp/security/advisories/GHSA-wq5f-xc86-pv6w",
+              "https://github.com/lovell/sharp/commit/96de105d9d36ab04c76c2b78b97255171630d236",
+              "https://github.com/lovell/sharp"
+            ]
+          },
+          {
+            "id": "GHSA-68fv-2mgg-jv7q",
+            "packageName": "source-map-js",
+            "version": "1.2.1",
+            "severity": "high",
+            "summary": "source-map-js allows event-loop denial of service through indexed source-map section offsets",
+            "fixedVersions": [
+              "1.2.2"
+            ],
+            "references": [
+              "https://nvd.nist.gov/vuln/detail/CVE-2026-93749",
+              "https://github.com/7rulnik/source-map-js/issues/76",
+              "https://github.com/7rulnik/source-map-js/pull/79"
+            ]
+          },
+          {
+            "id": "GHSA-4cwx-7wf7-3272",
+            "packageName": "undici",
+            "version": "7.27.2",
+            "severity": "high",
+            "summary": "undici vulnerable to cross-user information disclosure and parse-time crash via degenerate private cache directives",
+            "fixedVersions": [
+              "7.29.0",
+              "8.9.0"
+            ],
+            "references": [
+              "https://github.com/nodejs/undici/security/advisories/GHSA-4cwx-7wf7-3272",
+              "https://nvd.nist.gov/vuln/detail/CVE-2026-13697",
+              "https://github.com/nodejs/undici/commit/4fe5bc5fefe5ac81a200fc8e1cf84b8bf8464451"
+            ]
+          },
+          {
+            "id": "GHSA-hm92-r4w5-c3mj",
+            "packageName": "undici",
+            "version": "7.27.2",
+            "severity": "high",
+            "summary": "undici vulnerable to cross-origin request routing via SOCKS5 proxy pool reuse",
+            "fixedVersions": [
+              "7.28.0",
+              "8.2.0"
+            ],
+            "references": [
+              "https://github.com/nodejs/undici/security/advisories/GHSA-hm92-r4w5-c3mj",
+              "https://nvd.nist.gov/vuln/detail/CVE-2026-6734",
+              "https://github.com/nodejs/undici/pull/5041"
+            ]
+          },
+          {
+            "id": "GHSA-rfgv-xxqx-mfg5",
+            "packageName": "undici",
+            "version": "7.27.2",
+            "severity": "high",
+            "summary": "undici vulnerable to Denial of Service via unrequested WebSocket subprotocol",
+            "fixedVersions": [
+              "6.28.1",
+              "7.29.1",
+              "8.10.2"
+            ],
+            "references": [
+              "https://github.com/nodejs/undici/security/advisories/GHSA-rfgv-xxqx-mfg5",
+              "https://nvd.nist.gov/vuln/detail/CVE-2026-19534",
+              "https://github.com/nodejs/undici/commit/2af0faf88b906d3127a360c3ac75164c0f95e5a5"
+            ]
+          },
+          {
+            "id": "GHSA-vmh5-mc38-953g",
+            "packageName": "undici",
+            "version": "7.27.2",
+            "severity": "high",
+            "summary": "undici vulnerable to TLS certificate validation bypass via dropped requestTls in SOCKS5 ProxyAgent",
+            "fixedVersions": [
+              "7.28.0",
+              "8.5.0"
+            ],
+            "references": [
+              "https://github.com/nodejs/undici/security/advisories/GHSA-vmh5-mc38-953g",
+              "https://nvd.nist.gov/vuln/detail/CVE-2026-9697",
+              "https://cna.openjsf.org/security-advisories.html"
+            ]
+          },
+          {
+            "id": "GHSA-vxpw-j846-p89q",
+            "packageName": "undici",
+            "version": "7.27.2",
+            "severity": "high",
+            "summary": "undici WebSocket client vulnerable to denial of service via fragment count bypass",
+            "fixedVersions": [
+              "6.27.0",
+              "7.28.0",
+              "8.5.0"
+            ],
+            "references": [
+              "https://github.com/nodejs/undici/security/advisories/GHSA-vxpw-j846-p89q",
+              "https://nvd.nist.gov/vuln/detail/CVE-2026-12151",
+              "https://cna.openjsf.org/security-advisories.html"
+            ]
+          },
+          {
+            "id": "GHSA-w293-vg96-wgc3",
+            "packageName": "undici",
+            "version": "7.27.2",
+            "severity": "high",
+            "summary": "undici vulnerable to TLS certificate validation bypass via dropped connect options in BalancedPool",
+            "fixedVersions": [
+              "7.29.1",
+              "8.10.2"
+            ],
+            "references": [
+              "https://github.com/nodejs/undici/security/advisories/GHSA-w293-vg96-wgc3",
+              "https://nvd.nist.gov/vuln/detail/CVE-2026-84961",
+              "https://github.com/nodejs/undici/commit/8f5868fbdbc8f1146dfc1bcd1f2d117790141390"
+            ]
+          },
+          {
+            "id": "GHSA-92pp-h63x-v22m",
+            "packageName": "@hono/node-server",
+            "version": "1.19.6",
+            "severity": "medium",
+            "summary": "@hono/node-server: Middleware bypass via repeated slashes in serveStatic",
+            "fixedVersions": [
+              "1.19.13"
+            ],
+            "references": [
+              "https://github.com/honojs/node-server/security/advisories/GHSA-92pp-h63x-v22m",
+              "https://nvd.nist.gov/vuln/detail/CVE-2026-39406",
+              "https://github.com/honojs/node-server/commit/025c30f55d589ddbe6048b151d77e904f67a8cc2"
+            ]
+          },
+          {
+            "id": "GHSA-frvp-7c67-39w9",
+            "packageName": "@hono/node-server",
+            "version": "1.19.6",
+            "severity": "medium",
+            "summary": "Node.js Adapter for Hono: Path traversal in `serve-static` on Windows via encoded backslash (`%5C`)",
+            "fixedVersions": [
+              "2.0.5",
+              "1.19.15"
+            ],
+            "references": [
+              "https://github.com/honojs/node-server/security/advisories/GHSA-frvp-7c67-39w9",
+              "https://github.com/honojs/node-server/commit/cd076e117cfe4cb8d31f9eb11d2e8f38a6cb8faf",
+              "https://github.com/honojs/node-server"
+            ]
+          },
+          {
+            "id": "GHSA-p498-v437-472g",
+            "packageName": "@humanfs/node",
+            "version": "0.16.7",
+            "severity": "medium",
+            "summary": "humanfs: Recursive copy follows symlinked files and copies data from outside the source tree",
+            "fixedVersions": [
+              "0.16.8"
+            ],
+            "references": [
+              "https://github.com/humanwhocodes/humanfs/security/advisories/GHSA-p498-v437-472g",
+              "https://github.com/humanwhocodes/humanfs/commit/22bbaa4487a3e6c1197ca619840de4615d0c3404",
+              "https://github.com/humanwhocodes/humanfs"
+            ]
+          },
+          {
+            "id": "GHSA-2g4f-4pwh-qvx6",
+            "packageName": "ajv",
+            "version": "6.12.6",
+            "severity": "medium",
+            "summary": "ajv has ReDoS when using `$data` option",
+            "fixedVersions": [
+              "8.18.0",
+              "6.14.0"
+            ],
+            "references": [
+              "https://nvd.nist.gov/vuln/detail/CVE-2025-69873",
+              "https://github.com/ajv-validator/ajv/pull/2586",
+              "https://github.com/ajv-validator/ajv/pull/2588"
+            ]
+          },
+          {
+            "id": "GHSA-w5vr-8v7q-w6rv",
+            "packageName": "baseline-browser-mapping",
+            "version": "2.9.11",
+            "severity": "medium",
+            "summary": "baseline-browser-mapping process termination on invalid input causes denial of service",
+            "fixedVersions": [
+              "2.11.0"
+            ],
+            "references": [
+              "https://nvd.nist.gov/vuln/detail/CVE-2026-45819",
+              "https://github.com/web-platform-dx/baseline-browser-mapping/pull/137",
+              "https://github.com/web-platform-dx/baseline-browser-mapping/pull/137/changes#diff-7ae45ad102eab3b6d7e7896acd08c427a9b25b346470d7bc6507b6481575d519"
+            ]
+          },
+          {
+            "id": "GHSA-f886-m6hf-6m8v",
+            "packageName": "brace-expansion",
+            "version": "1.1.12",
+            "severity": "medium",
+            "summary": "brace-expansion: Zero-step sequence causes process hang and memory exhaustion",
+            "fixedVersions": [
+              "5.0.5",
+              "3.0.2",
+              "2.0.3",
+              "1.1.13"
+            ],
+            "references": [
+              "https://github.com/juliangruber/brace-expansion/security/advisories/GHSA-f886-m6hf-6m8v",
+              "https://nvd.nist.gov/vuln/detail/CVE-2026-33750",
+              "https://github.com/juliangruber/brace-expansion/issues/98"
+            ]
+          },
+          {
+            "id": "GHSA-f886-m6hf-6m8v",
+            "packageName": "brace-expansion",
+            "version": "2.0.2",
+            "severity": "medium",
+            "summary": "brace-expansion: Zero-step sequence causes process hang and memory exhaustion",
+            "fixedVersions": [
+              "5.0.5",
+              "3.0.2",
+              "2.0.3",
+              "1.1.13"
+            ],
+            "references": [
+              "https://github.com/juliangruber/brace-expansion/security/advisories/GHSA-f886-m6hf-6m8v",
+              "https://nvd.nist.gov/vuln/detail/CVE-2026-33750",
+              "https://github.com/juliangruber/brace-expansion/issues/98"
+            ]
+          },
+          {
+            "id": "GHSA-q2hr-2g5m-vwhr",
+            "packageName": "brace-expansion",
+            "version": "1.1.12",
+            "severity": "medium",
+            "summary": "brace-expansion: Quadratic-time expansion of the `{a},b}` rewrite causes CPU denial of service",
+            "fixedVersions": [
+              "5.0.12",
+              "3.0.9",
+              "2.1.7",
+              "1.1.21"
+            ],
+            "references": [
+              "https://github.com/juliangruber/brace-expansion/security/advisories/GHSA-q2hr-2g5m-vwhr",
+              "https://nvd.nist.gov/vuln/detail/CVE-2026-102277",
+              "https://github.com/juliangruber/brace-expansion/commit/33a5ef17b8d800bbfa8c52b14c39043b6aac1a96"
+            ]
+          },
+          {
+            "id": "GHSA-q2hr-2g5m-vwhr",
+            "packageName": "brace-expansion",
+            "version": "2.0.2",
+            "severity": "medium",
+            "summary": "brace-expansion: Quadratic-time expansion of the `{a},b}` rewrite causes CPU denial of service",
+            "fixedVersions": [
+              "5.0.12",
+              "3.0.9",
+              "2.1.7",
+              "1.1.21"
+            ],
+            "references": [
+              "https://github.com/juliangruber/brace-expansion/security/advisories/GHSA-q2hr-2g5m-vwhr",
+              "https://nvd.nist.gov/vuln/detail/CVE-2026-102277",
+              "https://github.com/juliangruber/brace-expansion/commit/33a5ef17b8d800bbfa8c52b14c39043b6aac1a96"
+            ]
+          },
+          {
+            "id": "GHSA-26pp-8wgv-hjvm",
+            "packageName": "hono",
+            "version": "4.10.6",
+            "severity": "medium",
+            "summary": "Hono missing validation of cookie name on write path in setCookie()",
+            "fixedVersions": [
+              "4.12.12"
+            ],
+            "references": [
+              "https://github.com/honojs/hono/security/advisories/GHSA-26pp-8wgv-hjvm",
+              "https://nvd.nist.gov/vuln/detail/CVE-2026-56762",
+              "https://github.com/honojs/hono/commit/a586cd72e3f6122792e631ecf1817e5cabb803ec"
+            ]
+          },
+          {
+            "id": "GHSA-2gcr-mfcq-wcc3",
+            "packageName": "hono",
+            "version": "4.10.6",
+            "severity": "medium",
+            "summary": "Hono: app.mount() strips mount prefix using undecoded path, causing incorrect routing for percent-encoded paths",
+            "fixedVersions": [
+              "4.12.21"
+            ],
+            "references": [
+              "https://github.com/honojs/hono/security/advisories/GHSA-2gcr-mfcq-wcc3",
+              "https://nvd.nist.gov/vuln/detail/CVE-2026-47676",
+              "https://github.com/honojs/hono/commit/6cbb025ff87fca1a3d00d0ccca0eaf3a6385c3f1"
+            ]
+          },
+          {
+            "id": "GHSA-3hrh-pfw6-9m5x",
+            "packageName": "hono",
+            "version": "4.10.6",
+            "severity": "medium",
+            "summary": "Hono: Cookie helper does not sanitize sameSite and priority, allowing Set-Cookie injection",
+            "fixedVersions": [
+              "4.12.21"
+            ],
+            "references": [
+              "https://github.com/honojs/hono/security/advisories/GHSA-3hrh-pfw6-9m5x",
+              "https://nvd.nist.gov/vuln/detail/CVE-2026-47675",
+              "https://github.com/honojs/hono/commit/905aedbc20661e0e2fa378783a7ec44a5c3df43d"
+            ]
+          },
+          {
+            "id": "GHSA-458j-xx4x-4375",
+            "packageName": "hono",
+            "version": "4.10.6",
+            "severity": "medium",
+            "summary": "hono Improperly Handles JSX Attribute Names Allows HTML Injection in hono/jsx SSR",
+            "fixedVersions": [
+              "4.12.14"
+            ],
+            "references": [
+              "https://github.com/honojs/hono/security/advisories/GHSA-458j-xx4x-4375",
+              "https://github.com/honojs/hono"
+            ]
+          },
+          {
+            "id": "GHSA-5pq2-9x2x-5p6w",
+            "packageName": "hono",
+            "version": "4.10.6",
+            "severity": "medium",
+            "summary": "Hono Vulnerable to Cookie Attribute Injection via Unsanitized domain and path in setCookie()",
+            "fixedVersions": [
+              "4.12.4"
+            ],
+            "references": [
+              "https://github.com/honojs/hono/security/advisories/GHSA-5pq2-9x2x-5p6w",
+              "https://nvd.nist.gov/vuln/detail/CVE-2026-29086",
+              "https://github.com/honojs/hono/commit/44ae0c8cc4d5ab2bed529127a4ac72e1483ad073"
+            ]
+          },
+          {
+            "id": "GHSA-69xw-7hcm-h432",
+            "packageName": "hono",
+            "version": "4.10.6",
+            "severity": "medium",
+            "summary": "hono/jsx has Unvalidated JSX Tag Names that May Allow HTML Injection",
+            "fixedVersions": [
+              "4.12.16"
+            ],
+            "references": [
+              "https://github.com/honojs/hono/security/advisories/GHSA-69xw-7hcm-h432",
+              "https://nvd.nist.gov/vuln/detail/CVE-2026-44455",
+              "https://github.com/honojs/hono"
+            ]
+          },
+          {
+            "id": "GHSA-6wqw-2p9w-4vw4",
+            "packageName": "hono",
+            "version": "4.10.6",
+            "severity": "medium",
+            "summary": "Hono cache middleware ignores \"Cache-Control: private\" leading to Web Cache Deception",
+            "fixedVersions": [
+              "4.11.7"
+            ],
+            "references": [
+              "https://github.com/honojs/hono/security/advisories/GHSA-6wqw-2p9w-4vw4",
+              "https://nvd.nist.gov/vuln/detail/CVE-2026-24472",
+              "https://github.com/honojs/hono/commit/12c511745b3f1e7a3f863a23ce5f921c7fa805d1"
+            ]
+          },
+          {
+            "id": "GHSA-8j4g-w8fx-2239",
+            "packageName": "hono",
+            "version": "4.10.6",
+            "severity": "medium",
+            "summary": "Hono: ReDoS in CORS middleware via Access-Control-Request-Headers",
+            "fixedVersions": [
+              "4.12.34"
+            ],
+            "references": [
+              "https://github.com/honojs/hono/security/advisories/GHSA-8j4g-w8fx-2239",
+              "https://github.com/honojs/hono/commit/93fc250d8b4df58ea542cb945171de8013d5e6d5",
+              "https://github.com/honojs/hono"
+            ]
+          },
+          {
+            "id": "GHSA-9r54-q6cx-xmh5",
+            "packageName": "hono",
+            "version": "4.10.6",
+            "severity": "medium",
+            "summary": "Hono vulnerable to XSS through ErrorBoundary component ",
+            "fixedVersions": [
+              "4.11.7"
+            ],
+            "references": [
+              "https://github.com/honojs/hono/security/advisories/GHSA-9r54-q6cx-xmh5",
+              "https://nvd.nist.gov/vuln/detail/CVE-2026-24771",
+              "https://github.com/honojs/hono/commit/2cf60046d730df9fd0aba85178f3ecfe8212d990"
+            ]
+          },
+          {
+            "id": "GHSA-9vqf-7f2p-gf9v",
+            "packageName": "hono",
+            "version": "4.10.6",
+            "severity": "medium",
+            "summary": "Hono: bodyLimit() can be bypassed for chunked / unknown-length requests",
+            "fixedVersions": [
+              "4.12.16"
+            ],
+            "references": [
+              "https://github.com/honojs/hono/security/advisories/GHSA-9vqf-7f2p-gf9v",
+              "https://nvd.nist.gov/vuln/detail/CVE-2026-44456",
+              "https://github.com/honojs/hono"
+            ]
+          },
+          {
+            "id": "GHSA-crvj-82cr-hjcx",
+            "packageName": "hono",
+            "version": "4.10.6",
+            "severity": "medium",
+            "summary": "Hono: Query parser reads parameters after the URL fragment, causing cache-key and proxy interpretation differentials",
+            "fixedVersions": [
+              "4.13.5"
+            ],
+            "references": [
+              "https://github.com/honojs/hono/security/advisories/GHSA-crvj-82cr-hjcx",
+              "https://nvd.nist.gov/vuln/detail/CVE-2026-84363",
+              "https://github.com/honojs/hono/commit/9c28d724c5a7fb086ebaa812fdc1ad6e957c63bc"
+            ]
+          },
+          {
+            "id": "GHSA-f23p-vx2j-j53r",
+            "packageName": "hono",
+            "version": "4.10.6",
+            "severity": "medium",
+            "summary": "Hono: `memo()` retains SSR output across requests, leading to cross-user data disclosure",
+            "fixedVersions": [
+              "4.12.34"
+            ],
+            "references": [
+              "https://github.com/honojs/hono/security/advisories/GHSA-f23p-vx2j-j53r",
+              "https://github.com/honojs/hono/commit/0c45036d6b0ddf42ab2fa44639dc8710825d5c0f",
+              "https://github.com/honojs/hono"
+            ]
+          },
+          {
+            "id": "GHSA-f577-qrjj-4474",
+            "packageName": "hono",
+            "version": "4.10.6",
+            "severity": "medium",
+            "summary": "Hono: JWT middleware accepts any Authorization scheme, not only Bearer",
+            "fixedVersions": [
+              "4.12.21"
+            ],
+            "references": [
+              "https://github.com/honojs/hono/security/advisories/GHSA-f577-qrjj-4474",
+              "https://nvd.nist.gov/vuln/detail/CVE-2026-47673",
+              "https://github.com/honojs/hono/commit/5463db2735476959b8af67756f4e513f4fe19115"
+            ]
+          },
+          {
+            "id": "GHSA-g6gw-c38x-mqfc",
+            "packageName": "hono",
+            "version": "4.10.6",
+            "severity": "medium",
+            "summary": "Hono: Unbounded dot-notation nesting in `parseBody()` can cause memory exhaustion",
+            "fixedVersions": [
+              "4.13.5"
+            ],
+            "references": [
+              "https://github.com/honojs/hono/security/advisories/GHSA-g6gw-c38x-mqfc",
+              "https://nvd.nist.gov/vuln/detail/CVE-2026-84364",
+              "https://github.com/honojs/hono/commit/531e9c5a3ae058d10de33f643055bd4009a87178"
+            ]
+          },
+          {
+            "id": "GHSA-gqvv-2mrq-wpjv",
+            "packageName": "hono",
+            "version": "4.10.6",
+            "severity": "medium",
+            "summary": "Hono: Incomplete fix for CVE-2026-39408: `toSSG()` still writes files outside the output directory",
+            "fixedVersions": [
+              "4.13.5"
+            ],
+            "references": [
+              "https://github.com/honojs/hono/security/advisories/GHSA-gqvv-2mrq-wpjv",
+              "https://nvd.nist.gov/vuln/detail/CVE-2026-84365",
+              "https://github.com/honojs/hono/commit/3a67f7f3997e1437d108f7bcba2dbcee2df69221"
+            ]
+          },
+          {
+            "id": "GHSA-hxh3-vqpv-xpqv",
+            "packageName": "hono",
+            "version": "4.10.6",
+            "severity": "medium",
+            "summary": "hono/jsx renders plain strings unescaped in boundary components, leading to XSS",
+            "fixedVersions": [
+              "4.13.7"
+            ],
+            "references": [
+              "https://github.com/honojs/hono/security/advisories/GHSA-hxh3-vqpv-xpqv",
+              "https://nvd.nist.gov/vuln/detail/CVE-2026-93981",
+              "https://github.com/honojs/hono/commit/2b8ed402cdab6dfc5e829b480806dcd8db94161e"
+            ]
+          },
+          {
+            "id": "GHSA-j6c9-x7qj-28xf",
+            "packageName": "hono",
+            "version": "4.10.6",
+            "severity": "medium",
+            "summary": "hono: AWS Lambda adapter merges multiple `Set-Cookie` headers into one value, dropping cookies on ALB single-header and Lattice",
+            "fixedVersions": [
+              "4.12.25"
+            ],
+            "references": [
+              "https://github.com/honojs/hono/security/advisories/GHSA-j6c9-x7qj-28xf",
+              "https://nvd.nist.gov/vuln/detail/CVE-2026-54287",
+              "https://github.com/honojs/hono"
+            ]
+          },
+          {
+            "id": "GHSA-p6xx-57qc-3wxr",
+            "packageName": "hono",
+            "version": "4.10.6",
+            "severity": "medium",
+            "summary": "Hono Vulnerable to SSE Control Field Injection via CR/LF in writeSSE()",
+            "fixedVersions": [
+              "4.12.4"
+            ],
+            "references": [
+              "https://github.com/honojs/hono/security/advisories/GHSA-p6xx-57qc-3wxr",
+              "https://nvd.nist.gov/vuln/detail/CVE-2026-29085",
+              "https://github.com/honojs/hono/commit/f4123ed9ea3c7c52380cc99a079a4d773838846e"
+            ]
+          },
+          {
+            "id": "GHSA-p77w-8qqv-26rm",
+            "packageName": "hono",
+            "version": "4.10.6",
+            "severity": "medium",
+            "summary": "Hono's Cache Middleware ignores Vary: Authorization / Vary: Cookie leading to cross-user cache leakage",
+            "fixedVersions": [
+              "4.12.18"
+            ],
+            "references": [
+              "https://github.com/honojs/hono/security/advisories/GHSA-p77w-8qqv-26rm",
+              "https://nvd.nist.gov/vuln/detail/CVE-2026-44457",
+              "https://github.com/honojs/hono"
+            ]
+          },
+          {
+            "id": "GHSA-qp7p-654g-cw7p",
+            "packageName": "hono",
+            "version": "4.10.6",
+            "severity": "medium",
+            "summary": "Hono has CSS Declaration Injection via Style Object Values in JSX SSR",
+            "fixedVersions": [
+              "4.12.18"
+            ],
+            "references": [
+              "https://github.com/honojs/hono/security/advisories/GHSA-qp7p-654g-cw7p",
+              "https://github.com/honojs/hono"
+            ]
+          },
+          {
+            "id": "GHSA-r354-f388-2fhh",
+            "packageName": "hono",
+            "version": "4.10.6",
+            "severity": "medium",
+            "summary": "Hono IPv4 address validation bypass in IP Restriction Middleware allows IP spoofing",
+            "fixedVersions": [
+              "4.11.7"
+            ],
+            "references": [
+              "https://github.com/honojs/hono/security/advisories/GHSA-r354-f388-2fhh",
+              "https://nvd.nist.gov/vuln/detail/CVE-2026-24398",
+              "https://github.com/honojs/hono/commit/edbf6eea8e6c26a3937518d4ed91d8666edeec37"
+            ]
+          },
+          {
+            "id": "GHSA-r5rp-j6wh-rvv4",
+            "packageName": "hono",
+            "version": "4.10.6",
+            "severity": "medium",
+            "summary": "Hono: Non-breaking space prefix bypass in cookie name handling in getCookie()",
+            "fixedVersions": [
+              "4.12.12"
+            ],
+            "references": [
+              "https://github.com/honojs/hono/security/advisories/GHSA-r5rp-j6wh-rvv4",
+              "https://nvd.nist.gov/vuln/detail/CVE-2026-39410",
+              "https://github.com/honojs/hono/commit/cc067c85592415cb1880ad3c61ed923472452ec0"
+            ]
+          },
+          {
+            "id": "GHSA-rv63-4mwf-qqc2",
+            "packageName": "hono",
+            "version": "4.10.6",
+            "severity": "medium",
+            "summary": "hono: Body Limit Middleware can be bypassed on AWS Lambda by understating `Content-Length`",
+            "fixedVersions": [
+              "4.12.25"
+            ],
+            "references": [
+              "https://github.com/honojs/hono/security/advisories/GHSA-rv63-4mwf-qqc2",
+              "https://nvd.nist.gov/vuln/detail/CVE-2026-54288",
+              "https://github.com/honojs/hono"
+            ]
+          },
+          {
+            "id": "GHSA-v8w9-8mx6-g223",
+            "packageName": "hono",
+            "version": "4.10.6",
+            "severity": "medium",
+            "summary": "Hono vulnerable to Prototype Pollution possible through __proto__ key allowed in parseBody({ dot: true })",
+            "fixedVersions": [
+              "4.12.7"
+            ],
+            "references": [
+              "https://github.com/honojs/hono/security/advisories/GHSA-v8w9-8mx6-g223",
+              "https://nvd.nist.gov/vuln/detail/CVE-2026-56763",
+              "https://github.com/honojs/hono/commit/ef902257e0beacbb83d2a9549b3b83e03514a6fe"
+            ]
+          },
+          {
+            "id": "GHSA-w332-q679-j88p",
+            "packageName": "hono",
+            "version": "4.10.6",
+            "severity": "medium",
+            "summary": "Hono has an Arbitrary Key Read in Serve static Middleware (Cloudflare Workers Adapter)",
+            "fixedVersions": [
+              "4.11.7"
+            ],
+            "references": [
+              "https://github.com/honojs/hono/security/advisories/GHSA-w332-q679-j88p",
+              "https://nvd.nist.gov/vuln/detail/CVE-2026-24473",
+              "https://github.com/honojs/hono/commit/cf9a78db4d0a19b117aee399cbe9d3a6d9bfd817"
+            ]
+          },
+          {
+            "id": "GHSA-w62v-xxxg-mg59",
+            "packageName": "hono",
+            "version": "4.10.6",
+            "severity": "medium",
+            "summary": "Hono: Server-Side XSS via JSX Escaping Bypass in cx() Utility",
+            "fixedVersions": [
+              "4.12.27"
+            ],
+            "references": [
+              "https://github.com/honojs/hono/security/advisories/GHSA-w62v-xxxg-mg59",
+              "https://nvd.nist.gov/vuln/detail/CVE-2026-59895",
+              "https://github.com/honojs/hono/commit/cd3f6f7194f0e5c9d4b26ae0cf232018d0f388fc"
+            ]
+          },
+          {
+            "id": "GHSA-wgpf-jwqj-8h8p",
+            "packageName": "hono",
+            "version": "4.10.6",
+            "severity": "medium",
+            "summary": "hono: Lambda@Edge adapter keeps only the last value of a repeated request header, dropping the rest",
+            "fixedVersions": [
+              "4.12.25"
+            ],
+            "references": [
+              "https://github.com/honojs/hono/security/advisories/GHSA-wgpf-jwqj-8h8p",
+              "https://nvd.nist.gov/vuln/detail/CVE-2026-54289",
+              "https://github.com/honojs/hono"
+            ]
+          },
+          {
+            "id": "GHSA-wmmm-f939-6g9c",
+            "packageName": "hono",
+            "version": "4.10.6",
+            "severity": "medium",
+            "summary": "Hono: Middleware bypass via repeated slashes in serveStatic",
+            "fixedVersions": [
+              "4.12.12"
+            ],
+            "references": [
+              "https://github.com/honojs/hono/security/advisories/GHSA-wmmm-f939-6g9c",
+              "https://nvd.nist.gov/vuln/detail/CVE-2026-39407",
+              "https://github.com/honojs/hono/commit/9aff14bd727f8b0435c963363fd803260e7b8e3c"
+            ]
+          },
+          {
+            "id": "GHSA-wwfh-h76j-fc44",
+            "packageName": "hono",
+            "version": "4.10.6",
+            "severity": "medium",
+            "summary": "hono: Path traversal in `serve-static` on Windows via encoded backslash (`%5C`)",
+            "fixedVersions": [
+              "4.12.25"
+            ],
+            "references": [
+              "https://github.com/honojs/hono/security/advisories/GHSA-wwfh-h76j-fc44",
+              "https://nvd.nist.gov/vuln/detail/CVE-2026-54286",
+              "https://github.com/honojs/hono"
+            ]
+          },
+          {
+            "id": "GHSA-xf4j-xp2r-rqqx",
+            "packageName": "hono",
+            "version": "4.10.6",
+            "severity": "medium",
+            "summary": "Hono: Path traversal in toSSG() allows writing files outside the output directory",
+            "fixedVersions": [
+              "4.12.12"
+            ],
+            "references": [
+              "https://github.com/honojs/hono/security/advisories/GHSA-xf4j-xp2r-rqqx",
+              "https://nvd.nist.gov/vuln/detail/CVE-2026-39408",
+              "https://github.com/honojs/hono/commit/b470278920fffcfd6d76002755d6db53db827679"
+            ]
+          },
+          {
+            "id": "GHSA-xgm2-5f3f-mvvc",
+            "packageName": "hono",
+            "version": "4.10.6",
+            "severity": "medium",
+            "summary": "Hono: API Gateway v1 adapter can drop a distinct repeated request header value during de-duplication",
+            "fixedVersions": [
+              "4.12.27"
+            ],
+            "references": [
+              "https://github.com/honojs/hono/security/advisories/GHSA-xgm2-5f3f-mvvc",
+              "https://nvd.nist.gov/vuln/detail/CVE-2026-59897",
+              "https://github.com/honojs/hono/commit/aa921770d09bc35970362d5a2630a878f6d982fd"
+            ]
+          },
+          {
+            "id": "GHSA-xpcf-pg52-r92g",
+            "packageName": "hono",
+            "version": "4.10.6",
+            "severity": "medium",
+            "summary": "Hono has incorrect IP matching in ipRestriction() for IPv4-mapped IPv6 addresses",
+            "fixedVersions": [
+              "4.12.12"
+            ],
+            "references": [
+              "https://github.com/honojs/hono/security/advisories/GHSA-xpcf-pg52-r92g",
+              "https://nvd.nist.gov/vuln/detail/CVE-2026-39409",
+              "https://github.com/honojs/hono/commit/48fa2233bc092f650119f42df043050737cabf39"
+            ]
+          },
+          {
+            "id": "GHSA-xrhx-7g5j-rcj5",
+            "packageName": "hono",
+            "version": "4.10.6",
+            "severity": "medium",
+            "summary": "Hono: IP Restriction bypasses static deny rules for non-canonical IPv6 ",
+            "fixedVersions": [
+              "4.12.21"
+            ],
+            "references": [
+              "https://github.com/honojs/hono/security/advisories/GHSA-xrhx-7g5j-rcj5",
+              "https://nvd.nist.gov/vuln/detail/CVE-2026-47674",
+              "https://github.com/honojs/hono/commit/c831020fb1fa2e929d222f6c84e1abfe013e512b"
+            ]
+          },
+          {
+            "id": "GHSA-22jq-vg5j-6vgg",
+            "packageName": "ip-address",
+            "version": "10.2.0",
+            "severity": "medium",
+            "summary": "ip-address: misclassification of IPv4-mapped/NAT64 IPv6 addresses can bypass SSRF and trust-boundary checks",
+            "fixedVersions": [
+              "10.2.1"
+            ],
+            "references": [
+              "https://github.com/beaugunderson/ip-address/security/advisories/GHSA-22jq-vg5j-6vgg",
+              "https://nvd.nist.gov/vuln/detail/CVE-2026-54272",
+              "https://github.com/beaugunderson/ip-address/commit/4a1f613f4c1bec915677dea923c10aaa09361ef9"
+            ]
+          },
+          {
+            "id": "GHSA-2vr4-cq9g-pvrc",
+            "packageName": "ip-address",
+            "version": "10.2.0",
+            "severity": "medium",
+            "summary": "ip-address: no classifier recognizes the NAT64 local-use range 64:ff9b:1::/48, allowing SSRF and trust-boundary bypass",
+            "fixedVersions": [
+              "10.5.1"
+            ],
+            "references": [
+              "https://github.com/beaugunderson/ip-address/security/advisories/GHSA-2vr4-cq9g-pvrc",
+              "https://nvd.nist.gov/vuln/detail/CVE-2026-101910",
+              "https://github.com/beaugunderson/ip-address/commit/ab3dc88bcf5374344168a2ba075ca7ac4ff257f8"
+            ]
+          },
+          {
+            "id": "GHSA-4xrf-jv44-h6hh",
+            "packageName": "ip-address",
+            "version": "10.2.0",
+            "severity": "medium",
+            "summary": "ip-address: a CIDR suffix on the parsed address suppresses special-use classification and can bypass SSRF and trust-boundary checks",
+            "fixedVersions": [
+              "10.2.2"
+            ],
+            "references": [
+              "https://github.com/beaugunderson/ip-address/security/advisories/GHSA-4xrf-jv44-h6hh",
+              "https://github.com/beaugunderson/ip-address/commit/488fe9bc7c35363b4b090494fc38c266d217740d",
+              "https://github.com/beaugunderson/ip-address"
+            ]
+          },
+          {
+            "id": "GHSA-h3mg-xc3c-68pw",
+            "packageName": "ip-address",
+            "version": "10.2.0",
+            "severity": "medium",
+            "summary": "ip-address: Address6 builds a parse diagnostic proportional to the input with no length bound, allowing a single long string to stall or crash the process",
+            "fixedVersions": [
+              "10.7.1"
+            ],
+            "references": [
+              "https://github.com/beaugunderson/ip-address/security/advisories/GHSA-h3mg-xc3c-68pw",
+              "https://nvd.nist.gov/vuln/detail/CVE-2026-101911",
+              "https://github.com/beaugunderson/ip-address/commit/469ead1231b4cc059f2150c626e1e0c2895c0134"
+            ]
+          },
+          {
+            "id": "GHSA-j6r3-76f7-8jcv",
+            "packageName": "ip-address",
+            "version": "10.2.0",
+            "severity": "medium",
+            "summary": "ip-address: isInSubnet() and isHostInSubnet() compare addresses of different families as if they shared an address space, allowing an allowlist check to admit an address outside its range",
+            "fixedVersions": [
+              "10.7.1"
+            ],
+            "references": [
+              "https://github.com/beaugunderson/ip-address/security/advisories/GHSA-j6r3-76f7-8jcv",
+              "https://nvd.nist.gov/vuln/detail/CVE-2026-101912",
+              "https://github.com/beaugunderson/ip-address/commit/1343629d57fea413644a5c9d41ff1e59619f3f28"
+            ]
+          },
+          {
+            "id": "GHSA-rpw4-54j3-4h4q",
+            "packageName": "ip-address",
+            "version": "10.2.0",
+            "severity": "medium",
+            "summary": "ip-address: Address6.isLinkLocal() recognizes fe80::/64 rather than fe80::/10, allowing SSRF and trust-boundary bypass to on-link hosts",
+            "fixedVersions": [
+              "10.5.1"
+            ],
+            "references": [
+              "https://github.com/beaugunderson/ip-address/security/advisories/GHSA-rpw4-54j3-4h4q",
+              "https://nvd.nist.gov/vuln/detail/CVE-2026-101913",
+              "https://github.com/beaugunderson/ip-address/commit/d03e960c7cc3179ef25c8a44b4f94dd499625546"
+            ]
+          },
+          {
+            "id": "GHSA-h67p-54hq-rp68",
+            "packageName": "js-yaml",
+            "version": "4.1.1",
+            "severity": "medium",
+            "summary": "JS-YAML: Quadratic-complexity DoS in merge key handling via repeated aliases",
+            "fixedVersions": [
+              "4.2.0",
+              "3.15.0"
+            ],
+            "references": [
+              "https://github.com/nodeca/js-yaml/security/advisories/GHSA-h67p-54hq-rp68",
+              "https://nvd.nist.gov/vuln/detail/CVE-2026-53550",
+              "https://github.com/nodeca/js-yaml"
+            ]
+          },
+          {
+            "id": "GHSA-f23m-r3pf-42rh",
+            "packageName": "lodash",
+            "version": "4.17.21",
+            "severity": "medium",
+            "summary": "lodash vulnerable to Prototype Pollution via array path bypass in `_.unset` and `_.omit`",
+            "fixedVersions": [
+              "4.18.0"
+            ],
+            "references": [
+              "https://github.com/lodash/lodash/security/advisories/GHSA-f23m-r3pf-42rh",
+              "https://github.com/lodash/lodash/security/advisories/GHSA-xxjr-mmjv-4gpg",
+              "https://nvd.nist.gov/vuln/detail/CVE-2026-2950"
+            ]
+          },
+          {
+            "id": "GHSA-xxjr-mmjv-4gpg",
+            "packageName": "lodash",
+            "version": "4.17.21",
+            "severity": "medium",
+            "summary": "Lodash has Prototype Pollution Vulnerability in `_.unset` and `_.omit` functions",
+            "fixedVersions": [
+              "4.17.23"
+            ],
+            "references": [
+              "https://github.com/lodash/lodash/security/advisories/GHSA-xxjr-mmjv-4gpg",
+              "https://nvd.nist.gov/vuln/detail/CVE-2025-13465",
+              "https://github.com/lodash/lodash/commit/edadd452146f7e4bad4ea684e955708931d84d81"
+            ]
+          },
+          {
+            "id": "GHSA-rgwj-5xj2-c3m3",
+            "packageName": "mysql2",
+            "version": "3.15.3",
+            "severity": "medium",
+            "summary": "MySQL2: Unbounded zlib inflate in compressed MySQL protocol handler allows decompression-bomb DoS",
+            "fixedVersions": [
+              "3.23.1"
+            ],
+            "references": [
+              "https://github.com/sidorares/node-mysql2/security/advisories/GHSA-rgwj-5xj2-c3m3",
+              "https://github.com/sidorares/node-mysql2/commit/7c48343c95ecc80d30d6ebfa67875947b7d848d2",
+              "https://github.com/sidorares/node-mysql2"
+            ]
+          },
+          {
+            "id": "GHSA-3x4c-7xq6-9pq8",
+            "packageName": "next",
+            "version": "16.1.1",
+            "severity": "medium",
+            "summary": "Next.js: Unbounded next/image disk cache growth can exhaust storage",
+            "fixedVersions": [
+              "16.1.7",
+              "15.5.14"
+            ],
+            "references": [
+              "https://github.com/vercel/next.js/security/advisories/GHSA-3x4c-7xq6-9pq8",
+              "https://nvd.nist.gov/vuln/detail/CVE-2026-27980",
+              "https://github.com/vercel/next.js/commit/39eb8e0ac498b48855a0430fbf4c22276a73b4bd"
+            ]
+          },
+          {
+            "id": "GHSA-4633-3j49-mh5q",
+            "packageName": "next",
+            "version": "16.1.1",
+            "severity": "medium",
+            "summary": "Next.js: Cache confusion of response bodies for requests with bodies containing invalid UTF-8 byte sequences",
+            "fixedVersions": [
+              "15.5.21",
+              "16.2.11"
+            ],
+            "references": [
+              "https://github.com/vercel/next.js/security/advisories/GHSA-4633-3j49-mh5q",
+              "https://github.com/vercel/next.js/pull/96008",
+              "https://github.com/vercel/next.js/commit/025bf4a5f7b47fb7758c4ebf1c931a61c451c082"
+            ]
+          },
+          {
+            "id": "GHSA-4c39-4ccg-62r3",
+            "packageName": "next",
+            "version": "16.1.1",
+            "severity": "medium",
+            "summary": "Next.js: Unbounded Server Action payload in Edge runtime",
+            "fixedVersions": [
+              "15.5.21",
+              "16.2.11"
+            ],
+            "references": [
+              "https://github.com/vercel/next.js/security/advisories/GHSA-4c39-4ccg-62r3",
+              "https://github.com/vercel/next.js/commit/57c31f724d746e86a9e8b92aa8be538a922446a4",
+              "https://github.com/vercel/next.js/commit/9a4651e754f70b12e397694ffc41f44c3ba8cc17"
+            ]
+          },
+          {
+            "id": "GHSA-4jqv-mc3x-m676",
+            "packageName": "next",
+            "version": "16.1.1",
+            "severity": "medium",
+            "summary": "Next.js has cache poisoning of SSG and ISR pages in self-hosted applications",
+            "fixedVersions": [
+              "15.5.27",
+              "16.3.8"
+            ],
+            "references": [
+              "https://github.com/vercel/next.js/security/advisories/GHSA-4jqv-mc3x-m676",
+              "https://nvd.nist.gov/vuln/detail/CVE-2026-94543",
+              "https://github.com/vercel/next.js/commit/52c94abdd2ea5f416f5e8353ea8a2edd3fe311b8"
+            ]
+          },
+          {
+            "id": "GHSA-5f7q-jpqc-wp7h",
+            "packageName": "next",
+            "version": "16.1.1",
+            "severity": "medium",
+            "summary": "Next.js has Unbounded Memory Consumption via PPR Resume Endpoint ",
+            "fixedVersions": [
+              "16.1.5",
+              "15.6.0-canary.61"
+            ],
+            "references": [
+              "https://github.com/vercel/next.js/security/advisories/GHSA-5f7q-jpqc-wp7h",
+              "https://nvd.nist.gov/vuln/detail/CVE-2025-59472",
+              "https://github.com/vercel/next.js"
+            ]
+          },
+          {
+            "id": "GHSA-68g3-v927-f742",
+            "packageName": "next",
+            "version": "16.1.1",
+            "severity": "medium",
+            "summary": "Next.js: Cache confusion of response bodies for requests with bodies",
+            "fixedVersions": [
+              "15.5.21",
+              "16.2.11"
+            ],
+            "references": [
+              "https://github.com/vercel/next.js/security/advisories/GHSA-68g3-v927-f742",
+              "https://github.com/vercel/next.js/commit/062f66700b52a5d6bba2c0605d55577ab7ad262c",
+              "https://github.com/vercel/next.js/commit/73b94872bc343d09494b50394d8c08eb9fc8e56a"
+            ]
+          },
+          {
+            "id": "GHSA-955p-x3mx-jcvp",
+            "packageName": "next",
+            "version": "16.1.1",
+            "severity": "medium",
+            "summary": "Next.js: Unauthenticated disclosure of internal Server Function endpoints",
+            "fixedVersions": [
+              "15.5.21",
+              "16.2.11"
+            ],
+            "references": [
+              "https://github.com/vercel/next.js/security/advisories/GHSA-955p-x3mx-jcvp",
+              "https://github.com/vercel/next.js/commit/1b0c3ae912a3ad925c60065cc8d55b070fa8bcd3",
+              "https://github.com/vercel/next.js/commit/ff12a6124e1504f17b62de948b8a553fdecaef7b"
+            ]
+          },
+          {
+            "id": "GHSA-9g9p-9gw9-jx7f",
+            "packageName": "next",
+            "version": "16.1.1",
+            "severity": "medium",
+            "summary": "Next.js self-hosted applications vulnerable to DoS via Image Optimizer remotePatterns configuration",
+            "fixedVersions": [
+              "15.5.10",
+              "16.1.5"
+            ],
+            "references": [
+              "https://github.com/vercel/next.js/security/advisories/GHSA-9g9p-9gw9-jx7f",
+              "https://nvd.nist.gov/vuln/detail/CVE-2025-59471",
+              "https://github.com/vercel/next.js/commit/500ec83743639addceaede95e95913398975156c"
+            ]
+          },
+          {
+            "id": "GHSA-f87g-xv8r-7p7x",
+            "packageName": "next",
+            "version": "16.1.1",
+            "severity": "medium",
+            "summary": "Next.js has information disclosure in App Router metadata image routes via dynamicParams bypass",
+            "fixedVersions": [
+              "16.3.8"
+            ],
+            "references": [
+              "https://github.com/vercel/next.js/security/advisories/GHSA-f87g-xv8r-7p7x",
+              "https://nvd.nist.gov/vuln/detail/CVE-2026-94485",
+              "https://github.com/vercel/next.js/commit/2d9f50a409312696145b82b3157aadb6b1fef476"
+            ]
+          },
+          {
+            "id": "GHSA-ffhc-5mcf-pf4q",
+            "packageName": "next",
+            "version": "16.1.1",
+            "severity": "medium",
+            "summary": "Next.js vulnerable to cross-site scripting in App Router applications using CSP nonces",
+            "fixedVersions": [
+              "15.5.16",
+              "16.2.5"
+            ],
+            "references": [
+              "https://github.com/vercel/next.js/security/advisories/GHSA-ffhc-5mcf-pf4q",
+              "https://nvd.nist.gov/vuln/detail/CVE-2026-44581",
+              "https://github.com/vercel/next.js"
+            ]
+          },
+          {
+            "id": "GHSA-ggv3-7p47-pfv8",
+            "packageName": "next",
+            "version": "16.1.1",
+            "severity": "medium",
+            "summary": "Next.js: HTTP request smuggling in rewrites",
+            "fixedVersions": [
+              "16.1.7",
+              "15.5.13"
+            ],
+            "references": [
+              "https://github.com/vercel/next.js/security/advisories/GHSA-ggv3-7p47-pfv8",
+              "https://nvd.nist.gov/vuln/detail/CVE-2026-29057",
+              "https://github.com/vercel/next.js/commit/dc98c04f376c6a1df76ec3e0a2d07edf4abdabd6"
+            ]
+          },
+          {
+            "id": "GHSA-gx5p-jg67-6x7h",
+            "packageName": "next",
+            "version": "16.1.1",
+            "severity": "medium",
+            "summary": "Next.js has cross-site scripting in beforeInteractive scripts with untrusted input",
+            "fixedVersions": [
+              "15.5.16",
+              "16.2.5"
+            ],
+            "references": [
+              "https://github.com/vercel/next.js/security/advisories/GHSA-gx5p-jg67-6x7h",
+              "https://nvd.nist.gov/vuln/detail/CVE-2026-44580",
+              "https://github.com/vercel/next.js"
+            ]
+          },
+          {
+            "id": "GHSA-h27x-g6w4-24gq",
+            "packageName": "next",
+            "version": "16.1.1",
+            "severity": "medium",
+            "summary": "Next.js: Unbounded postponed resume buffering can lead to DoS",
+            "fixedVersions": [
+              "16.1.7"
+            ],
+            "references": [
+              "https://github.com/vercel/next.js/security/advisories/GHSA-h27x-g6w4-24gq",
+              "https://nvd.nist.gov/vuln/detail/CVE-2026-27979",
+              "https://github.com/vercel/next.js/commit/c885d4825f800dd1e49ead37274dcd08cdd6f3f1"
+            ]
+          },
+          {
+            "id": "GHSA-h64f-5h5j-jqjh",
+            "packageName": "next",
+            "version": "16.1.1",
+            "severity": "medium",
+            "summary": "Next.js has a Denial of Service in the Image Optimization API",
+            "fixedVersions": [
+              "15.5.16",
+              "16.2.5"
+            ],
+            "references": [
+              "https://github.com/vercel/next.js/security/advisories/GHSA-h64f-5h5j-jqjh",
+              "https://nvd.nist.gov/vuln/detail/CVE-2026-44577",
+              "https://github.com/vercel/next.js"
+            ]
+          },
+          {
+            "id": "GHSA-mcj8-r9mp-w47p",
+            "packageName": "next",
+            "version": "16.1.1",
+            "severity": "medium",
+            "summary": "Next.js has cache poisoning in SSG/ISR rendering that leads to cross-user content substitution and persistent denial of service",
+            "fixedVersions": [
+              "16.3.8",
+              "15.5.27"
+            ],
+            "references": [
+              "https://github.com/vercel/next.js/security/advisories/GHSA-mcj8-r9mp-w47p",
+              "https://nvd.nist.gov/vuln/detail/CVE-2026-94484",
+              "https://github.com/vercel/next.js/commit/52c94abdd2ea5f416f5e8353ea8a2edd3fe311b8"
+            ]
+          },
+          {
+            "id": "GHSA-mq59-m269-xvcx",
+            "packageName": "next",
+            "version": "16.1.1",
+            "severity": "medium",
+            "summary": "Next.js: null origin can bypass Server Actions CSRF checks",
+            "fixedVersions": [
+              "16.1.7"
+            ],
+            "references": [
+              "https://github.com/vercel/next.js/security/advisories/GHSA-mq59-m269-xvcx",
+              "https://nvd.nist.gov/vuln/detail/CVE-2026-27978",
+              "https://github.com/vercel/next.js/commit/a27a11d78e748a8c7ccfd14b7759ad2b9bf097d8"
+            ]
+          },
+          {
+            "id": "GHSA-q8wf-6r8g-63ch",
+            "packageName": "next",
+            "version": "16.1.1",
+            "severity": "medium",
+            "summary": "Next.js: Denial of Service in the Image Optimization API using SVGs",
+            "fixedVersions": [
+              "15.5.21",
+              "16.2.11"
+            ],
+            "references": [
+              "https://github.com/vercel/next.js/security/advisories/GHSA-q8wf-6r8g-63ch",
+              "https://github.com/vercel/next.js/pull/96006",
+              "https://github.com/vercel/next.js/commit/93cb90891402fa4c47798d03cb9e05c13233766c"
+            ]
+          },
+          {
+            "id": "GHSA-wfc6-r584-vfw7",
+            "packageName": "next",
+            "version": "16.1.1",
+            "severity": "medium",
+            "summary": "Next.js vulnerable to cache poisoning in React Server Component responses",
+            "fixedVersions": [
+              "15.5.16",
+              "16.2.5"
+            ],
+            "references": [
+              "https://github.com/vercel/next.js/security/advisories/GHSA-wfc6-r584-vfw7",
+              "https://nvd.nist.gov/vuln/detail/CVE-2026-44576",
+              "https://github.com/vercel/next.js"
+            ]
+          },
+          {
+            "id": "GHSA-3v7f-55p6-f55p",
+            "packageName": "picomatch",
+            "version": "2.3.1",
+            "severity": "medium",
+            "summary": "Picomatch: Method Injection in POSIX Character Classes causes incorrect Glob Matching",
+            "fixedVersions": [
+              "4.0.4",
+              "3.0.2",
+              "2.3.2"
+            ],
+            "references": [
+              "https://github.com/micromatch/picomatch/security/advisories/GHSA-3v7f-55p6-f55p",
+              "https://nvd.nist.gov/vuln/detail/CVE-2026-33672",
+              "https://github.com/micromatch/picomatch/commit/4516eb521f13a46b2fe1a1d2c9ef6b20ddc0e903"
+            ]
+          },
+          {
+            "id": "GHSA-3v7f-55p6-f55p",
+            "packageName": "picomatch",
+            "version": "4.0.3",
+            "severity": "medium",
+            "summary": "Picomatch: Method Injection in POSIX Character Classes causes incorrect Glob Matching",
+            "fixedVersions": [
+              "4.0.4",
+              "3.0.2",
+              "2.3.2"
+            ],
+            "references": [
+              "https://github.com/micromatch/picomatch/security/advisories/GHSA-3v7f-55p6-f55p",
+              "https://nvd.nist.gov/vuln/detail/CVE-2026-33672",
+              "https://github.com/micromatch/picomatch/commit/4516eb521f13a46b2fe1a1d2c9ef6b20ddc0e903"
+            ]
+          },
+          {
+            "id": "GHSA-fxqj-rqcc-2cmp",
+            "packageName": "postcss",
+            "version": "8.4.31",
+            "severity": "medium",
+            "summary": "PostCSS: incomplete fix of GHSA-6g55-p6wh-862q — attacker-controlled sourceMappingURL reads arbitrary .map files when `from` is unset",
+            "fixedVersions": [
+              "8.5.23"
+            ],
+            "references": [
+              "https://github.com/postcss/postcss/security/advisories/GHSA-fxqj-rqcc-2cmp",
+              "https://github.com/postcss/postcss/commit/7beca139e70f9075c6b19700fcb00dd8033e5da8",
+              "https://github.com/postcss/postcss"
+            ]
+          },
+          {
+            "id": "GHSA-fxqj-rqcc-2cmp",
+            "packageName": "postcss",
+            "version": "8.5.6",
+            "severity": "medium",
+            "summary": "PostCSS: incomplete fix of GHSA-6g55-p6wh-862q — attacker-controlled sourceMappingURL reads arbitrary .map files when `from` is unset",
+            "fixedVersions": [
+              "8.5.23"
+            ],
+            "references": [
+              "https://github.com/postcss/postcss/security/advisories/GHSA-fxqj-rqcc-2cmp",
+              "https://github.com/postcss/postcss/commit/7beca139e70f9075c6b19700fcb00dd8033e5da8",
+              "https://github.com/postcss/postcss"
+            ]
+          },
+          {
+            "id": "GHSA-qx2v-qp2m-jg93",
+            "packageName": "postcss",
+            "version": "8.4.31",
+            "severity": "medium",
+            "summary": "PostCSS has XSS via Unescaped </style> in its CSS Stringify Output",
+            "fixedVersions": [
+              "8.5.10"
+            ],
+            "references": [
+              "https://github.com/postcss/postcss/security/advisories/GHSA-qx2v-qp2m-jg93",
+              "https://nvd.nist.gov/vuln/detail/CVE-2026-41305",
+              "https://github.com/postcss/postcss"
+            ]
+          },
+          {
+            "id": "GHSA-qx2v-qp2m-jg93",
+            "packageName": "postcss",
+            "version": "8.5.6",
+            "severity": "medium",
+            "summary": "PostCSS has XSS via Unescaped </style> in its CSS Stringify Output",
+            "fixedVersions": [
+              "8.5.10"
+            ],
+            "references": [
+              "https://github.com/postcss/postcss/security/advisories/GHSA-qx2v-qp2m-jg93",
+              "https://nvd.nist.gov/vuln/detail/CVE-2026-41305",
+              "https://github.com/postcss/postcss"
+            ]
+          },
+          {
+            "id": "GHSA-2jfj-6hjv-fm6j",
+            "packageName": "undici",
+            "version": "7.27.2",
+            "severity": "medium",
+            "summary": "undici vulnerable to cross-user cookie disclosure via Set-Cookie caching in shared caches",
+            "fixedVersions": [
+              "7.29.1",
+              "8.10.2"
+            ],
+            "references": [
+              "https://github.com/nodejs/undici/security/advisories/GHSA-2jfj-6hjv-fm6j",
+              "https://nvd.nist.gov/vuln/detail/CVE-2026-84933",
+              "https://github.com/nodejs/undici/commit/b6c5a00252c37da9dd2db9bead053bb843e1f988"
+            ]
+          },
+          {
+            "id": "GHSA-3xpg-4rpp-hhhm",
+            "packageName": "undici",
+            "version": "7.27.2",
+            "severity": "medium",
+            "summary": "undici vulnerable to Denial of Service via unbounded decompression of compressed responses",
+            "fixedVersions": [
+              "7.29.1",
+              "8.10.2"
+            ],
+            "references": [
+              "https://github.com/nodejs/undici/security/advisories/GHSA-3xpg-4rpp-hhhm",
+              "https://nvd.nist.gov/vuln/detail/CVE-2026-84890",
+              "https://github.com/nodejs/undici/commit/2c7d7e1227043c644c4c32cfd1e276f4fd4fcb11"
+            ]
+          },
+          {
+            "id": "GHSA-8xcm-r25x-g524",
+            "packageName": "undici",
+            "version": "7.27.2",
+            "severity": "medium",
+            "summary": "undici vulnerable to downstream response desynchronization via retry interceptor",
+            "fixedVersions": [
+              "6.28.0",
+              "7.29.0",
+              "8.9.0"
+            ],
+            "references": [
+              "https://github.com/nodejs/undici/security/advisories/GHSA-8xcm-r25x-g524",
+              "https://nvd.nist.gov/vuln/detail/CVE-2026-16728",
+              "https://github.com/nodejs/undici/commit/1b5a5312c3a7d7a30c31bf0d000b39a8a2531e1c"
+            ]
+          },
+          {
+            "id": "GHSA-jr45-8vmc-qm54",
+            "packageName": "undici",
+            "version": "7.27.2",
+            "severity": "medium",
+            "summary": "undici vulnerable to cross-user information disclosure via whitespace around equals in Cache-Control directives",
+            "fixedVersions": [
+              "7.29.0",
+              "8.9.0"
+            ],
+            "references": [
+              "https://github.com/nodejs/undici/security/advisories/GHSA-jr45-8vmc-qm54",
+              "https://nvd.nist.gov/vuln/detail/CVE-2026-14643",
+              "https://github.com/nodejs/undici/commit/85a240551c9feb8b8a0ecc56c84b2b3015add8a9"
+            ]
+          },
+          {
+            "id": "GHSA-m8rv-5g2x-5cg5",
+            "packageName": "undici",
+            "version": "7.27.2",
+            "severity": "medium",
+            "summary": "undici vulnerable to CRLF Injection via blob-like body 'type' property",
+            "fixedVersions": [
+              "6.28.0",
+              "7.29.0",
+              "8.9.0"
+            ],
+            "references": [
+              "https://github.com/nodejs/undici/security/advisories/GHSA-m8rv-5g2x-5cg5",
+              "https://nvd.nist.gov/vuln/detail/CVE-2026-15157",
+              "https://github.com/nodejs/undici/commit/33928bc24f742ea8422ed90d17f2e0cc83e4d09d"
+            ]
+          },
+          {
+            "id": "GHSA-p88m-4jfj-68fv",
+            "packageName": "undici",
+            "version": "7.27.2",
+            "severity": "medium",
+            "summary": "undici vulnerable to HTTP header injection via Set-Cookie percent-decoding",
+            "fixedVersions": [
+              "6.27.0",
+              "7.28.0",
+              "8.5.0"
+            ],
+            "references": [
+              "https://github.com/nodejs/undici/security/advisories/GHSA-p88m-4jfj-68fv",
+              "https://nvd.nist.gov/vuln/detail/CVE-2026-9679",
+              "https://cna.openjsf.org/security-advisories.html"
+            ]
+          },
+          {
+            "id": "GHSA-pmjh-fq2x-6v4x",
+            "packageName": "undici",
+            "version": "7.27.2",
+            "severity": "medium",
+            "summary": "undici vulnerable to Denial of Service via orphaned RetryHandler response body",
+            "fixedVersions": [
+              "7.29.1",
+              "8.10.2"
+            ],
+            "references": [
+              "https://github.com/nodejs/undici/security/advisories/GHSA-pmjh-fq2x-6v4x",
+              "https://nvd.nist.gov/vuln/detail/CVE-2026-18149",
+              "https://github.com/nodejs/undici/commit/3c6726599cea8646384dde846c97d630da472a74"
+            ]
+          },
+          {
+            "id": "GHSA-pr7r-676h-xcf6",
+            "packageName": "undici",
+            "version": "7.27.2",
+            "severity": "medium",
+            "summary": "undici vulnerable to cross-user information disclosure via shared cache whitespace bypass",
+            "fixedVersions": [
+              "7.28.0",
+              "8.5.0"
+            ],
+            "references": [
+              "https://github.com/nodejs/undici/security/advisories/GHSA-pr7r-676h-xcf6",
+              "https://nvd.nist.gov/vuln/detail/CVE-2026-9678",
+              "https://cna.openjsf.org/security-advisories.html"
+            ]
+          },
+          {
+            "id": "GHSA-rx4f-c7p8-82vq",
+            "packageName": "undici",
+            "version": "7.27.2",
+            "severity": "medium",
+            "summary": "undici vulnerable to Denial of Service via WebSocketStream unclean close",
+            "fixedVersions": [
+              "7.29.1",
+              "8.10.2"
+            ],
+            "references": [
+              "https://github.com/nodejs/undici/security/advisories/GHSA-rx4f-c7p8-82vq",
+              "https://nvd.nist.gov/vuln/detail/CVE-2026-85014",
+              "https://github.com/nodejs/undici/commit/1858656ebb1e919311c1f31613dfd581b7214349"
+            ]
+          },
+          {
+            "id": "GHSA-v3r7-h72x-cjcm",
+            "packageName": "undici",
+            "version": "7.27.2",
+            "severity": "medium",
+            "summary": "undici vulnerable to cookie attribute injection via unsanitized domain and unparsed setCookie fields",
+            "fixedVersions": [
+              "6.28.0",
+              "7.29.0",
+              "8.9.0"
+            ],
+            "references": [
+              "https://github.com/nodejs/undici/security/advisories/GHSA-v3r7-h72x-cjcm",
+              "https://nvd.nist.gov/vuln/detail/CVE-2026-16729",
+              "https://github.com/nodejs/undici/commit/10d93fc332f2c8c161982dec3833201de29891b5"
+            ]
+          },
+          {
+            "id": "GHSA-5qjj-4xww-7phc",
+            "packageName": "valibot",
+            "version": "1.2.0",
+            "severity": "medium",
+            "summary": "Valibot: record() issue paths can make flatten() throw for inherited Object property names",
+            "fixedVersions": [
+              "1.4.2"
+            ],
+            "references": [
+              "https://github.com/open-circle/valibot/security/advisories/GHSA-5qjj-4xww-7phc",
+              "https://github.com/open-circle/valibot/pull/1522",
+              "https://github.com/open-circle/valibot/commit/1bd01c304657cd0809cc92694360b6cc60f700bf"
+            ]
+          },
+          {
+            "id": "GHSA-4x5r-pxfx-6jf8",
+            "packageName": "@babel/core",
+            "version": "7.28.5",
+            "severity": "low",
+            "summary": "@babel/core: Arbitrary File Read via sourceMappingURL Comment",
+            "fixedVersions": [
+              "8.0.0-rc.6",
+              "7.29.6"
+            ],
+            "references": [
+              "https://github.com/babel/babel/security/advisories/GHSA-4x5r-pxfx-6jf8",
+              "https://nvd.nist.gov/vuln/detail/CVE-2026-49356",
+              "https://babeljs.io/docs/options#inputsourcemap"
+            ]
+          },
+          {
+            "id": "GHSA-79qm-7rj5-m7r9",
+            "packageName": "hono",
+            "version": "4.10.6",
+            "severity": "low",
+            "summary": "Hono: Proxy Helper does not remove response headers listed in the `Connection` header",
+            "fixedVersions": [
+              "4.12.34"
+            ],
+            "references": [
+              "https://github.com/honojs/hono/security/advisories/GHSA-79qm-7rj5-m7r9",
+              "https://github.com/honojs/hono/commit/720b566290793d4358bf39843adcb7cf4da4548f",
+              "https://github.com/honojs/hono"
+            ]
+          },
+          {
+            "id": "GHSA-gq3j-xvxp-8hrf",
+            "packageName": "hono",
+            "version": "4.10.6",
+            "severity": "low",
+            "summary": "Hono added timing comparison hardening in basicAuth and bearerAuth",
+            "fixedVersions": [
+              "4.11.10"
+            ],
+            "references": [
+              "https://github.com/honojs/hono/security/advisories/GHSA-gq3j-xvxp-8hrf",
+              "https://github.com/honojs/hono/commit/91def7cab654bad5eecc9270e6620d577971ff5e",
+              "https://github.com/honojs/hono"
+            ]
+          },
+          {
+            "id": "GHSA-hm8q-7f3q-5f36",
+            "packageName": "hono",
+            "version": "4.10.6",
+            "severity": "low",
+            "summary": "Hono has improper validation of NumericDate claims (exp, nbf, iat) in JWT verify()",
+            "fixedVersions": [
+              "4.12.18"
+            ],
+            "references": [
+              "https://github.com/honojs/hono/security/advisories/GHSA-hm8q-7f3q-5f36",
+              "https://nvd.nist.gov/vuln/detail/CVE-2026-44459",
+              "https://github.com/honojs/hono"
+            ]
+          },
+          {
+            "id": "GHSA-39w2-rjm5-chcv",
+            "packageName": "next",
+            "version": "16.1.1",
+            "severity": "low",
+            "summary": "Next.js has information disclosure in development server's Model Context Protocol endpoint",
+            "fixedVersions": [
+              "16.3.8"
+            ],
+            "references": [
+              "https://github.com/vercel/next.js/security/advisories/GHSA-39w2-rjm5-chcv",
+              "https://nvd.nist.gov/vuln/detail/CVE-2026-94486",
+              "https://github.com/vercel/next.js/commit/2d9f50a409312696145b82b3157aadb6b1fef476"
+            ]
+          },
+          {
+            "id": "GHSA-3g8h-86w9-wvmq",
+            "packageName": "next",
+            "version": "16.1.1",
+            "severity": "low",
+            "summary": "Next.js's Middleware / Proxy redirects can be cache-poisoned",
+            "fixedVersions": [
+              "15.5.16",
+              "16.2.5"
+            ],
+            "references": [
+              "https://github.com/vercel/next.js/security/advisories/GHSA-3g8h-86w9-wvmq",
+              "https://nvd.nist.gov/vuln/detail/CVE-2026-44572",
+              "https://github.com/vercel/next.js"
+            ]
+          },
+          {
+            "id": "GHSA-jcc7-9wpm-mj36",
+            "packageName": "next",
+            "version": "16.1.1",
+            "severity": "low",
+            "summary": "Next.js: null origin can bypass dev HMR websocket CSRF checks",
+            "fixedVersions": [
+              "16.1.7"
+            ],
+            "references": [
+              "https://github.com/vercel/next.js/security/advisories/GHSA-jcc7-9wpm-mj36",
+              "https://nvd.nist.gov/vuln/detail/CVE-2026-27977",
+              "https://github.com/vercel/next.js/commit/862f9b9bb41d235e0d8cf44aa811e7fd118cee2a"
+            ]
+          },
+          {
+            "id": "GHSA-vfv6-92ff-j949",
+            "packageName": "next",
+            "version": "16.1.1",
+            "severity": "low",
+            "summary": "Next.js vulnerable to cache poisoning via collisions in React Server Component cache-busting",
+            "fixedVersions": [
+              "15.5.16",
+              "16.2.5"
+            ],
+            "references": [
+              "https://github.com/vercel/next.js/security/advisories/GHSA-vfv6-92ff-j949",
+              "https://nvd.nist.gov/vuln/detail/CVE-2026-44582",
+              "https://github.com/vercel/next.js"
+            ]
+          },
+          {
+            "id": "GHSA-2gqq-gqf2-x968",
+            "packageName": "undici",
+            "version": "7.27.2",
+            "severity": "low",
+            "summary": "undici vulnerable to response truncation via oversized chunked responses in the dump interceptor",
+            "fixedVersions": [
+              "7.29.1",
+              "8.10.2"
+            ],
+            "references": [
+              "https://github.com/nodejs/undici/security/advisories/GHSA-2gqq-gqf2-x968",
+              "https://nvd.nist.gov/vuln/detail/CVE-2026-84947",
+              "https://github.com/nodejs/undici/commit/21693f406f0142f3504192e9f9b022dcf84782ae"
+            ]
+          },
+          {
+            "id": "GHSA-35p6-xmwp-9g52",
+            "packageName": "undici",
+            "version": "7.27.2",
+            "severity": "low",
+            "summary": "undici vulnerable to HTTP response queue poisoning via keep-alive socket reuse",
+            "fixedVersions": [
+              "6.27.0",
+              "7.28.0",
+              "8.5.0"
+            ],
+            "references": [
+              "https://github.com/nodejs/undici/security/advisories/GHSA-35p6-xmwp-9g52",
+              "https://nvd.nist.gov/vuln/detail/CVE-2026-6733",
+              "https://github.com/nodejs/undici/commit/6ea54ef8c4051e95bb68c89d4a5c9274fe6fbb4b"
+            ]
+          },
+          {
+            "id": "GHSA-8436-99hf-9mmv",
+            "packageName": "undici",
+            "version": "7.27.2",
+            "severity": "low",
+            "summary": "undici vulnerable to caching and replay of unsafe HTTP method responses",
+            "fixedVersions": [
+              "7.29.1",
+              "8.10.2"
+            ],
+            "references": [
+              "https://github.com/nodejs/undici/security/advisories/GHSA-8436-99hf-9mmv",
+              "https://nvd.nist.gov/vuln/detail/CVE-2026-85008",
+              "https://github.com/nodejs/undici/commit/2be07bf97b3022e0324142d31f99f6e019d815e3"
+            ]
+          },
+          {
+            "id": "GHSA-g8m3-5g58-fq7m",
+            "packageName": "undici",
+            "version": "7.27.2",
+            "severity": "low",
+            "summary": "undici vulnerable to Set-Cookie SameSite attribute downgrade via permissive substring matching",
+            "fixedVersions": [
+              "6.27.0",
+              "7.28.0",
+              "8.5.0"
+            ],
+            "references": [
+              "https://github.com/nodejs/undici/security/advisories/GHSA-g8m3-5g58-fq7m",
+              "https://nvd.nist.gov/vuln/detail/CVE-2026-11525",
+              "https://cna.openjsf.org/security-advisories.html"
+            ]
+          },
+          {
+            "id": "GHSA-r53p-7pc4-xj5r",
+            "packageName": "undici",
+            "version": "7.27.2",
+            "severity": "low",
+            "summary": "undici vulnerable to downstream response splitting via retry interceptor",
+            "fixedVersions": [
+              "6.28.1",
+              "7.29.1",
+              "8.10.2"
+            ],
+            "references": [
+              "https://github.com/nodejs/undici/security/advisories/GHSA-r53p-7pc4-xj5r",
+              "https://nvd.nist.gov/vuln/detail/CVE-2026-18540",
+              "https://github.com/nodejs/undici/commit/0160a719063fb0a77f4fdf9500b9166b91e14329"
+            ]
+          }
+        ],
+        "incomplete": false
       }
     },
     "createdAt": 1791369037652,
-    "updatedAt": 1791483518925
+    "updatedAt": 1791633132364
   },
   {
     "id": "proj_1791362236826",

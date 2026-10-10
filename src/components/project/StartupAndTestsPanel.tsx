@@ -9,7 +9,7 @@ export const StartupAndTestsPanel: React.FC<StartupAndTestsPanelProps> = ({ anal
   const { isDark } = useTheme();
   const muted = isDark ? 'text-slate-400' : 'text-slate-500';
 
-  return <section className={`rounded-2xl border p-5 lg:col-span-3 ${isDark ? 'border-white/[0.08] bg-[#141518]' : 'border-slate-200 bg-white'}`}>
+  return <section className={`rounded-xl border p-4 ${isDark ? 'border-white/[0.08] bg-[#141518]' : 'border-slate-200 bg-white'}`}>
     <div className="flex flex-wrap items-center justify-between gap-2">
       <div className="flex items-center gap-2">
         <CheckCircle2 className="h-4 w-4 text-emerald-500" />

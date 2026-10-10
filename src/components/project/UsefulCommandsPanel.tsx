@@ -27,7 +27,7 @@ export const UsefulCommandsPanel: React.FC<UsefulCommandsPanelProps> = ({ script
     }
   };
 
-  return <section className={`rounded-2xl border p-5 lg:col-span-3 ${isDark ? 'border-white/[0.08] bg-[#141518]' : 'border-slate-200 bg-white'}`}>
+  return <section className={`rounded-xl border p-4 ${isDark ? 'border-white/[0.08] bg-[#141518]' : 'border-slate-200 bg-white'}`}>
     <div className="flex flex-wrap items-center justify-between gap-2">
       <div>
         <h2 className={`text-sm font-semibold ${isDark ? 'text-white' : 'text-slate-900'}`}>Useful commands</h2>

@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { ChevronDown, ChevronRight, FileText, Folder, FolderOpen } from 'lucide-react';
+import React, { useState, useMemo } from 'react';
+import { ChevronDown, ChevronRight, FileText, Folder, FolderOpen, Search, X } from 'lucide-react';
 import { CodebaseAnalysis } from '../../types/codebase';
 import { useTheme } from '../../context/ThemeContext';
 
@@ -56,7 +56,6 @@ function createProjectTree(analysis: CodebaseAnalysis): ProjectTreeNode {
   }
 
   // Older saved scans contain only a small directory summary. Keep it browsable
-  // and explain that a rescan is needed to populate the full file tree.
   for (const directory of analysis.topLevelDirectories) {
     const parent: ProjectTreeNode = { name: directory.name, path: directory.name, kind: 'folder', files: directory.files, children: [] };
     for (const child of (analysis.nestedDirectories || []).filter(item => item.parent === directory.name)) {
@@ -73,18 +72,44 @@ function getExpandableFolderPaths(node: ProjectTreeNode): string[] {
   return [node.path, ...node.children.flatMap(getExpandableFolderPaths)];
 }
 
-interface ProjectStructureTreeProps { analysis: CodebaseAnalysis; }
+interface ProjectStructureTreeProps {
+  analysis: CodebaseAnalysis;
+}
 
 export const ProjectStructureTree: React.FC<ProjectStructureTreeProps> = ({ analysis }) => {
   const { isDark } = useTheme();
   const muted = isDark ? 'text-slate-400' : 'text-slate-500';
   const panel = isDark ? 'border-white/[0.08] bg-[#141518]' : 'border-slate-200 bg-white';
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(() => new Set(['.']));
-  const projectTree = createProjectTree(analysis);
+  const [filterQuery, setFilterQuery] = useState('');
+
+  const projectTree = useMemo(() => createProjectTree(analysis), [analysis]);
   const hasDetailedTree = Boolean(analysis.structurePaths);
 
+  // Filter matching paths when searching
+  const matchingPaths = useMemo(() => {
+    if (!filterQuery.trim()) return null;
+    const q = filterQuery.toLowerCase();
+    const set = new Set<string>();
+    const checkNode = (node: ProjectTreeNode): boolean => {
+      let hasMatch = node.name.toLowerCase().includes(q) || node.path.toLowerCase().includes(q);
+      for (const child of node.children) {
+        if (checkNode(child)) hasMatch = true;
+      }
+      if (hasMatch) set.add(node.path);
+      return hasMatch;
+    };
+    checkNode(projectTree);
+    return set;
+  }, [projectTree, filterQuery]);
+
   const renderTreeNode = (node: ProjectTreeNode, depth: number): React.ReactNode => {
-    const expanded = expandedFolders.has(node.path);
+    // If filter active, skip if not in matching paths
+    if (matchingPaths && !matchingPaths.has(node.path)) {
+      return null;
+    }
+
+    const expanded = filterQuery.trim() ? true : expandedFolders.has(node.path);
     const canExpand = node.kind === 'folder' && node.children.length > 0;
     const rowClass = `flex min-h-8 items-center gap-1.5 rounded-md pr-2 text-left transition-colors ${isDark ? 'hover:bg-white/[0.04]' : 'hover:bg-slate-50'}`;
     const rowContent = <>
@@ -94,32 +119,96 @@ export const ProjectStructureTree: React.FC<ProjectStructureTreeProps> = ({ anal
       {node.kind === 'folder'
         ? (expanded ? <FolderOpen className="h-3.5 w-3.5 shrink-0 text-amber-500" /> : <Folder className="h-3.5 w-3.5 shrink-0 text-amber-500" />)
         : <FileText className={`h-3.5 w-3.5 shrink-0 ${isDark ? 'text-slate-500' : 'text-slate-400'}`} />}
-      <span className={`min-w-0 flex-1 truncate font-mono text-[11px] ${node.path === '.' ? (isDark ? 'font-semibold text-slate-100' : 'font-semibold text-slate-800') : (isDark ? 'text-slate-300' : 'text-slate-700')}`}>{node.name}{node.kind === 'folder' && '/'}</span>
+      <span className={`min-w-0 flex-1 truncate font-mono text-[11px] ${node.path === '.' ? (isDark ? 'font-semibold text-slate-100' : 'font-semibold text-slate-800') : (isDark ? 'text-slate-300' : 'text-slate-700')}`}>
+        {node.name}{node.kind === 'folder' && '/'}
+      </span>
       {typeof node.files === 'number' && <span className={`shrink-0 text-[9px] ${muted}`}>{node.files} {node.files === 1 ? 'file' : 'files'}</span>}
     </>;
 
-    return <React.Fragment key={node.path}>
-      {node.kind === 'folder' ? <button type="button" onClick={() => setExpandedFolders(current => {
-        const next = new Set(current);
-        if (next.has(node.path)) next.delete(node.path);
-        else next.add(node.path);
-        return next;
-      })} aria-label={`${expanded ? 'Collapse' : 'Expand'} ${node.name}`} aria-expanded={expanded} disabled={!canExpand} className={`${rowClass} w-full disabled:cursor-default disabled:hover:bg-transparent`} style={{ paddingLeft: `${depth * 16 + 4}px` }}>{rowContent}</button>
-        : <div className={rowClass} style={{ paddingLeft: `${depth * 16 + 4}px` }}>{rowContent}</div>}
-      {node.kind === 'folder' && expanded && node.children.map(child => renderTreeNode(child, depth + 1))}
-    </React.Fragment>;
+    return (
+      <React.Fragment key={node.path}>
+        {node.kind === 'folder' ? (
+          <button
+            type="button"
+            onClick={() => setExpandedFolders(current => {
+              const next = new Set(current);
+              if (next.has(node.path)) next.delete(node.path);
+              else next.add(node.path);
+              return next;
+            })}
+            aria-label={`${expanded ? 'Collapse' : 'Expand'} ${node.name}`}
+            aria-expanded={expanded}
+            disabled={!canExpand}
+            className={`${rowClass} w-full disabled:cursor-default disabled:hover:bg-transparent`}
+            style={{ paddingLeft: `${depth * 16 + 4}px` }}
+          >
+            {rowContent}
+          </button>
+        ) : (
+          <div className={rowClass} style={{ paddingLeft: `${depth * 16 + 4}px` }}>
+            {rowContent}
+          </div>
+        )}
+        {node.kind === 'folder' && expanded && node.children.map(child => renderTreeNode(child, depth + 1))}
+      </React.Fragment>
+    );
   };
 
-  return <section className={`rounded-2xl border p-5 ${panel}`}>
-    <div className="flex items-center justify-between gap-2">
-      <div className="flex items-center gap-2"><Folder className="h-4 w-4 text-amber-500" /><h2 className={`text-sm font-semibold ${isDark ? 'text-white' : 'text-slate-900'}`}>Project structure</h2></div>
-      {projectTree.children.length > 0 && <button type="button" onClick={() => setExpandedFolders(current => current.size > 1 ? new Set(['.']) : new Set(getExpandableFolderPaths(projectTree)))} className={`text-[10px] font-medium ${isDark ? 'text-blue-300 hover:text-blue-200' : 'text-blue-600 hover:text-blue-700'}`}>
-        {expandedFolders.size > 1 ? 'Collapse all' : 'Expand folders'}
-      </button>}
-    </div>
-    {projectTree.children.length > 0 ? <div className={`mt-3 max-h-64 overflow-y-auto rounded-lg border p-1.5 ${isDark ? 'border-white/[0.06] bg-black/10' : 'border-slate-100 bg-slate-50/50'}`}>
-      {renderTreeNode(projectTree, 0)}
-    </div> : <p className={`mt-4 text-xs ${muted}`}>No project files were found.</p>}
-    {!hasDetailedTree && projectTree.children.length > 0 && <p className={`mt-2 text-[10px] ${muted}`}>Rescan this codebase to see its files and full folder tree.</p>}
-  </section>;
+  return (
+    <section className={`rounded-xl border p-4 ${panel}`}>
+      <div className="flex items-center justify-between gap-2 mb-2.5">
+        <div className="flex items-center gap-2">
+          <Folder className="h-4 w-4 text-amber-500" />
+          <h2 className={`text-sm font-semibold ${isDark ? 'text-white' : 'text-slate-900'}`}>
+            Project Structure Tree
+          </h2>
+        </div>
+        {projectTree.children.length > 0 && (
+          <button
+            type="button"
+            onClick={() => setExpandedFolders(current => current.size > 1 ? new Set(['.']) : new Set(getExpandableFolderPaths(projectTree)))}
+            className={`text-[10px] font-medium ${isDark ? 'text-blue-300 hover:text-blue-200' : 'text-blue-600 hover:text-blue-700'}`}
+          >
+            {expandedFolders.size > 1 ? 'Collapse all' : 'Expand folders'}
+          </button>
+        )}
+      </div>
+
+      {/* Filter / Search file tree */}
+      <div className="relative mb-2.5">
+        <Search className={`absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 ${muted}`} />
+        <input
+          type="text"
+          value={filterQuery}
+          onChange={e => setFilterQuery(e.target.value)}
+          placeholder="Filter files in tree (e.g. *.tsx, api, schema)…"
+          className={`w-full rounded-lg border pl-8 pr-7 py-1.5 text-xs outline-none transition-colors ${
+            isDark
+              ? 'border-white/[0.08] bg-black/20 text-white placeholder:text-slate-600 focus:border-blue-500'
+              : 'border-slate-200 bg-slate-50 text-slate-900 placeholder:text-slate-400 focus:border-blue-500'
+          }`}
+        />
+        {filterQuery && (
+          <button
+            type="button"
+            onClick={() => setFilterQuery('')}
+            className={`absolute right-2 top-1/2 -translate-y-1/2 p-0.5 rounded ${muted}`}
+          >
+            <X className="h-3 w-3" />
+          </button>
+        )}
+      </div>
+
+      {projectTree.children.length > 0 ? (
+        <div className={`max-h-[500px] overflow-y-auto rounded-lg border p-1.5 ${isDark ? 'border-white/[0.06] bg-black/10' : 'border-slate-100 bg-slate-50/50'}`}>
+          {renderTreeNode(projectTree, 0)}
+        </div>
+      ) : (
+        <p className={`mt-4 text-xs ${muted}`}>No project files were found.</p>
+      )}
+      {!hasDetailedTree && projectTree.children.length > 0 && (
+        <p className={`mt-2 text-[10px] ${muted}`}>Rescan this codebase to see its files and full folder tree.</p>
+      )}
+    </section>
+  );
 };
