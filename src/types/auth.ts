@@ -3,9 +3,6 @@ export interface User {
   name: string;
   email: string;
   avatarUrl?: string;
-  role: string;
-  title?: string;
-  organization?: string;
   provider: 'email' | 'github' | 'google' | 'guest';
   createdAt: number;
   lastLoginAt: number;

@@ -23,9 +23,6 @@ export const DEMO_USERS: Record<'alex' | 'elena' | 'marcus', User> = {
     name: 'Alex Rivera',
     email: 'alex.rivera@blueprint.dev',
     avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=160&q=80',
-    role: 'Principal Architect',
-    title: 'Principal Systems Architect',
-    organization: 'HyperScale Labs',
     provider: 'email',
     createdAt: 1704067200000,
     lastLoginAt: Date.now()
@@ -35,9 +32,6 @@ export const DEMO_USERS: Record<'alex' | 'elena' | 'marcus', User> = {
     name: 'Elena Rostova',
     email: 'elena@arch.studio',
     avatarUrl: 'https://images.unsplash.com/photo-1580489944761-15a19d654956?auto=format&fit=crop&w=160&q=80',
-    role: 'Staff Architect',
-    title: 'Staff Software Engineer',
-    organization: 'FinTech Core Systems',
     provider: 'github',
     createdAt: 1706745600000,
     lastLoginAt: Date.now()
@@ -47,9 +41,6 @@ export const DEMO_USERS: Record<'alex' | 'elena' | 'marcus', User> = {
     name: 'Marcus Vance',
     email: 'marcus@cloudscale.io',
     avatarUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=160&q=80',
-    role: 'Platform Tech Lead',
-    title: 'Distributed Systems Architect',
-    organization: 'Aether Systems',
     provider: 'google',
     createdAt: 1709251200000,
     lastLoginAt: Date.now()
@@ -142,9 +133,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         id: 'usr_' + Date.now().toString(36),
         name: formattedName || 'System Architect',
         email: trimmedEmail,
-        role: 'Software Architect',
-        title: 'Lead Software Architect',
-        organization: 'Independent Workspace',
         provider: 'email',
         createdAt: Date.now(),
         lastLoginAt: Date.now()
@@ -164,9 +152,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       id: 'usr_' + Date.now().toString(36),
       name: name.trim() || 'New Architect',
       email: email.trim().toLowerCase(),
-      role: 'System Architect',
-      title: 'Principal Software Architect',
-      organization: 'Personal Studio',
       provider: 'email',
       createdAt: Date.now(),
       lastLoginAt: Date.now()
@@ -189,9 +174,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       avatarUrl: isGithub
         ? 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=160&q=80'
         : 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=160&q=80',
-      role: isGithub ? 'Staff Systems Engineer' : 'Enterprise Architect',
-      title: isGithub ? 'Open Source Contributor' : 'Cloud Solutions Architect',
-      organization: isGithub ? 'GitHub Organization' : 'Google Workspace',
       provider,
       createdAt: Date.now(),
       lastLoginAt: Date.now()
@@ -207,9 +189,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       id: 'usr_guest_session',
       name: 'Guest Architect',
       email: 'guest@blueprint.local',
-      role: 'Guest Architect',
-      title: 'Local Sandbox Mode',
-      organization: 'Local Device',
       provider: 'guest',
       createdAt: Date.now(),
       lastLoginAt: Date.now()

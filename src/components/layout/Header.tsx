@@ -32,9 +32,8 @@ export const Header: React.FC<HeaderProps> = ({
     : 'text-slate-500 hover:bg-slate-100 hover:text-slate-900';
 
   return (
-    <header className={`flex h-14 shrink-0 items-center justify-between border-b px-4 sm:px-5 ${
-      isDark ? 'border-white/[0.07] bg-[#0C0D0F]' : 'border-slate-200 bg-white'
-    }`}>
+    <header className={`flex h-14 shrink-0 items-center justify-between border-b px-4 sm:px-5 ${isDark ? 'border-white/[0.07] bg-[#0C0D0F]' : 'border-slate-200 bg-white'
+      }`}>
       <div className="flex min-w-0 items-center gap-3">
         {onToggleSidebar && isSidebarCollapsed && (
           <button

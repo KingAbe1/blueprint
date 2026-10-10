@@ -126,9 +126,8 @@ export const CreateProjectView: React.FC = () => {
               {user ? `Welcome, ${user.name}` : 'Start here'}
             </p>
             {user?.role && (
-              <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full border ${
-                isDark ? 'border-blue-500/20 bg-blue-500/10 text-blue-300' : 'border-blue-200 bg-blue-50 text-blue-700'
-              }`}>
+              <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full border ${isDark ? 'border-blue-500/20 bg-blue-500/10 text-blue-300' : 'border-blue-200 bg-blue-50 text-blue-700'
+                }`}>
                 {user.role}
               </span>
             )}
@@ -147,27 +146,24 @@ export const CreateProjectView: React.FC = () => {
                 type="button"
                 onClick={() => selected ? document.getElementById('new-project-name')?.focus() : setIsCodebasePermissionExplainerOpen(true)}
                 disabled={isAnalyzingCodebase}
-                className={`flex w-full items-start gap-3 rounded-xl border p-4 text-left transition-colors disabled:opacity-60 ${
-                  selected
+                className={`flex w-full items-start gap-3 rounded-xl border p-4 text-left transition-colors disabled:opacity-60 ${selected
                     ? isDark ? 'border-blue-400/30 bg-blue-500/[0.08]' : 'border-blue-200 bg-blue-50/70'
                     : isDark ? 'border-white/[0.08] bg-white/[0.02] hover:border-blue-400/30 hover:bg-white/[0.04]' : 'border-slate-200 bg-white/60 hover:border-blue-200 hover:bg-white'
-                }`}
+                  }`}
               >
-                <div className={`mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${
-                  selected
+                <div className={`mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${selected
                     ? isDark ? 'bg-blue-400/10 text-blue-300' : 'bg-white text-blue-700'
                     : isDark ? 'bg-white/[0.05] text-slate-400' : 'bg-slate-100 text-slate-500'
-                }`}>
+                  }`}>
                   <Icon className="h-4 w-4" />
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
                     <p className={`text-sm font-semibold ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>{title}</p>
-                    <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${
-                      selected
+                    <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${selected
                         ? isDark ? 'bg-blue-400/10 text-blue-300' : 'bg-blue-100 text-blue-700'
                         : isDark ? 'bg-white/[0.06] text-slate-400' : 'bg-slate-100 text-slate-600'
-                    }`}>
+                      }`}>
                       {selected ? 'Selected' : isAnalyzingCodebase ? 'Scanning…' : 'Analyze repository'}
                     </span>
                   </div>
@@ -228,11 +224,10 @@ export const CreateProjectView: React.FC = () => {
                 <input
                   id="new-project-name"
                   type="text"
-                  className={`w-full rounded-xl border px-4 py-3.5 text-sm font-medium outline-none transition-colors ${
-                    isDark
+                  className={`w-full rounded-xl border px-4 py-3.5 text-sm font-medium outline-none transition-colors ${isDark
                       ? 'border-white/[0.1] bg-[#0F1012] text-white placeholder:text-slate-600 focus:border-blue-500/70'
                       : 'border-slate-300 bg-white text-slate-900 placeholder:text-slate-400 focus:border-blue-500'
-                  }`}
+                    }`}
                   placeholder="e.g. online-store"
                   value={inputName}
                   onChange={event => setInputName(event.target.value)}
@@ -268,11 +263,10 @@ export const CreateProjectView: React.FC = () => {
                 <button
                   type="submit"
                   disabled={!inputName.trim()}
-                    className={`group inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold transition-colors disabled:pointer-events-none ${
-                    inputName.trim()
+                  className={`group inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold transition-colors disabled:pointer-events-none ${inputName.trim()
                       ? 'btn-primary-blue text-white'
                       : isDark ? 'bg-white/[0.07] text-slate-500' : 'bg-slate-200 text-slate-500'
-                  }`}
+                    }`}
                 >
                   Create project
                   <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
