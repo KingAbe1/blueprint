@@ -36,7 +36,7 @@ interface CodebaseQualityViewProps {
   onUpdateAnalysis?: (analysis: CodebaseAnalysis) => void;
 }
 
-export const CodebaseQualityView: React.FC<CodebaseQualityViewProps> = ({
+export const CodebaseQualityView: React.FC<CodebaseQualityViewProps> = React.memo(({
   analysis,
   onRescan,
   isRescanning,
@@ -566,4 +566,4 @@ export const CodebaseQualityView: React.FC<CodebaseQualityViewProps> = ({
       )}
     </div>
   );
-};
+});

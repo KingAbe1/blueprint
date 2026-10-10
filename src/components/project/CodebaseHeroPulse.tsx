@@ -19,7 +19,7 @@ interface CodebaseHeroPulseProps {
   analysis: CodebaseAnalysis;
 }
 
-export const CodebaseHeroPulse: React.FC<CodebaseHeroPulseProps> = ({ analysis }) => {
+export const CodebaseHeroPulse: React.FC<CodebaseHeroPulseProps> = React.memo(({ analysis }) => {
   const { isDark } = useTheme();
   const muted = isDark ? 'text-slate-400' : 'text-slate-500';
   const cardBg = isDark
@@ -73,13 +73,6 @@ export const CodebaseHeroPulse: React.FC<CodebaseHeroPulseProps> = ({ analysis }
               </div>
               <span className={`text-[10px] font-semibold uppercase tracking-wider ${muted}`}>Primary Stack</span>
             </div>
-            {analysis.nextjs && (
-              <span className={`text-[9px] font-mono font-medium px-1.5 py-0.5 rounded border ${
-                isDark ? 'border-violet-500/30 bg-violet-500/10 text-violet-300' : 'border-violet-200 bg-violet-50 text-violet-700'
-              }`}>
-                {analysis.nextjs.router}
-              </span>
-            )}
           </div>
 
           <div className="mt-3">
@@ -260,4 +253,4 @@ export const CodebaseHeroPulse: React.FC<CodebaseHeroPulseProps> = ({ analysis }
       </div>
     </div>
   );
-};
+});

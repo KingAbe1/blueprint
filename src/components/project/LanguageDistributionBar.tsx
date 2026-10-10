@@ -32,7 +32,7 @@ const LANGUAGE_COLORS: Record<string, string> = {
   Svelte: '#FF3E00',
 };
 
-export const LanguageDistributionBar: React.FC<LanguageDistributionBarProps> = ({ languages }) => {
+export const LanguageDistributionBar: React.FC<LanguageDistributionBarProps> = React.memo(({ languages }) => {
   const { isDark } = useTheme();
   const [activeFilter, setActiveFilter] = useState<string | null>(null);
 
@@ -118,4 +118,4 @@ export const LanguageDistributionBar: React.FC<LanguageDistributionBarProps> = (
       </div>
     </section>
   );
-};
+});

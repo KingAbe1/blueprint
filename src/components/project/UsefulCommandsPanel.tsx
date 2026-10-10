@@ -19,7 +19,7 @@ const SCRIPT_PURPOSES: Record<string, { label: string; badge: string; color: str
   'tauri:dev': { label: 'Launch Desktop Tauri App', badge: 'DESKTOP', color: 'text-rose-400 bg-rose-500/10 border-rose-500/20' },
 };
 
-export const UsefulCommandsPanel: React.FC<UsefulCommandsPanelProps> = ({ scripts }) => {
+export const UsefulCommandsPanel: React.FC<UsefulCommandsPanelProps> = React.memo(({ scripts }) => {
   const { isDark } = useTheme();
   const muted = isDark ? 'text-slate-400' : 'text-slate-500';
   const panel = isDark ? 'border-white/[0.08] bg-[#141518]' : 'border-slate-200/90 bg-white shadow-2xs';
@@ -127,4 +127,4 @@ export const UsefulCommandsPanel: React.FC<UsefulCommandsPanelProps> = ({ script
       )}
     </section>
   );
-};
+});

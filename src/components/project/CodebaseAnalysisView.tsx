@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import {
   Folder,
   RefreshCw,
@@ -12,19 +12,12 @@ import {
   LayoutDashboard,
   FileCode2,
   ShieldCheck,
-  Workflow,
-  Database,
-  GitCommit,
   ExternalLink,
   KeyRound,
   X,
   Loader2,
   Check,
-  Cpu,
-  Layers,
   Sparkles,
-  ArrowRight,
-  FileCode,
   Copy,
 } from 'lucide-react';
 import { CodebaseAnalysis } from '../../types/codebase';
@@ -42,7 +35,6 @@ import { CodebaseHotspotsPanel } from './CodebaseHotspotsPanel';
 import { useTheme } from '../../context/ThemeContext';
 import { useGitHub } from '../../context/GitHubContext';
 import { parseGitHubRemote } from '../../services/githubService';
-import { sanitizeDatabaseName, sanitizeDatabaseEvidence } from '../../services/architectureAnalysisService';
 
 export type ProjectSection = 'overview' | 'analysis' | 'quality';
 
@@ -105,6 +97,61 @@ const SUPPORTED_IDES: IDEOption[] = [
     getCliCommand: (path) => `subl "${path}"`,
   },
 ];
+
+interface CodeAnalysisInspectorProps {
+  analysis: CodebaseAnalysis;
+  visibleScripts: NonNullable<CodebaseAnalysis['scripts']>;
+}
+
+const CodeAnalysisInspector: React.FC<CodeAnalysisInspectorProps> = React.memo(({ analysis, visibleScripts }) => {
+  const { isDark } = useTheme();
+  const [activeTab, setActiveTab] = useState<'packages' | 'hotspots' | 'startup' | 'scripts'>('packages');
+
+  return (
+    <div className="lg:col-span-7 space-y-4">
+      {/* Inspector Segmented Switcher */}
+      <div className={`flex items-center justify-between p-1 rounded-xl border ${
+        isDark ? 'border-white/[0.08] bg-black/25' : 'border-slate-200 bg-slate-100/70'
+      }`}>
+        {[
+          { id: 'packages', label: `Packages (${analysis.dependencyInventory?.packages.length || 0})` },
+          { id: 'hotspots', label: 'Complexity & Debt' },
+          { id: 'startup', label: 'Entry & Tests' },
+          { id: 'scripts', label: `Scripts (${analysis.scripts?.length || 0})` },
+        ].map(tab => (
+          <button
+            key={tab.id}
+            type="button"
+            onClick={() => setActiveTab(tab.id as typeof activeTab)}
+            className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-medium transition-colors ${
+              activeTab === tab.id
+                ? (isDark ? 'bg-[#1E2024] text-white shadow-xs border border-white/[0.08]' : 'bg-white text-slate-900 shadow-xs border border-slate-200/70')
+                : (isDark ? 'text-slate-400 hover:text-slate-200' : 'text-slate-600 hover:text-slate-900')
+            }`}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Active Inspector Panel Content */}
+      <div>
+        <div className={activeTab === 'packages' ? 'block' : 'hidden'}>
+          <DependencyInventoryPanel inventory={analysis.dependencyInventory} />
+        </div>
+        <div className={activeTab === 'hotspots' ? 'block' : 'hidden'}>
+          <CodebaseHotspotsPanel analysis={analysis} />
+        </div>
+        <div className={activeTab === 'startup' ? 'block' : 'hidden'}>
+          <StartupAndTestsPanel analysis={analysis} />
+        </div>
+        <div className={activeTab === 'scripts' ? 'block' : 'hidden'}>
+          <UsefulCommandsPanel scripts={visibleScripts} />
+        </div>
+      </div>
+    </div>
+  );
+});
 
 interface CodebaseAnalysisViewProps {
   analysis: CodebaseAnalysis;
@@ -180,41 +227,31 @@ export const CodebaseAnalysisView: React.FC<CodebaseAnalysisViewProps> = ({
     }
   };
 
-  // Sanitized database and evidence for display
-  const overviewDbName = sanitizeDatabaseName(
-    analysis.architecture?.database.name,
-    analysis.architecture?.database.evidence
-  );
-  const overviewDbEvidence = sanitizeDatabaseEvidence(
-    analysis.architecture?.database.evidence,
-    overviewDbName
-  );
-
-  // Analysis sub-tab switcher
-  const [analysisInspectorTab, setAnalysisInspectorTab] = useState<'packages' | 'hotspots' | 'startup' | 'scripts'>('packages');
-
   const muted = isDark ? 'text-slate-400' : 'text-slate-500';
   const panel = isDark ? 'border-white/[0.08] bg-[#141518]' : 'border-slate-200/90 bg-white shadow-2xs';
-  const allScripts = analysis.scripts || [];
-  const preferredScriptNames = ['dev', 'start', 'serve', 'build', 'test', 'lint', 'typecheck', 'check', 'tauri:dev'];
-  const preferredScripts = preferredScriptNames
-    .map(name => allScripts.find(script => script.name === name))
-    .filter((script): script is NonNullable<typeof script> => Boolean(script));
-  const visibleScripts = (preferredScripts.length > 0 ? preferredScripts : allScripts).slice(0, 8);
+
+  const visibleScripts = useMemo(() => {
+    const allScripts = analysis.scripts || [];
+    const preferredScriptNames = ['dev', 'start', 'serve', 'build', 'test', 'lint', 'typecheck', 'check', 'tauri:dev'];
+    const preferredScripts = preferredScriptNames
+      .map(name => allScripts.find(script => script.name === name))
+      .filter((script): script is NonNullable<typeof script> => Boolean(script));
+    return (preferredScripts.length > 0 ? preferredScripts : allScripts).slice(0, 8);
+  }, [analysis.scripts]);
 
   const remote = analysis.git?.remote;
   const githubConnected = github.isConnectedFor(remote, projectId);
   const githubStatus = githubConnected ? github.status : null;
   const supportsGitHub = Boolean(remote && parseGitHubRemote(remote));
 
-  const selectProjectSection = (page: ProjectSection) => {
+  const selectProjectSection = useCallback((page: ProjectSection) => {
     try {
       window.localStorage.setItem(navigationStorageKey, page);
     } catch {
       // Ignore storage error
     }
     setActivePage(page);
-  };
+  }, [navigationStorageKey]);
 
   const openGitHubDialog = () => {
     setGitHubRemoteInput(remote || '');
@@ -235,7 +272,7 @@ export const CodebaseAnalysisView: React.FC<CodebaseAnalysisViewProps> = ({
     }
   };
 
-  const rescan = async () => {
+  const rescan = useCallback(async () => {
     if (!onRescan) return;
     setIsRescanning(true);
     setScanError(null);
@@ -246,7 +283,7 @@ export const CodebaseAnalysisView: React.FC<CodebaseAnalysisViewProps> = ({
     } finally {
       setIsRescanning(false);
     }
-  };
+  }, [onRescan]);
 
   const copyToClipboard = async (text: string, label: string) => {
     try {
@@ -360,7 +397,7 @@ export const CodebaseAnalysisView: React.FC<CodebaseAnalysisViewProps> = ({
                   key={tab.id}
                   type="button"
                   onClick={() => selectProjectSection(tab.id as ProjectSection)}
-                  className={`flex items-center gap-1.5 px-3 py-1 rounded-md text-[11px] font-medium transition-all ${
+                  className={`flex items-center gap-1.5 px-3 py-1 rounded-md text-[11px] font-medium transition-colors ${
                     isSelected
                       ? (isDark
                           ? 'bg-white/[0.12] text-white shadow-xs ring-1 ring-white/10 font-semibold'
@@ -599,194 +636,78 @@ export const CodebaseAnalysisView: React.FC<CodebaseAnalysisViewProps> = ({
             {/* Connected Visual Topology Diagram */}
             <ArchitectureTopologyDiagram analysis={analysis} />
 
-            {/* Balanced 2-Column Architecture & Delivery Deep Dive */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 items-start">
-              {/* Left Card: Application Architecture & Surface */}
+            {/* Prioritized Architectural Next Steps */}
+            {analysis.suggestions && analysis.suggestions.length > 0 && (
               <section className={`rounded-xl border p-5 ${panel}`}>
-                <div className="flex items-center gap-2 mb-3.5">
-                  <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-blue-500/15 text-blue-400 border border-blue-500/20">
-                    <Workflow className="h-3.5 w-3.5" />
-                  </div>
-                  <h3 className={`text-xs font-semibold uppercase tracking-wider ${muted}`}>
-                    Architecture & Data Signals
-                  </h3>
-                </div>
-
-                <div className="space-y-3">
-                  {/* Topology Shape */}
-                  <div className={`rounded-xl p-3.5 border ${isDark ? 'bg-white/[0.025] border-white/[0.06]' : 'bg-slate-50 border-slate-200/70'}`}>
-                    <div className="flex items-center justify-between">
-                      <span className={`text-[10px] font-semibold uppercase ${muted}`}>Topology Shape</span>
-                      <span className={`text-[9px] font-semibold px-2 py-0.5 rounded-full border ${
-                        analysis.architecture?.confidence === 'high'
-                          ? (isDark ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-400' : 'border-emerald-200 bg-emerald-50 text-emerald-700')
-                          : (isDark ? 'border-blue-500/30 bg-blue-500/10 text-blue-400' : 'border-blue-200 bg-blue-50 text-blue-700')
-                      }`}>
-                        {analysis.architecture?.confidence || 'low'} confidence
-                      </span>
+                <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+                  <div className="flex items-center gap-2.5">
+                    <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-amber-500/15 text-amber-400 border border-amber-500/20">
+                      <Sparkles className="h-4 w-4" />
                     </div>
-                    <p className={`mt-1.5 text-sm font-semibold ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                      {analysis.architecture?.topology || 'Not enough evidence'}
-                    </p>
-                    <p className={`mt-1 text-xs leading-relaxed ${muted}`}>
-                      {analysis.architecture?.summary}
-                    </p>
-                  </div>
-
-                  {/* Database & Storage */}
-                  <div className={`rounded-xl p-3.5 border ${isDark ? 'bg-white/[0.025] border-white/[0.06]' : 'bg-slate-50 border-slate-200/70'}`}>
-                    <div className="flex items-center justify-between mb-1">
-                      <div className="flex items-center gap-1.5">
-                        <Database className="h-3.5 w-3.5 text-violet-500" />
-                        <span className={`text-[10px] font-semibold uppercase ${muted}`}>Storage & Database</span>
-                      </div>
-                      <span className={`text-[9px] font-mono px-1.5 py-0.2 rounded ${
-                        isDark ? 'bg-violet-500/10 text-violet-300' : 'bg-violet-50 text-violet-700'
-                      }`}>
-                        {analysis.architecture?.database.confidence || 'inferred'}
-                      </span>
+                    <div>
+                      <h3 className={`text-xs font-semibold uppercase tracking-wider ${muted}`}>
+                        Recommended Next Steps
+                      </h3>
+                      <p className={`text-[11px] mt-0.5 ${muted}`}>
+                        High-leverage engineering actions inferred from codebase patterns and architecture
+                      </p>
                     </div>
-                    <p className={`text-sm font-semibold ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                      {overviewDbName}
-                    </p>
-                    {overviewDbEvidence.slice(0, 3).map((item, idx) => (
-                      <p key={idx} className={`mt-1 text-[11px] leading-4 ${muted}`}>• {item}</p>
-                    ))}
-                  </div>
-
-                  {/* Next.js Route Structure */}
-                  {analysis.nextjs && (
-                    <div className={`rounded-xl p-3.5 border ${isDark ? 'bg-white/[0.025] border-white/[0.06]' : 'bg-slate-50 border-slate-200/70'}`}>
-                      <div className="flex items-center justify-between">
-                        <span className={`text-[10px] font-semibold uppercase ${muted}`}>Next.js Route Structure</span>
-                        {analysis.nextjs.version && <span className="font-mono text-[10px] text-blue-400">v{analysis.nextjs.version}</span>}
-                      </div>
-                      <p className={`mt-1 text-sm font-semibold ${isDark ? 'text-white' : 'text-slate-900'}`}>{analysis.nextjs.router}</p>
-                      <div className="mt-2.5 grid grid-cols-3 gap-2">
-                        <div className={`p-2.5 rounded-lg text-center border ${isDark ? 'bg-black/25 border-white/[0.05]' : 'bg-white border-slate-200/60'}`}>
-                          <p className="font-bold text-sm">{analysis.nextjs.appRouteCount}</p>
-                          <p className={`text-[9px] mt-0.5 ${muted}`}>App Pages</p>
-                        </div>
-                        <div className={`p-2.5 rounded-lg text-center border ${isDark ? 'bg-black/25 border-white/[0.05]' : 'bg-white border-slate-200/60'}`}>
-                          <p className="font-bold text-sm">{analysis.nextjs.pagesRouteCount}</p>
-                          <p className={`text-[9px] mt-0.5 ${muted}`}>Pages Routes</p>
-                        </div>
-                        <div className={`p-2.5 rounded-lg text-center border ${isDark ? 'bg-black/25 border-white/[0.05]' : 'bg-white border-slate-200/60'}`}>
-                          <p className="font-bold text-sm">{analysis.nextjs.apiRouteCount}</p>
-                          <p className={`text-[9px] mt-0.5 ${muted}`}>API Endpoints</p>
-                        </div>
-                      </div>
-
-                      {/* Route examples pills */}
-                      {analysis.nextjs.routeExamples.length > 0 && (
-                        <div className={`mt-2.5 pt-2 border-t ${isDark ? 'border-white/[0.06]' : 'border-slate-200/70'} flex flex-wrap gap-1`}>
-                          {analysis.nextjs.routeExamples.slice(0, 3).map(route => (
-                            <span key={route} className={`font-mono text-[10px] px-2 py-0.5 rounded border ${
-                              isDark ? 'border-white/[0.05] bg-white/[0.02] text-slate-300' : 'border-slate-200 bg-white text-slate-700'
-                            }`}>
-                              {route}
-                            </span>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              </section>
-
-              {/* Right Card: Source Control, Delivery & Prioritized Recommendations */}
-              <section className={`rounded-xl border p-5 ${panel}`}>
-                <div className="flex items-center justify-between mb-3.5">
-                  <div className="flex items-center gap-2">
-                    <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-emerald-500/15 text-emerald-400 border border-emerald-500/20">
-                      <GitBranch className="h-3.5 w-3.5" />
-                    </div>
-                    <h3 className={`text-xs font-semibold uppercase tracking-wider ${muted}`}>
-                      Source Control & Delivery
-                    </h3>
                   </div>
                   {supportsGitHub && !githubConnected && (
                     <button
                       type="button"
                       onClick={openGitHubDialog}
-                      className="text-[10px] font-semibold text-blue-500 hover:underline"
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-blue-500/10 text-blue-400 border border-blue-500/20 hover:bg-blue-500/20 hover:text-blue-300 transition-colors"
                     >
+                      <ExternalLink className="h-3.5 w-3.5" />
                       Connect GitHub Actions
                     </button>
                   )}
                 </div>
 
-                <div className="space-y-3">
-                  {/* Git Repository Info */}
-                  <div className={`rounded-xl p-3.5 border ${isDark ? 'bg-white/[0.025] border-white/[0.06]' : 'bg-slate-50 border-slate-200/70'}`}>
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="font-semibold">{analysis.git?.tracked ? 'Git Tracked Repository' : 'Unversioned Local Directory'}</span>
-                      {analysis.git?.branch && (
-                        <span className={`font-mono text-[10px] font-medium px-2 py-0.5 rounded-full border ${
-                          isDark ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-400' : 'border-emerald-200 bg-emerald-50 text-emerald-700'
-                        }`}>
-                          {analysis.git.branch}
-                        </span>
-                      )}
-                    </div>
-                    {analysis.git?.latestCommit && (
-                      <p className={`mt-2 flex items-center gap-1.5 font-mono text-[11px] truncate ${muted}`}>
-                        <GitCommit className="h-3.5 w-3.5 shrink-0 text-emerald-500" />
-                        <span className="truncate">{analysis.git.latestCommit}</span>
-                      </p>
-                    )}
-                    <div className={`mt-2.5 pt-2 border-t ${isDark ? 'border-white/[0.06]' : 'border-slate-200/70'} flex items-center justify-between text-[11px]`}>
-                      <span className={muted}>Status</span>
-                      <span className={`font-medium ${analysis.git?.tracked ? 'text-emerald-400' : muted}`}>
-                        {analysis.git?.changedFiles ? `${analysis.git.changedFiles} pending changes` : 'Working tree clean'}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Runtime & Tooling Stack */}
-                  <div className={`rounded-xl p-3.5 border ${isDark ? 'bg-white/[0.025] border-white/[0.06]' : 'bg-slate-50 border-slate-200/70'}`}>
-                    <div className="flex items-center gap-1.5 mb-2">
-                      <Cpu className="h-3.5 w-3.5 text-blue-500" />
-                      <span className={`text-[10px] font-semibold uppercase ${muted}`}>Runtime & Build Environment</span>
-                    </div>
-                    <div className="grid grid-cols-2 gap-2 text-xs">
-                      <div className={`p-2 rounded-lg border ${isDark ? 'bg-black/20 border-white/[0.04]' : 'bg-white border-slate-200/60'}`}>
-                        <span className={`text-[10px] block ${muted}`}>Package Ecosystem</span>
-                        <span className="font-semibold text-xs mt-0.5 block">{analysis.dependencyInventory?.ecosystem.toUpperCase() || 'NPM'}</span>
-                      </div>
-                      <div className={`p-2 rounded-lg border ${isDark ? 'bg-black/20 border-white/[0.04]' : 'bg-white border-slate-200/60'}`}>
-                        <span className={`text-[10px] block ${muted}`}>CI/CD Workflows</span>
-                        <span className="font-semibold text-xs mt-0.5 block">{analysis.pipeline?.workflows.length ? `${analysis.pipeline.workflows.length} Workflows` : 'None Configured'}</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Prioritized Architectural Recommendations */}
-                  <div>
-                    <p className={`text-[10px] font-semibold uppercase tracking-wider mb-2 ${muted}`}>
-                      Recommended Next Steps
-                    </p>
-                    <div className="space-y-2">
-                      {(analysis.suggestions || []).slice(0, 3).map((sug, i) => (
-                        <div key={i} className={`p-3 rounded-xl border text-xs ${
-                          isDark ? 'border-white/[0.06] bg-black/25' : 'border-slate-200/80 bg-white'
-                        }`}>
-                          <div className="flex items-center justify-between gap-2">
-                            <p className="font-semibold text-xs">{sug.title}</p>
-                            <span className={`text-[9px] font-semibold px-1.5 py-0.2 rounded ${
-                              isDark ? 'bg-blue-500/20 text-blue-300' : 'bg-blue-50 text-blue-700'
-                            }`}>
-                              Action
-                            </span>
-                          </div>
-                          <p className={`mt-1 text-[11px] leading-relaxed ${muted}`}>{sug.detail}</p>
+                <div className={`grid grid-cols-1 ${
+                  analysis.suggestions.length === 2 ? 'md:grid-cols-2' : ''
+                } ${
+                  analysis.suggestions.length >= 3 ? 'md:grid-cols-2 lg:grid-cols-3' : ''
+                } gap-3.5`}>
+                  {analysis.suggestions.map((sug, i) => (
+                    <div
+                      key={i}
+                      className={`p-4 rounded-xl border flex flex-col justify-between transition-all ${
+                        isDark
+                          ? 'border-white/[0.06] bg-black/25 hover:border-white/[0.12]'
+                          : 'border-slate-200/80 bg-slate-50/70 hover:border-slate-300'
+                      }`}
+                    >
+                      <div>
+                        <div className="flex items-center justify-between gap-2 mb-2.5">
+                          <span
+                            className={`text-[9px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full border ${
+                              sug.priority === 'high'
+                                ? isDark
+                                  ? 'border-amber-500/30 bg-amber-500/10 text-amber-400'
+                                  : 'border-amber-200 bg-amber-50 text-amber-700'
+                                : isDark
+                                ? 'border-blue-500/30 bg-blue-500/10 text-blue-400'
+                                : 'border-blue-200 bg-blue-50 text-blue-700'
+                            }`}
+                          >
+                            {sug.priority ? `${sug.priority} priority` : 'Action'}
+                          </span>
+                          <span className={`text-[10px] font-mono ${muted}`}>0{i + 1}</span>
                         </div>
-                      ))}
+                        <h4 className={`font-semibold text-xs leading-snug ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                          {sug.title}
+                        </h4>
+                        <p className={`mt-1.5 text-[11px] leading-relaxed ${muted}`}>
+                          {sug.detail}
+                        </p>
+                      </div>
                     </div>
-                  </div>
+                  ))}
                 </div>
               </section>
-            </div>
+            )}
           </div>
 
           {/* ---------------------------------------------------- */}
@@ -818,49 +739,8 @@ export const CodebaseAnalysisView: React.FC<CodebaseAnalysisViewProps> = ({
                 </div>
               </div>
 
-              {/* Right 7 Cols: Inspector Panels Switcher */}
-              <div className="lg:col-span-7 space-y-4">
-                {/* Inspector Segmented Switcher */}
-                <div className={`flex items-center justify-between p-1 rounded-xl border ${
-                  isDark ? 'border-white/[0.08] bg-black/25' : 'border-slate-200 bg-slate-100/70'
-                }`}>
-                  {[
-                    { id: 'packages', label: `Packages (${analysis.dependencyInventory?.packages.length || 0})` },
-                    { id: 'hotspots', label: 'Complexity & Debt' },
-                    { id: 'startup', label: 'Entry & Tests' },
-                    { id: 'scripts', label: `Scripts (${analysis.scripts?.length || 0})` },
-                  ].map(tab => (
-                    <button
-                      key={tab.id}
-                      type="button"
-                      onClick={() => setAnalysisInspectorTab(tab.id as typeof analysisInspectorTab)}
-                      className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-medium transition-all ${
-                        analysisInspectorTab === tab.id
-                          ? (isDark ? 'bg-[#1E2024] text-white shadow-xs border border-white/[0.08]' : 'bg-white text-slate-900 shadow-xs border border-slate-200/70')
-                          : (isDark ? 'text-slate-400 hover:text-slate-200' : 'text-slate-600 hover:text-slate-900')
-                      }`}
-                    >
-                      {tab.label}
-                    </button>
-                  ))}
-                </div>
-
-                {/* Zero-Lag Active Inspector Panel Content */}
-                <div>
-                  <div className={analysisInspectorTab === 'packages' ? 'block' : 'hidden'}>
-                    <DependencyInventoryPanel inventory={analysis.dependencyInventory} />
-                  </div>
-                  <div className={analysisInspectorTab === 'hotspots' ? 'block' : 'hidden'}>
-                    <CodebaseHotspotsPanel analysis={analysis} />
-                  </div>
-                  <div className={analysisInspectorTab === 'startup' ? 'block' : 'hidden'}>
-                    <StartupAndTestsPanel analysis={analysis} />
-                  </div>
-                  <div className={analysisInspectorTab === 'scripts' ? 'block' : 'hidden'}>
-                    <UsefulCommandsPanel scripts={visibleScripts} />
-                  </div>
-                </div>
-              </div>
+              {/* Right 7 Cols: Isolated Zero-Lag Inspector Panels */}
+              <CodeAnalysisInspector analysis={analysis} visibleScripts={visibleScripts} />
             </div>
           </div>
 

@@ -7,7 +7,7 @@ interface StartupAndTestsPanelProps {
   analysis: CodebaseAnalysis;
 }
 
-export const StartupAndTestsPanel: React.FC<StartupAndTestsPanelProps> = ({ analysis }) => {
+export const StartupAndTestsPanel: React.FC<StartupAndTestsPanelProps> = React.memo(({ analysis }) => {
   const { isDark } = useTheme();
   const muted = isDark ? 'text-slate-400' : 'text-slate-500';
   const panel = isDark ? 'border-white/[0.08] bg-[#141518]' : 'border-slate-200/90 bg-white shadow-2xs';
@@ -141,4 +141,4 @@ export const StartupAndTestsPanel: React.FC<StartupAndTestsPanelProps> = ({ anal
       </div>
     </section>
   );
-};
+});

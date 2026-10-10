@@ -35,7 +35,7 @@ const NOTABLE_PACKAGES = new Set([
   '@tanstack/react-query',
 ]);
 
-export const DependencyInventoryPanel: React.FC<DependencyInventoryPanelProps> = ({ inventory }) => {
+export const DependencyInventoryPanel: React.FC<DependencyInventoryPanelProps> = React.memo(({ inventory }) => {
   const { isDark } = useTheme();
   const [searchQuery, setSearchQuery] = useState('');
   const [typeFilter, setTypeFilter] = useState<'all' | 'direct' | 'dev' | 'transitive'>('all');
@@ -334,4 +334,4 @@ export const DependencyInventoryPanel: React.FC<DependencyInventoryPanelProps> =
       )}
     </section>
   );
-};
+});

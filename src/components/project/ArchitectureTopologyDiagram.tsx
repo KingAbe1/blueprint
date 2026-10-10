@@ -23,7 +23,7 @@ interface ArchitectureTopologyDiagramProps {
   analysis: CodebaseAnalysis;
 }
 
-export const ArchitectureTopologyDiagram: React.FC<ArchitectureTopologyDiagramProps> = ({ analysis }) => {
+export const ArchitectureTopologyDiagram: React.FC<ArchitectureTopologyDiagramProps> = React.memo(({ analysis }) => {
   const { isDark } = useTheme();
   const [selectedNode, setSelectedNode] = useState<'client' | 'server' | 'database' | 'delivery'>('server');
 
@@ -43,21 +43,21 @@ export const ArchitectureTopologyDiagram: React.FC<ArchitectureTopologyDiagramPr
     client: {
       step: '01',
       title: 'Presentation & Client Layer',
-      badge: analysis.nextjs ? `${analysis.nextjs.router}` : 'Frontend Component System',
+      badge: `${analysis.frameworks[0] || 'Frontend'} UI Layer`,
       description: 'Client component trees, interactive route pages, client-side state hydration, and rendering lifecycle.',
       metrics: [
         { label: 'Page Routes', value: analysis.nextjs ? String(analysis.nextjs.appRouteCount + analysis.nextjs.pagesRouteCount) : `${analysis.languages[0]?.files || 0} views` },
         { label: 'Client Framework', value: analysis.frameworks[0] || 'React' },
         { label: 'Primary Language', value: analysis.languages[0]?.name || 'TypeScript' },
       ],
-      signals: analysis.nextjs
-        ? [
-            `${analysis.nextjs.appRouteCount} App Router page routes declared`,
-            `${analysis.nextjs.pagesRouteCount} Pages Router routes found`,
-            ...(analysis.nextjs.routeExamples.slice(0, 3)),
-          ]
-        : analysis.languages.slice(0, 4).map(l => `${l.name} (${l.files} source files)`),
-      files: analysis.nextjs?.routeExamples.slice(0, 4) || analysis.entryPoints.slice(0, 4),
+      signals: [
+        `${analysis.frameworks[0] || 'React'} Component Hierarchy`,
+        analysis.nextjs
+          ? `${analysis.nextjs.appRouteCount + analysis.nextjs.pagesRouteCount} Total client route pages declared`
+          : `${analysis.languages[0]?.files || 0} View templates & source files`,
+        'Interactive client-side state hydration & view lifecycle',
+      ],
+      files: (analysis.entryPoints || []).filter(p => !p.toLowerCase().includes('page.')).slice(0, 2),
       status: 'Active',
       statusColor: isDark ? 'text-blue-400 bg-blue-500/10 border border-blue-500/20' : 'text-blue-700 bg-blue-50 border border-blue-200',
     },
@@ -74,12 +74,12 @@ export const ArchitectureTopologyDiagram: React.FC<ArchitectureTopologyDiagramPr
       signals: [
         `Architecture Shape: ${topology}`,
         `Confidence Level: ${confidence.toUpperCase()}`,
-        ...(analysis.architecture?.evidence || []).slice(0, 3),
+        ...(analysis.nextjs?.apiRouteCount ? [`${analysis.nextjs.apiRouteCount} Server API endpoints routed`] : []),
+        ...(analysis.architecture?.evidence || []).filter(e => !e.toLowerCase().includes('router')).slice(0, 2),
       ],
       files: [
         ...(analysis.nextjs?.requestBoundaryFiles || []),
         ...(analysis.nextjs?.configFiles || []),
-        ...(analysis.entryPoints.slice(0, 2)),
       ].filter((f, idx, arr) => arr.indexOf(f) === idx).slice(0, 4),
       status: confidence === 'high' ? 'Verified' : 'Inferred',
       statusColor: confidence === 'high'
@@ -101,7 +101,12 @@ export const ArchitectureTopologyDiagram: React.FC<ArchitectureTopologyDiagramPr
         `Signal Confidence: ${dbConfidence.toUpperCase()}`,
         ...databaseEvidence.slice(0, 3),
       ],
-      files: databaseEvidence.filter(e => e.includes('.') || e.includes('/')).slice(0, 4),
+      files: [
+        ...(analysis.structurePaths || []).filter(p => /(^|\/)(schema\.prisma|migrations?\/|drizzle\.config|schema\.sql)$/i.test(p)),
+        ...databaseEvidence
+          .map(e => e.match(/(?:Found schema manifest:\s*|Found\s+)?([a-zA-Z0-9_/.-]+\.(?:prisma|sql|ts|js|json))/i)?.[1])
+          .filter((p): p is string => Boolean(p)),
+      ].filter((v, idx, arr) => arr.indexOf(v) === idx).slice(0, 3),
       status: databaseName !== 'Not assessed' ? 'Detected' : 'Unconfirmed',
       statusColor: databaseName !== 'Not assessed'
         ? (isDark ? 'text-violet-400 bg-violet-500/10 border border-violet-500/20' : 'text-violet-700 bg-violet-50 border border-violet-200')
@@ -133,7 +138,7 @@ export const ArchitectureTopologyDiagram: React.FC<ArchitectureTopologyDiagramPr
   const active = nodeDetails[selectedNode];
 
   const tiers = [
-    { id: 'client', step: '01', title: 'Presentation', sub: analysis.nextjs ? analysis.nextjs.router : 'Client UI', icon: Monitor, color: 'text-blue-500', glow: 'blue' },
+    { id: 'client', step: '01', title: 'Presentation', sub: `${analysis.frameworks[0] || 'Frontend'} UI`, icon: Monitor, color: 'text-blue-500', glow: 'blue' },
     { id: 'server', step: '02', title: 'Execution Boundary', sub: topology, icon: Server, color: 'text-emerald-500', glow: 'emerald' },
     { id: 'database', step: '03', title: 'Persistence & Storage', sub: databaseName !== 'Not assessed' ? databaseName : 'No DB Detected', icon: Database, color: 'text-violet-500', glow: 'violet' },
     { id: 'delivery', step: '04', title: 'Source & Pipeline', sub: analysis.pipeline?.workflows.length ? `${analysis.pipeline.workflows.length} Workflows` : 'Git Repo', icon: GitBranch, color: 'text-amber-500', glow: 'amber' },
@@ -279,7 +284,7 @@ export const ArchitectureTopologyDiagram: React.FC<ArchitectureTopologyDiagramPr
 
           {/* Col 3: Key Boundary & Evidence Files */}
           <div className="space-y-2">
-            <p className={`text-[9px] font-semibold uppercase tracking-wider ${muted}`}>Key Files & Endpoints</p>
+            <p className={`text-[9px] font-semibold uppercase tracking-wider ${muted}`}>Key Manifests & Boundaries</p>
             {active.files.length > 0 ? (
               <div className="space-y-1.5">
                 {active.files.map((file, i) => (
@@ -292,8 +297,8 @@ export const ArchitectureTopologyDiagram: React.FC<ArchitectureTopologyDiagramPr
                 ))}
               </div>
             ) : (
-              <p className={`p-3 text-[11px] italic rounded-lg border ${isDark ? 'border-white/[0.04] bg-white/[0.01]' : 'border-slate-200/60 bg-white'} ${muted}`}>
-                No specific boundary files flagged.
+              <p className={`p-2.5 text-[11px] rounded-lg border ${isDark ? 'border-white/[0.04] bg-white/[0.01]' : 'border-slate-200/60 bg-white'} ${muted}`}>
+                Integrated into application root framework.
               </p>
             )}
           </div>
@@ -301,4 +306,4 @@ export const ArchitectureTopologyDiagram: React.FC<ArchitectureTopologyDiagramPr
       </div>
     </div>
   );
-};
+});
