@@ -20,6 +20,11 @@ import {
   X,
   Loader2,
   Check,
+  Cpu,
+  Layers,
+  Sparkles,
+  ArrowRight,
+  FileCode,
 } from 'lucide-react';
 import { CodebaseAnalysis } from '../../types/codebase';
 import { StartupAndTestsPanel } from './StartupAndTestsPanel';
@@ -76,11 +81,11 @@ export const CodebaseAnalysisView: React.FC<CodebaseAnalysisViewProps> = ({
   const [copiedAction, setCopiedAction] = useState<string | null>(null);
   const [showMoreActions, setShowMoreActions] = useState(false);
 
-  // Analysis sub-tab switcher (Files & Structure vs Packages vs Hotspots vs Tests & Scripts)
+  // Analysis sub-tab switcher
   const [analysisInspectorTab, setAnalysisInspectorTab] = useState<'packages' | 'hotspots' | 'startup' | 'scripts'>('packages');
 
   const muted = isDark ? 'text-slate-400' : 'text-slate-500';
-  const panel = isDark ? 'border-white/[0.08] bg-[#141518]' : 'border-slate-200 bg-white';
+  const panel = isDark ? 'border-white/[0.08] bg-[#141518]' : 'border-slate-200/90 bg-white shadow-2xs';
   const allScripts = analysis.scripts || [];
   const preferredScriptNames = ['dev', 'start', 'serve', 'build', 'test', 'lint', 'typecheck', 'check', 'tauri:dev'];
   const preferredScripts = preferredScriptNames
@@ -217,7 +222,7 @@ export const CodebaseAnalysisView: React.FC<CodebaseAnalysisViewProps> = ({
             )}
             {analysis.git?.tracked && (
               <span className={`hidden md:inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full font-medium ${
-                isDark ? 'bg-emerald-500/10 text-emerald-400' : 'bg-emerald-50 text-emerald-700'
+                isDark ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
               }`}>
                 <GitBranch className="h-2.5 w-2.5" />
                 {analysis.git.branch || 'main'}
@@ -233,7 +238,7 @@ export const CodebaseAnalysisView: React.FC<CodebaseAnalysisViewProps> = ({
           {[
             { id: 'overview', label: 'Overview', icon: LayoutDashboard },
             { id: 'analysis', label: 'Code Analysis', icon: FileCode2 },
-            { id: 'quality', label: 'Quality & Risks', icon: ShieldCheck },
+            { id: 'quality', label: 'Quality & Risks', icon: ShieldCheck, badge: analysis.quality?.score ? `${analysis.quality.score}` : undefined },
           ].map(tab => {
             const isSelected = activePage === tab.id;
             const Icon = tab.icon;
@@ -245,13 +250,22 @@ export const CodebaseAnalysisView: React.FC<CodebaseAnalysisViewProps> = ({
                 className={`flex items-center gap-1.5 px-3 py-1 rounded-md text-[11px] font-medium transition-all ${
                   isSelected
                     ? (isDark
-                        ? 'bg-blue-600 text-white shadow-xs font-semibold'
+                        ? 'bg-white/[0.12] text-white shadow-xs ring-1 ring-white/10 font-semibold'
                         : 'bg-white text-slate-950 shadow-xs border border-slate-200/80 font-semibold')
-                    : (isDark ? 'text-slate-400 hover:text-slate-200' : 'text-slate-600 hover:text-slate-900')
+                    : (isDark ? 'text-slate-400 hover:text-slate-200 hover:bg-white/[0.03]' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50')
                 }`}
               >
-                <Icon className={`h-3.5 w-3.5 ${isSelected ? (isDark ? 'text-white' : 'text-blue-600') : ''}`} />
+                <Icon className={`h-3.5 w-3.5 ${isSelected ? (isDark ? 'text-blue-400' : 'text-blue-600') : ''}`} />
                 <span>{tab.label}</span>
+                {tab.badge && (
+                  <span className={`ml-0.5 px-1.5 py-0.2 rounded-full font-mono text-[9px] font-semibold ${
+                    Number(tab.badge) < 60
+                      ? 'bg-amber-500/20 text-amber-300'
+                      : 'bg-emerald-500/20 text-emerald-300'
+                  }`}>
+                    {tab.badge}
+                  </span>
+                )}
               </button>
             );
           })}
@@ -373,82 +387,111 @@ export const CodebaseAnalysisView: React.FC<CodebaseAnalysisViewProps> = ({
               {/* Connected Visual Topology Diagram */}
               <ArchitectureTopologyDiagram analysis={analysis} />
 
-              {/* 2-Column Architecture & Delivery Deep Dive */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-                {/* Left Card: Architecture Signals & Shape */}
+              {/* Balanced 2-Column Architecture & Delivery Deep Dive */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 items-start">
+                {/* Left Card: Application Architecture & Surface */}
                 <section className={`rounded-xl border p-5 ${panel}`}>
-                  <div className="flex items-center gap-2 mb-3">
-                    <Workflow className="h-4 w-4 text-blue-500" />
-                    <h3 className={`text-xs font-semibold uppercase tracking-wider ${muted}`}>Architecture & Data Signals</h3>
+                  <div className="flex items-center gap-2 mb-3.5">
+                    <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-blue-500/15 text-blue-400 border border-blue-500/20">
+                      <Workflow className="h-3.5 w-3.5" />
+                    </div>
+                    <h3 className={`text-xs font-semibold uppercase tracking-wider ${muted}`}>
+                      Architecture & Data Signals
+                    </h3>
                   </div>
 
                   <div className="space-y-3">
-                    <div className={`rounded-lg p-3.5 ${isDark ? 'bg-white/[0.025] border border-white/[0.06]' : 'bg-slate-50 border border-slate-200/70'}`}>
+                    {/* Topology Shape */}
+                    <div className={`rounded-xl p-3.5 border ${isDark ? 'bg-white/[0.025] border-white/[0.06]' : 'bg-slate-50 border-slate-200/70'}`}>
                       <div className="flex items-center justify-between">
                         <span className={`text-[10px] font-semibold uppercase ${muted}`}>Topology Shape</span>
-                        <span className={`text-[9px] font-semibold px-2 py-0.5 rounded-full ${
+                        <span className={`text-[9px] font-semibold px-2 py-0.5 rounded-full border ${
                           analysis.architecture?.confidence === 'high'
-                            ? (isDark ? 'bg-emerald-500/10 text-emerald-400' : 'bg-emerald-50 text-emerald-700')
-                            : (isDark ? 'bg-blue-500/10 text-blue-400' : 'bg-blue-50 text-blue-700')
+                            ? (isDark ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-400' : 'border-emerald-200 bg-emerald-50 text-emerald-700')
+                            : (isDark ? 'border-blue-500/30 bg-blue-500/10 text-blue-400' : 'border-blue-200 bg-blue-50 text-blue-700')
                         }`}>
                           {analysis.architecture?.confidence || 'low'} confidence
                         </span>
                       </div>
-                      <p className={`mt-1 text-sm font-semibold ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                      <p className={`mt-1.5 text-sm font-semibold ${isDark ? 'text-white' : 'text-slate-900'}`}>
                         {analysis.architecture?.topology || 'Not enough evidence'}
                       </p>
-                      <p className={`mt-0.5 text-xs ${muted}`}>
+                      <p className={`mt-1 text-xs leading-relaxed ${muted}`}>
                         {analysis.architecture?.summary}
                       </p>
                     </div>
 
-                    {/* Database Box */}
-                    <div className={`rounded-lg p-3.5 ${isDark ? 'bg-white/[0.025] border border-white/[0.06]' : 'bg-slate-50 border border-slate-200/70'}`}>
-                      <div className="flex items-center gap-1.5 mb-1">
-                        <Database className="h-3.5 w-3.5 text-violet-500" />
-                        <span className={`text-[10px] font-semibold uppercase ${muted}`}>Storage & Database</span>
+                    {/* Database & Storage */}
+                    <div className={`rounded-xl p-3.5 border ${isDark ? 'bg-white/[0.025] border-white/[0.06]' : 'bg-slate-50 border-slate-200/70'}`}>
+                      <div className="flex items-center justify-between mb-1">
+                        <div className="flex items-center gap-1.5">
+                          <Database className="h-3.5 w-3.5 text-violet-500" />
+                          <span className={`text-[10px] font-semibold uppercase ${muted}`}>Storage & Database</span>
+                        </div>
+                        <span className={`text-[9px] font-mono px-1.5 py-0.2 rounded ${
+                          isDark ? 'bg-violet-500/10 text-violet-300' : 'bg-violet-50 text-violet-700'
+                        }`}>
+                          {analysis.architecture?.database.confidence || 'inferred'}
+                        </span>
                       </div>
                       <p className={`text-sm font-semibold ${isDark ? 'text-white' : 'text-slate-900'}`}>
                         {analysis.architecture?.database.name || 'Not assessed'}
                       </p>
-                      {(analysis.architecture?.database.evidence || []).slice(0, 2).map((item, idx) => (
-                        <p key={idx} className={`mt-1 text-[11px] ${muted}`}>• {item}</p>
+                      {(analysis.architecture?.database.evidence || []).slice(0, 3).map((item, idx) => (
+                        <p key={idx} className={`mt-1 text-[11px] leading-4 ${muted}`}>• {item}</p>
                       ))}
                     </div>
 
-                    {/* Next.js Profile if available */}
+                    {/* Next.js Route Structure */}
                     {analysis.nextjs && (
-                      <div className={`rounded-lg p-3.5 ${isDark ? 'bg-white/[0.025] border border-white/[0.06]' : 'bg-slate-50 border border-slate-200/70'}`}>
+                      <div className={`rounded-xl p-3.5 border ${isDark ? 'bg-white/[0.025] border-white/[0.06]' : 'bg-slate-50 border-slate-200/70'}`}>
                         <div className="flex items-center justify-between">
                           <span className={`text-[10px] font-semibold uppercase ${muted}`}>Next.js Route Structure</span>
-                          {analysis.nextjs.version && <span className="font-mono text-[10px] text-blue-500">v{analysis.nextjs.version}</span>}
+                          {analysis.nextjs.version && <span className="font-mono text-[10px] text-blue-400">v{analysis.nextjs.version}</span>}
                         </div>
                         <p className={`mt-1 text-sm font-semibold ${isDark ? 'text-white' : 'text-slate-900'}`}>{analysis.nextjs.router}</p>
-                        <div className="mt-2 grid grid-cols-3 gap-2">
-                          <div className={`p-2 rounded text-center ${isDark ? 'bg-black/20' : 'bg-white'}`}>
-                            <p className="font-semibold text-xs">{analysis.nextjs.appRouteCount}</p>
-                            <p className={`text-[9px] ${muted}`}>App Pages</p>
+                        <div className="mt-2.5 grid grid-cols-3 gap-2">
+                          <div className={`p-2.5 rounded-lg text-center border ${isDark ? 'bg-black/25 border-white/[0.05]' : 'bg-white border-slate-200/60'}`}>
+                            <p className="font-bold text-sm">{analysis.nextjs.appRouteCount}</p>
+                            <p className={`text-[9px] mt-0.5 ${muted}`}>App Pages</p>
                           </div>
-                          <div className={`p-2 rounded text-center ${isDark ? 'bg-black/20' : 'bg-white'}`}>
-                            <p className="font-semibold text-xs">{analysis.nextjs.pagesRouteCount}</p>
-                            <p className={`text-[9px] ${muted}`}>Pages Routes</p>
+                          <div className={`p-2.5 rounded-lg text-center border ${isDark ? 'bg-black/25 border-white/[0.05]' : 'bg-white border-slate-200/60'}`}>
+                            <p className="font-bold text-sm">{analysis.nextjs.pagesRouteCount}</p>
+                            <p className={`text-[9px] mt-0.5 ${muted}`}>Pages Routes</p>
                           </div>
-                          <div className={`p-2 rounded text-center ${isDark ? 'bg-black/20' : 'bg-white'}`}>
-                            <p className="font-semibold text-xs">{analysis.nextjs.apiRouteCount}</p>
-                            <p className={`text-[9px] ${muted}`}>API Endpoints</p>
+                          <div className={`p-2.5 rounded-lg text-center border ${isDark ? 'bg-black/25 border-white/[0.05]' : 'bg-white border-slate-200/60'}`}>
+                            <p className="font-bold text-sm">{analysis.nextjs.apiRouteCount}</p>
+                            <p className={`text-[9px] mt-0.5 ${muted}`}>API Endpoints</p>
                           </div>
                         </div>
+
+                        {/* Route examples pills */}
+                        {analysis.nextjs.routeExamples.length > 0 && (
+                          <div className="mt-2.5 pt-2 border-t border-inherit flex flex-wrap gap-1">
+                            {analysis.nextjs.routeExamples.slice(0, 3).map(route => (
+                              <span key={route} className={`font-mono text-[10px] px-2 py-0.5 rounded border ${
+                                isDark ? 'border-white/[0.05] bg-white/[0.02] text-slate-300' : 'border-slate-200 bg-white text-slate-700'
+                              }`}>
+                                {route}
+                              </span>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
                 </section>
 
-                {/* Right Card: Improvement Suggestions & Source Control */}
+                {/* Right Card: Source Control, Delivery & Prioritized Recommendations */}
                 <section className={`rounded-xl border p-5 ${panel}`}>
-                  <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center justify-between mb-3.5">
                     <div className="flex items-center gap-2">
-                      <GitBranch className="h-4 w-4 text-emerald-500" />
-                      <h3 className={`text-xs font-semibold uppercase tracking-wider ${muted}`}>Source Control & Delivery</h3>
+                      <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-emerald-500/15 text-emerald-400 border border-emerald-500/20">
+                        <GitBranch className="h-3.5 w-3.5" />
+                      </div>
+                      <h3 className={`text-xs font-semibold uppercase tracking-wider ${muted}`}>
+                        Source Control & Delivery
+                      </h3>
                     </div>
                     {supportsGitHub && !githubConnected && (
                       <button
@@ -462,29 +505,69 @@ export const CodebaseAnalysisView: React.FC<CodebaseAnalysisViewProps> = ({
                   </div>
 
                   <div className="space-y-3">
-                    <div className={`rounded-lg p-3.5 ${isDark ? 'bg-white/[0.025] border border-white/[0.06]' : 'bg-slate-50 border border-slate-200/70'}`}>
+                    {/* Git Repository Info */}
+                    <div className={`rounded-xl p-3.5 border ${isDark ? 'bg-white/[0.025] border-white/[0.06]' : 'bg-slate-50 border-slate-200/70'}`}>
                       <div className="flex items-center justify-between text-xs">
                         <span className="font-semibold">{analysis.git?.tracked ? 'Git Tracked Repository' : 'Unversioned Local Directory'}</span>
-                        {analysis.git?.branch && <span className="font-mono text-[10px] text-emerald-500">{analysis.git.branch}</span>}
+                        {analysis.git?.branch && (
+                          <span className={`font-mono text-[10px] font-medium px-2 py-0.5 rounded-full border ${
+                            isDark ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-400' : 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                          }`}>
+                            {analysis.git.branch}
+                          </span>
+                        )}
                       </div>
                       {analysis.git?.latestCommit && (
-                        <p className={`mt-1.5 flex items-center gap-1.5 font-mono text-[11px] truncate ${muted}`}>
-                          <GitCommit className="h-3 w-3 shrink-0" />
+                        <p className={`mt-2 flex items-center gap-1.5 font-mono text-[11px] truncate ${muted}`}>
+                          <GitCommit className="h-3.5 w-3.5 shrink-0 text-emerald-500" />
                           <span className="truncate">{analysis.git.latestCommit}</span>
                         </p>
                       )}
+                      <div className="mt-2.5 pt-2 border-t border-inherit flex items-center justify-between text-[11px]">
+                        <span className={muted}>Status</span>
+                        <span className={`font-medium ${analysis.git?.tracked ? 'text-emerald-400' : muted}`}>
+                          {analysis.git?.changedFiles ? `${analysis.git.changedFiles} pending changes` : 'Working tree clean'}
+                        </span>
+                      </div>
                     </div>
 
-                    {/* Suggestions list */}
+                    {/* Runtime & Tooling Stack */}
+                    <div className={`rounded-xl p-3.5 border ${isDark ? 'bg-white/[0.025] border-white/[0.06]' : 'bg-slate-50 border-slate-200/70'}`}>
+                      <div className="flex items-center gap-1.5 mb-2">
+                        <Cpu className="h-3.5 w-3.5 text-blue-500" />
+                        <span className={`text-[10px] font-semibold uppercase ${muted}`}>Runtime & Build Environment</span>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2 text-xs">
+                        <div className={`p-2 rounded-lg border ${isDark ? 'bg-black/20 border-white/[0.04]' : 'bg-white border-slate-200/60'}`}>
+                          <span className={`text-[10px] block ${muted}`}>Package Ecosystem</span>
+                          <span className="font-semibold text-xs mt-0.5 block">{analysis.dependencyInventory?.ecosystem.toUpperCase() || 'NPM'}</span>
+                        </div>
+                        <div className={`p-2 rounded-lg border ${isDark ? 'bg-black/20 border-white/[0.04]' : 'bg-white border-slate-200/60'}`}>
+                          <span className={`text-[10px] block ${muted}`}>CI/CD Workflows</span>
+                          <span className="font-semibold text-xs mt-0.5 block">{analysis.pipeline?.workflows.length ? `${analysis.pipeline.workflows.length} Workflows` : 'None Configured'}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Prioritized Architectural Recommendations */}
                     <div>
-                      <p className={`text-[10px] font-semibold uppercase mb-2 ${muted}`}>Recommended Next Steps</p>
+                      <p className={`text-[10px] font-semibold uppercase tracking-wider mb-2 ${muted}`}>
+                        Recommended Next Steps
+                      </p>
                       <div className="space-y-2">
                         {(analysis.suggestions || []).slice(0, 3).map((sug, i) => (
-                          <div key={i} className={`p-2.5 rounded-lg border text-xs ${
-                            isDark ? 'border-white/[0.06] bg-black/20' : 'border-slate-200/80 bg-white'
+                          <div key={i} className={`p-3 rounded-xl border text-xs ${
+                            isDark ? 'border-white/[0.06] bg-black/25' : 'border-slate-200/80 bg-white'
                           }`}>
-                            <p className="font-semibold text-xs">{sug.title}</p>
-                            <p className={`mt-0.5 text-[11px] leading-4 ${muted}`}>{sug.detail}</p>
+                            <div className="flex items-center justify-between gap-2">
+                              <p className="font-semibold text-xs">{sug.title}</p>
+                              <span className={`text-[9px] font-semibold px-1.5 py-0.2 rounded ${
+                                isDark ? 'bg-blue-500/20 text-blue-300' : 'bg-blue-50 text-blue-700'
+                              }`}>
+                                Action
+                              </span>
+                            </div>
+                            <p className={`mt-1 text-[11px] leading-relaxed ${muted}`}>{sug.detail}</p>
                           </div>
                         ))}
                       </div>
@@ -509,16 +592,16 @@ export const CodebaseAnalysisView: React.FC<CodebaseAnalysisViewProps> = ({
                 <div className="lg:col-span-5 space-y-4">
                   <ProjectStructureTree analysis={analysis} />
 
-                  {/* Summary Box */}
+                  {/* Volume Summary Box */}
                   <div className={`p-4 rounded-xl border ${panel}`}>
-                    <p className={`text-[10px] font-semibold uppercase tracking-wider mb-2 ${muted}`}>Repository Volume</p>
+                    <p className={`text-[10px] font-semibold uppercase tracking-wider mb-2.5 ${muted}`}>Repository Volume</p>
                     <div className="grid grid-cols-2 gap-3 text-center">
-                      <div className={`p-3 rounded-lg ${isDark ? 'bg-white/[0.03]' : 'bg-slate-50'}`}>
-                        <p className="text-xl font-semibold">{analysis.filesScanned.toLocaleString()}</p>
+                      <div className={`p-3 rounded-lg border ${isDark ? 'bg-white/[0.02] border-white/[0.05]' : 'bg-slate-50 border-slate-200/70'}`}>
+                        <p className="text-xl font-bold">{analysis.filesScanned.toLocaleString()}</p>
                         <p className={`text-[10px] mt-0.5 ${muted}`}>Files Scanned</p>
                       </div>
-                      <div className={`p-3 rounded-lg ${isDark ? 'bg-white/[0.03]' : 'bg-slate-50'}`}>
-                        <p className="text-xl font-semibold">{analysis.sourceFiles.toLocaleString()}</p>
+                      <div className={`p-3 rounded-lg border ${isDark ? 'bg-white/[0.02] border-white/[0.05]' : 'bg-slate-50 border-slate-200/70'}`}>
+                        <p className="text-xl font-bold">{analysis.sourceFiles.toLocaleString()}</p>
                         <p className={`text-[10px] mt-0.5 ${muted}`}>Source Files</p>
                       </div>
                     </div>
@@ -529,13 +612,13 @@ export const CodebaseAnalysisView: React.FC<CodebaseAnalysisViewProps> = ({
                 <div className="lg:col-span-7 space-y-4">
                   {/* Inspector Segmented Switcher */}
                   <div className={`flex items-center justify-between p-1 rounded-xl border ${
-                    isDark ? 'border-white/[0.08] bg-black/20' : 'border-slate-200 bg-slate-100/70'
+                    isDark ? 'border-white/[0.08] bg-black/25' : 'border-slate-200 bg-slate-100/70'
                   }`}>
                     {[
-                      { id: 'packages', label: 'Packages' },
+                      { id: 'packages', label: `Packages (${analysis.dependencyInventory?.packages.length || 0})` },
                       { id: 'hotspots', label: 'Complexity & Debt' },
                       { id: 'startup', label: 'Entry & Tests' },
-                      { id: 'scripts', label: 'Scripts' },
+                      { id: 'scripts', label: `Scripts (${analysis.scripts?.length || 0})` },
                     ].map(tab => (
                       <button
                         key={tab.id}
@@ -543,7 +626,7 @@ export const CodebaseAnalysisView: React.FC<CodebaseAnalysisViewProps> = ({
                         onClick={() => setAnalysisInspectorTab(tab.id as typeof analysisInspectorTab)}
                         className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-medium transition-all ${
                           analysisInspectorTab === tab.id
-                            ? (isDark ? 'bg-[#18191D] text-white shadow-xs border border-white/[0.08]' : 'bg-white text-slate-900 shadow-xs border border-slate-200/70')
+                            ? (isDark ? 'bg-[#1E2024] text-white shadow-xs border border-white/[0.08]' : 'bg-white text-slate-900 shadow-xs border border-slate-200/70')
                             : (isDark ? 'text-slate-400 hover:text-slate-200' : 'text-slate-600 hover:text-slate-900')
                         }`}
                       >

@@ -18,6 +18,11 @@ import {
   Layers,
   Sparkles,
   ExternalLink,
+  ShieldAlert,
+  TestTube,
+  FileText,
+  Workflow,
+  CheckCheck,
 } from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
 import { CodebaseAnalysis, QualityFinding } from '../../types/codebase';
@@ -134,99 +139,106 @@ export const CodebaseQualityView: React.FC<CodebaseQualityViewProps> = ({
     <div className="space-y-4">
       {analysis.quality ? (
         <>
-          {/* Top Health Scorecard Banner */}
+          {/* Top Health Scorecard Banner - Balanced 2-Section Grid */}
           <section className={`rounded-xl border p-4 sm:p-5 ${panel}`}>
-            <div className="flex flex-wrap items-center justify-between gap-4 pb-3.5 border-b border-inherit">
-              <div className="flex items-center gap-4">
-                <div
-                  className="relative flex h-16 w-16 shrink-0 items-center justify-center rounded-full p-[5px]"
-                  style={{
-                    background: `conic-gradient(${
-                      analysis.quality.score >= 80 ? '#10b981' : analysis.quality.score >= 60 ? '#3b82f6' : '#f59e0b'
-                    } ${analysis.quality.score * 3.6}deg, ${isDark ? '#ffffff18' : '#e2e8f0'} 0deg)`,
-                  }}
-                >
-                  <div className={`flex h-full w-full flex-col items-center justify-center rounded-full ${isDark ? 'bg-[#141518]' : 'bg-white'}`}>
-                    <span className={`text-lg font-semibold ${isDark ? 'text-white' : 'text-slate-950'}`}>{analysis.quality.score}</span>
-                    <span className={`text-[8px] ${muted}`}>out of 100</span>
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-center">
+              {/* Left Column: Radial Score & Health Status (5 cols) */}
+              <div className="lg:col-span-4 flex flex-col justify-between h-full border-b lg:border-b-0 lg:border-r border-inherit pb-4 lg:pb-0 lg:pr-5">
+                <div className="flex items-center gap-4">
+                  <div
+                    className="relative flex h-16 w-16 shrink-0 items-center justify-center rounded-full p-[5px]"
+                    style={{
+                      background: `conic-gradient(${
+                        analysis.quality.score >= 80 ? '#10b981' : analysis.quality.score >= 60 ? '#3b82f6' : '#f59e0b'
+                      } ${analysis.quality.score * 3.6}deg, ${isDark ? '#ffffff18' : '#e2e8f0'} 0deg)`,
+                    }}
+                  >
+                    <div className={`flex h-full w-full flex-col items-center justify-center rounded-full ${isDark ? 'bg-[#141518]' : 'bg-white'}`}>
+                      <span className={`text-xl font-bold leading-none ${isDark ? 'text-white' : 'text-slate-950'}`}>{analysis.quality.score}</span>
+                      <span className={`text-[8px] font-mono ${muted}`}>/ 100</span>
+                    </div>
+                  </div>
+                  <div>
+                    <span className={`text-[10px] font-semibold uppercase tracking-wider ${muted}`}>Static Code Quality</span>
+                    <h3 className={`mt-0.5 text-base font-semibold ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                      {analysis.quality.score >= 80 ? 'Optimal Architecture' : analysis.quality.score >= 60 ? 'Moderate Health' : 'Needs Remediation'}
+                    </h3>
+                    <p className={`mt-0.5 text-[10px] ${muted}`}>
+                      {analysis.quality.confidence} confidence · {analysis.quality.analyzedSourceFiles} files evaluated
+                    </p>
                   </div>
                 </div>
-                <div>
-                  <p className={`text-[10px] font-semibold uppercase tracking-wider ${muted}`}>Static Code Quality</p>
-                  <h3 className={`mt-0.5 text-base font-semibold ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                    {analysis.quality.score >= 80 ? 'Healthy Architecture' : analysis.quality.score >= 60 ? 'Moderate Health' : 'Needs Remediation'}
-                  </h3>
-                  <p className={`mt-0.5 text-[10px] ${muted}`}>
-                    {analysis.quality.confidence} confidence · {analysis.quality.analyzedSourceFiles} source files evaluated
-                  </p>
+
+                <div className="mt-4 flex items-center justify-between pt-3 border-t border-inherit">
+                  <span className={`text-[11px] ${muted}`}>
+                    {highPriorityCount} critical/high findings
+                  </span>
+                  <button
+                    type="button"
+                    onClick={exportAuditReport}
+                    className={`inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-xs font-medium transition-colors ${
+                      isDark
+                        ? 'border-white/[0.08] bg-white/[0.03] text-slate-300 hover:bg-white/[0.08] hover:text-white'
+                        : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50 hover:text-slate-900 shadow-2xs'
+                    }`}
+                  >
+                    {copiedReport ? <Check className="h-3 w-3 text-emerald-500" /> : <Download className="h-3 w-3 text-blue-500" />}
+                    <span>{copiedReport ? 'Exported' : 'Export Audit (.md)'}</span>
+                  </button>
                 </div>
               </div>
 
-              {/* Top Action Buttons */}
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={exportAuditReport}
-                  className={`inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-xs font-medium transition-colors ${
-                    isDark
-                      ? 'border-white/[0.08] bg-white/[0.03] text-slate-300 hover:bg-white/[0.08] hover:text-white'
-                      : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50 hover:text-slate-900 shadow-2xs'
-                  }`}
-                >
-                  {copiedReport ? <Check className="h-3.5 w-3.5 text-emerald-500" /> : <Download className="h-3.5 w-3.5 text-blue-500" />}
-                  <span>{copiedReport ? 'Report Exported' : 'Export Audit (.md)'}</span>
-                </button>
-              </div>
-            </div>
+              {/* Right Column: 7 Domain Dimensions in a Spacious Responsive Grid (8 cols) */}
+              <div className="lg:col-span-8 grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-2.5">
+                {analysis.quality.dimensions.map(dim => {
+                  const pct = dim.maxScore ? Math.round((dim.score / dim.maxScore) * 100) : 0;
+                  const statusColor =
+                    dim.assessmentStatus === 'not-assessed'
+                      ? 'text-slate-400 bg-slate-400/10'
+                      : pct >= 80
+                      ? 'text-emerald-500 bg-emerald-500/10'
+                      : pct >= 50
+                      ? 'text-blue-500 bg-blue-500/10'
+                      : 'text-amber-500 bg-amber-500/10';
 
-            {/* Quality Dimensions Radar Grid with Mini Progress Bars */}
-            <div className="mt-3.5 grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2">
-              {analysis.quality.dimensions.map(dim => {
-                const pct = dim.maxScore ? Math.round((dim.score / dim.maxScore) * 100) : 0;
-                const statusColor =
-                  dim.assessmentStatus === 'not-assessed'
-                    ? 'text-slate-400 bg-slate-400/10'
-                    : pct >= 80
-                    ? 'text-emerald-500 bg-emerald-500/10'
-                    : pct >= 50
-                    ? 'text-blue-500 bg-blue-500/10'
-                    : 'text-amber-500 bg-amber-500/10';
+                  const barColor =
+                    dim.assessmentStatus === 'not-assessed'
+                      ? 'bg-slate-500/30'
+                      : pct >= 80
+                      ? 'bg-emerald-500'
+                      : pct >= 50
+                      ? 'bg-blue-500'
+                      : 'bg-amber-500';
 
-                const barColor =
-                  dim.assessmentStatus === 'not-assessed'
-                    ? 'bg-slate-500/30'
-                    : pct >= 80
-                    ? 'bg-emerald-500'
-                    : pct >= 50
-                    ? 'bg-blue-500'
-                    : 'bg-amber-500';
-
-                return (
-                  <div key={dim.name} className={`p-2.5 rounded-lg border flex flex-col justify-between ${
-                    isDark ? 'border-white/[0.06] bg-white/[0.02]' : 'border-slate-200 bg-slate-50/70'
-                  }`}>
-                    <div>
-                      <div className="flex items-center justify-between mb-1">
-                        <p className={`text-[10px] font-medium truncate ${isDark ? 'text-slate-300' : 'text-slate-700'}`} title={dim.name}>
-                          {dim.name}
-                        </p>
-                        <span className={`text-[8px] font-semibold px-1 rounded ${statusColor}`}>
-                          {dim.assessmentStatus === 'not-assessed' ? 'N/A' : `${pct}%`}
+                  return (
+                    <div key={dim.name} className={`p-2.5 rounded-lg border flex flex-col justify-between ${
+                      isDark ? 'border-white/[0.06] bg-white/[0.02]' : 'border-slate-200 bg-slate-50/70'
+                    }`}>
+                      <div>
+                        <div className="flex items-center justify-between mb-1">
+                          <p className={`text-[11px] font-medium truncate ${isDark ? 'text-slate-300' : 'text-slate-700'}`} title={dim.name}>
+                            {dim.name}
+                          </p>
+                          <span className={`text-[9px] font-semibold px-1 rounded ${statusColor}`}>
+                            {dim.assessmentStatus === 'not-assessed' ? 'N/A' : `${pct}%`}
+                          </span>
+                        </div>
+                        <span className="font-mono text-xs font-semibold">
+                          {dim.maxScore ? `${dim.score}/${dim.maxScore}` : '—'}
                         </span>
                       </div>
-                      <span className="font-mono text-xs font-semibold">{dim.maxScore ? `${dim.score}/${dim.maxScore}` : '—'}</span>
-                    </div>
 
-                    {/* Mini Progress Bar */}
-                    <div className="mt-2 h-1 w-full rounded-full bg-slate-200/60 dark:bg-white/[0.06] overflow-hidden">
-                      <div
-                        className={`h-full rounded-full transition-all ${barColor}`}
-                        style={{ width: `${Math.min(pct, 100)}%` }}
-                      />
+                      {/* Mini Progress Bar */}
+                      <div className="mt-2.5 h-1 w-full rounded-full bg-slate-200/60 dark:bg-white/[0.06] overflow-hidden">
+                        <div
+                          className={`h-full rounded-full transition-all duration-300 ${barColor}`}
+                          style={{ width: `${Math.min(pct, 100)}%` }}
+                        />
+                      </div>
                     </div>
-                  </div>
-                );
-              })}
+                  );
+                })}
+              </div>
             </div>
           </section>
 
@@ -241,7 +253,7 @@ export const CodebaseQualityView: React.FC<CodebaseQualityViewProps> = ({
                   Static Findings Inspector
                 </h3>
                 <p className={`mt-0.5 text-[11px] ${muted}`}>
-                  Select any finding to inspect AST violation context, source lines, and remediation steps.
+                  Select any finding to inspect AST violation context, source lines, and remediation guidance.
                 </p>
               </div>
 
@@ -367,7 +379,9 @@ export const CodebaseQualityView: React.FC<CodebaseQualityViewProps> = ({
                           <span className={`font-mono truncate max-w-[200px] ${muted}`}>
                             {finding.location?.path || (finding.category || 'quality')}
                           </span>
-                          <span className="capitalize opacity-75">{finding.confidence || 'medium'}</span>
+                          <span className="capitalize opacity-75">
+                            Confidence: {finding.confidence || 'medium'}
+                          </span>
                         </div>
                       </button>
                     );

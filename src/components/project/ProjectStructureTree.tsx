@@ -1,5 +1,20 @@
 import React, { useState, useMemo } from 'react';
-import { ChevronDown, ChevronRight, FileText, Folder, FolderOpen, Search, X } from 'lucide-react';
+import {
+  ChevronDown,
+  ChevronRight,
+  FileText,
+  Folder,
+  FolderOpen,
+  Search,
+  X,
+  FileCode,
+  FileJson,
+  FileCog,
+  FileSpreadsheet,
+  Check,
+  Copy,
+  ExternalLink,
+} from 'lucide-react';
 import { CodebaseAnalysis } from '../../types/codebase';
 import { useTheme } from '../../context/ThemeContext';
 
@@ -9,6 +24,29 @@ interface ProjectTreeNode {
   kind: 'folder' | 'file';
   files?: number;
   children: ProjectTreeNode[];
+}
+
+function getFileIcon(fileName: string, isDark: boolean) {
+  const lower = fileName.toLowerCase();
+  if (lower.endsWith('.tsx') || lower.endsWith('.jsx')) {
+    return <FileCode className="h-3.5 w-3.5 shrink-0 text-cyan-400" />;
+  }
+  if (lower.endsWith('.ts') || lower.endsWith('.js') || lower.endsWith('.mjs')) {
+    return <FileCode className="h-3.5 w-3.5 shrink-0 text-blue-400" />;
+  }
+  if (lower.endsWith('.json') || lower.endsWith('.lock')) {
+    return <FileJson className="h-3.5 w-3.5 shrink-0 text-amber-400" />;
+  }
+  if (lower.endsWith('.css') || lower.endsWith('.scss')) {
+    return <FileText className="h-3.5 w-3.5 shrink-0 text-pink-400" />;
+  }
+  if (lower.endsWith('.prisma') || lower.endsWith('.sql')) {
+    return <FileSpreadsheet className="h-3.5 w-3.5 shrink-0 text-emerald-400" />;
+  }
+  if (lower.startsWith('.env') || lower.endsWith('.config.js') || lower.endsWith('.config.ts')) {
+    return <FileCog className="h-3.5 w-3.5 shrink-0 text-purple-400" />;
+  }
+  return <FileText className={`h-3.5 w-3.5 shrink-0 ${isDark ? 'text-slate-400' : 'text-slate-500'}`} />;
 }
 
 function createProjectTree(analysis: CodebaseAnalysis): ProjectTreeNode {
@@ -79,9 +117,11 @@ interface ProjectStructureTreeProps {
 export const ProjectStructureTree: React.FC<ProjectStructureTreeProps> = ({ analysis }) => {
   const { isDark } = useTheme();
   const muted = isDark ? 'text-slate-400' : 'text-slate-500';
-  const panel = isDark ? 'border-white/[0.08] bg-[#141518]' : 'border-slate-200 bg-white';
+  const panel = isDark ? 'border-white/[0.08] bg-[#141518]' : 'border-slate-200/90 bg-white shadow-2xs';
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(() => new Set(['.']));
   const [filterQuery, setFilterQuery] = useState('');
+  const [selectedFile, setSelectedFile] = useState<string | null>(null);
+  const [copiedFile, setCopiedFile] = useState(false);
 
   const projectTree = useMemo(() => createProjectTree(analysis), [analysis]);
   const hasDetailedTree = Boolean(analysis.structurePaths);
@@ -103,6 +143,22 @@ export const ProjectStructureTree: React.FC<ProjectStructureTreeProps> = ({ anal
     return set;
   }, [projectTree, filterQuery]);
 
+  // Check if selected file has quality findings
+  const matchingFindings = useMemo(() => {
+    if (!selectedFile || !analysis.quality?.findings) return [];
+    return analysis.quality.findings.filter(f => f.location?.path === selectedFile);
+  }, [selectedFile, analysis.quality]);
+
+  const copyFilePath = async (path: string) => {
+    try {
+      await navigator.clipboard.writeText(path);
+      setCopiedFile(true);
+      setTimeout(() => setCopiedFile(false), 1500);
+    } catch {
+      // Ignore
+    }
+  };
+
   const renderTreeNode = (node: ProjectTreeNode, depth: number): React.ReactNode => {
     // If filter active, skip if not in matching paths
     if (matchingPaths && !matchingPaths.has(node.path)) {
@@ -111,41 +167,90 @@ export const ProjectStructureTree: React.FC<ProjectStructureTreeProps> = ({ anal
 
     const expanded = filterQuery.trim() ? true : expandedFolders.has(node.path);
     const canExpand = node.kind === 'folder' && node.children.length > 0;
-    const rowClass = `flex min-h-8 items-center gap-1.5 rounded-md pr-2 text-left transition-colors ${isDark ? 'hover:bg-white/[0.04]' : 'hover:bg-slate-50'}`;
-    const rowContent = <>
-      {node.kind === 'folder'
-        ? (expanded ? <ChevronDown className="h-3.5 w-3.5 shrink-0" /> : <ChevronRight className="h-3.5 w-3.5 shrink-0" />)
-        : <span className="w-3.5 shrink-0" />}
-      {node.kind === 'folder'
-        ? (expanded ? <FolderOpen className="h-3.5 w-3.5 shrink-0 text-amber-500" /> : <Folder className="h-3.5 w-3.5 shrink-0 text-amber-500" />)
-        : <FileText className={`h-3.5 w-3.5 shrink-0 ${isDark ? 'text-slate-500' : 'text-slate-400'}`} />}
-      <span className={`min-w-0 flex-1 truncate font-mono text-[11px] ${node.path === '.' ? (isDark ? 'font-semibold text-slate-100' : 'font-semibold text-slate-800') : (isDark ? 'text-slate-300' : 'text-slate-700')}`}>
-        {node.name}{node.kind === 'folder' && '/'}
-      </span>
-      {typeof node.files === 'number' && <span className={`shrink-0 text-[9px] ${muted}`}>{node.files} {node.files === 1 ? 'file' : 'files'}</span>}
-    </>;
+    const isSelected = selectedFile === node.path;
+
+    const rowClass = `flex min-h-7 items-center gap-1.5 rounded-md pr-2 text-left transition-colors cursor-pointer select-none ${
+      isSelected
+        ? (isDark ? 'bg-blue-600/20 text-white ring-1 ring-blue-500/40' : 'bg-blue-50 text-blue-900 ring-1 ring-blue-500/30 font-medium')
+        : (isDark ? 'hover:bg-white/[0.04]' : 'hover:bg-slate-100/70')
+    }`;
+
+    const rowContent = (
+      <>
+        {node.kind === 'folder' ? (
+          expanded ? (
+            <ChevronDown className="h-3 w-3 shrink-0 text-slate-400" />
+          ) : (
+            <ChevronRight className="h-3 w-3 shrink-0 text-slate-400" />
+          )
+        ) : (
+          <span className="w-3 shrink-0" />
+        )}
+
+        {node.kind === 'folder' ? (
+          expanded ? (
+            <FolderOpen className="h-3.5 w-3.5 shrink-0 text-amber-500" />
+          ) : (
+            <Folder className="h-3.5 w-3.5 shrink-0 text-amber-500" />
+          )
+        ) : (
+          getFileIcon(node.name, isDark)
+        )}
+
+        <span
+          className={`min-w-0 flex-1 truncate font-mono text-[11px] ${
+            node.path === '.'
+              ? isDark
+                ? 'font-semibold text-slate-100'
+                : 'font-semibold text-slate-800'
+              : isSelected
+              ? isDark
+                ? 'text-white'
+                : 'text-blue-900'
+              : isDark
+              ? 'text-slate-300'
+              : 'text-slate-700'
+          }`}
+        >
+          {node.name}
+          {node.kind === 'folder' && '/'}
+        </span>
+
+        {typeof node.files === 'number' && (
+          <span className={`shrink-0 text-[9px] font-mono ${muted}`}>
+            {node.files} {node.files === 1 ? 'file' : 'files'}
+          </span>
+        )}
+      </>
+    );
 
     return (
       <React.Fragment key={node.path}>
         {node.kind === 'folder' ? (
           <button
             type="button"
-            onClick={() => setExpandedFolders(current => {
-              const next = new Set(current);
-              if (next.has(node.path)) next.delete(node.path);
-              else next.add(node.path);
-              return next;
-            })}
+            onClick={() =>
+              setExpandedFolders(current => {
+                const next = new Set(current);
+                if (next.has(node.path)) next.delete(node.path);
+                else next.add(node.path);
+                return next;
+              })
+            }
             aria-label={`${expanded ? 'Collapse' : 'Expand'} ${node.name}`}
             aria-expanded={expanded}
             disabled={!canExpand}
             className={`${rowClass} w-full disabled:cursor-default disabled:hover:bg-transparent`}
-            style={{ paddingLeft: `${depth * 16 + 4}px` }}
+            style={{ paddingLeft: `${depth * 14 + 4}px` }}
           >
             {rowContent}
           </button>
         ) : (
-          <div className={rowClass} style={{ paddingLeft: `${depth * 16 + 4}px` }}>
+          <div
+            onClick={() => setSelectedFile(node.path)}
+            className={rowClass}
+            style={{ paddingLeft: `${depth * 14 + 4}px` }}
+          >
             {rowContent}
           </div>
         )}
@@ -155,19 +260,27 @@ export const ProjectStructureTree: React.FC<ProjectStructureTreeProps> = ({ anal
   };
 
   return (
-    <section className={`rounded-xl border p-4 ${panel}`}>
-      <div className="flex items-center justify-between gap-2 mb-2.5">
+    <section className={`rounded-xl border p-4 sm:p-5 ${panel}`}>
+      <div className="flex items-center justify-between gap-2 mb-3">
         <div className="flex items-center gap-2">
-          <Folder className="h-4 w-4 text-amber-500" />
-          <h2 className={`text-sm font-semibold ${isDark ? 'text-white' : 'text-slate-900'}`}>
+          <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-amber-500/15 text-amber-400 border border-amber-500/20">
+            <Folder className="h-3.5 w-3.5" />
+          </div>
+          <h2 className={`text-xs font-semibold uppercase tracking-wider ${isDark ? 'text-slate-200' : 'text-slate-800'}`}>
             Project Structure Tree
           </h2>
         </div>
         {projectTree.children.length > 0 && (
           <button
             type="button"
-            onClick={() => setExpandedFolders(current => current.size > 1 ? new Set(['.']) : new Set(getExpandableFolderPaths(projectTree)))}
-            className={`text-[10px] font-medium ${isDark ? 'text-blue-300 hover:text-blue-200' : 'text-blue-600 hover:text-blue-700'}`}
+            onClick={() =>
+              setExpandedFolders(current =>
+                current.size > 1 ? new Set(['.']) : new Set(getExpandableFolderPaths(projectTree))
+              )
+            }
+            className={`text-[10px] font-medium transition-colors ${
+              isDark ? 'text-blue-400 hover:text-blue-300' : 'text-blue-600 hover:text-blue-700'
+            }`}
           >
             {expandedFolders.size > 1 ? 'Collapse all' : 'Expand folders'}
           </button>
@@ -175,13 +288,13 @@ export const ProjectStructureTree: React.FC<ProjectStructureTreeProps> = ({ anal
       </div>
 
       {/* Filter / Search file tree */}
-      <div className="relative mb-2.5">
+      <div className="relative mb-3">
         <Search className={`absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 ${muted}`} />
         <input
           type="text"
           value={filterQuery}
           onChange={e => setFilterQuery(e.target.value)}
-          placeholder="Filter files in tree (e.g. *.tsx, api, schema)…"
+          placeholder="Filter files (e.g. *.tsx, api, schema)…"
           className={`w-full rounded-lg border pl-8 pr-7 py-1.5 text-xs outline-none transition-colors ${
             isDark
               ? 'border-white/[0.08] bg-black/20 text-white placeholder:text-slate-600 focus:border-blue-500'
@@ -199,15 +312,76 @@ export const ProjectStructureTree: React.FC<ProjectStructureTreeProps> = ({ anal
         )}
       </div>
 
+      {/* Tree scroll canvas */}
       {projectTree.children.length > 0 ? (
-        <div className={`max-h-[500px] overflow-y-auto rounded-lg border p-1.5 ${isDark ? 'border-white/[0.06] bg-black/10' : 'border-slate-100 bg-slate-50/50'}`}>
+        <div
+          className={`max-h-[460px] overflow-y-auto rounded-lg border p-1.5 ${
+            isDark ? 'border-white/[0.06] bg-black/15' : 'border-slate-100 bg-slate-50/50'
+          }`}
+        >
           {renderTreeNode(projectTree, 0)}
         </div>
       ) : (
         <p className={`mt-4 text-xs ${muted}`}>No project files were found.</p>
       )}
+
+      {/* Selected File Telemetry Drawer */}
+      {selectedFile && (
+        <div
+          className={`mt-3 p-3 rounded-xl border animate-in fade-in duration-150 ${
+            isDark ? 'border-blue-500/30 bg-blue-500/10' : 'border-blue-200 bg-blue-50/70'
+          }`}
+        >
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2 min-w-0">
+              <FileCode className="h-3.5 w-3.5 text-blue-500 shrink-0" />
+              <span className="font-mono text-xs font-semibold truncate" title={selectedFile}>
+                {selectedFile}
+              </span>
+            </div>
+            <div className="flex items-center gap-1 shrink-0">
+              <button
+                type="button"
+                onClick={() => copyFilePath(selectedFile)}
+                className={`p-1 rounded text-[10px] font-medium transition-colors flex items-center gap-1 ${
+                  isDark ? 'text-slate-300 hover:text-white' : 'text-slate-700 hover:text-slate-900'
+                }`}
+                title="Copy relative file path"
+              >
+                {copiedFile ? <Check className="h-3 w-3 text-emerald-500" /> : <Copy className="h-3 w-3" />}
+                <span>{copiedFile ? 'Copied' : 'Copy path'}</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setSelectedFile(null)}
+                className={`p-1 rounded ${muted} hover:text-slate-200`}
+                title="Dismiss"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          </div>
+
+          {matchingFindings.length > 0 && (
+            <div className="mt-2 pt-2 border-t border-inherit space-y-1">
+              <p className={`text-[10px] font-semibold uppercase tracking-wider text-rose-400`}>
+                Quality Signals Flagged ({matchingFindings.length}):
+              </p>
+              {matchingFindings.map((f, i) => (
+                <div key={i} className="text-[11px] text-slate-300 flex items-center gap-1.5">
+                  <span className="h-1.5 w-1.5 rounded-full bg-rose-500 shrink-0" />
+                  <span className="truncate">{f.title}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
       {!hasDetailedTree && projectTree.children.length > 0 && (
-        <p className={`mt-2 text-[10px] ${muted}`}>Rescan this codebase to see its files and full folder tree.</p>
+        <p className={`mt-2 text-[10px] ${muted}`}>
+          Rescan this codebase to capture its full file structure.
+        </p>
       )}
     </section>
   );

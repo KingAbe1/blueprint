@@ -80,10 +80,12 @@ export function extractNpmDependencyInventory(paths: string[], manifests: Record
         const item = raw as { version?: unknown; dev?: unknown; devOptional?: unknown; link?: unknown };
         if (!name || typeof item.version !== 'string' || item.link === true) continue;
         const key = `${name}@${item.version}`;
-        const direct = declared.has(name) && path.lastIndexOf('node_modules/') < 0;
-        const packageInfo = { name, version: item.version, direct, development: item.dev === true || item.devOptional === true || (direct && declared.get(name) === true) };
+        const isTopLevelInLock = !path.includes('node_modules/') || (path.startsWith('node_modules/') && !path.slice(13).includes('node_modules/'));
+        const direct = declared.has(name) && isTopLevelInLock;
+        const isDev = item.dev === true || item.devOptional === true || (direct && declared.get(name) === true);
+        const packageInfo = { name, version: item.version, direct, development: isDev };
         const existing = byKey.get(key);
-        byKey.set(key, existing ? { ...existing, direct: existing.direct || direct, development: existing.development && packageInfo.development } : packageInfo);
+        byKey.set(key, existing ? { ...existing, direct: existing.direct || direct, development: existing.development && isDev } : packageInfo);
       }
     } else if (lock.dependencies && typeof lock.dependencies === 'object') {
       const visit = (dependencies: Record<string, unknown>, parentDevelopment = false) => {

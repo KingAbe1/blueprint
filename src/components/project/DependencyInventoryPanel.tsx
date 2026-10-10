@@ -1,16 +1,45 @@
 import React, { useState, useMemo } from 'react';
-import { Package, Search, ExternalLink, Copy, Check } from 'lucide-react';
-import { DependencyInventory } from '../../types/codebase';
+import {
+  Package,
+  Search,
+  ExternalLink,
+  Copy,
+  Check,
+  ChevronLeft,
+  ChevronRight,
+  Sparkles,
+  Layers,
+  ArrowUpRight,
+} from 'lucide-react';
+import { DependencyInventory, LockedDependency } from '../../types/codebase';
 import { useTheme } from '../../context/ThemeContext';
 
 interface DependencyInventoryPanelProps {
   inventory?: DependencyInventory;
 }
 
+const PAGE_SIZE = 50;
+
+// Highlight recognizable ecosystem packages
+const NOTABLE_PACKAGES = new Set([
+  'next',
+  'react',
+  'react-dom',
+  '@prisma/client',
+  'prisma',
+  'tailwindcss',
+  'typescript',
+  'lucide-react',
+  'zod',
+  'axios',
+  '@tanstack/react-query',
+]);
+
 export const DependencyInventoryPanel: React.FC<DependencyInventoryPanelProps> = ({ inventory }) => {
   const { isDark } = useTheme();
   const [searchQuery, setSearchQuery] = useState('');
   const [typeFilter, setTypeFilter] = useState<'all' | 'direct' | 'dev' | 'transitive'>('all');
+  const [currentPage, setCurrentPage] = useState(1);
   const [copiedPkg, setCopiedPkg] = useState<string | null>(null);
 
   const muted = isDark ? 'text-slate-400' : 'text-slate-500';
@@ -18,15 +47,30 @@ export const DependencyInventoryPanel: React.FC<DependencyInventoryPanelProps> =
 
   const packages = inventory?.packages || [];
 
-  const directCount = useMemo(() => packages.filter(p => p.direct && !p.development).length, [packages]);
+  // Determine prod count: if explicit direct exists, use pkg.direct && !pkg.development, else fallback to !pkg.development
+  const hasExplicitDirect = useMemo(() => packages.some(p => p.direct), [packages]);
+
+  const directCount = useMemo(() => {
+    if (hasExplicitDirect) {
+      return packages.filter(p => p.direct && !p.development).length;
+    }
+    return packages.filter(p => !p.development).length;
+  }, [packages, hasExplicitDirect]);
+
   const devCount = useMemo(() => packages.filter(p => p.development).length, [packages]);
-  const transitiveCount = useMemo(() => packages.filter(p => !p.direct && !p.development).length, [packages]);
+  const transitiveCount = useMemo(() => {
+    if (hasExplicitDirect) {
+      return packages.filter(p => !p.direct && !p.development).length;
+    }
+    return packages.filter(p => p.development && !p.direct).length;
+  }, [packages, hasExplicitDirect]);
 
   const filteredPackages = useMemo(() => {
     return packages.filter(pkg => {
-      if (typeFilter === 'direct' && (!pkg.direct || pkg.development)) return false;
+      const isProd = hasExplicitDirect ? (pkg.direct && !pkg.development) : !pkg.development;
+      if (typeFilter === 'direct' && !isProd) return false;
       if (typeFilter === 'dev' && !pkg.development) return false;
-      if (typeFilter === 'transitive' && (pkg.direct || pkg.development)) return false;
+      if (typeFilter === 'transitive' && (pkg.direct || isProd)) return false;
 
       if (searchQuery.trim()) {
         const query = searchQuery.toLowerCase();
@@ -35,7 +79,24 @@ export const DependencyInventoryPanel: React.FC<DependencyInventoryPanelProps> =
 
       return true;
     });
-  }, [packages, typeFilter, searchQuery]);
+  }, [packages, typeFilter, searchQuery, hasExplicitDirect]);
+
+  // Pagination
+  const totalPages = Math.max(1, Math.ceil(filteredPackages.length / PAGE_SIZE));
+  const paginatedPackages = useMemo(() => {
+    const start = (currentPage - 1) * PAGE_SIZE;
+    return filteredPackages.slice(start, start + PAGE_SIZE);
+  }, [filteredPackages, currentPage]);
+
+  const handleFilterChange = (filter: typeof typeFilter) => {
+    setTypeFilter(filter);
+    setCurrentPage(1);
+  };
+
+  const handleSearchChange = (query: string) => {
+    setSearchQuery(query);
+    setCurrentPage(1);
+  };
 
   const copySpecifier = async (name: string, version: string) => {
     try {
@@ -52,27 +113,29 @@ export const DependencyInventoryPanel: React.FC<DependencyInventoryPanelProps> =
   }
 
   return (
-    <section className={`rounded-xl border p-4 ${panel}`}>
+    <section className={`rounded-xl border p-4 sm:p-5 ${panel}`}>
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-3 mb-3.5">
         <div className="flex items-center gap-2">
-          <Package className="h-4 w-4 text-violet-500" />
-          <h2 className={`text-xs font-semibold uppercase tracking-wider ${isDark ? 'text-slate-300' : 'text-slate-800'}`}>
+          <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-violet-500/15 text-violet-400 border border-violet-500/20">
+            <Package className="h-3.5 w-3.5" />
+          </div>
+          <h2 className={`text-xs font-semibold uppercase tracking-wider ${isDark ? 'text-slate-200' : 'text-slate-800'}`}>
             Dependency & Package Inventory
           </h2>
-          <span className={`rounded-full px-2 py-0.5 text-[9px] font-mono ${
-            isDark ? 'bg-violet-400/10 text-violet-300' : 'bg-violet-50 text-violet-700'
+          <span className={`rounded-full px-2 py-0.5 text-[9px] font-mono border ${
+            isDark ? 'border-violet-500/30 bg-violet-500/10 text-violet-300' : 'border-violet-200 bg-violet-50 text-violet-700'
           }`}>
             {inventory.ecosystem} ({inventory.lockfiles[0] ? inventory.lockfiles[0].split('/').pop() : 'locked'})
           </span>
         </div>
-        <span className={`text-[11px] ${muted}`}>
+        <span className={`text-[11px] font-mono ${muted}`}>
           {packages.length.toLocaleString()} locked · {inventory.declaredDependencies} declared
         </span>
       </div>
 
       {/* Filter and Search Bar */}
-      <div className="flex flex-col sm:flex-row gap-2.5 items-stretch sm:items-center justify-between mb-3">
+      <div className="flex flex-col sm:flex-row gap-2.5 items-stretch sm:items-center justify-between mb-3.5">
         {/* Segmented Filter Buttons */}
         <div className={`flex flex-wrap gap-1 p-0.5 rounded-lg border ${
           isDark ? 'border-white/[0.06] bg-black/25' : 'border-slate-200 bg-slate-100/80'
@@ -86,7 +149,7 @@ export const DependencyInventoryPanel: React.FC<DependencyInventoryPanelProps> =
             <button
               key={tab.id}
               type="button"
-              onClick={() => setTypeFilter(tab.id as typeof typeFilter)}
+              onClick={() => handleFilterChange(tab.id as typeof typeFilter)}
               className={`rounded-md px-2.5 py-1 text-[11px] font-medium transition-all ${
                 typeFilter === tab.id
                   ? (isDark ? 'bg-[#1E2024] text-white shadow-xs border border-white/[0.08]' : 'bg-white text-slate-900 shadow-xs border border-slate-200/80')
@@ -99,13 +162,13 @@ export const DependencyInventoryPanel: React.FC<DependencyInventoryPanelProps> =
         </div>
 
         {/* Search input */}
-        <div className="relative min-w-[200px] sm:w-60">
+        <div className="relative min-w-[220px] sm:w-64">
           <Search className={`absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 ${muted}`} />
           <input
             type="text"
             value={searchQuery}
-            onChange={e => setSearchQuery(e.target.value)}
-            placeholder="Search package name or version…"
+            onChange={e => handleSearchChange(e.target.value)}
+            placeholder="Search package or version…"
             className={`w-full rounded-lg border pl-8 pr-3 py-1.5 text-xs outline-none transition-colors ${
               isDark
                 ? 'border-white/[0.08] bg-black/20 text-white placeholder:text-slate-600 focus:border-blue-500'
@@ -115,94 +178,159 @@ export const DependencyInventoryPanel: React.FC<DependencyInventoryPanelProps> =
         </div>
       </div>
 
-      {/* Desktop Package Table List */}
-      <div className={`max-h-[460px] overflow-y-auto rounded-lg border ${
-        isDark ? 'border-white/[0.06] bg-black/20 divide-y divide-white/[0.04]' : 'border-slate-200 bg-slate-50/50 divide-y divide-slate-200/60'
+      {/* Desktop Package Table with Sticky Column Header */}
+      <div className={`rounded-lg border overflow-hidden ${
+        isDark ? 'border-white/[0.07] bg-black/20' : 'border-slate-200 bg-white'
       }`}>
-        {filteredPackages.length > 0 ? (
-          filteredPackages.slice(0, 150).map(pkg => {
-            const isProd = pkg.direct && !pkg.development;
-            const isDev = pkg.development;
+        {/* Table Header */}
+        <div className={`grid grid-cols-12 gap-3 px-3.5 py-2 text-[10px] font-semibold uppercase tracking-wider border-b select-none ${
+          isDark ? 'border-white/[0.06] bg-white/[0.02] text-slate-400' : 'border-slate-200 bg-slate-50 text-slate-500'
+        }`}>
+          <div className="col-span-6">Package Name</div>
+          <div className="col-span-3">Resolved Version</div>
+          <div className="col-span-2">Classification</div>
+          <div className="col-span-1 text-right">Links</div>
+        </div>
 
-            return (
-              <div
-                key={`${pkg.name}@${pkg.version}`}
-                className={`group flex items-center justify-between gap-3 px-3 py-2 text-xs transition-colors ${
-                  isDark ? 'hover:bg-white/[0.03]' : 'hover:bg-white'
-                }`}
-              >
-                {/* Package Name & Copy Specifier */}
-                <div className="flex items-center gap-2 min-w-0 flex-1">
-                  <span
-                    className={`font-mono text-[11px] font-semibold truncate ${
-                      isDark ? 'text-slate-200' : 'text-slate-800'
-                    }`}
-                    title={pkg.name}
-                  >
-                    {pkg.name}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => copySpecifier(pkg.name, pkg.version)}
-                    className={`opacity-0 group-hover:opacity-100 p-0.5 rounded transition-opacity ${muted} hover:text-blue-500`}
-                    title={`Copy ${pkg.name}@${pkg.version}`}
-                  >
-                    {copiedPkg === pkg.name ? (
-                      <Check className="h-3 w-3 text-emerald-500" />
-                    ) : (
-                      <Copy className="h-3 w-3" />
+        {/* Table Body */}
+        <div className={`max-h-[440px] overflow-y-auto divide-y ${
+          isDark ? 'divide-white/[0.04]' : 'divide-slate-100'
+        }`}>
+          {paginatedPackages.length > 0 ? (
+            paginatedPackages.map(pkg => {
+              const isNotable = NOTABLE_PACKAGES.has(pkg.name);
+              const isProd = hasExplicitDirect ? (pkg.direct && !pkg.development) : !pkg.development;
+              const isDev = pkg.development;
+
+              return (
+                <div
+                  key={`${pkg.name}@${pkg.version}`}
+                  className={`group grid grid-cols-12 gap-3 items-center px-3.5 py-2 text-xs transition-colors ${
+                    isDark ? 'hover:bg-white/[0.03]' : 'hover:bg-slate-50'
+                  }`}
+                >
+                  {/* Col 1: Package Name */}
+                  <div className="col-span-6 flex items-center gap-2 min-w-0">
+                    <span
+                      className={`font-mono text-[11px] font-semibold truncate ${
+                        isNotable
+                          ? 'text-blue-400'
+                          : isDark
+                          ? 'text-slate-200'
+                          : 'text-slate-800'
+                      }`}
+                      title={pkg.name}
+                    >
+                      {pkg.name}
+                    </span>
+                    {isNotable && (
+                      <span className={`text-[8px] font-semibold px-1 py-0.2 rounded ${
+                        isDark ? 'bg-blue-500/20 text-blue-300' : 'bg-blue-50 text-blue-700'
+                      }`}>
+                        Core
+                      </span>
                     )}
-                  </button>
+                    <button
+                      type="button"
+                      onClick={() => copySpecifier(pkg.name, pkg.version)}
+                      className={`opacity-0 group-hover:opacity-100 p-0.5 rounded transition-opacity ${muted} hover:text-blue-500`}
+                      title={`Copy ${pkg.name}@${pkg.version}`}
+                    >
+                      {copiedPkg === pkg.name ? (
+                        <Check className="h-3 w-3 text-emerald-500" />
+                      ) : (
+                        <Copy className="h-3 w-3" />
+                      )}
+                    </button>
+                  </div>
+
+                  {/* Col 2: Version */}
+                  <div className="col-span-3">
+                    <span className={`font-mono text-[11px] px-1.5 py-0.5 rounded ${
+                      isDark ? 'bg-white/[0.04] text-slate-300' : 'bg-slate-100 text-slate-700'
+                    }`}>
+                      v{pkg.version}
+                    </span>
+                  </div>
+
+                  {/* Col 3: Classification */}
+                  <div className="col-span-2">
+                    {isProd ? (
+                      <span className={`inline-block px-1.5 py-0.2 rounded text-[9px] font-semibold uppercase ${
+                        isDark ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                      }`}>
+                        Prod
+                      </span>
+                    ) : isDev ? (
+                      <span className={`inline-block px-1.5 py-0.2 rounded text-[9px] font-semibold uppercase ${
+                        isDark ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20' : 'bg-amber-50 text-amber-700 border border-amber-200'
+                      }`}>
+                        Dev
+                      </span>
+                    ) : (
+                      <span className={`inline-block px-1.5 py-0.2 rounded text-[9px] font-medium uppercase ${
+                        isDark ? 'bg-white/[0.04] text-slate-400' : 'bg-slate-100 text-slate-500'
+                      }`}>
+                        Transitive
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Col 4: Links */}
+                  <div className="col-span-1 text-right">
+                    <a
+                      href={`https://www.npmjs.com/package/${pkg.name}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className={`inline-block p-1 rounded transition-colors ${muted} hover:text-blue-500`}
+                      title={`View ${pkg.name} on npm`}
+                    >
+                      <ArrowUpRight className="h-3.5 w-3.5" />
+                    </a>
+                  </div>
                 </div>
-
-                {/* Version and Tag Badges */}
-                <div className="flex items-center gap-2 shrink-0">
-                  <span className={`font-mono text-[11px] ${muted}`}>
-                    v{pkg.version}
-                  </span>
-
-                  <span
-                    className={`rounded px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider ${
-                      isProd
-                        ? isDark
-                          ? 'bg-blue-500/10 text-blue-400'
-                          : 'bg-blue-50 text-blue-700'
-                        : isDev
-                        ? isDark
-                          ? 'bg-amber-500/10 text-amber-400'
-                          : 'bg-amber-50 text-amber-700'
-                        : isDark
-                        ? 'bg-white/[0.04] text-slate-400'
-                        : 'bg-slate-200/70 text-slate-600'
-                    }`}
-                  >
-                    {isProd ? 'prod' : isDev ? 'dev' : 'transitive'}
-                  </span>
-
-                  <a
-                    href={`https://www.npmjs.com/package/${encodeURIComponent(pkg.name)}/v/${pkg.version}`}
-                    target="_blank"
-                    rel="noreferrer"
-                    className={`opacity-0 group-hover:opacity-100 p-0.5 rounded transition-opacity ${muted} hover:text-blue-500`}
-                    title="View on npm"
-                  >
-                    <ExternalLink className="h-3 w-3" />
-                  </a>
-                </div>
-              </div>
-            );
-          })
-        ) : (
-          <div className="py-12 text-center text-xs text-slate-400">
-            No packages matching "{searchQuery}"
-          </div>
-        )}
+              );
+            })
+          ) : (
+            <div className="p-8 text-center">
+              <p className={`text-xs ${muted}`}>No packages match your search or filter.</p>
+            </div>
+          )}
+        </div>
       </div>
 
-      {filteredPackages.length > 150 && (
-        <p className={`mt-2 text-right text-[10px] ${muted}`}>
-          Showing 150 of {filteredPackages.length} filtered packages
-        </p>
+      {/* Pagination Controls */}
+      {totalPages > 1 && (
+        <div className="mt-3 flex items-center justify-between text-xs">
+          <span className={`text-[11px] ${muted}`}>
+            Showing {((currentPage - 1) * PAGE_SIZE) + 1}–{Math.min(currentPage * PAGE_SIZE, filteredPackages.length)} of {filteredPackages.length.toLocaleString()} packages
+          </span>
+          <div className="flex items-center gap-1.5">
+            <button
+              type="button"
+              onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+              disabled={currentPage === 1}
+              className={`p-1 rounded-md border disabled:opacity-40 transition-colors ${
+                isDark ? 'border-white/[0.08] hover:bg-white/[0.05]' : 'border-slate-200 hover:bg-slate-100'
+              }`}
+            >
+              <ChevronLeft className="h-3.5 w-3.5" />
+            </button>
+            <span className={`px-2 font-mono text-[11px] ${muted}`}>
+              {currentPage} / {totalPages}
+            </span>
+            <button
+              type="button"
+              onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+              disabled={currentPage === totalPages}
+              className={`p-1 rounded-md border disabled:opacity-40 transition-colors ${
+                isDark ? 'border-white/[0.08] hover:bg-white/[0.05]' : 'border-slate-200 hover:bg-slate-100'
+              }`}
+            >
+              <ChevronRight className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        </div>
       )}
     </section>
   );
