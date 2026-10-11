@@ -114,12 +114,15 @@ export const DependencySecurityPanel: React.FC<DependencySecurityPanelProps> = R
     }
   }, [assessment, inventory, analysis.rootPath, isAuditing, runVulnerabilityAudit]);
 
-  // Sync existing assessment into quality assessment if not yet factored
+  // Sync existing assessment into quality assessment if not yet factored or if legacy duplicate findings exist
   useEffect(() => {
     if (
       assessment &&
       analysis.quality &&
-      !analysis.quality.dimensions.some(d => d.name === 'Dependency CVEs' && d.maxScore > 0)
+      (
+        !analysis.quality.dimensions.some(d => d.name === 'Dependency CVEs' && d.maxScore > 0) ||
+        analysis.quality.findings.some(f => f.ruleId?.startsWith('cve-') || f.title.toLowerCase().startsWith('vulnerable package'))
+      )
     ) {
       const updatedQuality = recalculateQualityWithDependencyRisk(analysis.quality, assessment);
       if (onUpdateAnalysis) {

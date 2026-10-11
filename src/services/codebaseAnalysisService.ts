@@ -620,42 +620,9 @@ export function recalculateQualityWithDependencyRisk(
   const criticalExploitPenalty = Math.min(15, criticalCves.length * 5);
   const finalScore = Math.max(0, baseScore - criticalExploitPenalty);
 
-  // Group top vulnerable packages into quality findings
-  const pkgMap = new Map<string, { packageName: string; version: string; highestSeverity: string; advisories: typeof cveAdvisories; fix?: string }>();
-  for (const adv of cveAdvisories) {
-    const key = `${adv.packageName}@${adv.version}`;
-    let item = pkgMap.get(key);
-    if (!item) {
-      item = {
-        packageName: adv.packageName,
-        version: adv.version,
-        highestSeverity: adv.severity,
-        advisories: [],
-        fix: adv.fixedVersions[adv.fixedVersions.length - 1],
-      };
-      pkgMap.set(key, item);
-    }
-    item.advisories.push(adv);
-    if (adv.severity === 'critical') item.highestSeverity = 'critical';
-    else if (adv.severity === 'high' && item.highestSeverity !== 'critical') item.highestSeverity = 'high';
-    if (adv.fixedVersions.length > 0) item.fix = adv.fixedVersions[adv.fixedVersions.length - 1];
-  }
-
-  const cveFindings: QualityFinding[] = Array.from(pkgMap.values())
-    .filter(g => g.highestSeverity === 'critical' || g.highestSeverity === 'high')
-    .slice(0, 10)
-    .map(g => ({
-      ruleId: `cve-${g.packageName}`,
-      category: 'security' as const,
-      priority: 'high' as const,
-      title: `Vulnerable package: ${g.packageName}@${g.version} (${g.advisories.length} CVEs)`,
-      detail: `Identified ${g.advisories.length} known security advisory(ies) from OSV.dev for ${g.packageName}@${g.version}.${g.fix ? ` Remediate by upgrading to ${g.packageName}@${g.fix}.` : ''}`,
-      location: { path: 'package.json' },
-      evidence: g.advisories.slice(0, 3).map(a => `${a.id}: ${a.summary}`),
-    }));
-
+  // Keep quality.findings strictly for static code analysis (AST violations, structure, syntax, tests)
+  // to prevent duplication with the dedicated Dependency Vulnerabilities & CVE Advisories section
   const nonCveFindings = quality.findings.filter(f => !f.ruleId?.startsWith('cve-'));
-  const combinedFindings = [...cveFindings, ...nonCveFindings];
 
   const updatedChecks = (quality.checks || []).filter(c => c.id !== 'dependency-cves');
   updatedChecks.push({
@@ -666,14 +633,14 @@ export function recalculateQualityWithDependencyRisk(
     summary: cveAdvisories.length === 0
       ? `${dependencyRisk.packagesChecked.toLocaleString()} locked dependencies audited via OSV.dev. No known vulnerabilities.`
       : `${cveAdvisories.length} CVE advisories (${criticalCves.length} critical, ${highCves.length} high) flagged in locked packages.`,
-    findingCount: cveFindings.length,
+    findingCount: cveAdvisories.length,
   });
 
   return {
     ...quality,
     score: finalScore,
     dimensions: updatedDimensions,
-    findings: combinedFindings,
+    findings: nonCveFindings,
     checks: updatedChecks,
   };
 }

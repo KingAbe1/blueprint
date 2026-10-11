@@ -53,7 +53,12 @@ export const CodebaseQualityView: React.FC<CodebaseQualityViewProps> = React.mem
   const [copiedRemediation, setCopiedRemediation] = useState(false);
   const [copiedReport, setCopiedReport] = useState(false);
 
-  const qualityFindings = analysis.quality?.findings || [];
+  // Pure static code findings only (preventing duplicate CVE entries since they have their dedicated panel)
+  const qualityFindings = useMemo(() => {
+    return (analysis.quality?.findings || []).filter(
+      f => !f.ruleId?.startsWith('cve-') && !f.title.toLowerCase().startsWith('vulnerable package')
+    );
+  }, [analysis.quality?.findings]);
   const omittedQualityFindings = analysis.quality?.findingsOmitted || 0;
   const totalQualityFindings = qualityFindings.length + omittedQualityFindings;
 
@@ -189,7 +194,7 @@ export const CodebaseQualityView: React.FC<CodebaseQualityViewProps> = React.mem
                   isDark ? 'border-white/[0.06]' : 'border-slate-200/70'
                 }`}>
                   <span className={`text-[11px] ${muted}`}>
-                    {highPriorityCount} critical/high findings
+                    {highPriorityCount} critical/high static findings
                   </span>
                   <button
                     type="button"
@@ -273,10 +278,10 @@ export const CodebaseQualityView: React.FC<CodebaseQualityViewProps> = React.mem
             <div className="flex flex-wrap items-center justify-between gap-3 mb-3.5">
               <div>
                 <h3 className={`text-xs font-semibold uppercase tracking-wider ${isDark ? 'text-slate-300' : 'text-slate-800'}`}>
-                  Static Findings Inspector
+                  Static Code Findings Inspector
                 </h3>
                 <p className={`mt-0.5 text-[11px] ${muted}`}>
-                  Select any finding to inspect AST violation context, source lines, and remediation guidance.
+                  Select any finding to inspect AST violation context, source lines, and code architecture issues.
                 </p>
               </div>
 

@@ -5033,146 +5033,6 @@
         ],
         "findings": [
           {
-            "ruleId": "cve-next",
-            "category": "security",
-            "priority": "high",
-            "title": "Vulnerable package: next@16.1.1 (38 CVEs)",
-            "detail": "Identified 38 known security advisory(ies) from OSV.dev for next@16.1.1. Remediate by upgrading to next@16.2.5.",
-            "location": {
-              "path": "package.json"
-            },
-            "evidence": [
-              "GHSA-2xp9-vwfh-vxw4: Next.js: Unauthenticated Remote Code Execution in Image Optimization API when AVIF files are used",
-              "GHSA-p293-qw3h-jr36: Next.js: Unauthenticated Remote Code Execution on windows-hosted servers",
-              "GHSA-267c-6grr-h53f: Next.js has a Middleware / Proxy bypass in App Router applications via segment-prefetch routes"
-            ]
-          },
-          {
-            "ruleId": "cve-@hono/node-server",
-            "category": "security",
-            "priority": "high",
-            "title": "Vulnerable package: @hono/node-server@1.19.6 (3 CVEs)",
-            "detail": "Identified 3 known security advisory(ies) from OSV.dev for @hono/node-server@1.19.6. Remediate by upgrading to @hono/node-server@1.19.15.",
-            "location": {
-              "path": "package.json"
-            },
-            "evidence": [
-              "GHSA-wc8c-qw6v-h7f6: @hono/node-server has authorization bypass for protected static paths via encoded slashes in Serve Static Middleware",
-              "GHSA-92pp-h63x-v22m: @hono/node-server: Middleware bypass via repeated slashes in serveStatic",
-              "GHSA-frvp-7c67-39w9: Node.js Adapter for Hono: Path traversal in `serve-static` on Windows via encoded backslash (`%5C`)"
-            ]
-          },
-          {
-            "ruleId": "cve-brace-expansion",
-            "category": "security",
-            "priority": "high",
-            "title": "Vulnerable package: brace-expansion@1.1.12 (7 CVEs)",
-            "detail": "Identified 7 known security advisory(ies) from OSV.dev for brace-expansion@1.1.12. Remediate by upgrading to brace-expansion@1.1.21.",
-            "location": {
-              "path": "package.json"
-            },
-            "evidence": [
-              "GHSA-3jxr-9vmj-r5cp: brace-expansion: DoS via exponential-time expansion of consecutive non-expanding {} groups",
-              "GHSA-6j4f-fj2g-mc7p: brace-expansion: DoS via uncontrolled recursion in parseCommaParts causing stack exhaustion",
-              "GHSA-mh99-v99m-4gvg: brace-expansion: DoS via unbounded expansion length causing an out-of-memory process crash"
-            ]
-          },
-          {
-            "ruleId": "cve-brace-expansion",
-            "category": "security",
-            "priority": "high",
-            "title": "Vulnerable package: brace-expansion@2.0.2 (7 CVEs)",
-            "detail": "Identified 7 known security advisory(ies) from OSV.dev for brace-expansion@2.0.2. Remediate by upgrading to brace-expansion@1.1.21.",
-            "location": {
-              "path": "package.json"
-            },
-            "evidence": [
-              "GHSA-3jxr-9vmj-r5cp: brace-expansion: DoS via exponential-time expansion of consecutive non-expanding {} groups",
-              "GHSA-6j4f-fj2g-mc7p: brace-expansion: DoS via uncontrolled recursion in parseCommaParts causing stack exhaustion",
-              "GHSA-mh99-v99m-4gvg: brace-expansion: DoS via unbounded expansion length causing an out-of-memory process crash"
-            ]
-          },
-          {
-            "ruleId": "cve-braces",
-            "category": "security",
-            "priority": "high",
-            "title": "Vulnerable package: braces@3.0.3 (1 CVEs)",
-            "detail": "Identified 1 known security advisory(ies) from OSV.dev for braces@3.0.3.",
-            "location": {
-              "path": "package.json"
-            },
-            "evidence": [
-              "GHSA-vfj7-8cjw-p6xm: braces vulnerable to stack-exhaustion denial of service through deeply nested patterns"
-            ]
-          },
-          {
-            "ruleId": "cve-browserslist",
-            "category": "security",
-            "priority": "high",
-            "title": "Vulnerable package: browserslist@4.28.1 (2 CVEs)",
-            "detail": "Identified 2 known security advisory(ies) from OSV.dev for browserslist@4.28.1. Remediate by upgrading to browserslist@4.28.7.",
-            "location": {
-              "path": "package.json"
-            },
-            "evidence": [
-              "GHSA-73wf-gq98-2v4g: Browserslist: Uncaught crash / prototype write via untrusted browserslist-stats.json custom stats (normalizeStats)",
-              "GHSA-c83g-rgw3-j3cx: Browserslist: Unbounded memory growth (no cache eviction) via distinct query results, leading to eventual OOM"
-            ]
-          },
-          {
-            "ruleId": "cve-deepmerge-ts",
-            "category": "security",
-            "priority": "high",
-            "title": "Vulnerable package: deepmerge-ts@7.1.5 (1 CVEs)",
-            "detail": "Identified 1 known security advisory(ies) from OSV.dev for deepmerge-ts@7.1.5. Remediate by upgrading to deepmerge-ts@8.0.0.",
-            "location": {
-              "path": "package.json"
-            },
-            "evidence": [
-              "GHSA-ggr8-5vv4-36mx: DeepmergeTS has stack exhaustion when merging recursive object graphs"
-            ]
-          },
-          {
-            "ruleId": "cve-defu",
-            "category": "security",
-            "priority": "high",
-            "title": "Vulnerable package: defu@6.1.4 (1 CVEs)",
-            "detail": "Identified 1 known security advisory(ies) from OSV.dev for defu@6.1.4. Remediate by upgrading to defu@6.1.5.",
-            "location": {
-              "path": "package.json"
-            },
-            "evidence": [
-              "GHSA-737v-mqg7-c878: defu: Prototype pollution via `__proto__` key in defaults argument"
-            ]
-          },
-          {
-            "ruleId": "cve-effect",
-            "category": "security",
-            "priority": "high",
-            "title": "Vulnerable package: effect@3.18.4 (1 CVEs)",
-            "detail": "Identified 1 known security advisory(ies) from OSV.dev for effect@3.18.4. Remediate by upgrading to effect@3.20.0.",
-            "location": {
-              "path": "package.json"
-            },
-            "evidence": [
-              "GHSA-38f7-945m-qr2g: Effect `AsyncLocalStorage` context lost/contaminated inside Effect fibers under concurrent load with RPC"
-            ]
-          },
-          {
-            "ruleId": "cve-flatted",
-            "category": "security",
-            "priority": "high",
-            "title": "Vulnerable package: flatted@3.3.3 (2 CVEs)",
-            "detail": "Identified 2 known security advisory(ies) from OSV.dev for flatted@3.3.3. Remediate by upgrading to flatted@3.4.2.",
-            "location": {
-              "path": "package.json"
-            },
-            "evidence": [
-              "GHSA-25h7-pfq9-p65f: flatted vulnerable to unbounded recursion DoS in parse() revive phase",
-              "GHSA-rf6f-7fwh-wjgh: Prototype Pollution via parse() in NodeJS flatted"
-            ]
-          },
-          {
             "title": "No test files detected",
             "detail": "No tests, test setup, or test script were detected. Add a small automated test suite around a critical user flow or business rule.",
             "priority": "high",
@@ -6687,7 +6547,7 @@
             "category": "security",
             "status": "issues",
             "summary": "170 CVE advisories (2 critical, 68 high) flagged in locked packages.",
-            "findingCount": 10
+            "findingCount": 170
           }
         ],
         "analyzedSourceFiles": 442,
@@ -9428,7 +9288,7 @@
       }
     },
     "createdAt": 1791369037652,
-    "updatedAt": 1791706192034
+    "updatedAt": 1791720517227
   },
   {
     "id": "proj_1791362236826",
