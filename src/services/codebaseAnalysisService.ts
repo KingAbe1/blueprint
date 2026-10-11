@@ -1,4 +1,4 @@
-import { CodebaseAnalysis, CodebaseSource, PipelineAssessment, QualityAssessment, QualityFinding, SourceContentMetrics } from '../types/codebase';
+import { CodebaseAnalysis, CodebaseSource, DependencyRiskAssessment, PipelineAssessment, QualityAssessment, QualityDimension, QualityFinding, SourceContentMetrics } from '../types/codebase';
 import { assessArchitecture, assessNextJsOverview, configuredTestToolSignals, suggestImprovements } from './architectureAnalysisService';
 import { IGNORED_DIRECTORIES, MANIFEST_FILES, normalizedName } from './codebaseAnalysisConstants';
 import { BrowserDirectoryHandle, isDirectoryHandle, loadDirectoryHandle, saveDirectoryHandle } from './browserDirectoryAccess';
@@ -434,6 +434,7 @@ function assessCodeQuality(
   sourceMetrics: SourceContentMetrics,
   manifests: Record<string, string>,
   deepAnalysis: Awaited<ReturnType<typeof inspectSourceCode>>,
+  dependencyRisk?: DependencyRiskAssessment,
 ): QualityAssessment {
   const normalizedPaths = paths.map(path => path.replace(/\\/g, '/'));
   const lowerPaths = normalizedPaths.map(path => path.toLowerCase());
@@ -529,7 +530,7 @@ function assessCodeQuality(
     .map(normalizeQualityFinding);
   const normalizedFindings = allNormalizedFindings
     .slice(0, MAX_VISIBLE_FINDINGS)
-  return {
+  const initialQuality: QualityAssessment = {
     score,
     confidence: coverageRatio >= 0.8 && !sourceMetrics.skippedFiles && !deepAnalysis.skippedFiles ? 'high' : coverageRatio >= 0.5 ? 'medium' : 'low',
     dimensions,
@@ -544,6 +545,136 @@ function assessCodeQuality(
       skippedJavaScriptFiles: deepAnalysis.skippedFiles,
       sourceFilesAvailable: sourceMetrics.analyzedFiles,
     },
+  };
+
+  if (dependencyRisk) {
+    return recalculateQualityWithDependencyRisk(initialQuality, dependencyRisk);
+  }
+
+  return initialQuality;
+}
+
+/**
+ * Recalculates the architectural and security health assessment by factoring in
+ * dependency CVE advisories scanned from OSV.dev.
+ */
+export function recalculateQualityWithDependencyRisk(
+  quality: QualityAssessment,
+  dependencyRisk: DependencyRiskAssessment,
+): QualityAssessment {
+  const cveAdvisories = dependencyRisk.advisories || [];
+  const criticalCves = cveAdvisories.filter(a => a.severity === 'critical');
+  const highCves = cveAdvisories.filter(a => a.severity === 'high');
+  const mediumCves = cveAdvisories.filter(a => a.severity === 'medium');
+  const lowCves = cveAdvisories.filter(a => a.severity === 'low');
+
+  // Calculate CVE dimension penalty out of 15 maxScore
+  const cvePenalty = (criticalCves.length * 6) + (highCves.length * 2) + (mediumCves.length * 0.5) + (lowCves.length * 0.1);
+  const cveScore = Math.max(0, Math.round(15 - Math.min(15, cvePenalty)));
+
+  const cveDimension: QualityDimension = {
+    name: 'Dependency CVEs',
+    score: cveScore,
+    maxScore: 15,
+    assessmentStatus: 'reviewed',
+    summary: cveAdvisories.length === 0
+      ? `${dependencyRisk.packagesChecked.toLocaleString()} dependencies audited via OSV.dev. No known CVE advisories.`
+      : `${criticalCves.length > 0 ? `${criticalCves.length} critical, ` : ''}${highCves.length > 0 ? `${highCves.length} high, ` : ''}${mediumCves.length + lowCves.length} medium/low CVEs flagged across locked packages.`,
+  };
+
+  // Rebalance dimensions to accommodate the 15-point CVE dimension (total 100 max points)
+  const updatedDimensions = quality.dimensions.map(dim => {
+    if (dim.name === 'Code maintainability') {
+      const scaledScore = Math.min(20, Math.round((dim.score / (dim.maxScore || 25)) * 20));
+      return { ...dim, score: scaledScore, maxScore: 20 };
+    }
+    if (dim.name === 'Folder structure') {
+      const scaledScore = Math.min(10, Math.round((dim.score / (dim.maxScore || 15)) * 10));
+      return { ...dim, score: scaledScore, maxScore: 10 };
+    }
+    if (dim.name === 'CI checks') {
+      const scaledScore = Math.min(10, Math.round((dim.score / (dim.maxScore || 15)) * 10));
+      return { ...dim, score: scaledScore, maxScore: 10 };
+    }
+    return dim;
+  });
+
+  const existingIdx = updatedDimensions.findIndex(d => d.name === 'Dependency CVEs');
+  if (existingIdx >= 0) {
+    updatedDimensions[existingIdx] = cveDimension;
+  } else {
+    const secIdx = updatedDimensions.findIndex(d => d.name === 'Security risks');
+    if (secIdx >= 0) {
+      updatedDimensions.splice(secIdx + 1, 0, cveDimension);
+    } else {
+      updatedDimensions.push(cveDimension);
+    }
+  }
+
+  // Calculate base score from all dimensions
+  const availableScore = updatedDimensions.reduce((total, dim) => total + dim.score, 0);
+  const availableMaxScore = updatedDimensions.reduce((total, dim) => total + dim.maxScore, 0);
+  const baseScore = availableMaxScore ? Math.round((availableScore / availableMaxScore) * 100) : 0;
+
+  // Severe exploit risk penalty: if critical zero-days exist in production dependencies, apply an exploit penalty (up to 15 pts)
+  const criticalExploitPenalty = Math.min(15, criticalCves.length * 5);
+  const finalScore = Math.max(0, baseScore - criticalExploitPenalty);
+
+  // Group top vulnerable packages into quality findings
+  const pkgMap = new Map<string, { packageName: string; version: string; highestSeverity: string; advisories: typeof cveAdvisories; fix?: string }>();
+  for (const adv of cveAdvisories) {
+    const key = `${adv.packageName}@${adv.version}`;
+    let item = pkgMap.get(key);
+    if (!item) {
+      item = {
+        packageName: adv.packageName,
+        version: adv.version,
+        highestSeverity: adv.severity,
+        advisories: [],
+        fix: adv.fixedVersions[adv.fixedVersions.length - 1],
+      };
+      pkgMap.set(key, item);
+    }
+    item.advisories.push(adv);
+    if (adv.severity === 'critical') item.highestSeverity = 'critical';
+    else if (adv.severity === 'high' && item.highestSeverity !== 'critical') item.highestSeverity = 'high';
+    if (adv.fixedVersions.length > 0) item.fix = adv.fixedVersions[adv.fixedVersions.length - 1];
+  }
+
+  const cveFindings: QualityFinding[] = Array.from(pkgMap.values())
+    .filter(g => g.highestSeverity === 'critical' || g.highestSeverity === 'high')
+    .slice(0, 10)
+    .map(g => ({
+      ruleId: `cve-${g.packageName}`,
+      category: 'security' as const,
+      priority: 'high' as const,
+      title: `Vulnerable package: ${g.packageName}@${g.version} (${g.advisories.length} CVEs)`,
+      detail: `Identified ${g.advisories.length} known security advisory(ies) from OSV.dev for ${g.packageName}@${g.version}.${g.fix ? ` Remediate by upgrading to ${g.packageName}@${g.fix}.` : ''}`,
+      location: { path: 'package.json' },
+      evidence: g.advisories.slice(0, 3).map(a => `${a.id}: ${a.summary}`),
+    }));
+
+  const nonCveFindings = quality.findings.filter(f => !f.ruleId?.startsWith('cve-'));
+  const combinedFindings = [...cveFindings, ...nonCveFindings];
+
+  const updatedChecks = (quality.checks || []).filter(c => c.id !== 'dependency-cves');
+  updatedChecks.push({
+    id: 'dependency-cves',
+    name: 'Dependency CVE Advisories (OSV.dev)',
+    category: 'security',
+    status: criticalCves.length > 0 || highCves.length > 0 ? 'issues' : cveAdvisories.length > 0 ? 'incomplete' : 'passed',
+    summary: cveAdvisories.length === 0
+      ? `${dependencyRisk.packagesChecked.toLocaleString()} locked dependencies audited via OSV.dev. No known vulnerabilities.`
+      : `${cveAdvisories.length} CVE advisories (${criticalCves.length} critical, ${highCves.length} high) flagged in locked packages.`,
+    findingCount: cveFindings.length,
+  });
+
+  return {
+    ...quality,
+    score: finalScore,
+    dimensions: updatedDimensions,
+    findings: combinedFindings,
+    checks: updatedChecks,
   };
 }
 
@@ -670,7 +801,7 @@ export async function analyzeCodebaseSource(source: CodebaseSource): Promise<Cod
       .sort((a, b) => a.parent.localeCompare(b.parent) || b.files - a.files || a.name.localeCompare(b.name))
       .slice(0, 24),
     testFilesCount,
-    quality: assessCodeQuality(paths, source.directories || [], scripts, testFiles.length, sourceMetrics, source.manifests, deepAnalysis),
+    quality: assessCodeQuality(paths, source.directories || [], scripts, testFiles.length, sourceMetrics, source.manifests, deepAnalysis, (source as any).dependencyRisk),
     architecture: assessArchitecture(source, paths),
     suggestions: suggestImprovements(paths, scripts, testFiles.length, hasNextJsProjectSignal(paths, source.manifests)),
     git: source.git,

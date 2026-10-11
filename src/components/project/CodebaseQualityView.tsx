@@ -161,12 +161,26 @@ export const CodebaseQualityView: React.FC<CodebaseQualityViewProps> = React.mem
                     </div>
                   </div>
                   <div>
-                    <span className={`text-[10px] font-semibold uppercase tracking-wider ${muted}`}>Static Code Quality</span>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className={`text-[10px] font-semibold uppercase tracking-wider ${muted}`}>Code & Security Health</span>
+                      {analysis.dependencyRisk && (
+                        <span className={`text-[9px] font-mono px-1.5 py-0.2 rounded border ${
+                          (analysis.dependencyRisk.advisories || []).some(a => a.severity === 'critical')
+                            ? 'border-rose-500/30 bg-rose-500/10 text-rose-400'
+                            : (analysis.dependencyRisk.advisories || []).some(a => a.severity === 'high')
+                            ? 'border-amber-500/30 bg-amber-500/10 text-amber-400'
+                            : 'border-emerald-500/30 bg-emerald-500/10 text-emerald-400'
+                        }`}>
+                          CVE Factored
+                        </span>
+                      )}
+                    </div>
                     <h3 className={`mt-0.5 text-base font-semibold ${isDark ? 'text-white' : 'text-slate-900'}`}>
                       {analysis.quality.score >= 80 ? 'Optimal Architecture' : analysis.quality.score >= 60 ? 'Moderate Health' : 'Needs Remediation'}
                     </h3>
                     <p className={`mt-0.5 text-[10px] ${muted}`}>
                       {analysis.quality.confidence} confidence · {analysis.quality.analyzedSourceFiles} files evaluated
+                      {analysis.dependencyRisk && ` · ${analysis.dependencyRisk.advisories.length} CVEs factored`}
                     </p>
                   </div>
                 </div>
@@ -192,13 +206,16 @@ export const CodebaseQualityView: React.FC<CodebaseQualityViewProps> = React.mem
                 </div>
               </div>
 
-              {/* Right Column: 7 Domain Dimensions in a Spacious Responsive Grid (8 cols) */}
+              {/* Right Column: Domain Dimensions in a Spacious Responsive Grid (8 cols) */}
               <div className="lg:col-span-8 grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-2.5">
                 {analysis.quality.dimensions.map(dim => {
                   const pct = dim.maxScore ? Math.round((dim.score / dim.maxScore) * 100) : 0;
+                  const isCritical = dim.score === 0 && dim.maxScore > 0;
                   const statusColor =
                     dim.assessmentStatus === 'not-assessed'
                       ? 'text-slate-400 bg-slate-400/10'
+                      : isCritical
+                      ? 'text-rose-400 bg-rose-500/10'
                       : pct >= 80
                       ? 'text-emerald-500 bg-emerald-500/10'
                       : pct >= 50
@@ -208,6 +225,8 @@ export const CodebaseQualityView: React.FC<CodebaseQualityViewProps> = React.mem
                   const barColor =
                     dim.assessmentStatus === 'not-assessed'
                       ? 'bg-slate-500/30'
+                      : isCritical
+                      ? 'bg-rose-500'
                       : pct >= 80
                       ? 'bg-emerald-500'
                       : pct >= 50
