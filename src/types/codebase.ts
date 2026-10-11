@@ -1,3 +1,5 @@
+import type { FrameworkProfile } from './framework';
+
 export interface CodebaseSource {
   rootName: string;
   rootPath: string;
@@ -180,6 +182,7 @@ export interface CodebaseAnalysis {
   languages: Array<{ name: string; files: number }>;
   frameworks: string[];
   nextjs?: NextJsOverview;
+  frameworkProfile?: FrameworkProfile;
   dependencyInventory?: DependencyInventory;
   dependencyRisk?: DependencyRiskAssessment;
   entryPoints: string[];

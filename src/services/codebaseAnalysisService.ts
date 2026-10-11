@@ -6,6 +6,7 @@ export { getQualityReviewCandidatePaths, readQualityReviewSources } from './qual
 export type { QualityReviewSourceFile } from './qualityReviewSourceService';
 import { LANGUAGE_SOURCE_RULES, NEXT_SOURCE_RULES, TOOLCHAIN_QUALITY_RULES } from './codeQualityRules';
 import { extractNpmDependencyInventory } from './dependencyRiskService';
+import { detectAndAnalyzeFramework } from './frameworks/frameworkRegistry';
 
 const EXTENSION_LANGUAGES: Record<string, string> = {
   ts: 'TypeScript', tsx: 'TypeScript', mts: 'TypeScript', cts: 'TypeScript',
@@ -750,6 +751,7 @@ export async function analyzeCodebaseSource(source: CodebaseSource): Promise<Cod
     languages,
     frameworks: detectFrameworks(source),
     nextjs: assessNextJsOverview(source, paths),
+    frameworkProfile: detectAndAnalyzeFramework(source),
     dependencyInventory,
     entryPoints: [...entryPoints].sort(),
     testSignals: [...testSignals].sort(),

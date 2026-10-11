@@ -29,6 +29,7 @@ import { CodebaseQualityView } from './CodebaseQualityView';
 import { ProjectStructureTree } from './ProjectStructureTree';
 import { CodebaseHeroPulse } from './CodebaseHeroPulse';
 import { ArchitectureTopologyDiagram } from './ArchitectureTopologyDiagram';
+import { FrameworkSpecializationPanel } from './FrameworkSpecializationPanel';
 import { LanguageDistributionBar } from './LanguageDistributionBar';
 import { DependencyInventoryPanel } from './DependencyInventoryPanel';
 import { CodebaseHotspotsPanel } from './CodebaseHotspotsPanel';
@@ -632,6 +633,9 @@ export const CodebaseAnalysisView: React.FC<CodebaseAnalysisViewProps> = ({
           <div className={activePage === 'overview' ? 'space-y-5' : 'hidden'} role="tabpanel">
             {/* Desktop KPI Hero Pulse Strip */}
             <CodebaseHeroPulse analysis={analysis} />
+
+            {/* Pluggable Framework Specialization Console */}
+            <FrameworkSpecializationPanel analysis={analysis} />
 
             {/* Connected Visual Topology Diagram */}
             <ArchitectureTopologyDiagram analysis={analysis} />
