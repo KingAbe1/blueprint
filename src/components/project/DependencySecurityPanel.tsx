@@ -24,6 +24,10 @@ import {
   Sparkles,
   ArrowUpDown,
   Filter,
+  ArrowRight,
+  SlidersHorizontal,
+  Flame,
+  Bug,
 } from 'lucide-react';
 import { CodebaseAnalysis, DependencyRiskAssessment, DependencyAdvisory, DependencySeverity } from '../../types/codebase';
 import { scanNpmDependencyRisks } from '../../services/dependencyRiskService';
@@ -51,6 +55,27 @@ interface PackageAdvisoryGroup {
   highestSeverity: DependencySeverity;
   advisories: DependencyAdvisory[];
   recommendedFix?: string;
+  criticalCount: number;
+  highCount: number;
+  mediumCount: number;
+  lowCount: number;
+  topSummary: string;
+  vulnerabilityTypes: string[];
+}
+
+function extractVulnerabilityTags(summary: string): string[] {
+  const tags: string[] = [];
+  const lower = summary.toLowerCase();
+  if (lower.includes('remote code execution') || lower.includes(' rce')) tags.push('RCE');
+  if (lower.includes('prototype pollution')) tags.push('Prototype Pollution');
+  if (lower.includes('denial of service') || lower.includes('dos') || lower.includes('redos')) tags.push('DoS');
+  if (lower.includes('cross-site scripting') || lower.includes('xss')) tags.push('XSS');
+  if (lower.includes('bypass') || lower.includes('authorization') || lower.includes('authentication')) tags.push('Auth Bypass');
+  if (lower.includes('injection') || lower.includes('command injection') || lower.includes('sql')) tags.push('Injection');
+  if (lower.includes('directory traversal') || lower.includes('path traversal')) tags.push('Path Traversal');
+  if (lower.includes('information disclosure') || lower.includes('sensitive')) tags.push('Info Leak');
+  if (tags.length === 0) tags.push('Vulnerability');
+  return tags.slice(0, 2);
 }
 
 export const DependencySecurityPanel: React.FC<DependencySecurityPanelProps> = React.memo(({
@@ -71,7 +96,6 @@ export const DependencySecurityPanel: React.FC<DependencySecurityPanelProps> = R
 
   // Expanded items for accordions
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
-  const [expandedReferences, setExpandedReferences] = useState<Set<string>>(new Set());
   const [copiedAction, setCopiedAction] = useState<string | null>(null);
 
   const lastAuditedKeyRef = useRef<string | null>(null);
@@ -143,7 +167,13 @@ export const DependencySecurityPanel: React.FC<DependencySecurityPanelProps> = R
 
   // Group advisories by package
   const packageGroups = useMemo<PackageAdvisoryGroup[]>(() => {
-    const map = new Map<string, PackageAdvisoryGroup>();
+    const map = new Map<string, {
+      packageName: string;
+      version: string;
+      highestSeverity: DependencySeverity;
+      advisories: DependencyAdvisory[];
+      recommendedFix?: string;
+    }>();
 
     for (const adv of advisories) {
       const key = `${adv.packageName}@${adv.version}`;
@@ -173,8 +203,35 @@ export const DependencySecurityPanel: React.FC<DependencySecurityPanelProps> = R
       }
     }
 
-    return Array.from(map.values());
+    return Array.from(map.values()).map(g => {
+      const crit = g.advisories.filter(a => a.severity === 'critical').length;
+      const hi = g.advisories.filter(a => a.severity === 'high').length;
+      const med = g.advisories.filter(a => a.severity === 'medium').length;
+      const lo = g.advisories.filter(a => a.severity === 'low').length;
+
+      // Top summary: first critical, or first high, or first general
+      const topAdv = g.advisories.find(a => a.severity === 'critical') || g.advisories.find(a => a.severity === 'high') || g.advisories[0];
+      const tags = new Set<string>();
+      g.advisories.forEach(a => {
+        extractVulnerabilityTags(a.summary).forEach(t => tags.add(t));
+      });
+
+      return {
+        ...g,
+        criticalCount: crit,
+        highCount: hi,
+        mediumCount: med,
+        lowCount: lo,
+        topSummary: topAdv?.summary || 'Known vulnerability advisory in package dependency.',
+        vulnerabilityTypes: Array.from(tags).slice(0, 3),
+      };
+    });
   }, [advisories]);
+
+  // Packages with available fixes for bulk copy
+  const packagesWithFixes = useMemo(() => {
+    return packageGroups.filter(g => Boolean(g.recommendedFix));
+  }, [packageGroups]);
 
   // Filter package groups
   const filteredPackageGroups = useMemo(() => {
@@ -252,21 +309,25 @@ export const DependencySecurityPanel: React.FC<DependencySecurityPanelProps> = R
     });
   };
 
-  const toggleRefExpand = (id: string) => {
-    setExpandedReferences(prev => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  };
-
   const copyUpgradeCommand = async (packageName: string, targetVersion: string) => {
     const cmd = `npm install ${packageName}@${targetVersion}`;
     try {
       await navigator.clipboard.writeText(cmd);
       setCopiedAction(cmd);
       setTimeout(() => setCopiedAction(null), 2200);
+    } catch {
+      // ignore
+    }
+  };
+
+  const copyBulkFixCommands = async () => {
+    if (packagesWithFixes.length === 0) return;
+    const args = packagesWithFixes.map(g => `${g.packageName}@${g.recommendedFix}`).join(' ');
+    const cmd = `npm install ${args}`;
+    try {
+      await navigator.clipboard.writeText(cmd);
+      setCopiedAction('bulk-upgrade');
+      setTimeout(() => setCopiedAction(null), 2500);
     } catch {
       // ignore
     }
@@ -282,84 +343,112 @@ export const DependencySecurityPanel: React.FC<DependencySecurityPanelProps> = R
     }
   };
 
-  // Severity badge style helpers
+  // Severity style helper
   const getSeverityStyle = (sev: DependencySeverity) => {
     switch (sev) {
       case 'critical':
         return isDark
-          ? 'border-rose-500/35 bg-rose-500/15 text-rose-300 ring-1 ring-rose-500/20'
+          ? 'border-rose-500/40 bg-rose-500/15 text-rose-300 ring-1 ring-rose-500/30'
           : 'border-rose-300 bg-rose-50 text-rose-700 ring-1 ring-rose-200';
       case 'high':
         return isDark
-          ? 'border-amber-500/35 bg-amber-500/15 text-amber-300 ring-1 ring-amber-500/20'
+          ? 'border-amber-500/40 bg-amber-500/15 text-amber-300 ring-1 ring-amber-500/30'
           : 'border-amber-300 bg-amber-50 text-amber-700 ring-1 ring-amber-200';
       case 'medium':
         return isDark
-          ? 'border-blue-500/35 bg-blue-500/15 text-blue-300 ring-1 ring-blue-500/20'
+          ? 'border-blue-500/40 bg-blue-500/15 text-blue-300 ring-1 ring-blue-500/30'
           : 'border-blue-300 bg-blue-50 text-blue-700 ring-1 ring-blue-200';
       case 'low':
       default:
         return isDark
-          ? 'border-slate-500/35 bg-slate-500/15 text-slate-300 ring-1 ring-slate-500/20'
+          ? 'border-slate-500/40 bg-slate-500/15 text-slate-300 ring-1 ring-slate-500/30'
           : 'border-slate-300 bg-slate-100 text-slate-700 ring-1 ring-slate-200';
     }
   };
 
+  const getAccentBorder = (sev: DependencySeverity) => {
+    switch (sev) {
+      case 'critical':
+        return 'border-l-rose-500';
+      case 'high':
+        return 'border-l-amber-500';
+      case 'medium':
+        return 'border-l-blue-500';
+      case 'low':
+      default:
+        return 'border-l-slate-500';
+    }
+  };
+
   return (
-    <section className={`rounded-xl border p-4 sm:p-5 transition-all ${panel}`}>
+    <section className={`rounded-2xl border p-4 sm:p-5 transition-all relative overflow-hidden ${
+      isDark
+        ? 'border-white/[0.08] bg-gradient-to-b from-[#15171B] to-[#111215] shadow-xl'
+        : 'border-slate-200/90 bg-white shadow-xs'
+    }`}>
       {/* ---------------------------------------------------- */}
       {/* 1. SECTION HEADER                                    */}
       {/* ---------------------------------------------------- */}
       <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
-        <div className="flex items-center gap-2.5">
-          <div className={`flex h-9 w-9 items-center justify-center rounded-xl border ${
+        <div className="flex items-center gap-3">
+          <div className={`flex h-10 w-10 items-center justify-center rounded-xl border transition-all ${
             criticalCount > 0
-              ? 'bg-rose-500/15 text-rose-400 border-rose-500/25 shadow-xs shadow-rose-500/10'
+              ? 'bg-rose-500/15 text-rose-400 border-rose-500/30 shadow-sm shadow-rose-500/20'
               : highCount > 0
-              ? 'bg-amber-500/15 text-amber-400 border-amber-500/25 shadow-xs shadow-amber-500/10'
-              : 'bg-emerald-500/15 text-emerald-400 border-emerald-500/25'
+              ? 'bg-amber-500/15 text-amber-400 border-amber-500/30 shadow-sm shadow-amber-500/20'
+              : 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30'
           }`}>
             {criticalCount > 0 ? (
-              <ShieldAlert className="h-4.5 w-4.5 animate-pulse" />
+              <ShieldAlert className="h-5 w-5 animate-pulse" />
             ) : highCount > 0 ? (
-              <AlertTriangle className="h-4.5 w-4.5" />
+              <AlertTriangle className="h-5 w-5" />
             ) : (
-              <ShieldCheck className="h-4.5 w-4.5" />
+              <ShieldCheck className="h-5 w-5" />
             )}
           </div>
           <div>
             <div className="flex items-center gap-2 flex-wrap">
               <h3 className={`text-xs font-semibold uppercase tracking-wider ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                Dependency Vulnerabilities & CVE Advisories
+                Supply Chain & Dependency CVE Advisories
               </h3>
-              <span className={`rounded-full px-2 py-0.5 text-[9px] font-mono border ${
-                isDark ? 'border-white/[0.08] bg-white/[0.04] text-slate-300' : 'border-slate-200 bg-slate-100 text-slate-700'
+              <span className={`rounded-full px-2 py-0.5 text-[10px] font-mono border ${
+                isDark ? 'border-white/[0.08] bg-white/[0.03] text-slate-300' : 'border-slate-200 bg-slate-100 text-slate-700'
               }`}>
-                OSV.dev
-              </span>
-              <span className={`rounded-full px-2 py-0.5 text-[9px] font-medium border ${
-                criticalCount > 0
-                  ? (isDark ? 'border-rose-500/30 bg-rose-500/10 text-rose-400' : 'border-rose-200 bg-rose-50 text-rose-700')
-                  : highCount > 0
-                  ? (isDark ? 'border-amber-500/30 bg-amber-500/10 text-amber-400' : 'border-amber-200 bg-amber-50 text-amber-700')
-                  : (isDark ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-400' : 'border-emerald-200 bg-emerald-50 text-emerald-700')
-              }`}>
-                Factored into Health Score
+                OSV.dev intelligence · Factored in Health Index
               </span>
             </div>
             <p className={`mt-0.5 text-xs ${muted}`}>
-              Automated CVE advisory & zero-day vulnerability audit mapped to locked packages.
+              Continuous supply-chain vulnerability audit mapped to locked project dependencies.
             </p>
           </div>
         </div>
 
         {/* Action Controls */}
         <div className="flex items-center gap-2">
+          {packagesWithFixes.length > 0 && (
+            <button
+              type="button"
+              onClick={copyBulkFixCommands}
+              className={`hidden md:inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-semibold transition-all ${
+                copiedAction === 'bulk-upgrade'
+                  ? 'border-emerald-500/60 bg-emerald-500/20 text-emerald-300'
+                  : isDark
+                  ? 'border-emerald-500/35 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 hover:border-emerald-500/50'
+                  : 'border-emerald-300 bg-emerald-50 text-emerald-800 hover:bg-emerald-100'
+              }`}
+              title="Copy single command to upgrade all packages with available patches"
+            >
+              {copiedAction === 'bulk-upgrade' ? <Check className="h-3.5 w-3.5" /> : <Terminal className="h-3.5 w-3.5" />}
+              <span>{copiedAction === 'bulk-upgrade' ? 'Copied All Patch Commands!' : `Copy All Fixes (${packagesWithFixes.length})`}</span>
+            </button>
+          )}
+
           {assessment?.scannedAt && (
             <span className={`hidden sm:inline-block text-[10px] font-mono ${muted}`}>
               Audited {new Date(assessment.scannedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
             </span>
           )}
+
           <button
             type="button"
             onClick={runVulnerabilityAudit}
@@ -401,7 +490,6 @@ export const DependencySecurityPanel: React.FC<DependencySecurityPanelProps> = R
               </p>
             </div>
           </div>
-          {/* Skeleton stat boxes */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 mt-4">
             {['Critical', 'High', 'Medium / Low', 'Packages Checked'].map((label, idx) => (
               <div key={idx} className={`p-3.5 rounded-xl border animate-pulse ${
@@ -416,7 +504,7 @@ export const DependencySecurityPanel: React.FC<DependencySecurityPanelProps> = R
       ) : assessment ? (
         <>
           {/* ---------------------------------------------------- */}
-          {/* 3. INTERACTIVE METRIC HUD CARDS                      */}
+          {/* 3. INTERACTIVE METRIC HUD CARDS (ELEVATED)           */}
           {/* ---------------------------------------------------- */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 mb-4">
             {/* Card 1: Critical Severity */}
@@ -426,11 +514,11 @@ export const DependencySecurityPanel: React.FC<DependencySecurityPanelProps> = R
                 setActiveSeverityFilter(prev => prev === 'critical' ? 'all' : 'critical');
                 setCurrentPage(1);
               }}
-              className={`p-3.5 rounded-xl border text-left transition-all relative overflow-hidden group ${
+              className={`p-3.5 rounded-xl border text-left transition-all relative overflow-hidden group cursor-pointer ${
                 activeSeverityFilter === 'critical'
-                  ? (isDark ? 'ring-2 ring-rose-500/60 border-rose-500/40 bg-rose-500/10' : 'ring-2 ring-rose-500 border-rose-300 bg-rose-50')
+                  ? (isDark ? 'ring-2 ring-rose-500 border-rose-500/50 bg-rose-500/15 shadow-lg shadow-rose-500/10' : 'ring-2 ring-rose-500 border-rose-300 bg-rose-50')
                   : criticalCount > 0
-                  ? (isDark ? 'border-rose-500/25 bg-rose-500/[0.04] hover:border-rose-500/40' : 'border-rose-200 bg-rose-50/60 hover:border-rose-300')
+                  ? (isDark ? 'border-rose-500/30 bg-gradient-to-br from-rose-500/[0.08] via-rose-500/[0.02] to-transparent hover:border-rose-500/50' : 'border-rose-200 bg-rose-50/60 hover:border-rose-300')
                   : (isDark ? 'border-white/[0.06] bg-white/[0.02] hover:border-white/[0.12]' : 'border-slate-200 bg-slate-50 hover:border-slate-300')
               }`}
             >
@@ -438,19 +526,28 @@ export const DependencySecurityPanel: React.FC<DependencySecurityPanelProps> = R
                 <span className={`text-[10px] font-semibold uppercase tracking-wider ${criticalCount > 0 ? 'text-rose-400' : muted}`}>
                   Critical Severity
                 </span>
-                {criticalCount > 0 && (
-                  <span className="flex h-2 w-2 relative">
+                {criticalCount > 0 ? (
+                  <span className="flex h-2.5 w-2.5 relative">
                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75" />
-                    <span className="relative inline-flex rounded-full h-2 w-2 bg-rose-500" />
+                    <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-rose-500" />
                   </span>
+                ) : (
+                  <ShieldCheck className="h-3.5 w-3.5 text-emerald-500" />
                 )}
               </div>
               <p className={`text-2xl font-bold mt-1 tracking-tight ${criticalCount > 0 ? 'text-rose-400' : isDark ? 'text-white' : 'text-slate-900'}`}>
                 {criticalCount}
               </p>
-              <p className={`mt-1 text-[10px] ${muted}`}>
-                {criticalCount > 0 ? 'Immediate patch required' : 'Zero critical CVEs'}
-              </p>
+              <div className="mt-1 flex items-center justify-between">
+                <span className={`text-[10px] ${muted}`}>
+                  {criticalCount > 0 ? 'Immediate patch required' : 'Zero critical CVEs'}
+                </span>
+                {activeSeverityFilter === 'critical' && (
+                  <span className="text-[9px] font-mono px-1.5 py-0.2 rounded bg-rose-500/20 text-rose-300">
+                    Filtered
+                  </span>
+                )}
+              </div>
             </button>
 
             {/* Card 2: High Severity */}
@@ -460,11 +557,11 @@ export const DependencySecurityPanel: React.FC<DependencySecurityPanelProps> = R
                 setActiveSeverityFilter(prev => prev === 'high' ? 'all' : 'high');
                 setCurrentPage(1);
               }}
-              className={`p-3.5 rounded-xl border text-left transition-all relative overflow-hidden group ${
+              className={`p-3.5 rounded-xl border text-left transition-all relative overflow-hidden group cursor-pointer ${
                 activeSeverityFilter === 'high'
-                  ? (isDark ? 'ring-2 ring-amber-500/60 border-amber-500/40 bg-amber-500/10' : 'ring-2 ring-amber-500 border-amber-300 bg-amber-50')
+                  ? (isDark ? 'ring-2 ring-amber-500 border-amber-500/50 bg-amber-500/15 shadow-lg shadow-amber-500/10' : 'ring-2 ring-amber-500 border-amber-300 bg-amber-50')
                   : highCount > 0
-                  ? (isDark ? 'border-amber-500/25 bg-amber-500/[0.04] hover:border-amber-500/40' : 'border-amber-200 bg-amber-50/60 hover:border-amber-300')
+                  ? (isDark ? 'border-amber-500/30 bg-gradient-to-br from-amber-500/[0.08] via-amber-500/[0.02] to-transparent hover:border-amber-500/50' : 'border-amber-200 bg-amber-50/60 hover:border-amber-300')
                   : (isDark ? 'border-white/[0.06] bg-white/[0.02] hover:border-white/[0.12]' : 'border-slate-200 bg-slate-50 hover:border-slate-300')
               }`}
             >
@@ -477,9 +574,16 @@ export const DependencySecurityPanel: React.FC<DependencySecurityPanelProps> = R
               <p className={`text-2xl font-bold mt-1 tracking-tight ${highCount > 0 ? 'text-amber-400' : isDark ? 'text-white' : 'text-slate-900'}`}>
                 {highCount}
               </p>
-              <p className={`mt-1 text-[10px] ${muted}`}>
-                High exploitation risk
-              </p>
+              <div className="mt-1 flex items-center justify-between">
+                <span className={`text-[10px] ${muted}`}>
+                  High exploitation risk
+                </span>
+                {activeSeverityFilter === 'high' && (
+                  <span className="text-[9px] font-mono px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-300">
+                    Filtered
+                  </span>
+                )}
+              </div>
             </button>
 
             {/* Card 3: Medium / Low */}
@@ -489,10 +593,10 @@ export const DependencySecurityPanel: React.FC<DependencySecurityPanelProps> = R
                 setActiveSeverityFilter(prev => prev === 'medium' ? 'all' : 'medium');
                 setCurrentPage(1);
               }}
-              className={`p-3.5 rounded-xl border text-left transition-all relative overflow-hidden group ${
+              className={`p-3.5 rounded-xl border text-left transition-all relative overflow-hidden group cursor-pointer ${
                 activeSeverityFilter === 'medium' || activeSeverityFilter === 'low'
-                  ? (isDark ? 'ring-2 ring-blue-500/60 border-blue-500/40 bg-blue-500/10' : 'ring-2 ring-blue-500 border-blue-300 bg-blue-50')
-                  : (isDark ? 'border-white/[0.06] bg-white/[0.02] hover:border-white/[0.12]' : 'border-slate-200 bg-slate-50 hover:border-slate-300')
+                  ? (isDark ? 'ring-2 ring-blue-500 border-blue-500/50 bg-blue-500/15 shadow-lg shadow-blue-500/10' : 'ring-2 ring-blue-500 border-blue-300 bg-blue-50')
+                  : (isDark ? 'border-blue-500/20 bg-gradient-to-br from-blue-500/[0.05] to-transparent hover:border-blue-500/40' : 'border-slate-200 bg-slate-50 hover:border-slate-300')
               }`}
             >
               <div className="flex items-center justify-between">
@@ -504,9 +608,16 @@ export const DependencySecurityPanel: React.FC<DependencySecurityPanelProps> = R
               <p className={`text-2xl font-bold mt-1 tracking-tight ${isDark ? 'text-white' : 'text-slate-900'}`}>
                 {mediumCount + lowCount}
               </p>
-              <p className={`mt-1 text-[10px] ${muted}`}>
-                {mediumCount} medium · {lowCount} low
-              </p>
+              <div className="mt-1 flex items-center justify-between">
+                <span className={`text-[10px] ${muted}`}>
+                  {mediumCount} medium · {lowCount} low
+                </span>
+                {(activeSeverityFilter === 'medium' || activeSeverityFilter === 'low') && (
+                  <span className="text-[9px] font-mono px-1.5 py-0.2 rounded bg-blue-500/20 text-blue-300">
+                    Filtered
+                  </span>
+                )}
+              </div>
             </button>
 
             {/* Card 4: Packages Checked */}
@@ -518,8 +629,10 @@ export const DependencySecurityPanel: React.FC<DependencySecurityPanelProps> = R
                 setSearchQuery('');
                 setCurrentPage(1);
               }}
-              className={`p-3.5 rounded-xl border text-left transition-all relative overflow-hidden group ${
-                isDark ? 'border-white/[0.06] bg-white/[0.02] hover:border-white/[0.12]' : 'border-slate-200 bg-slate-50 hover:border-slate-300'
+              className={`p-3.5 rounded-xl border text-left transition-all relative overflow-hidden group cursor-pointer ${
+                activeSeverityFilter === 'all' && !onlyFixable && !searchQuery
+                  ? (isDark ? 'border-emerald-500/30 bg-gradient-to-br from-emerald-500/[0.08] via-emerald-500/[0.02] to-transparent' : 'border-emerald-200 bg-emerald-50/50')
+                  : (isDark ? 'border-white/[0.06] bg-white/[0.02] hover:border-white/[0.12]' : 'border-slate-200 bg-slate-50 hover:border-slate-300')
               }`}
             >
               <div className="flex items-center justify-between">
@@ -531,16 +644,23 @@ export const DependencySecurityPanel: React.FC<DependencySecurityPanelProps> = R
               <p className="text-2xl font-bold mt-1 tracking-tight text-emerald-500">
                 {assessment.packagesChecked.toLocaleString()}
               </p>
-              <p className={`mt-1 text-[10px] ${muted}`}>
-                {packageGroups.length} vulnerable packages
-              </p>
+              <div className="mt-1 flex items-center justify-between">
+                <span className={`text-[10px] ${muted}`}>
+                  {packageGroups.length} vulnerable packages
+                </span>
+                {activeSeverityFilter === 'all' && (
+                  <span className="text-[9px] font-mono px-1.5 py-0.2 rounded bg-white/[0.06] text-slate-400">
+                    All
+                  </span>
+                )}
+              </div>
             </button>
           </div>
 
           {/* ---------------------------------------------------- */}
           {/* 4. SECURITY TOOLBAR: SEARCH, FILTERS & VIEW MODE     */}
           {/* ---------------------------------------------------- */}
-          <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 mb-4">
+          <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-2.5 mb-4">
             {/* Search Input */}
             <div className="relative flex-1 max-w-md">
               <Search className={`absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 ${muted}`} />
@@ -551,10 +671,10 @@ export const DependencySecurityPanel: React.FC<DependencySecurityPanelProps> = R
                   setSearchQuery(e.target.value);
                   setCurrentPage(1);
                 }}
-                placeholder="Search by package, version, or CVE ID…"
+                placeholder="Filter by package, version, CVE ID, or vulnerability..."
                 className={`w-full rounded-xl border pl-9 pr-8 py-2 text-xs outline-none transition-colors ${
                   isDark
-                    ? 'border-white/[0.08] bg-black/25 text-white placeholder:text-slate-600 focus:border-blue-500'
+                    ? 'border-white/[0.08] bg-black/30 text-white placeholder:text-slate-600 focus:border-blue-500'
                     : 'border-slate-200 bg-slate-50 text-slate-900 placeholder:text-slate-400 focus:border-blue-500'
                 }`}
               />
@@ -569,8 +689,42 @@ export const DependencySecurityPanel: React.FC<DependencySecurityPanelProps> = R
               )}
             </div>
 
-            {/* Filter Pills, Fixable Toggle, View Switcher */}
+            {/* Quick Severity Pills, Sort & View Mode Switcher */}
             <div className="flex flex-wrap items-center gap-2">
+              {/* Severity Pills */}
+              <div className={`hidden sm:flex items-center p-0.5 rounded-lg border text-[11px] ${
+                isDark ? 'border-white/[0.08] bg-black/25' : 'border-slate-200 bg-slate-100'
+              }`}>
+                {(['all', 'critical', 'high', 'medium'] as const).map(sev => {
+                  const isSelected = activeSeverityFilter === sev;
+                  const count = sev === 'all'
+                    ? advisories.length
+                    : sev === 'critical'
+                    ? criticalCount
+                    : sev === 'high'
+                    ? highCount
+                    : mediumCount;
+
+                  return (
+                    <button
+                      key={sev}
+                      type="button"
+                      onClick={() => {
+                        setActiveSeverityFilter(sev);
+                        setCurrentPage(1);
+                      }}
+                      className={`px-2 py-1 rounded-md capitalize transition-colors font-medium ${
+                        isSelected
+                          ? (isDark ? 'bg-[#1E2024] text-white shadow-xs' : 'bg-white text-slate-900 shadow-xs')
+                          : (isDark ? 'text-slate-400 hover:text-slate-200' : 'text-slate-600 hover:text-slate-900')
+                      }`}
+                    >
+                      {sev} <span className="opacity-60 font-mono text-[9px]">({count})</span>
+                    </button>
+                  );
+                })}
+              </div>
+
               {/* Fix Available Toggle */}
               {fixableCount > 0 && (
                 <button
@@ -589,6 +743,21 @@ export const DependencySecurityPanel: React.FC<DependencySecurityPanelProps> = R
                   <span>Fixes ({fixableCount})</span>
                 </button>
               )}
+
+              {/* Sort Selector */}
+              <div className="relative">
+                <select
+                  value={sortBy}
+                  onChange={e => setSortBy(e.target.value as any)}
+                  className={`rounded-lg border px-2.5 py-1.5 text-xs outline-none cursor-pointer ${
+                    isDark ? 'border-white/[0.08] bg-black/30 text-slate-300' : 'border-slate-200 bg-slate-50 text-slate-700'
+                  }`}
+                >
+                  <option value="severity">Sort: Severity</option>
+                  <option value="cves">Sort: CVE Count</option>
+                  <option value="name">Sort: Name (A-Z)</option>
+                </select>
+              </div>
 
               {/* View Mode Switcher */}
               <div className={`flex items-center p-0.5 rounded-lg border ${
@@ -627,7 +796,7 @@ export const DependencySecurityPanel: React.FC<DependencySecurityPanelProps> = R
           </div>
 
           {/* ---------------------------------------------------- */}
-          {/* 5. ADVISORIES CONTENT (GROUPED OR LIST)              */}
+          {/* 5. ADVISORIES CONTENT (ELEVATED DEVSECOPS CARDS)     */}
           {/* ---------------------------------------------------- */}
           {totalItems > 0 ? (
             <div className="space-y-3">
@@ -640,131 +809,256 @@ export const DependencySecurityPanel: React.FC<DependencySecurityPanelProps> = R
                 return (
                   <div
                     key={groupKey}
-                    className={`rounded-xl border transition-all ${
-                      isDark ? 'border-white/[0.07] bg-black/25 hover:border-white/[0.12]' : 'border-slate-200 bg-slate-50/70 hover:border-slate-300'
+                    className={`rounded-xl border transition-all overflow-hidden ${getAccentBorder(group.highestSeverity)} border-l-4 ${
+                      isDark
+                        ? 'border-white/[0.08] bg-[#14161A] hover:border-white/[0.14] hover:bg-[#16181D]'
+                        : 'border-slate-200 bg-white hover:border-slate-300 shadow-2xs'
                     }`}
                   >
                     {/* Header Row */}
-                    <div className="p-4 flex flex-wrap items-center justify-between gap-3">
-                      <div className="flex items-center gap-3 min-w-0">
-                        <span className={`px-2 py-0.5 rounded-full text-[9px] font-semibold uppercase tracking-wider ${getSeverityStyle(group.highestSeverity)}`}>
-                          {group.highestSeverity}
-                        </span>
-                        <div className="flex items-center gap-2 min-w-0">
-                          <Package className="h-4 w-4 text-blue-400 shrink-0" />
-                          <span className={`font-mono text-sm font-semibold truncate ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                            {group.packageName}
-                          </span>
-                          <span className={`font-mono text-xs px-1.5 py-0.5 rounded ${
-                            isDark ? 'bg-white/[0.05] text-slate-300' : 'bg-slate-200 text-slate-700'
+                    <div className="p-4">
+                      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+                        {/* Left: Package info & severity breakdown */}
+                        <div className="flex items-start sm:items-center gap-3 min-w-0">
+                          <div className={`h-9 w-9 rounded-xl border flex items-center justify-center shrink-0 ${
+                            group.highestSeverity === 'critical'
+                              ? 'border-rose-500/30 bg-rose-500/10 text-rose-400'
+                              : group.highestSeverity === 'high'
+                              ? 'border-amber-500/30 bg-amber-500/10 text-amber-400'
+                              : 'border-blue-500/30 bg-blue-500/10 text-blue-400'
                           }`}>
-                            v{group.version}
-                          </span>
-                        </div>
-                        <span className={`text-[11px] font-medium px-2 py-0.5 rounded-full border ${
-                          isDark ? 'border-white/[0.08] bg-white/[0.02] text-slate-300' : 'border-slate-200 bg-white text-slate-700'
-                        }`}>
-                          {group.advisories.length} {group.advisories.length === 1 ? 'CVE' : 'CVEs'}
-                        </span>
-                      </div>
+                            <Package className="h-4.5 w-4.5" />
+                          </div>
 
-                      {/* Right: Fix Action and Expand button */}
-                      <div className="flex items-center gap-2">
-                        {hasFix && (
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className={`px-2 py-0.5 rounded-full text-[9px] font-semibold uppercase tracking-wider ${getSeverityStyle(group.highestSeverity)}`}>
+                                {group.highestSeverity}
+                              </span>
+                              <span className={`font-mono text-sm font-bold truncate ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                                {group.packageName}
+                              </span>
+                              <span className={`font-mono text-xs px-1.5 py-0.5 rounded ${
+                                isDark ? 'bg-white/[0.05] text-slate-300' : 'bg-slate-200 text-slate-700'
+                              }`}>
+                                v{group.version}
+                              </span>
+
+                              {/* Breakdown Tag */}
+                              <span className={`text-[11px] font-mono font-medium px-2 py-0.5 rounded-full border ${
+                                isDark ? 'border-white/[0.08] bg-white/[0.02] text-slate-300' : 'border-slate-200 bg-white text-slate-700'
+                              }`}>
+                                {group.criticalCount > 0 ? `${group.criticalCount} Critical · ` : ''}
+                                {group.highCount > 0 ? `${group.highCount} High · ` : ''}
+                                {group.advisories.length} {group.advisories.length === 1 ? 'CVE' : 'CVEs'}
+                              </span>
+
+                              {/* Vulnerability Type Tags */}
+                              {group.vulnerabilityTypes.map((tag, i) => (
+                                <span
+                                  key={i}
+                                  className={`hidden sm:inline-flex text-[9px] font-mono px-1.5 py-0.2 rounded border ${
+                                    isDark ? 'border-white/[0.06] bg-white/[0.02] text-slate-400' : 'border-slate-200 bg-slate-50 text-slate-600'
+                                  }`}
+                                >
+                                  {tag}
+                                </span>
+                              ))}
+                            </div>
+
+                            {/* Threat preview line on collapsed card */}
+                            <div className="mt-1 flex items-center gap-1.5 text-xs">
+                              {group.highestSeverity === 'critical' ? (
+                                <Flame className="h-3.5 w-3.5 text-rose-400 shrink-0" />
+                              ) : (
+                                <Bug className="h-3.5 w-3.5 text-amber-400 shrink-0" />
+                              )}
+                              <span className={`truncate text-xs ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
+                                {group.topSummary}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Right: Remediation Version Diff & Upgrade Action */}
+                        <div className="flex items-center gap-2 self-end lg:self-center shrink-0">
+                          {hasFix && (
+                            <div className="flex items-center gap-2">
+                              {/* Version bump diff indicator */}
+                              <div className={`hidden xl:flex items-center gap-1.5 px-2.5 py-1 rounded-lg border font-mono text-xs ${
+                                isDark ? 'border-white/[0.06] bg-black/30' : 'border-slate-200 bg-slate-50'
+                              }`}>
+                                <span className={muted}>v{group.version}</span>
+                                <ArrowRight className="h-3 w-3 text-emerald-400" />
+                                <span className="font-semibold text-emerald-400">v{group.recommendedFix}</span>
+                              </div>
+
+                              {/* Upgrade terminal button */}
+                              <button
+                                type="button"
+                                onClick={() => copyUpgradeCommand(group.packageName, group.recommendedFix!)}
+                                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all border shadow-xs ${
+                                  copiedAction === `npm install ${group.packageName}@${group.recommendedFix}`
+                                    ? 'border-emerald-500/60 bg-emerald-500/25 text-emerald-300'
+                                    : (isDark
+                                      ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20 hover:border-emerald-500/50'
+                                      : 'border-emerald-300 bg-emerald-50 text-emerald-800 hover:bg-emerald-100')
+                                }`}
+                                title={`Copy: npm install ${group.packageName}@${group.recommendedFix}`}
+                              >
+                                {copiedAction === `npm install ${group.packageName}@${group.recommendedFix}` ? (
+                                  <Check className="h-3.5 w-3.5 text-emerald-400" />
+                                ) : (
+                                  <Terminal className="h-3.5 w-3.5" />
+                                )}
+                                <span>
+                                  {copiedAction === `npm install ${group.packageName}@${group.recommendedFix}`
+                                    ? 'Copied npm cmd!'
+                                    : `Upgrade to ${group.recommendedFix}`}
+                                </span>
+                              </button>
+                            </div>
+                          )}
+
                           <button
                             type="button"
-                            onClick={() => copyUpgradeCommand(group.packageName, group.recommendedFix!)}
-                            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all border ${
-                              copiedAction === `npm install ${group.packageName}@${group.recommendedFix}`
-                                ? 'border-emerald-500/50 bg-emerald-500/20 text-emerald-300'
-                                : (isDark ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20' : 'border-emerald-300 bg-emerald-50 text-emerald-800 hover:bg-emerald-100')
+                            onClick={() => toggleGroupExpand(groupKey)}
+                            className={`inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border text-xs font-medium transition-colors ${
+                              isDark ? 'border-white/[0.08] hover:bg-white/[0.06] text-slate-300' : 'border-slate-200 hover:bg-slate-100 text-slate-700'
                             }`}
-                            title={`Copy upgrade command: npm install ${group.packageName}@${group.recommendedFix}`}
+                            aria-label={isExpanded ? 'Collapse advisories' : 'Expand advisories'}
                           >
-                            {copiedAction === `npm install ${group.packageName}@${group.recommendedFix}` ? (
-                              <Check className="h-3.5 w-3.5 text-emerald-400" />
-                            ) : (
-                              <Terminal className="h-3.5 w-3.5" />
-                            )}
-                            <span>
-                              {copiedAction === `npm install ${group.packageName}@${group.recommendedFix}`
-                                ? 'Copied upgrade cmd!'
-                                : `Upgrade to ${group.recommendedFix}`}
-                            </span>
+                            <span>{isExpanded ? 'Hide' : `${group.advisories.length} CVEs`}</span>
+                            {isExpanded ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
                           </button>
-                        )}
-
-                        <button
-                          type="button"
-                          onClick={() => toggleGroupExpand(groupKey)}
-                          className={`p-1.5 rounded-lg border transition-colors ${
-                            isDark ? 'border-white/[0.08] hover:bg-white/[0.05] text-slate-300' : 'border-slate-200 hover:bg-slate-100 text-slate-700'
-                          }`}
-                          aria-label={isExpanded ? 'Collapse advisories' : 'Expand advisories'}
-                        >
-                          {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-                        </button>
+                        </div>
                       </div>
                     </div>
 
-                    {/* Expandable Individual CVEs under this Package */}
+                    {/* Expandable Individual CVE Security Bulletins */}
                     {isExpanded && (
-                      <div className={`px-4 pb-4 pt-1 border-t space-y-2.5 ${
-                        isDark ? 'border-white/[0.06] bg-black/20' : 'border-slate-200/80 bg-white'
+                      <div className={`px-4 pb-4 pt-2 border-t space-y-2.5 ${
+                        isDark ? 'border-white/[0.06] bg-black/25' : 'border-slate-200/80 bg-slate-50/50'
                       }`}>
-                        {group.advisories.map((advisory, idx) => (
-                          <div
-                            key={`${advisory.id}-${idx}`}
-                            className={`p-3 rounded-lg border text-xs ${
-                              isDark ? 'border-white/[0.05] bg-white/[0.015]' : 'border-slate-200 bg-slate-50'
-                            }`}
-                          >
-                            <div className="flex flex-wrap items-center justify-between gap-2 mb-1.5">
-                              <div className="flex items-center gap-2">
-                                <span className={`px-1.5 py-0.2 rounded text-[9px] font-semibold uppercase ${getSeverityStyle(advisory.severity)}`}>
-                                  {advisory.severity}
-                                </span>
-                                <span className="font-mono text-xs font-semibold">{advisory.id}</span>
+                        <div className="flex items-center justify-between py-1 text-[11px]">
+                          <span className={muted}>
+                            Detailed Security Advisories for <strong className={isDark ? 'text-white' : 'text-slate-900'}>{group.packageName}@{group.version}</strong>
+                          </span>
+                          <span className={`font-mono ${muted}`}>
+                            {group.advisories.length} entries recorded
+                          </span>
+                        </div>
+
+                        {group.advisories.map((advisory, idx) => {
+                          const advTags = extractVulnerabilityTags(advisory.summary);
+
+                          return (
+                            <div
+                              key={`${advisory.id}-${idx}`}
+                              className={`p-3.5 rounded-xl border text-xs transition-all ${
+                                isDark ? 'border-white/[0.06] bg-white/[0.015] hover:border-white/[0.1]' : 'border-slate-200 bg-white hover:border-slate-300 shadow-2xs'
+                              }`}
+                            >
+                              <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <span className={`px-2 py-0.5 rounded-full text-[9px] font-semibold uppercase ${getSeverityStyle(advisory.severity)}`}>
+                                    {advisory.severity}
+                                  </span>
+
+                                  <span className={`font-mono text-xs font-semibold px-2 py-0.5 rounded border ${
+                                    isDark ? 'border-white/[0.08] bg-black/30 text-white' : 'border-slate-200 bg-slate-50 text-slate-900'
+                                  }`}>
+                                    {advisory.id}
+                                  </span>
+
+                                  {advTags.map((tag, tIdx) => (
+                                    <span
+                                      key={tIdx}
+                                      className={`text-[9px] font-mono px-1.5 py-0.2 rounded border ${
+                                        isDark ? 'border-blue-500/30 bg-blue-500/10 text-blue-300' : 'border-blue-200 bg-blue-50 text-blue-700'
+                                      }`}
+                                    >
+                                      {tag}
+                                    </span>
+                                  ))}
+                                </div>
+
+                                <div className="flex items-center gap-2">
+                                  <button
+                                    type="button"
+                                    onClick={() => copyText(advisory.id, advisory.id)}
+                                    className={`inline-flex items-center gap-1 font-mono text-[10px] p-1 rounded transition-colors ${
+                                      copiedAction === advisory.id ? 'text-emerald-400' : `${muted} hover:text-white`
+                                    }`}
+                                    title="Copy Advisory ID"
+                                  >
+                                    {copiedAction === advisory.id ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
+                                    <span>{copiedAction === advisory.id ? 'Copied ID' : 'Copy'}</span>
+                                  </button>
+
+                                  {advisory.id && (
+                                    <a
+                                      href={`https://osv.dev/vulnerability/${advisory.id}`}
+                                      target="_blank"
+                                      rel="noreferrer"
+                                      className="inline-flex items-center gap-1 font-mono text-[11px] text-blue-400 hover:underline"
+                                    >
+                                      <span>OSV.dev</span>
+                                      <ExternalLink className="h-3 w-3" />
+                                    </a>
+                                  )}
+                                </div>
                               </div>
-                              {advisory.id && (
-                                <a
-                                  href={`https://osv.dev/vulnerability/${advisory.id}`}
-                                  target="_blank"
-                                  rel="noreferrer"
-                                  className="inline-flex items-center gap-1 font-mono text-[10px] text-blue-400 hover:underline"
-                                >
-                                  <span>OSV.dev Advisory</span>
-                                  <ExternalLink className="h-3 w-3" />
-                                </a>
+
+                              <p className={`text-xs leading-relaxed ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+                                {advisory.summary}
+                              </p>
+
+                              {advisory.fixedVersions.length > 0 && (
+                                <div className={`mt-2.5 pt-2 border-t flex flex-wrap items-center justify-between gap-2 ${
+                                  isDark ? 'border-white/[0.04]' : 'border-slate-100'
+                                }`}>
+                                  <span className="text-[11px] text-emerald-400 font-mono font-medium flex items-center gap-1">
+                                    <CheckCircle2 className="h-3 w-3 shrink-0" />
+                                    Patched in: <strong>{advisory.fixedVersions.join(', ')}</strong>
+                                  </span>
+
+                                  <button
+                                    type="button"
+                                    onClick={() => copyUpgradeCommand(advisory.packageName, advisory.fixedVersions[advisory.fixedVersions.length - 1])}
+                                    className={`inline-flex items-center gap-1 px-2 py-0.5 rounded font-mono text-[10px] border transition-colors ${
+                                      copiedAction === `npm install ${advisory.packageName}@${advisory.fixedVersions[advisory.fixedVersions.length - 1]}`
+                                        ? 'border-emerald-500/50 bg-emerald-500/20 text-emerald-300'
+                                        : isDark
+                                        ? 'border-white/[0.08] bg-black/30 text-slate-300 hover:text-white'
+                                        : 'border-slate-200 bg-slate-50 text-slate-700 hover:text-slate-900'
+                                    }`}
+                                  >
+                                    <Terminal className="h-2.5 w-2.5" />
+                                    <span>npm i {advisory.packageName}@{advisory.fixedVersions[advisory.fixedVersions.length - 1]}</span>
+                                  </button>
+                                </div>
                               )}
                             </div>
-                            <p className={`text-xs leading-relaxed ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
-                              {advisory.summary}
-                            </p>
-                            {advisory.fixedVersions.length > 0 && (
-                              <p className="mt-2 text-[11px] text-emerald-400 font-mono">
-                                Patched in: {advisory.fixedVersions.join(', ')}
-                              </p>
-                            )}
-                          </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     )}
                   </div>
                 );
               })}
 
-              {/* LIST VIEW: ALL ADVISORIES */}
+              {/* LIST VIEW: ALL CVEs INDIVIDUALLY */}
               {viewMode === 'list' && pagedAdvisories.map((advisory, idx) => {
                 const hasFix = advisory.fixedVersions.length > 0;
                 const recFix = advisory.fixedVersions[advisory.fixedVersions.length - 1];
-                const isRefExpanded = expandedReferences.has(advisory.id);
+                const advTags = extractVulnerabilityTags(advisory.summary);
 
                 return (
                   <div
                     key={`${advisory.id}-${idx}`}
-                    className={`rounded-xl border p-4 transition-all ${
-                      isDark ? 'border-white/[0.07] bg-black/25 hover:border-white/[0.12]' : 'border-slate-200 bg-slate-50/70 hover:border-slate-300'
+                    className={`rounded-xl border p-4 transition-all overflow-hidden ${getAccentBorder(advisory.severity)} border-l-4 ${
+                      isDark ? 'border-white/[0.08] bg-[#14161A] hover:border-white/[0.14]' : 'border-slate-200 bg-white hover:border-slate-300 shadow-2xs'
                     }`}
                   >
                     <div className="flex flex-wrap items-start justify-between gap-2.5">
@@ -772,14 +1066,34 @@ export const DependencySecurityPanel: React.FC<DependencySecurityPanelProps> = R
                         <span className={`px-2 py-0.5 rounded-full text-[9px] font-semibold uppercase tracking-wider ${getSeverityStyle(advisory.severity)}`}>
                           {advisory.severity}
                         </span>
-                        <span className={`font-mono text-xs font-semibold ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                          {advisory.packageName}
-                        </span>
-                        <span className={`font-mono text-[10px] px-1.5 py-0.2 rounded ${
-                          isDark ? 'bg-white/[0.05] text-slate-300' : 'bg-slate-200 text-slate-700'
+                        <div className="flex items-center gap-1.5 font-mono">
+                          <Package className="h-3.5 w-3.5 text-blue-400" />
+                          <span className={`text-xs font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                            {advisory.packageName}
+                          </span>
+                          <span className={`text-[10px] px-1.5 py-0.2 rounded ${
+                            isDark ? 'bg-white/[0.05] text-slate-300' : 'bg-slate-200 text-slate-700'
+                          }`}>
+                            v{advisory.version}
+                          </span>
+                        </div>
+
+                        <span className={`font-mono text-xs font-semibold px-2 py-0.5 rounded border ${
+                          isDark ? 'border-white/[0.08] bg-black/30 text-white' : 'border-slate-200 bg-slate-50 text-slate-900'
                         }`}>
-                          v{advisory.version}
+                          {advisory.id}
                         </span>
+
+                        {advTags.map((tag, tIdx) => (
+                          <span
+                            key={tIdx}
+                            className={`text-[9px] font-mono px-1.5 py-0.2 rounded border ${
+                              isDark ? 'border-blue-500/30 bg-blue-500/10 text-blue-300' : 'border-blue-200 bg-blue-50 text-blue-700'
+                            }`}
+                          >
+                            {tag}
+                          </span>
+                        ))}
                       </div>
 
                       {advisory.id && (
@@ -789,40 +1103,40 @@ export const DependencySecurityPanel: React.FC<DependencySecurityPanelProps> = R
                           rel="noreferrer"
                           className="inline-flex items-center gap-1 font-mono text-[11px] text-blue-400 hover:underline"
                         >
-                          <span>{advisory.id}</span>
+                          <span>OSV.dev</span>
                           <ExternalLink className="h-3 w-3" />
                         </a>
                       )}
                     </div>
 
-                    <p className={`mt-2 text-xs leading-relaxed ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+                    <p className={`mt-2.5 text-xs leading-relaxed ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
                       {advisory.summary}
                     </p>
 
                     {/* Fix Recommendation Banner */}
                     {hasFix && (
                       <div className={`mt-3 p-2.5 rounded-lg border flex flex-wrap items-center justify-between gap-2 ${
-                        isDark ? 'border-emerald-500/20 bg-emerald-500/[0.05]' : 'border-emerald-200 bg-emerald-50/70'
+                        isDark ? 'border-emerald-500/25 bg-emerald-500/[0.06]' : 'border-emerald-200 bg-emerald-50/70'
                       }`}>
                         <div className="flex items-center gap-2">
                           <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
                           <span className="text-[11px] font-medium text-emerald-400">
-                            Fix available: Upgrade to <span className="font-mono font-semibold">{recFix}</span>
+                            Remediation: Upgrade to <span className="font-mono font-bold">v{recFix}</span>
                           </span>
                         </div>
                         <button
                           type="button"
                           onClick={() => copyUpgradeCommand(advisory.packageName, recFix)}
-                          className={`inline-flex items-center gap-1 px-2 py-1 rounded text-[11px] font-mono transition-colors ${
+                          className={`inline-flex items-center gap-1 px-2.5 py-1 rounded text-[11px] font-mono transition-colors border ${
                             copiedAction === `npm install ${advisory.packageName}@${recFix}`
-                              ? 'bg-emerald-500/30 text-emerald-200'
-                              : (isDark ? 'bg-black/30 hover:bg-black/50 text-emerald-300' : 'bg-white hover:bg-slate-100 text-emerald-800')
+                              ? 'border-emerald-500/50 bg-emerald-500/30 text-emerald-200'
+                              : (isDark ? 'border-white/[0.08] bg-black/30 hover:bg-black/50 text-emerald-300' : 'border-emerald-300 bg-white hover:bg-slate-100 text-emerald-800')
                           }`}
                         >
                           <Terminal className="h-3 w-3" />
                           <span>
                             {copiedAction === `npm install ${advisory.packageName}@${recFix}`
-                              ? 'Copied cmd!'
+                              ? 'Copied command!'
                               : `npm i ${advisory.packageName}@${recFix}`}
                           </span>
                         </button>
@@ -852,9 +1166,11 @@ export const DependencySecurityPanel: React.FC<DependencySecurityPanelProps> = R
                     >
                       <ChevronLeft className="h-4 w-4" />
                     </button>
-                    <span className={`px-2.5 font-mono text-[11px] ${muted}`}>
+
+                    <span className="font-mono text-xs px-2">
                       {currentPage} / {totalPages}
                     </span>
+
                     <button
                       type="button"
                       onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
@@ -871,43 +1187,50 @@ export const DependencySecurityPanel: React.FC<DependencySecurityPanelProps> = R
               )}
             </div>
           ) : (
-            <div className={`rounded-xl border p-6 text-center ${
-              isDark ? 'border-emerald-500/20 bg-emerald-500/[0.04]' : 'border-emerald-200 bg-emerald-50/50'
+            <div className={`p-8 text-center rounded-xl border ${
+              isDark ? 'border-white/[0.06] bg-black/20' : 'border-slate-200 bg-slate-50'
             }`}>
-              <CheckCircle2 className="mx-auto h-7 w-7 text-emerald-400" />
-              <p className={`mt-2 text-sm font-semibold ${isDark ? 'text-emerald-300' : 'text-emerald-900'}`}>
-                Zero CVE Advisories Matched
-              </p>
-              <p className={`mt-1 text-xs ${muted} max-w-md mx-auto`}>
+              <ShieldCheck className="h-8 w-8 text-emerald-400 mx-auto mb-2" />
+              <p className={`text-xs font-semibold ${isDark ? 'text-white' : 'text-slate-900'}`}>
                 {searchQuery || activeSeverityFilter !== 'all' || onlyFixable
-                  ? 'No vulnerability advisories matched your current filters or search terms.'
-                  : `All ${assessment.packagesChecked} locked dependencies were verified against OSV.dev with zero known security advisories.`}
+                  ? 'No advisories match your current filter criteria'
+                  : 'Zero vulnerabilities detected in locked dependencies'}
               </p>
+              <p className={`text-[11px] mt-1 ${muted}`}>
+                {searchQuery || activeSeverityFilter !== 'all' || onlyFixable
+                  ? 'Try clearing your search query or resetting severity filters.'
+                  : 'All audited packages are up to date with zero known CVE advisories on OSV.dev.'}
+              </p>
+              {(searchQuery || activeSeverityFilter !== 'all' || onlyFixable) && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSearchQuery('');
+                    setActiveSeverityFilter('all');
+                    setOnlyFixable(false);
+                    setCurrentPage(1);
+                  }}
+                  className={`mt-3 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
+                    isDark ? 'border-white/[0.08] bg-white/[0.04] text-slate-300 hover:text-white' : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
+                  }`}
+                >
+                  <RefreshCw className="h-3.5 w-3.5" />
+                  <span>Reset All Filters</span>
+                </button>
+              )}
             </div>
           )}
         </>
-      ) : !inventory || inventory.packages.length === 0 ? (
-        <div className={`rounded-xl border border-dashed p-6 text-center ${
-          isDark ? 'border-white/[0.08] bg-black/10' : 'border-slate-200 bg-slate-50'
-        }`}>
-          <Lock className={`mx-auto h-6 w-6 ${muted}`} />
-          <p className={`mt-2 text-xs font-semibold ${isDark ? 'text-slate-200' : 'text-slate-800'}`}>
-            No Package Lockfile Detected
-          </p>
-          <p className={`mt-1 text-[11px] ${muted} max-w-md mx-auto`}>
-            To audit dependency vulnerabilities, ensure your project contains a <code className="font-mono text-[10px]">package-lock.json</code> or <code className="font-mono text-[10px]">npm-shrinkwrap.json</code>.
-          </p>
-        </div>
       ) : (
-        <div className={`rounded-xl border border-dashed p-6 text-center ${
-          isDark ? 'border-white/[0.08] bg-black/10' : 'border-slate-200 bg-slate-50'
+        <div className={`p-6 text-center rounded-xl border ${
+          isDark ? 'border-white/[0.06] bg-black/20' : 'border-slate-200 bg-slate-50'
         }`}>
-          <Lock className={`mx-auto h-6 w-6 ${muted}`} />
-          <p className={`mt-2 text-xs font-semibold ${isDark ? 'text-slate-200' : 'text-slate-800'}`}>
-            Dependency Audit Ready
+          <Lock className={`h-8 w-8 mx-auto mb-2 ${muted}`} />
+          <p className={`text-xs font-semibold ${isDark ? 'text-white' : 'text-slate-900'}`}>
+            Dependency Audit Pending
           </p>
-          <p className={`mt-1 text-[11px] ${muted} max-w-md mx-auto`}>
-            Click the button above to query OSV.dev for known security advisories.
+          <p className={`text-[11px] mt-1 ${muted}`}>
+            Click "Audit Dependencies" to scan locked packages against the live OSV.dev CVE database.
           </p>
         </div>
       )}

@@ -1,31 +1,42 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import {
   AlertTriangle,
   CheckCircle2,
   ChevronDown,
-  Gauge,
-  Lightbulb,
-  Loader2,
-  RefreshCw,
-  ShieldCheck,
-  Search,
-  Filter,
+  ChevronRight,
+  Download,
   Copy,
   Check,
-  Download,
   FileCode,
   Shield,
+  ShieldAlert,
+  ShieldCheck,
   Layers,
   Sparkles,
   ExternalLink,
-  ShieldAlert,
   TestTube,
   FileText,
   Workflow,
   CheckCheck,
+  Search,
+  Filter,
+  FolderTree,
+  ArrowUpRight,
+  SlidersHorizontal,
+  Terminal,
+  Wrench,
+  GitBranch,
+  Code2,
+  Hash,
+  Activity,
+  Flame,
+  Zap,
+  RefreshCw,
+  Loader2,
+  File,
 } from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
-import { CodebaseAnalysis, QualityFinding } from '../../types/codebase';
+import { CodebaseAnalysis, QualityFinding, QualityDimension } from '../../types/codebase';
 import { AIReviewPanel } from './AIReviewPanel';
 import { DependencySecurityPanel } from './DependencySecurityPanel';
 
@@ -36,6 +47,109 @@ interface CodebaseQualityViewProps {
   onUpdateAnalysis?: (analysis: CodebaseAnalysis) => void;
 }
 
+interface ParsedFindingInfo {
+  headline: string;
+  target?: string;
+  metrics: Array<{ label: string; value: string }>;
+  remediationAdvice: string[];
+}
+
+function parseFindingInfo(finding: QualityFinding): ParsedFindingInfo {
+  const detail = finding.detail || '';
+  const title = finding.title || '';
+
+  // 1. Complexity Findings
+  if (title.toLowerCase().includes('complexity') || detail.toLowerCase().includes('branch-complexity')) {
+    const match = detail.match(/([a-zA-Z0-9_$]+)\s+spans\s+(\d+)\s+lines(?:\s+and\s+has\s+a\s+branch-complexity\s+estimate\s+of\s+(\d+))?/i);
+    const funcName = match ? (match[1] === 'anonymous' ? 'anonymous handler' : `${match[1]}()`) : 'Monolithic routine';
+    const lines = match ? match[2] : undefined;
+    const complexity = match ? match[3] : undefined;
+
+    const metrics: Array<{ label: string; value: string }> = [];
+    if (lines) metrics.push({ label: 'Span', value: `${lines} LOC` });
+    if (complexity) metrics.push({ label: 'Complexity', value: `${complexity} / 15` });
+    metrics.push({ label: 'Target', value: funcName });
+
+    return {
+      headline: `High Complexity · ${funcName}`,
+      target: funcName,
+      metrics,
+      remediationAdvice: [
+        'Decompose monolithic handler into specialized single-purpose functions or domain services.',
+        'Extract complex branching (switch / nested if) into guard clauses or a lookup strategy map.',
+        'Separate I/O operations (database/network) from core data formatting and transformation logic.',
+      ],
+    };
+  }
+
+  // 2. Secret / Credential Findings
+  if (title.toLowerCase().includes('credential') || title.toLowerCase().includes('secret') || detail.toLowerCase().includes('credential')) {
+    return {
+      headline: 'Hard-coded Secret / Credential Risk',
+      target: finding.location?.path ? finding.location.path.split('/').pop() : 'Credentials',
+      metrics: [
+        { label: 'Risk', value: 'High Exposure' },
+        { label: 'Category', value: 'Credential Leak' },
+        { label: 'Remediation', value: 'Env Secrets' },
+      ],
+      remediationAdvice: [
+        'Migrate hard-coded tokens, keys, and connection strings to `.env.local` or a secret manager.',
+        'Verify that secret values are never exposed in client-facing bundles or server responses.',
+        'Confirm `.env*` files containing sensitive variables are strictly listed in `.gitignore`.',
+      ],
+    };
+  }
+
+  // 3. Testing Findings
+  if (title.toLowerCase().includes('test') || detail.toLowerCase().includes('test')) {
+    return {
+      headline: 'Missing Automated Test Infrastructure',
+      target: 'Test Harness',
+      metrics: [
+        { label: 'Coverage', value: '0% Automated' },
+        { label: 'Impact', value: 'Regression Risk' },
+        { label: 'Recommended', value: 'Vitest / Jest' },
+      ],
+      remediationAdvice: [
+        'Configure a modern test runner (e.g. Vitest, Jest, or Playwright for end-to-end flows).',
+        'Add test scripts (`"test": "vitest run"`) to `package.json` and configure CI verification.',
+        'Write baseline integration tests around critical business paths and action handlers.',
+      ],
+    };
+  }
+
+  // 4. Correctness / Syntax / Next.js
+  if (finding.category === 'correctness') {
+    return {
+      headline: title,
+      target: finding.location?.path ? finding.location.path.split('/').pop() : 'Syntax / API',
+      metrics: [
+        { label: 'Category', value: 'Correctness' },
+        { label: 'Confidence', value: (finding.confidence || 'medium').toUpperCase() },
+      ],
+      remediationAdvice: [
+        'Verify Next.js Server / Client component boundaries to avoid hydration mismatches.',
+        'Implement robust error boundaries and explicit exception handling.',
+        'Ensure all async operations are properly awaited and return validated schemas.',
+      ],
+    };
+  }
+
+  // Generic fallback
+  return {
+    headline: title,
+    target: finding.location?.path ? finding.location.path.split('/').pop() : undefined,
+    metrics: [
+      { label: 'Category', value: finding.category || 'Quality' },
+      { label: 'Priority', value: finding.priority.toUpperCase() },
+    ],
+    remediationAdvice: [
+      'Refactor this segment following architectural guidelines to improve modularity and safety.',
+      'Add inline documentation explaining non-trivial business logic and edge cases.',
+    ],
+  };
+}
+
 export const CodebaseQualityView: React.FC<CodebaseQualityViewProps> = React.memo(({
   analysis,
   onRescan,
@@ -44,13 +158,13 @@ export const CodebaseQualityView: React.FC<CodebaseQualityViewProps> = React.mem
 }) => {
   const { isDark } = useTheme();
   const muted = isDark ? 'text-slate-400' : 'text-slate-500';
-  const panel = isDark ? 'border-white/[0.08] bg-[#141518]' : 'border-slate-200/90 bg-white shadow-2xs';
 
   const [qualityPriorityFilter, setQualityPriorityFilter] = useState<'all' | 'high' | 'medium' | 'low'>('all');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [findingSearchQuery, setFindingSearchQuery] = useState('');
   const [selectedIndex, setSelectedIndex] = useState<number>(0);
   const [copiedRemediation, setCopiedRemediation] = useState(false);
+  const [copiedPath, setCopiedPath] = useState(false);
   const [copiedReport, setCopiedReport] = useState(false);
 
   // Pure static code findings only (preventing duplicate CVE entries since they have their dedicated panel)
@@ -59,12 +173,13 @@ export const CodebaseQualityView: React.FC<CodebaseQualityViewProps> = React.mem
       f => !f.ruleId?.startsWith('cve-') && !f.title.toLowerCase().startsWith('vulnerable package')
     );
   }, [analysis.quality?.findings]);
+
   const omittedQualityFindings = analysis.quality?.findingsOmitted || 0;
   const totalQualityFindings = qualityFindings.length + omittedQualityFindings;
 
-  const highPriorityCount = qualityFindings.filter(finding => finding.priority === 'high').length;
-  const mediumPriorityCount = qualityFindings.filter(finding => finding.priority === 'medium').length;
-  const lowPriorityCount = qualityFindings.filter(finding => finding.priority === 'low').length;
+  const highPriorityCount = qualityFindings.filter(f => f.priority === 'high').length;
+  const mediumPriorityCount = qualityFindings.filter(f => f.priority === 'medium').length;
+  const lowPriorityCount = qualityFindings.filter(f => f.priority === 'low').length;
 
   // Filtered findings list
   const filteredFindings = useMemo(() => {
@@ -84,10 +199,94 @@ export const CodebaseQualityView: React.FC<CodebaseQualityViewProps> = React.mem
   }, [qualityFindings, qualityPriorityFilter, categoryFilter, findingSearchQuery]);
 
   const selectedFinding: QualityFinding | undefined = filteredFindings[selectedIndex] || filteredFindings[0];
+  const parsedSelected = selectedFinding ? parseFindingInfo(selectedFinding) : null;
 
-  const copyRemediation = async () => {
+  // Health Score & Grade
+  const score = analysis.quality?.score ?? 0;
+  const grade = useMemo(() => {
+    if (score >= 90) return { letter: 'A', status: 'Optimal Rigor', color: 'text-emerald-400', border: 'border-emerald-500/30', bg: 'bg-emerald-500/10' };
+    if (score >= 80) return { letter: 'B+', status: 'Production Grade', color: 'text-emerald-400', border: 'border-emerald-500/30', bg: 'bg-emerald-500/10' };
+    if (score >= 70) return { letter: 'B', status: 'Solid Posture', color: 'text-blue-400', border: 'border-blue-500/30', bg: 'bg-blue-500/10' };
+    if (score >= 60) return { letter: 'C', status: 'Moderate Health', color: 'text-amber-400', border: 'border-amber-500/30', bg: 'bg-amber-500/10' };
+    if (score >= 45) return { letter: 'D', status: 'Action Required', color: 'text-amber-400', border: 'border-amber-500/30', bg: 'bg-amber-500/10' };
+    return { letter: 'F', status: 'Critical Deficits', color: 'text-rose-400', border: 'border-rose-500/30', bg: 'bg-rose-500/10' };
+  }, [score]);
+
+  // Executive Architecture Diagnostic Sentence
+  const executiveDiagnosis = useMemo(() => {
+    const cveCount = analysis.dependencyRisk?.advisories?.length || 0;
+    const testDim = analysis.quality?.dimensions.find(d => d.name === 'Tests');
+    const hasZeroTests = testDim && testDim.score === 0;
+
+    if (cveCount > 0 && hasZeroTests) {
+      return `Severe supply-chain exposure (${cveCount} CVE advisories) and zero automated test suites compromise release safety. Folder architecture and documentation remain solid, but urgent remediation is required for dependencies and test infrastructure.`;
+    }
+    if (cveCount > 0) {
+      return `Identified ${cveCount} supply-chain vulnerabilities in project dependencies. Code organization is healthy, but third-party package upgrades should be prioritized immediately.`;
+    }
+    if (score >= 80) {
+      return `High architectural discipline observed. Clean modular structure, consistent code practices, and healthy maintainability scores across inspected source files.`;
+    }
+    return `Codebase demonstrates workable fundamentals with key opportunities to reduce function complexity spikes, add automated test suites, and improve continuous verification.`;
+  }, [analysis.dependencyRisk, analysis.quality, score]);
+
+  // Group Dimensions into 2 Architectural Pillars
+  const { codeRigorPillar, securityVerificationPillar } = useMemo(() => {
+    const allDims = analysis.quality?.dimensions || [];
+    const rigorNames = ['Folder structure', 'Code maintainability', 'Code correctness', 'Documentation'];
+
+    const rigorDims: QualityDimension[] = [];
+    const secDims: QualityDimension[] = [];
+
+    for (const d of allDims) {
+      if (rigorNames.includes(d.name)) {
+        rigorDims.push(d);
+      } else {
+        secDims.push(d);
+      }
+    }
+
+    const calcSubtotal = (dims: QualityDimension[]) => {
+      const earned = dims.reduce((acc, d) => acc + d.score, 0);
+      const max = dims.reduce((acc, d) => acc + d.maxScore, 0);
+      const pct = max > 0 ? Math.round((earned / max) * 100) : 0;
+      return { earned, max, pct, dims };
+    };
+
+    return {
+      codeRigorPillar: calcSubtotal(rigorDims),
+      securityVerificationPillar: calcSubtotal(secDims),
+    };
+  }, [analysis.quality?.dimensions]);
+
+  // Copy Remediation Prompt
+  const copyRemediation = useCallback(async () => {
     if (!selectedFinding) return;
-    const prompt = `Please review and fix this architectural/code quality finding:\nTitle: ${selectedFinding.title}\nCategory: ${selectedFinding.category || 'Quality'}\nSeverity: ${selectedFinding.priority}\nDetail: ${selectedFinding.detail}\nFile: ${selectedFinding.location?.path || 'N/A'}${selectedFinding.codeSnippet ? `\nCode Context (around line ${selectedFinding.codeSnippet.focusLine}):\n${selectedFinding.codeSnippet.lines.join('\n')}` : ''}\nEvidence:\n${selectedFinding.evidence.map(e => `- ${e}`).join('\n')}`;
+    const file = selectedFinding.location?.path || 'Codebase general';
+    const line = selectedFinding.location?.line || selectedFinding.codeSnippet?.focusLine;
+    const locStr = line ? `${file}:${line}` : file;
+
+    const snippetText = selectedFinding.codeSnippet && selectedFinding.codeSnippet.lines.length > 0
+      ? `\n\n### Code Context (${locStr}):\n\`\`\`typescript\n${selectedFinding.codeSnippet.lines.join('\n')}\n\`\`\``
+      : '';
+
+    const evidenceText = selectedFinding.evidence.length > 0
+      ? `\n\n### Violations & AST Evidence:\n${selectedFinding.evidence.map(e => `- ${e}`).join('\n')}`
+      : '';
+
+    const prompt = `### Architectural Remediation Task
+**Issue:** ${selectedFinding.title}
+**Location:** \`${locStr}\`
+**Severity:** ${selectedFinding.priority.toUpperCase()} | **Category:** ${selectedFinding.category || 'quality'}
+
+### Detail
+${selectedFinding.detail}${snippetText}${evidenceText}
+
+### Remediation Objectives
+1. Refactor the identified code segment to resolve the structural violation.
+2. Break down cyclomatic complexity into modular, single-responsibility helper functions.
+3. Preserve existing functional behavior and public API contracts while ensuring clean type safety.`;
+
     try {
       await navigator.clipboard.writeText(prompt);
       setCopiedRemediation(true);
@@ -95,26 +294,46 @@ export const CodebaseQualityView: React.FC<CodebaseQualityViewProps> = React.mem
     } catch {
       // Ignore
     }
-  };
+  }, [selectedFinding]);
 
-  const exportAuditReport = () => {
+  const copyFilePath = useCallback(async () => {
+    if (!selectedFinding?.location?.path) return;
+    try {
+      await navigator.clipboard.writeText(selectedFinding.location.path);
+      setCopiedPath(true);
+      setTimeout(() => setCopiedPath(false), 1800);
+    } catch {
+      // Ignore
+    }
+  }, [selectedFinding]);
+
+  // Export Comprehensive Audit Report
+  const exportAuditReport = useCallback(() => {
     if (!analysis.quality) return;
     const lines = [
-      `# ${analysis.rootName} · Quality & Security Audit Report`,
+      `# ${analysis.rootName} · Architectural & Security Audit Report`,
       `*Generated on ${new Date().toLocaleString()} by Blueprint Studio*`,
       ``,
-      `## Summary`,
-      `- **Overall Health Score:** ${analysis.quality.score}/100`,
-      `- **Confidence:** ${analysis.quality.confidence}`,
+      `## Executive Summary`,
+      `- **Health Index:** ${analysis.quality.score}/100 (${grade.status})`,
+      `- **Evaluation Confidence:** ${analysis.quality.confidence.toUpperCase()}`,
       `- **Source Files Scanned:** ${analysis.quality.analyzedSourceFiles}`,
       `- **Estimated Lines of Code:** ${analysis.quality.linesOfCode ? analysis.quality.linesOfCode.toLocaleString() : 'N/A'}`,
-      `- **High-Priority Findings:** ${highPriorityCount}`,
-      `- **Total Static Findings:** ${totalQualityFindings}`,
+      `- **Critical / High Static Findings:** ${highPriorityCount}`,
+      `- **Total Static Code Findings:** ${totalQualityFindings}`,
+      `- **Supply-Chain CVE Advisories:** ${analysis.dependencyRisk?.advisories?.length || 0}`,
       ``,
-      `## Domain Dimensions`,
-      ...analysis.quality.dimensions.map(d => `- **${d.name}:** ${d.score}/${d.maxScore} (${d.summary})`),
+      `## Architectural Diagnosis`,
+      `> ${executiveDiagnosis}`,
       ``,
-      `## Detected Findings (${qualityFindings.length})`,
+      `## Architectural Posture Pillars`,
+      `### Code Rigor & Modularity (${codeRigorPillar.earned}/${codeRigorPillar.max} pts · ${codeRigorPillar.pct}%)`,
+      ...codeRigorPillar.dims.map(d => `- **${d.name}:** ${d.score}/${d.maxScore} pts · ${d.summary}`),
+      ``,
+      `### Security & Verification Posture (${securityVerificationPillar.earned}/${securityVerificationPillar.max} pts · ${securityVerificationPillar.pct}%)`,
+      ...securityVerificationPillar.dims.map(d => `- **${d.name}:** ${d.score}/${d.maxScore} pts · ${d.summary}`),
+      ``,
+      `## Static Code Findings (${qualityFindings.length})`,
       ...qualityFindings.map((f, i) => [
         `### ${i + 1}. [${f.priority.toUpperCase()}] ${f.title}`,
         `- **Category:** ${f.category || 'quality'}`,
@@ -124,245 +343,484 @@ export const CodebaseQualityView: React.FC<CodebaseQualityViewProps> = React.mem
         ``,
       ].filter(Boolean).join('\n')),
       ``,
-      analysis.dependencyRisk ? `## Dependency Vulnerabilities (OSV.dev)\n- **Packages Checked:** ${analysis.dependencyRisk.packagesChecked}\n- **Advisories:** ${analysis.dependencyRisk.advisories.length}\n${analysis.dependencyRisk.advisories.map(a => `- **${a.packageName}@${a.version}** [${a.severity}]: ${a.summary}`).join('\n')}` : '',
+      analysis.dependencyRisk ? `## Supply-Chain Vulnerabilities (OSV.dev)\n- **Packages Evaluated:** ${analysis.dependencyRisk.packagesChecked}\n- **Active Advisories:** ${analysis.dependencyRisk.advisories.length}\n${analysis.dependencyRisk.advisories.map(a => `- **${a.packageName}@${a.version}** [${a.severity}]: ${a.summary}`).join('\n')}` : '',
     ];
 
     const blob = new Blob([lines.join('\n')], { type: 'text/markdown;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `${analysis.rootName.toLowerCase().replace(/[^a-z0-9_-]/g, '_')}_quality_audit.md`;
+    link.download = `${analysis.rootName.toLowerCase().replace(/[^a-z0-9_-]/g, '_')}_architectural_audit.md`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
     setCopiedReport(true);
     setTimeout(() => setCopiedReport(false), 2000);
+  }, [analysis, grade.status, highPriorityCount, totalQualityFindings, executiveDiagnosis, codeRigorPillar, securityVerificationPillar, qualityFindings]);
+
+  // Dimension Icon Helper
+  const getDimensionIcon = (name: string) => {
+    switch (name.toLowerCase()) {
+      case 'folder structure':
+        return <FolderTree className="h-3.5 w-3.5 text-emerald-400" />;
+      case 'code maintainability':
+        return <Wrench className="h-3.5 w-3.5 text-blue-400" />;
+      case 'code correctness':
+        return <CheckCheck className="h-3.5 w-3.5 text-teal-400" />;
+      case 'documentation':
+        return <FileText className="h-3.5 w-3.5 text-cyan-400" />;
+      case 'dependency cves':
+        return <ShieldAlert className="h-3.5 w-3.5 text-rose-400" />;
+      case 'security risks':
+        return <Shield className="h-3.5 w-3.5 text-amber-400" />;
+      case 'tests':
+        return <TestTube className="h-3.5 w-3.5 text-violet-400" />;
+      case 'ci checks':
+        return <Workflow className="h-3.5 w-3.5 text-indigo-400" />;
+      default:
+        return <Activity className="h-3.5 w-3.5 text-slate-400" />;
+    }
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
       {analysis.quality ? (
         <>
-          {/* Top Health Scorecard Banner - Balanced 2-Section Grid */}
-          <section className={`rounded-xl border p-4 sm:p-5 ${panel}`}>
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-center">
-              {/* Left Column: Radial Score & Health Status (4 cols) */}
-              <div className={`lg:col-span-4 flex flex-col justify-between h-full pb-4 lg:pb-0 lg:pr-6 border-b lg:border-b-0 ${
-                isDark ? 'border-white/[0.06]' : 'border-slate-200/70'
-              }`}>
-                <div className="flex items-center gap-4">
-                  <div
-                    className="relative flex h-16 w-16 shrink-0 items-center justify-center rounded-full p-[5px]"
-                    style={{
-                      background: `conic-gradient(${
-                        analysis.quality.score >= 80 ? '#10b981' : analysis.quality.score >= 60 ? '#3b82f6' : '#f59e0b'
-                      } ${analysis.quality.score * 3.6}deg, ${isDark ? '#ffffff18' : '#e2e8f0'} 0deg)`,
-                    }}
-                  >
-                    <div className={`flex h-full w-full flex-col items-center justify-center rounded-full ${isDark ? 'bg-[#141518]' : 'bg-white'}`}>
-                      <span className={`text-xl font-bold leading-none ${isDark ? 'text-white' : 'text-slate-950'}`}>{analysis.quality.score}</span>
-                      <span className={`text-[8px] font-mono ${muted}`}>/ 100</span>
-                    </div>
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className={`text-[10px] font-semibold uppercase tracking-wider ${muted}`}>Code & Security Health</span>
-                      {analysis.dependencyRisk && (
-                        <span className={`text-[9px] font-mono px-1.5 py-0.2 rounded border ${
-                          (analysis.dependencyRisk.advisories || []).some(a => a.severity === 'critical')
-                            ? 'border-rose-500/30 bg-rose-500/10 text-rose-400'
-                            : (analysis.dependencyRisk.advisories || []).some(a => a.severity === 'high')
-                            ? 'border-amber-500/30 bg-amber-500/10 text-amber-400'
-                            : 'border-emerald-500/30 bg-emerald-500/10 text-emerald-400'
-                        }`}>
-                          CVE Factored
-                        </span>
-                      )}
-                    </div>
-                    <h3 className={`mt-0.5 text-base font-semibold ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                      {analysis.quality.score >= 80 ? 'Optimal Architecture' : analysis.quality.score >= 60 ? 'Moderate Health' : 'Needs Remediation'}
-                    </h3>
-                    <p className={`mt-0.5 text-[10px] ${muted}`}>
-                      {analysis.quality.confidence} confidence · {analysis.quality.analyzedSourceFiles} files evaluated
-                      {analysis.dependencyRisk && ` · ${analysis.dependencyRisk.advisories.length} CVEs factored`}
-                    </p>
-                  </div>
-                </div>
-
-                <div className={`mt-4 flex items-center justify-between pt-3 border-t ${
-                  isDark ? 'border-white/[0.06]' : 'border-slate-200/70'
+          {/* ========================================================================= */}
+          {/* 1. BESPOKE ARCHITECTURAL HEALTH & POSTURE ENGINE (Executive Dashboard)   */}
+          {/* ========================================================================= */}
+          <section className={`rounded-2xl border transition-all relative overflow-hidden ${
+            isDark
+              ? 'border-white/[0.08] bg-gradient-to-b from-[#141619] via-[#111215] to-[#0E0F12] shadow-xl'
+              : 'border-slate-200/90 bg-white shadow-xs'
+          }`}>
+            {/* Top Bar with System Identity & Actions */}
+            <div className={`px-5 py-3.5 border-b flex flex-wrap items-center justify-between gap-3 ${
+              isDark ? 'border-white/[0.06] bg-white/[0.01]' : 'border-slate-100 bg-slate-50/50'
+            }`}>
+              <div className="flex items-center gap-2.5">
+                <div className={`flex h-6 w-6 items-center justify-center rounded-md border ${
+                  isDark ? 'border-blue-500/30 bg-blue-500/10 text-blue-400' : 'border-blue-200 bg-blue-50 text-blue-600'
                 }`}>
-                  <span className={`text-[11px] ${muted}`}>
-                    {highPriorityCount} critical/high static findings
+                  <Activity className="h-3.5 w-3.5" />
+                </div>
+                <div className="flex items-center gap-2">
+                  <h2 className={`text-xs font-semibold uppercase tracking-wider ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                    Architectural Posture & Rigor Engine
+                  </h2>
+                  <span className={`text-[10px] font-mono px-2 py-0.5 rounded-full border ${
+                    isDark ? 'border-white/[0.07] bg-white/[0.03] text-slate-300' : 'border-slate-200 bg-slate-100 text-slate-700'
+                  }`}>
+                    {analysis.rootName}
                   </span>
-                  <button
-                    type="button"
-                    onClick={exportAuditReport}
-                    className={`inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-xs font-medium transition-colors ${
-                      isDark
-                        ? 'border-white/[0.08] bg-white/[0.03] text-slate-300 hover:bg-white/[0.08] hover:text-white'
-                        : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50 hover:text-slate-900 shadow-2xs'
-                    }`}
-                  >
-                    {copiedReport ? <Check className="h-3 w-3 text-emerald-500" /> : <Download className="h-3 w-3 text-blue-500" />}
-                    <span>{copiedReport ? 'Exported' : 'Export Audit (.md)'}</span>
-                  </button>
                 </div>
               </div>
 
-              {/* Right Column: Domain Dimensions in a Spacious Responsive Grid (8 cols) */}
-              <div className="lg:col-span-8 grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-2.5">
-                {analysis.quality.dimensions.map(dim => {
-                  const pct = dim.maxScore ? Math.round((dim.score / dim.maxScore) * 100) : 0;
-                  const isCritical = dim.score === 0 && dim.maxScore > 0;
-                  const statusColor =
-                    dim.assessmentStatus === 'not-assessed'
-                      ? 'text-slate-400 bg-slate-400/10'
-                      : isCritical
-                      ? 'text-rose-400 bg-rose-500/10'
-                      : pct >= 80
-                      ? 'text-emerald-500 bg-emerald-500/10'
-                      : pct >= 50
-                      ? 'text-blue-500 bg-blue-500/10'
-                      : 'text-amber-500 bg-amber-500/10';
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={exportAuditReport}
+                  className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition-all ${
+                    isDark
+                      ? 'border-white/[0.08] bg-white/[0.03] text-slate-300 hover:bg-white/[0.08] hover:text-white'
+                      : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50 hover:text-slate-900 shadow-2xs'
+                  }`}
+                  title="Export complete architectural audit to markdown"
+                >
+                  {copiedReport ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : <Download className="h-3.5 w-3.5 text-blue-400" />}
+                  <span>{copiedReport ? 'Audit Exported' : 'Export Audit (.md)'}</span>
+                </button>
 
-                  const barColor =
-                    dim.assessmentStatus === 'not-assessed'
-                      ? 'bg-slate-500/30'
-                      : isCritical
-                      ? 'bg-rose-500'
-                      : pct >= 80
-                      ? 'bg-emerald-500'
-                      : pct >= 50
-                      ? 'bg-blue-500'
-                      : 'bg-amber-500';
+                <button
+                  type="button"
+                  onClick={onRescan}
+                  disabled={isRescanning}
+                  className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-semibold transition-all disabled:opacity-60 ${
+                    isDark
+                      ? 'border-blue-500/30 bg-blue-500/10 text-blue-300 hover:bg-blue-500/20'
+                      : 'border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100'
+                  }`}
+                >
+                  {isRescanning ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
+                  <span>{isRescanning ? 'Evaluating…' : 'Re-scan Engine'}</span>
+                </button>
+              </div>
+            </div>
 
-                  return (
-                    <div key={dim.name} className={`p-2.5 rounded-lg border flex flex-col justify-between ${
-                      isDark ? 'border-white/[0.06] bg-white/[0.02]' : 'border-slate-200 bg-slate-50/70'
-                    }`}>
-                      <div>
-                        <div className="flex items-center justify-between mb-1">
-                          <p className={`text-[11px] font-medium truncate ${isDark ? 'text-slate-300' : 'text-slate-700'}`} title={dim.name}>
-                            {dim.name}
-                          </p>
-                          <span className={`text-[9px] font-semibold px-1 rounded ${statusColor}`}>
-                            {dim.assessmentStatus === 'not-assessed' ? 'N/A' : `${pct}%`}
-                          </span>
-                        </div>
-                        <span className="font-mono text-xs font-semibold">
-                          {dim.maxScore ? `${dim.score}/${dim.maxScore}` : '—'}
+            {/* Main Scorecard Body: Left Executive Grade + Right 2 Pillars */}
+            <div className="p-5 lg:p-6 grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+              {/* Left Column: Grade, Executive Diagnosis, and Vital Stats (5 cols) */}
+              <div className="lg:col-span-5 flex flex-col justify-between h-full space-y-5">
+                {/* Executive Grade Banner */}
+                <div className={`p-4 rounded-xl border relative overflow-hidden ${
+                  isDark ? 'border-white/[0.06] bg-black/25' : 'border-slate-200 bg-slate-50/60'
+                }`}>
+                  <div className="flex items-center gap-4">
+                    {/* Stylized Grade Badge */}
+                    <div className={`flex flex-col items-center justify-center h-20 w-20 rounded-2xl border shrink-0 font-mono shadow-inner ${grade.bg} ${grade.border}`}>
+                      <span className={`text-3xl font-extrabold tracking-tight leading-none ${grade.color}`}>
+                        {grade.letter}
+                      </span>
+                      <span className="text-[10px] font-semibold opacity-70 mt-1">
+                        GRADE
+                      </span>
+                    </div>
+
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-baseline gap-2">
+                        <span className={`text-3xl font-bold font-mono tracking-tight leading-none ${isDark ? 'text-white' : 'text-slate-950'}`}>
+                          {score}
+                        </span>
+                        <span className={`text-xs font-mono font-medium ${muted}`}>
+                          / 100 HEALTH INDEX
                         </span>
                       </div>
-
-                      {/* Mini Progress Bar */}
-                      <div className="mt-2.5 h-1 w-full rounded-full bg-slate-200/60 dark:bg-white/[0.06] overflow-hidden">
-                        <div
-                          className={`h-full rounded-full transition-all duration-300 ${barColor}`}
-                          style={{ width: `${Math.min(pct, 100)}%` }}
-                        />
-                      </div>
+                      <h3 className={`mt-1 text-sm font-semibold truncate ${grade.color}`}>
+                        {grade.status}
+                      </h3>
+                      <p className={`mt-0.5 text-[11px] ${muted}`}>
+                        {analysis.quality.confidence.toUpperCase()} confidence evaluation
+                      </p>
                     </div>
-                  );
-                })}
+                  </div>
+
+                  {/* Horizontal Segmented Distribution Bar */}
+                  <div className="mt-4 pt-3.5 border-t border-white/[0.06]">
+                    <div className="flex items-center justify-between text-[10px] font-mono mb-1.5">
+                      <span className={muted}>System Balance</span>
+                      <span className={isDark ? 'text-slate-300' : 'text-slate-700'}>
+                        {codeRigorPillar.earned + securityVerificationPillar.earned} / {codeRigorPillar.max + securityVerificationPillar.max} pts
+                      </span>
+                    </div>
+                    <div className="h-2 w-full rounded-full bg-slate-800/40 overflow-hidden flex">
+                      <div
+                        className="h-full bg-emerald-500 transition-all duration-500"
+                        style={{ width: `${codeRigorPillar.pct * 0.5}%` }}
+                        title={`Code Rigor: ${codeRigorPillar.pct}%`}
+                      />
+                      <div
+                        className="h-full bg-blue-500 transition-all duration-500"
+                        style={{ width: `${securityVerificationPillar.pct * 0.5}%` }}
+                        title={`Security & Verification: ${securityVerificationPillar.pct}%`}
+                      />
+                    </div>
+                    <div className="mt-1.5 flex items-center justify-between text-[9px] font-mono text-slate-400">
+                      <span className="flex items-center gap-1">
+                        <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" /> Code Rigor ({codeRigorPillar.pct}%)
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <span className="h-1.5 w-1.5 rounded-full bg-blue-500" /> Verification ({securityVerificationPillar.pct}%)
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Executive Diagnosis Synopsis */}
+                <div className={`p-3.5 rounded-xl border text-xs leading-relaxed ${
+                  isDark ? 'border-white/[0.05] bg-white/[0.015] text-slate-300' : 'border-slate-200 bg-white text-slate-700'
+                }`}>
+                  <p className="font-sans">
+                    <span className="font-semibold text-white mr-1.5">Executive Diagnosis:</span>
+                    {executiveDiagnosis}
+                  </p>
+                </div>
+
+                {/* Metadata Metrics Row */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1">
+                  <div className={`p-2.5 rounded-lg border ${
+                    isDark ? 'border-white/[0.05] bg-white/[0.01]' : 'border-slate-200/80 bg-slate-50/70'
+                  }`}>
+                    <span className={`block text-[9px] uppercase tracking-wider font-semibold ${muted}`}>
+                      Files Scanned
+                    </span>
+                    <span className="font-mono text-xs font-bold text-white mt-0.5 block">
+                      {analysis.quality.analyzedSourceFiles}
+                    </span>
+                  </div>
+
+                  <div className={`p-2.5 rounded-lg border ${
+                    isDark ? 'border-white/[0.05] bg-white/[0.01]' : 'border-slate-200/80 bg-slate-50/70'
+                  }`}>
+                    <span className={`block text-[9px] uppercase tracking-wider font-semibold ${muted}`}>
+                      Static Issues
+                    </span>
+                    <span className="font-mono text-xs font-bold text-amber-400 mt-0.5 block">
+                      {totalQualityFindings}
+                    </span>
+                  </div>
+
+                  <div className={`p-2.5 rounded-lg border ${
+                    isDark ? 'border-white/[0.05] bg-white/[0.01]' : 'border-slate-200/80 bg-slate-50/70'
+                  }`}>
+                    <span className={`block text-[9px] uppercase tracking-wider font-semibold ${muted}`}>
+                      Supply CVEs
+                    </span>
+                    <span className="font-mono text-xs font-bold text-rose-400 mt-0.5 block">
+                      {analysis.dependencyRisk?.advisories?.length || 0}
+                    </span>
+                  </div>
+
+                  <div className={`p-2.5 rounded-lg border ${
+                    isDark ? 'border-white/[0.05] bg-white/[0.01]' : 'border-slate-200/80 bg-slate-50/70'
+                  }`}>
+                    <span className={`block text-[9px] uppercase tracking-wider font-semibold ${muted}`}>
+                      Codebase LOC
+                    </span>
+                    <span className="font-mono text-xs font-bold text-white mt-0.5 block">
+                      {analysis.quality.linesOfCode ? `${Math.round(analysis.quality.linesOfCode / 1000)}k` : '—'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Right Column: 2 Core Architectural Pillars (7 cols) */}
+              <div className="lg:col-span-7 grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Pillar 1: Code Rigor & Modularity */}
+                <div className={`p-4 rounded-xl border flex flex-col justify-between ${
+                  isDark ? 'border-white/[0.07] bg-black/20' : 'border-slate-200 bg-white'
+                }`}>
+                  <div>
+                    <div className="flex items-center justify-between pb-2.5 border-b border-white/[0.06] mb-3">
+                      <div className="flex items-center gap-2">
+                        <FolderTree className="h-4 w-4 text-emerald-400" />
+                        <h4 className="text-xs font-semibold tracking-wide text-white">
+                          Code Rigor & Modularity
+                        </h4>
+                      </div>
+                      <span className={`text-[10px] font-mono font-semibold px-2 py-0.5 rounded-md ${
+                        codeRigorPillar.pct >= 75
+                          ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30'
+                          : 'bg-amber-500/15 text-amber-400 border border-amber-500/30'
+                      }`}>
+                        {codeRigorPillar.earned}/{codeRigorPillar.max} pts ({codeRigorPillar.pct}%)
+                      </span>
+                    </div>
+
+                    <div className="space-y-3">
+                      {codeRigorPillar.dims.map(dim => {
+                        const pct = dim.maxScore > 0 ? Math.round((dim.score / dim.maxScore) * 100) : 0;
+                        const isPerfect = pct === 100;
+                        const isWarn = pct < 60;
+
+                        return (
+                          <div key={dim.name} className="group">
+                            <div className="flex items-center justify-between text-xs mb-1">
+                              <span className="flex items-center gap-1.5 font-medium text-slate-200">
+                                {getDimensionIcon(dim.name)}
+                                <span>{dim.name}</span>
+                              </span>
+                              <span className="font-mono text-[11px] font-semibold text-slate-300">
+                                {dim.score}/{dim.maxScore}
+                              </span>
+                            </div>
+                            <div className="h-1.5 w-full rounded-full bg-white/[0.06] overflow-hidden">
+                              <div
+                                className={`h-full rounded-full transition-all duration-300 ${
+                                  isPerfect ? 'bg-emerald-500' : isWarn ? 'bg-amber-500' : 'bg-blue-500'
+                                }`}
+                                style={{ width: `${Math.min(pct, 100)}%` }}
+                              />
+                            </div>
+                            <p className="mt-1 text-[10px] text-slate-400 truncate leading-tight font-sans">
+                              {dim.summary}
+                            </p>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Pillar 2: Security & Verification Posture */}
+                <div className={`p-4 rounded-xl border flex flex-col justify-between ${
+                  isDark ? 'border-white/[0.07] bg-black/20' : 'border-slate-200 bg-white'
+                }`}>
+                  <div>
+                    <div className="flex items-center justify-between pb-2.5 border-b border-white/[0.06] mb-3">
+                      <div className="flex items-center gap-2">
+                        <Shield className="h-4 w-4 text-blue-400" />
+                        <h4 className="text-xs font-semibold tracking-wide text-white">
+                          Security & Verification
+                        </h4>
+                      </div>
+                      <span className={`text-[10px] font-mono font-semibold px-2 py-0.5 rounded-md ${
+                        securityVerificationPillar.pct >= 75
+                          ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30'
+                          : securityVerificationPillar.pct >= 40
+                          ? 'bg-amber-500/15 text-amber-400 border border-amber-500/30'
+                          : 'bg-rose-500/15 text-rose-400 border border-rose-500/30'
+                      }`}>
+                        {securityVerificationPillar.earned}/{securityVerificationPillar.max} pts ({securityVerificationPillar.pct}%)
+                      </span>
+                    </div>
+
+                    <div className="space-y-3">
+                      {securityVerificationPillar.dims.map(dim => {
+                        const pct = dim.maxScore > 0 ? Math.round((dim.score / dim.maxScore) * 100) : 0;
+                        const isCritical = dim.score === 0 && dim.maxScore > 0;
+                        const isHigh = pct >= 80;
+
+                        return (
+                          <div key={dim.name} className="group">
+                            <div className="flex items-center justify-between text-xs mb-1">
+                              <span className="flex items-center gap-1.5 font-medium text-slate-200">
+                                {getDimensionIcon(dim.name)}
+                                <span>{dim.name}</span>
+                              </span>
+                              <span className={`font-mono text-[11px] font-semibold ${
+                                isCritical ? 'text-rose-400 font-bold' : 'text-slate-300'
+                              }`}>
+                                {dim.score}/{dim.maxScore}
+                              </span>
+                            </div>
+                            <div className="h-1.5 w-full rounded-full bg-white/[0.06] overflow-hidden">
+                              <div
+                                className={`h-full rounded-full transition-all duration-300 ${
+                                  isCritical ? 'bg-rose-500' : isHigh ? 'bg-emerald-500' : 'bg-amber-500'
+                                }`}
+                                style={{ width: `${Math.min(pct, 100)}%` }}
+                              />
+                            </div>
+                            <p className="mt-1 text-[10px] text-slate-400 truncate leading-tight font-sans">
+                              {dim.summary}
+                            </p>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           </section>
 
-          {/* Dependency Vulnerability Scanner (OSV.dev) */}
+          {/* ========================================================================= */}
+          {/* 2. SUPPLY CHAIN VULNERABILITY ADVISORIES (Dedicated OSV.dev Panel)        */}
+          {/* ========================================================================= */}
           <DependencySecurityPanel analysis={analysis} onUpdateAnalysis={onUpdateAnalysis} />
 
-          {/* 2-Column Master-Detail Finding Inspector */}
-          <section className={`rounded-xl border p-4 sm:p-5 ${panel}`}>
-            <div className="flex flex-wrap items-center justify-between gap-3 mb-3.5">
-              <div>
-                <h3 className={`text-xs font-semibold uppercase tracking-wider ${isDark ? 'text-slate-300' : 'text-slate-800'}`}>
-                  Static Code Findings Inspector
-                </h3>
-                <p className={`mt-0.5 text-[11px] ${muted}`}>
-                  Select any finding to inspect AST violation context, source lines, and code architecture issues.
-                </p>
+          {/* ========================================================================= */}
+          {/* 3. CODE ARCHITECTURE & STATIC FINDINGS (Linear-Style Issue Workbench)     */}
+          {/* ========================================================================= */}
+          <section className={`rounded-2xl border transition-all overflow-hidden ${
+            isDark
+              ? 'border-white/[0.08] bg-gradient-to-b from-[#141619] to-[#101114] shadow-xl'
+              : 'border-slate-200/90 bg-white shadow-xs'
+          }`}>
+            {/* Header & Filter Toolbar */}
+            <div className={`p-4 sm:p-5 border-b ${
+              isDark ? 'border-white/[0.06] bg-white/[0.01]' : 'border-slate-100 bg-slate-50/50'
+            }`}>
+              <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className={`text-xs font-semibold uppercase tracking-wider ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                      Code Architecture & Static Findings
+                    </h3>
+                    <span className={`rounded-full px-2 py-0.5 text-[10px] font-mono border ${
+                      isDark ? 'border-white/[0.08] bg-white/[0.03] text-slate-300' : 'border-slate-200 bg-slate-100 text-slate-700'
+                    }`}>
+                      {filteredFindings.length} of {qualityFindings.length} active
+                    </span>
+                  </div>
+                  <p className={`mt-0.5 text-xs ${muted}`}>
+                    AST inspection detecting complexity spikes, missing test suites, and credential patterns.
+                  </p>
+                </div>
+
+                {/* Priority Filter Chips */}
+                <div className={`flex items-center gap-1 p-0.5 rounded-lg border ${
+                  isDark ? 'border-white/[0.06] bg-black/30' : 'border-slate-200 bg-slate-100'
+                }`}>
+                  {(['all', 'high', 'medium', 'low'] as const).map(p => {
+                    const count = p === 'all' ? qualityFindings.length : qualityFindings.filter(f => f.priority === p).length;
+                    const isSelected = qualityPriorityFilter === p;
+                    return (
+                      <button
+                        key={p}
+                        type="button"
+                        onClick={() => {
+                          setQualityPriorityFilter(p);
+                          setSelectedIndex(0);
+                        }}
+                        className={`rounded-md px-2.5 py-1 text-xs font-medium capitalize transition-all ${
+                          isSelected
+                            ? isDark
+                              ? 'bg-[#1E2025] text-white shadow-xs border border-white/[0.08]'
+                              : 'bg-white text-slate-900 shadow-xs border border-slate-200'
+                            : isDark
+                            ? 'text-slate-400 hover:text-slate-200'
+                            : 'text-slate-600 hover:text-slate-900'
+                        }`}
+                      >
+                        {p} <span className="opacity-70 font-mono text-[10px]">({count})</span>
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
 
-              {/* Priority Chips */}
-              <div className={`flex flex-wrap items-center gap-1 p-0.5 rounded-lg border ${
-                isDark ? 'border-white/[0.06] bg-black/25' : 'border-slate-200 bg-slate-100/80'
-              }`}>
-                {(['all', 'high', 'medium', 'low'] as const).map(p => {
-                  const count = p === 'all' ? qualityFindings.length : qualityFindings.filter(f => f.priority === p).length;
-                  const isSelected = qualityPriorityFilter === p;
-                  return (
+              {/* Search & Category Filter Row */}
+              <div className="flex flex-col sm:flex-row gap-2.5">
+                <div className="relative flex-1">
+                  <Search className={`absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 ${muted}`} />
+                  <input
+                    type="text"
+                    value={findingSearchQuery}
+                    onChange={e => {
+                      setFindingSearchQuery(e.target.value);
+                      setSelectedIndex(0);
+                    }}
+                    placeholder="Search findings by rule, function name, message, or file path…"
+                    className={`w-full rounded-lg border pl-9 pr-3 py-1.5 text-xs outline-none transition-all ${
+                      isDark
+                        ? 'border-white/[0.08] bg-black/20 text-white placeholder:text-slate-500 focus:border-blue-500'
+                        : 'border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:border-blue-500'
+                    }`}
+                  />
+                  {findingSearchQuery && (
                     <button
-                      key={p}
                       type="button"
-                      onClick={() => {
-                        setQualityPriorityFilter(p);
-                        setSelectedIndex(0);
-                      }}
-                      className={`rounded-md px-2.5 py-0.5 text-[11px] font-medium capitalize transition-all ${
-                        isSelected
-                          ? (isDark ? 'bg-[#1E2024] text-white shadow-xs border border-white/[0.08]' : 'bg-white text-slate-900 shadow-xs border border-slate-200/80')
-                          : (isDark ? 'text-slate-400 hover:text-slate-200' : 'text-slate-600 hover:text-slate-900')
-                      }`}
+                      onClick={() => setFindingSearchQuery('')}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-slate-400 hover:text-white"
                     >
-                      {p} <span className="opacity-70 font-mono text-[10px]">{count}</span>
+                      ✕
                     </button>
-                  );
-                })}
-              </div>
-            </div>
+                  )}
+                </div>
 
-            {/* Filter & Search Bar */}
-            <div className="flex flex-col sm:flex-row gap-2 mb-3.5">
-              <div className="relative flex-1">
-                <Search className={`absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 ${muted}`} />
-                <input
-                  type="text"
-                  value={findingSearchQuery}
+                <select
+                  value={categoryFilter}
                   onChange={e => {
-                    setFindingSearchQuery(e.target.value);
+                    setCategoryFilter(e.target.value);
                     setSelectedIndex(0);
                   }}
-                  placeholder="Search findings by rule, message, or file path…"
-                  className={`w-full rounded-lg border pl-8 pr-3 py-1.5 text-xs outline-none transition-colors ${
-                    isDark
-                      ? 'border-white/[0.08] bg-black/20 text-white placeholder:text-slate-600 focus:border-blue-500'
-                      : 'border-slate-200 bg-slate-50 text-slate-900 placeholder:text-slate-400 focus:border-blue-500'
+                  className={`rounded-lg border px-3 py-1.5 text-xs outline-none ${
+                    isDark ? 'border-white/[0.08] bg-black/20 text-white' : 'border-slate-200 bg-white text-slate-900'
                   }`}
-                />
+                >
+                  <option value="all">All Categories</option>
+                  <option value="maintainability">Maintainability ({qualityFindings.filter(f => f.category === 'maintainability').length})</option>
+                  <option value="security">Security ({qualityFindings.filter(f => f.category === 'security').length})</option>
+                  <option value="testing">Testing ({qualityFindings.filter(f => f.category === 'testing').length})</option>
+                  <option value="correctness">Correctness ({qualityFindings.filter(f => f.category === 'correctness').length})</option>
+                  <option value="structure">Structure ({qualityFindings.filter(f => f.category === 'structure').length})</option>
+                  <option value="delivery">Delivery ({qualityFindings.filter(f => f.category === 'delivery').length})</option>
+                </select>
               </div>
-
-              {/* Category Dropdown */}
-              <select
-                value={categoryFilter}
-                onChange={e => {
-                  setCategoryFilter(e.target.value);
-                  setSelectedIndex(0);
-                }}
-                className={`rounded-lg border px-2.5 py-1.5 text-xs outline-none ${
-                  isDark ? 'border-white/[0.08] bg-black/20 text-white' : 'border-slate-200 bg-slate-50 text-slate-900'
-                }`}
-              >
-                <option value="all">All Categories</option>
-                <option value="security">Security</option>
-                <option value="correctness">Correctness</option>
-                <option value="maintainability">Maintainability</option>
-                <option value="testing">Testing</option>
-                <option value="structure">Structure</option>
-                <option value="delivery">Delivery</option>
-              </select>
             </div>
 
-            {/* 2-Column Split View - Fixed Viewport with Independent Scrolling */}
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-3.5 items-start">
+            {/* Split-Pane: Master Findings List (5 cols) & Detail Inspector (7 cols) */}
+            <div className="p-4 sm:p-5 grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
               {/* Left Column: Master Findings List (5 cols) */}
-              <div className={`lg:col-span-5 h-[520px] overflow-y-auto space-y-1.5 p-1 rounded-lg border ${
-                isDark ? 'border-white/[0.06] bg-black/20' : 'border-slate-200 bg-slate-50/50'
+              <div className={`lg:col-span-5 h-[560px] overflow-y-auto space-y-2 p-1.5 rounded-xl border ${
+                isDark ? 'border-white/[0.06] bg-black/25' : 'border-slate-200 bg-slate-50/50'
               }`}>
                 {filteredFindings.length > 0 ? (
                   filteredFindings.map((finding, idx) => {
                     const isSelected = selectedFinding === finding;
+                    const parsed = parseFindingInfo(finding);
                     const isHigh = finding.priority === 'high';
                     const isMedium = finding.priority === 'medium';
 
@@ -371,221 +829,304 @@ export const CodebaseQualityView: React.FC<CodebaseQualityViewProps> = React.mem
                         key={`${finding.ruleId || finding.title}-${idx}`}
                         type="button"
                         onClick={() => setSelectedIndex(idx)}
-                        className={`w-full text-left p-2.5 rounded-lg border transition-all ${
+                        className={`w-full text-left p-3 rounded-xl border transition-all relative ${
                           isSelected
-                            ? (isDark
-                                ? 'border-blue-500 bg-blue-500/10 ring-1 ring-blue-500/40 text-white'
-                                : 'border-blue-500 bg-blue-50/90 ring-1 ring-blue-500/30 text-slate-950')
-                            : (isDark
-                                ? 'border-white/[0.05] bg-white/[0.02] hover:bg-white/[0.04]'
-                                : 'border-slate-200/70 bg-white hover:bg-slate-50')
+                            ? isDark
+                              ? 'border-blue-500/70 bg-blue-500/[0.08] ring-1 ring-blue-500/30 text-white'
+                              : 'border-blue-500 bg-blue-50/80 ring-1 ring-blue-500/30 text-slate-950'
+                            : isDark
+                            ? 'border-white/[0.05] bg-white/[0.02] hover:bg-white/[0.04] text-slate-300'
+                            : 'border-slate-200/80 bg-white hover:bg-slate-50 text-slate-800'
                         }`}
                       >
+                        {/* Title & Severity */}
                         <div className="flex items-start justify-between gap-2">
-                          <div className="flex items-center gap-1.5 min-w-0">
+                          <div className="flex items-center gap-2 min-w-0">
                             <span className={`h-2 w-2 rounded-full shrink-0 ${
                               isHigh ? 'bg-rose-500' : isMedium ? 'bg-amber-500' : 'bg-blue-500'
                             }`} />
-                            <h4 className="text-xs font-semibold truncate" title={finding.title}>
-                              {finding.title}
+                            <h4 className="text-xs font-semibold truncate" title={parsed.headline}>
+                              {parsed.headline}
                             </h4>
                           </div>
-                          <span className={`shrink-0 rounded px-1.5 py-0.2 text-[8px] font-semibold uppercase ${
+
+                          <span className={`shrink-0 rounded px-1.5 py-0.5 text-[9px] font-mono font-semibold uppercase ${
                             isHigh
-                              ? 'bg-rose-500/10 text-rose-500'
+                              ? 'bg-rose-500/15 text-rose-400 border border-rose-500/30'
                               : isMedium
-                              ? 'bg-amber-500/10 text-amber-500'
-                              : 'bg-blue-500/10 text-blue-500'
+                              ? 'bg-amber-500/15 text-amber-400 border border-amber-500/30'
+                              : 'bg-blue-500/15 text-blue-400 border border-blue-500/30'
                           }`}>
                             {finding.priority}
                           </span>
                         </div>
-                        <p className={`mt-1 text-[11px] line-clamp-2 leading-4 ${muted}`}>
-                          {finding.detail}
-                        </p>
-                        <div className="mt-1.5 flex items-center justify-between text-[9px]">
-                          <span className={`font-mono truncate max-w-[200px] ${muted}`}>
-                            {finding.location?.path || (finding.category || 'quality')}
-                          </span>
-                          <span className="capitalize opacity-75">
-                            Confidence: {finding.confidence || 'medium'}
-                          </span>
+
+                        {/* File Location Breadcrumb */}
+                        <div className="mt-1.5 flex items-center gap-1.5 text-[10px] font-mono text-slate-400 truncate">
+                          <FileCode className="h-3 w-3 shrink-0 opacity-70" />
+                          <span className="truncate">{finding.location?.path || (finding.category || 'General')}</span>
                         </div>
+
+                        {/* Metric Tags */}
+                        {parsed.metrics.length > 0 && (
+                          <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                            {parsed.metrics.map((m, mIdx) => (
+                              <span
+                                key={mIdx}
+                                className={`text-[9px] font-mono px-1.5 py-0.5 rounded border ${
+                                  isDark
+                                    ? 'border-white/[0.07] bg-white/[0.03] text-slate-300'
+                                    : 'border-slate-200 bg-slate-100 text-slate-700'
+                                }`}
+                              >
+                                {m.label}: <strong className="text-white">{m.value}</strong>
+                              </span>
+                            ))}
+                          </div>
+                        )}
                       </button>
                     );
                   })
                 ) : (
-                  <div className="p-8 text-center">
-                    <CheckCircle2 className="mx-auto h-6 w-6 text-emerald-500" />
-                    <p className={`mt-2 text-xs font-semibold ${isDark ? 'text-slate-200' : 'text-slate-800'}`}>
+                  <div className="p-12 text-center">
+                    <CheckCircle2 className="mx-auto h-7 w-7 text-emerald-400" />
+                    <p className={`mt-2 text-xs font-semibold ${isDark ? 'text-white' : 'text-slate-900'}`}>
                       No matching findings
                     </p>
-                    <p className={`mt-0.5 text-[10px] ${muted}`}>
-                      Try choosing another category or clearing the search query.
+                    <p className={`mt-0.5 text-[11px] ${muted}`}>
+                      Try clearing filters or search terms.
                     </p>
                   </div>
                 )}
               </div>
 
-              {/* Right Column: Detail Inspector (7 cols) - Fixed Height */}
-              <div className={`lg:col-span-7 h-[520px] overflow-y-auto rounded-lg border p-4 ${
-                isDark ? 'border-white/[0.07] bg-black/25' : 'border-slate-200 bg-white'
+              {/* Right Column: Detail Inspector & Remediation Workbench (7 cols) */}
+              <div className={`lg:col-span-7 h-[560px] overflow-y-auto rounded-xl border p-5 ${
+                isDark ? 'border-white/[0.07] bg-black/30' : 'border-slate-200 bg-white'
               }`}>
-                {selectedFinding ? (
-                  <div>
-                    {/* Header with Title and Badges */}
-                    <div className={`flex flex-wrap items-start justify-between gap-2 pb-3 border-b ${
-                      isDark ? 'border-white/[0.06]' : 'border-slate-200/70'
+                {selectedFinding && parsedSelected ? (
+                  <div className="space-y-4">
+                    {/* Header Breadcrumb & Actions */}
+                    <div className={`pb-3 border-b flex flex-wrap items-center justify-between gap-3 ${
+                      isDark ? 'border-white/[0.06]' : 'border-slate-200'
                     }`}>
-                      <div>
-                        <div className="flex flex-wrap items-center gap-1.5 mb-1">
-                          <span className={`rounded-full px-2 py-0.5 text-[9px] font-semibold uppercase ${
-                            selectedFinding.priority === 'high'
-                              ? 'bg-rose-500/15 text-rose-400'
-                              : selectedFinding.priority === 'medium'
-                              ? 'bg-amber-500/15 text-amber-400'
-                              : 'bg-blue-500/15 text-blue-400'
-                          }`}>
-                            {selectedFinding.priority} Priority
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-1.5 text-[11px] font-mono text-slate-400 mb-1">
+                          <span>{analysis.rootName}</span>
+                          <span>/</span>
+                          <span className="text-blue-400 truncate max-w-[240px]">
+                            {selectedFinding.location?.path || selectedFinding.category}
                           </span>
-                          <span className={`rounded-full px-2 py-0.5 text-[9px] font-medium uppercase ${
-                            isDark ? 'bg-white/[0.06] text-slate-300' : 'bg-slate-100 text-slate-700'
-                          }`}>
-                            {selectedFinding.category || 'Quality'}
-                          </span>
-                          <span className={`rounded-full px-2 py-0.5 text-[9px] font-medium ${
-                            isDark ? 'bg-white/[0.04] text-slate-400' : 'bg-slate-100 text-slate-600'
-                          }`}>
-                            {selectedFinding.confidence || 'Medium'} Confidence
-                          </span>
+                          {selectedFinding.location?.line && (
+                            <span className="text-slate-500">:{selectedFinding.location.line}</span>
+                          )}
                         </div>
-                        <h3 className={`text-sm font-semibold ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                          {selectedFinding.title}
+                        <h3 className={`text-sm font-semibold truncate ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                          {parsedSelected.headline}
                         </h3>
                       </div>
 
-                      <button
-                        type="button"
-                        onClick={copyRemediation}
-                        className={`inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-[10px] font-medium transition-colors ${
-                          isDark
-                            ? 'border-white/[0.08] bg-white/[0.03] text-slate-300 hover:bg-white/[0.08]'
-                            : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-100 shadow-2xs'
-                        }`}
-                        title="Copy finding details and code context as an AI prompt"
-                      >
-                        {copiedRemediation ? <Check className="h-3 w-3 text-emerald-500" /> : <Copy className="h-3 w-3 text-blue-500" />}
-                        <span>{copiedRemediation ? 'Prompt Copied' : 'Copy AI Prompt'}</span>
-                      </button>
+                      <div className="flex items-center gap-2">
+                        {selectedFinding.location?.path && (
+                          <button
+                            type="button"
+                            onClick={copyFilePath}
+                            className={`inline-flex items-center gap-1 rounded-md border px-2.5 py-1 text-[11px] font-medium transition-colors ${
+                              isDark
+                                ? 'border-white/[0.08] bg-white/[0.03] text-slate-300 hover:bg-white/[0.08]'
+                                : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-100'
+                            }`}
+                            title="Copy file path"
+                          >
+                            {copiedPath ? <Check className="h-3 w-3 text-emerald-400" /> : <Copy className="h-3 w-3" />}
+                            <span>{copiedPath ? 'Copied Path' : 'Copy Path'}</span>
+                          </button>
+                        )}
+
+                        <button
+                          type="button"
+                          onClick={copyRemediation}
+                          className={`inline-flex items-center gap-1.5 rounded-md border px-3 py-1 text-xs font-semibold transition-all ${
+                            copiedRemediation
+                              ? 'border-emerald-500/50 bg-emerald-500/20 text-emerald-300'
+                              : isDark
+                              ? 'border-blue-500/35 bg-blue-500/10 text-blue-300 hover:bg-blue-500/20'
+                              : 'border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100'
+                          }`}
+                          title="Copy detailed context and instructions to fix this issue"
+                        >
+                          {copiedRemediation ? <Check className="h-3.5 w-3.5" /> : <Sparkles className="h-3.5 w-3.5" />}
+                          <span>{copiedRemediation ? 'Prompt Copied' : 'Copy Remediation Prompt'}</span>
+                        </button>
+                      </div>
                     </div>
 
-                    {/* Finding Detail / Rationale */}
-                    <div className="mt-3">
-                      <p className={`text-xs leading-5 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
-                        {selectedFinding.detail}
-                      </p>
+                    {/* Metadata Badges */}
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className={`rounded-md px-2 py-0.5 text-[10px] font-mono font-semibold uppercase ${
+                        selectedFinding.priority === 'high'
+                          ? 'bg-rose-500/15 text-rose-400 border border-rose-500/30'
+                          : selectedFinding.priority === 'medium'
+                          ? 'bg-amber-500/15 text-amber-400 border border-amber-500/30'
+                          : 'bg-blue-500/15 text-blue-400 border border-blue-500/30'
+                      }`}>
+                        {selectedFinding.priority} Priority
+                      </span>
+                      <span className={`rounded-md px-2 py-0.5 text-[10px] font-mono border ${
+                        isDark ? 'border-white/[0.08] bg-white/[0.03] text-slate-300' : 'border-slate-200 bg-slate-100 text-slate-700'
+                      }`}>
+                        Category: {selectedFinding.category || 'Quality'}
+                      </span>
+                      <span className={`rounded-md px-2 py-0.5 text-[10px] font-mono border ${
+                        isDark ? 'border-white/[0.08] bg-white/[0.03] text-slate-400' : 'border-slate-200 bg-slate-100 text-slate-600'
+                      }`}>
+                        Confidence: {selectedFinding.confidence || 'Medium'}
+                      </span>
+                    </div>
+
+                    {/* Issue Description / Rationale */}
+                    <div className={`p-3.5 rounded-xl border leading-relaxed text-xs ${
+                      isDark ? 'border-white/[0.05] bg-white/[0.02] text-slate-200' : 'border-slate-200 bg-slate-50 text-slate-800'
+                    }`}>
+                      <p>{selectedFinding.detail}</p>
                     </div>
 
                     {/* Code Snippet Inspector */}
                     {selectedFinding.codeSnippet && (
-                      <div className="mt-3.5">
-                        <div className="flex items-center justify-between mb-1.5 text-[10px]">
-                          <span className={`font-mono ${muted}`}>
-                            {selectedFinding.location?.path || 'Code Context'} · Line {selectedFinding.codeSnippet.focusLine}
+                      <div className="space-y-1.5">
+                        <div className="flex items-center justify-between text-[11px] font-mono text-slate-400">
+                          <span className="flex items-center gap-1.5">
+                            <Code2 className="h-3.5 w-3.5 text-blue-400" />
+                            <span>{selectedFinding.location?.path || 'Code Inspector'}</span>
                           </span>
-                          <span className={`font-semibold ${isDark ? 'text-blue-400' : 'text-blue-600'}`}>
+                          <span className="text-blue-400 font-semibold">
                             Focus Line {selectedFinding.codeSnippet.focusLine}
                           </span>
                         </div>
-                        <div className={`overflow-x-auto rounded-lg border py-2 font-mono text-[11px] leading-5 ${
-                          isDark ? 'border-white/[0.07] bg-[#0c0d0f]' : 'border-slate-200 bg-slate-50'
+
+                        <div className={`rounded-xl border overflow-hidden font-mono text-[11px] leading-5 ${
+                          isDark ? 'border-white/[0.08] bg-[#0A0B0D]' : 'border-slate-200 bg-slate-900 text-slate-200'
                         }`}>
-                          {selectedFinding.codeSnippet.lines.map((line, lineIndex) => {
-                            const lineNumber = selectedFinding.codeSnippet!.startLine + lineIndex;
-                            const isFocus = lineNumber === selectedFinding.codeSnippet!.focusLine;
-                            return (
-                              <div
-                                key={lineNumber}
-                                className={`flex min-w-max px-3 ${
-                                  isFocus
-                                    ? (isDark ? 'bg-blue-400/[0.12] text-blue-200 font-semibold' : 'bg-blue-100/70 text-blue-900 font-semibold')
-                                    : (isDark ? 'text-slate-400' : 'text-slate-600')
-                                }`}
-                              >
-                                <span className={`mr-3 w-6 select-none text-right ${
-                                  isFocus ? 'text-blue-400 font-semibold' : isDark ? 'text-slate-600' : 'text-slate-400'
-                                }`}>
-                                  {lineNumber}
-                                </span>
-                                <code className="whitespace-pre">{line || ' '}</code>
-                              </div>
-                            );
-                          })}
+                          {/* Editor Top Bar */}
+                          <div className="px-3 py-1.5 bg-white/[0.03] border-b border-white/[0.06] flex items-center gap-2">
+                            <div className="flex items-center gap-1.5">
+                              <span className="h-2 w-2 rounded-full bg-rose-500/80" />
+                              <span className="h-2 w-2 rounded-full bg-amber-500/80" />
+                              <span className="h-2 w-2 rounded-full bg-emerald-500/80" />
+                            </div>
+                            <span className="text-[10px] text-slate-400 font-mono ml-2">
+                              {selectedFinding.location?.path ? selectedFinding.location.path.split('/').pop() : 'source.ts'}
+                            </span>
+                          </div>
+
+                          <div className="py-2 overflow-x-auto">
+                            {selectedFinding.codeSnippet.lines.map((line, lineIndex) => {
+                              const lineNumber = selectedFinding.codeSnippet!.startLine + lineIndex;
+                              const isFocus = lineNumber === selectedFinding.codeSnippet!.focusLine;
+
+                              return (
+                                <div
+                                  key={lineNumber}
+                                  className={`flex min-w-max px-3 ${
+                                    isFocus
+                                      ? 'bg-blue-500/[0.15] text-blue-200 font-semibold border-l-2 border-blue-400'
+                                      : 'text-slate-400 border-l-2 border-transparent'
+                                  }`}
+                                >
+                                  <span className={`mr-4 w-7 select-none text-right font-mono ${
+                                    isFocus ? 'text-blue-400 font-bold' : 'text-slate-600'
+                                  }`}>
+                                    {lineNumber}
+                                  </span>
+                                  <code className="whitespace-pre">{line || ' '}</code>
+                                </div>
+                              );
+                            })}
+                          </div>
                         </div>
                       </div>
                     )}
 
-                    {/* Evidence List */}
-                    {selectedFinding.evidence.length > 0 && (
-                      <div className={`mt-3.5 rounded-lg border p-3 ${
-                        isDark ? 'border-white/[0.06] bg-black/20' : 'border-slate-200 bg-slate-50'
+                    {/* Architectural Remediation Advice */}
+                    {parsedSelected.remediationAdvice.length > 0 && (
+                      <div className={`p-3.5 rounded-xl border ${
+                        isDark ? 'border-blue-500/20 bg-blue-500/[0.03]' : 'border-blue-200 bg-blue-50/50'
                       }`}>
-                        <p className={`text-[9px] font-semibold uppercase tracking-wider mb-1.5 ${muted}`}>
-                          Detected Signal Evidence ({selectedFinding.evidence.length})
-                        </p>
-                        <ul className="space-y-1">
-                          {selectedFinding.evidence.map((item, i) => (
-                            <li key={i} className={`font-mono text-[10px] break-all flex items-start gap-1.5 ${
-                              isDark ? 'text-slate-400' : 'text-slate-600'
-                            }`}>
-                              <span className="text-blue-500">•</span>
-                              <span>{item}</span>
+                        <div className="flex items-center gap-1.5 text-xs font-semibold text-blue-400 mb-2">
+                          <Wrench className="h-3.5 w-3.5" />
+                          <span>Recommended Architectural Strategy</span>
+                        </div>
+                        <ul className="space-y-1.5 text-xs text-slate-300">
+                          {parsedSelected.remediationAdvice.map((step, sIdx) => (
+                            <li key={sIdx} className="flex items-start gap-2">
+                              <span className="text-blue-400 shrink-0 font-bold">•</span>
+                              <span className="leading-snug">{step}</span>
                             </li>
                           ))}
                         </ul>
                       </div>
                     )}
+
+                    {/* Detected Signal Evidence */}
+                    {selectedFinding.evidence.length > 0 && (
+                      <div className={`p-3 rounded-xl border ${
+                        isDark ? 'border-white/[0.05] bg-black/20' : 'border-slate-200 bg-slate-50'
+                      }`}>
+                        <div className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-slate-400 mb-2">
+                          <Activity className="h-3 w-3" />
+                          <span>AST Signal Metrics ({selectedFinding.evidence.length})</span>
+                        </div>
+                        <div className="space-y-1 font-mono text-[11px] text-slate-300">
+                          {selectedFinding.evidence.map((ev, eIdx) => (
+                            <div key={eIdx} className="flex items-start gap-1.5">
+                              <span className="text-slate-500">›</span>
+                              <span className="break-all">{ev}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 ) : (
-                  <div className="py-24 text-center text-xs text-slate-400">
-                    Select a finding from the list to inspect details.
+                  <div className="h-full flex flex-col items-center justify-center text-center p-8 text-slate-400">
+                    <FileCode className="h-8 w-8 mb-2 opacity-50" />
+                    <p className="text-xs font-semibold text-white">Select a Finding to Inspect</p>
+                    <p className="text-[11px] mt-0.5">Click any issue on the left to inspect AST signals, source code, and remediation advice.</p>
                   </div>
                 )}
               </div>
             </div>
           </section>
 
-          {/* AI Review Panel */}
+          {/* ========================================================================= */}
+          {/* 4. OPTIONAL AI DEEP CODE REVIEW ACCORDION                                */}
+          {/* ========================================================================= */}
           <AIReviewPanel analysis={analysis} />
         </>
       ) : (
-        <section className={`rounded-xl border p-6 ${panel}`}>
-          <div className="flex flex-wrap items-center justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <AlertTriangle className="h-5 w-5 shrink-0 text-amber-500" />
-              <div>
-                <h3 className={`text-sm font-semibold ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                  Quality analysis is not available in this saved scan
-                </h3>
-                <p className={`mt-1 text-xs ${muted}`}>
-                  Re-analyze this codebase to inspect source files and calculate a quality score.
-                </p>
-              </div>
-            </div>
-            <button
-              type="button"
-              onClick={onRescan}
-              disabled={isRescanning}
-              className={`inline-flex min-h-9 shrink-0 items-center gap-2 rounded-lg border px-3 py-2 text-xs font-semibold transition-colors disabled:opacity-60 ${
-                isDark
-                  ? 'border-blue-400/35 bg-blue-400/[0.09] text-blue-200 hover:bg-blue-400/[0.15]'
-                  : 'border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100'
-              }`}
-            >
-              {isRescanning ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
-              {isRescanning ? 'Analyzing…' : 'Re-analyze codebase'}
-            </button>
-          </div>
+        <section className={`rounded-2xl border p-8 text-center ${
+          isDark ? 'border-white/[0.08] bg-[#141518]' : 'border-slate-200 bg-white'
+        }`}>
+          <AlertTriangle className="mx-auto h-8 w-8 text-amber-500 mb-3" />
+          <h3 className={`text-sm font-semibold ${isDark ? 'text-white' : 'text-slate-900'}`}>
+            Quality Analysis Not Available in Saved Scan
+          </h3>
+          <p className={`mt-1 text-xs max-w-md mx-auto ${muted}`}>
+            Re-scan this codebase to inspect source files, evaluate architecture, and calculate a comprehensive health index.
+          </p>
+          <button
+            type="button"
+            onClick={onRescan}
+            disabled={isRescanning}
+            className={`mt-4 inline-flex items-center gap-2 rounded-lg border px-4 py-2 text-xs font-semibold transition-all ${
+              isDark
+                ? 'border-blue-500/30 bg-blue-500/10 text-blue-300 hover:bg-blue-500/20'
+                : 'border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100'
+            }`}
+          >
+            {isRescanning ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+            <span>{isRescanning ? 'Analyzing…' : 'Re-scan Codebase'}</span>
+          </button>
         </section>
       )}
     </div>
