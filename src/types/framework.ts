@@ -24,28 +24,51 @@ export interface UniversalBoundary {
   details?: string;
 }
 
-export interface NextJsComponentDistribution {
+export type NextJsImprovementCategory =
+  | 'action-hygiene'
+  | 'bundle-optimization'
+  | 'route-resilience'
+  | 'modernization';
+
+export type NextJsImprovementSeverity = 'critical' | 'warning' | 'optimization';
+
+export interface NextJsArchitecturalImprovement {
+  id: string;
+  category: NextJsImprovementCategory;
+  severity: NextJsImprovementSeverity;
+  title: string;
+  impact: string;
+  remediation: string;
+  file?: string;
+  line?: number;
+  codeContext?: string;
+}
+
+export interface NextJsActionAudit {
+  totalActionsCount: number;
+  actionFilesCount: number;
+  unvalidatedFilesCount: number;
+  unprotectedFilesCount: number;
+  complexActionsCount: number;
+  actionFiles: Array<{
+    path: string;
+    exportedActions: string[];
+    lineCount: number;
+    hasValidation: boolean;
+    hasAuth: boolean;
+  }>;
+}
+
+export interface NextJsBundleAudit {
   serverComponentsCount: number;
   clientComponentsCount: number;
   totalComponents: number;
   serverRatio: number; // 0 to 100
   clientRatio: number; // 0 to 100
-  clientComponentFiles: string[];
+  unnecessaryClientFiles: string[];
 }
 
-export interface NextJsServerActionFile {
-  path: string;
-  exportedActions: string[];
-  lineCount: number;
-}
-
-export interface NextJsServerActionsOverview {
-  totalActionsCount: number;
-  actionFilesCount: number;
-  actionFiles: NextJsServerActionFile[];
-}
-
-export interface NextJsBoundaryHealth {
+export interface NextJsResilienceAudit {
   hasRootLayout: boolean;
   hasRootLoading: boolean;
   hasRootError: boolean;
@@ -54,32 +77,18 @@ export interface NextJsBoundaryHealth {
   loadingCount: number;
   errorCount: number;
   notFoundCount: number;
-  middlewareFiles: string[];
-  requestBoundaryNote?: string;
-}
-
-export interface NextJsModernization {
-  version?: string;
-  majorVersion?: number;
-  isNext14OrHigher: boolean;
-  isNext15OrHigher: boolean;
-  isNext16OrHigher: boolean;
-  deprecatedMiddlewareDetected: boolean;
-  legacyPagesRouterCount: number;
-  appRouterCount: number;
-  recommendations: Array<{
-    title: string;
-    description: string;
-    severity: 'info' | 'warning' | 'action-required';
-  }>;
+  missingLoadingSegments: string[];
+  missingErrorSegments: string[];
 }
 
 export interface NextJsSpecialization {
   router: 'App Router' | 'Pages Router' | 'Both routers' | 'Router not identified';
-  componentDistribution: NextJsComponentDistribution;
-  serverActions: NextJsServerActionsOverview;
-  boundaryHealth: NextJsBoundaryHealth;
-  modernization: NextJsModernization;
+  version?: string;
+  majorVersion?: number;
+  actionAudit: NextJsActionAudit;
+  bundleAudit: NextJsBundleAudit;
+  resilienceAudit: NextJsResilienceAudit;
+  improvements: NextJsArchitecturalImprovement[];
   routeGroups: string[];
   parallelRoutes: string[];
   interceptingRoutes: string[];

@@ -2,9 +2,9 @@ import {
   FrameworkAnalyzer,
   FrameworkProfile,
   NextJsSpecialization,
+  NextJsArchitecturalImprovement,
   UniversalRoute,
   UniversalBoundary,
-  NextJsServerActionFile,
 } from '../../../types/framework';
 
 export const nextJsAnalyzer: FrameworkAnalyzer<NextJsSpecialization> = {
@@ -23,6 +23,7 @@ export const nextJsAnalyzer: FrameworkAnalyzer<NextJsSpecialization> = {
 
   analyze({ paths, manifests, sourceContents = {} }): FrameworkProfile<NextJsSpecialization> {
     const normalizedPaths = paths.map(p => p.replace(/\\/g, '/'));
+    const improvements: NextJsArchitecturalImprovement[] = [];
 
     // 1. Detect Version
     let detectedVersion: string | undefined;
@@ -36,13 +37,12 @@ export const nextJsAnalyzer: FrameworkAnalyzer<NextJsSpecialization> = {
             break;
           }
         } catch {
-          // Ignore json parse error
+          // Ignore
         }
       }
     }
 
     const majorVersion = detectedVersion ? Number(detectedVersion.match(/^\d+/)?.[0]) : undefined;
-    const isNext14OrHigher = Boolean(majorVersion && majorVersion >= 14);
     const isNext15OrHigher = Boolean(majorVersion && majorVersion >= 15);
     const isNext16OrHigher = Boolean(majorVersion && majorVersion >= 16);
 
@@ -123,18 +123,100 @@ export const nextJsAnalyzer: FrameworkAnalyzer<NextJsSpecialization> = {
       });
     }
 
-    for (const apiPath of appApiPaths) {
-      const pattern = formatAppRoutePattern(apiPath);
-      universalRoutes.push({
-        path: pattern,
-        pattern,
-        type: 'api',
-        file: apiPath,
-        dynamicParams: extractDynamicParams(pattern),
+    // 3. Server Actions & Mutation Hygiene Audit
+    const actionCandidatePaths = normalizedPaths.filter(path => {
+      const lower = path.toLowerCase();
+      const isInActionsDir = lower.includes('/actions/') || lower.startsWith('actions/');
+      const isSource = /\.(?:js|jsx|ts|tsx)$/i.test(path) && !/\.(?:test|spec|d)\.[^/]+$/.test(path);
+      return isInActionsDir && isSource;
+    });
+
+    const otherServerActionPaths = normalizedPaths.filter(path => {
+      if (actionCandidatePaths.includes(path)) return false;
+      const content = sourceContents[path];
+      return content ? /^\s*['"]use server['"]/m.test(content.slice(0, 500)) : false;
+    });
+
+    const allActionPaths = [...new Set([...actionCandidatePaths, ...otherServerActionPaths])];
+    const auditedActionFiles: NextJsSpecialization['actionAudit']['actionFiles'] = [];
+    let unvalidatedFilesCount = 0;
+    let unprotectedFilesCount = 0;
+    let complexActionsCount = 0;
+    let totalActionsCount = 0;
+
+    for (const actPath of allActionPaths) {
+      const content = sourceContents[actPath] || '';
+      const lines = content ? content.split(/\r\n|\n|\r/).length : 0;
+      const fileName = actPath.split('/').pop() || actPath;
+
+      // Extract exported functions
+      const exportedActions: string[] = [];
+      const exportFuncRegex = /export\s+(?:async\s+)?function\s+([a-zA-Z0-9_$]+)/g;
+      let match: RegExpExecArray | null;
+      while ((match = exportFuncRegex.exec(content)) !== null) {
+        exportedActions.push(match[1]);
+      }
+      const exportConstRegex = /export\s+const\s+([a-zA-Z0-9_$]+)\s*=\s*(?:async)?/g;
+      while ((match = exportConstRegex.exec(content)) !== null) {
+        if (!exportedActions.includes(match[1])) exportedActions.push(match[1]);
+      }
+
+      totalActionsCount += exportedActions.length;
+
+      // Check schema validation (Zod / Valibot / Yup / safeParse)
+      const hasValidation = /\b(?:z\.|valibot|yup|schema\.parse|safeParse)\b/i.test(content);
+      // Check auth / session check
+      const hasAuth = /\b(?:auth\s*\(|getServerSession|createClient|supabase\.auth|currentUser|session|cookies\s*\()/i.test(content);
+
+      if (!hasValidation) {
+        unvalidatedFilesCount += 1;
+        improvements.push({
+          id: `action-unvalidated-${actPath}`,
+          category: 'action-hygiene',
+          severity: 'critical',
+          title: `Unvalidated Mutation Inputs in ${fileName}`,
+          impact: `${actPath} processes mutations without runtime schema validation (Zod/Valibot). Malformed client inputs or missing fields can trigger runtime crashes or database corruption.`,
+          remediation: `Wrap incoming action arguments in a Zod schema validation (e.g. z.object({...}).parse(payload)) before running mutations.`,
+          file: actPath,
+        });
+      }
+
+      if (!hasAuth && !fileName.toLowerCase().includes('login') && !fileName.toLowerCase().includes('public')) {
+        unprotectedFilesCount += 1;
+        improvements.push({
+          id: `action-unprotected-${actPath}`,
+          category: 'action-hygiene',
+          severity: 'warning',
+          title: `Missing Auth Guard in ${fileName}`,
+          impact: `${actPath} appears to execute state mutations without verifying caller session context. In Next.js, Server Actions are public POST endpoints that anyone can invoke directly.`,
+          remediation: `Verify session identity at the start of each action handler (e.g. const session = await auth(); if (!session) throw new Error('Unauthorized');).`,
+          file: actPath,
+        });
+      }
+
+      if (lines > 100) {
+        complexActionsCount += 1;
+        improvements.push({
+          id: `action-complexity-${actPath}`,
+          category: 'action-hygiene',
+          severity: 'warning',
+          title: `Monolithic Action Handler in ${fileName} (${lines} LOC)`,
+          impact: `${actPath} spans ${lines} lines. Large action files often interleave business logic, data formatting, and database queries, making maintenance and unit testing error-prone.`,
+          remediation: `Extract database mutations and third-party API calls into domain service functions outside the action file.`,
+          file: actPath,
+        });
+      }
+
+      auditedActionFiles.push({
+        path: actPath,
+        exportedActions,
+        lineCount: lines,
+        hasValidation,
+        hasAuth,
       });
     }
 
-    // 3. Component Distribution (Server vs Client Components)
+    // 4. Component Distribution & Dead Weight Detection
     const componentCandidatePaths = normalizedPaths.filter(path => {
       const lower = path.toLowerCase();
       const isComponentExt = /\.(?:jsx|tsx)$/i.test(path);
@@ -149,20 +231,40 @@ export const nextJsAnalyzer: FrameworkAnalyzer<NextJsSpecialization> = {
     });
 
     const clientComponentFiles: string[] = [];
+    const unnecessaryClientFiles: string[] = [];
     let serverComponentsCount = 0;
 
     for (const compPath of componentCandidatePaths) {
       const content = sourceContents[compPath];
+      const fileName = compPath.split('/').pop() || compPath;
+
       if (content) {
-        // Check for 'use client' or "use client" directive in the first 500 chars
         const topSlice = content.slice(0, 500);
-        if (/^\s*['"]use client['"]/m.test(topSlice)) {
+        const hasUseClient = /^\s*['"]use client['"]/m.test(topSlice);
+
+        if (hasUseClient) {
           clientComponentFiles.push(compPath);
+
+          // Check if it actually uses hooks or events
+          const hasHooks = /\buse(?:State|Effect|LayoutEffect|Reducer|Ref|Callback|Memo|Context|Transition|DeferredValue|SyncExternalStore|Router|Params|Pathname|SearchParams)\s*\(/i.test(content);
+          const hasEvents = /\bon(?:Click|Change|Submit|KeyDown|KeyUp|MouseEnter|MouseLeave|Focus|Blur)\s*=/i.test(content);
+
+          if (!hasHooks && !hasEvents) {
+            unnecessaryClientFiles.push(compPath);
+            improvements.push({
+              id: `bundle-unnecessary-client-${compPath}`,
+              category: 'bundle-optimization',
+              severity: 'optimization',
+              title: `Unnecessary 'use client' Directive in ${fileName}`,
+              impact: `${compPath} is marked with 'use client' but contains no React hooks or event listeners. This needlessly bundles this component into client JavaScript.`,
+              remediation: `Remove 'use client' to allow Next.js to render this component on the server, saving client bundle bandwidth.`,
+              file: compPath,
+            });
+          }
         } else {
           serverComponentsCount += 1;
         }
       } else {
-        // Fallback: Default to server component if in App Router, client if inside generic components
         if (compPath.toLowerCase().includes('/app/')) {
           serverComponentsCount += 1;
         } else {
@@ -176,54 +278,7 @@ export const nextJsAnalyzer: FrameworkAnalyzer<NextJsSpecialization> = {
     const serverRatio = totalComponents > 0 ? Math.round((serverComponentsCount / totalComponents) * 100) : 100;
     const clientRatio = 100 - serverRatio;
 
-    // 4. Server Actions Inventory ('use server')
-    const actionFiles: NextJsServerActionFile[] = [];
-    const actionCandidatePaths = normalizedPaths.filter(path => {
-      const lower = path.toLowerCase();
-      const isInActionsDir = lower.includes('/actions/') || lower.startsWith('actions/');
-      const isSource = /\.(?:js|jsx|ts|tsx)$/i.test(path) && !/\.(?:test|spec|d)\.[^/]+$/.test(path);
-      return isInActionsDir && isSource;
-    });
-
-    // Also check any file with 'use server'
-    const otherServerActionPaths = normalizedPaths.filter(path => {
-      if (actionCandidatePaths.includes(path)) return false;
-      const content = sourceContents[path];
-      return content ? /^\s*['"]use server['"]/m.test(content.slice(0, 500)) : false;
-    });
-
-    const allActionPaths = [...new Set([...actionCandidatePaths, ...otherServerActionPaths])];
-    let totalActionsCount = 0;
-
-    for (const actPath of allActionPaths) {
-      const content = sourceContents[actPath] || '';
-      const lines = content ? content.split(/\r\n|\n|\r/).length : 0;
-      const exportedActions: string[] = [];
-
-      // Extract exported functions
-      const exportFuncRegex = /export\s+(?:async\s+)?function\s+([a-zA-Z0-9_$]+)/g;
-      let match: RegExpExecArray | null;
-      while ((match = exportFuncRegex.exec(content)) !== null) {
-        exportedActions.push(match[1]);
-      }
-
-      const exportConstRegex = /export\s+const\s+([a-zA-Z0-9_$]+)\s*=\s*(?:async)?/g;
-      while ((match = exportConstRegex.exec(content)) !== null) {
-        if (!exportedActions.includes(match[1])) {
-          exportedActions.push(match[1]);
-        }
-      }
-
-      actionFiles.push({
-        path: actPath,
-        exportedActions,
-        lineCount: lines,
-      });
-
-      totalActionsCount += exportedActions.length;
-    }
-
-    // 5. UI Boundary Health (Layouts, Loading, Error, Not-Found)
+    // 5. UI Boundary Resilience & Route Isolation
     const layoutFiles = normalizedPaths.filter(p => /\/layout\.(?:js|jsx|ts|tsx)$/i.test(p) || /^layout\.(?:js|jsx|ts|tsx)$/i.test(p));
     const loadingFiles = normalizedPaths.filter(p => /\/loading\.(?:js|jsx|ts|tsx)$/i.test(p) || /^loading\.(?:js|jsx|ts|tsx)$/i.test(p));
     const errorFiles = normalizedPaths.filter(p => /\/error\.(?:js|jsx|ts|tsx)$/i.test(p) || /^error\.(?:js|jsx|ts|tsx)$/i.test(p));
@@ -235,113 +290,138 @@ export const nextJsAnalyzer: FrameworkAnalyzer<NextJsSpecialization> = {
     const hasRootError = errorFiles.some(p => /(^|\/)app\/error\./i.test(p) || /(^|\/)src\/app\/error\./i.test(p));
     const hasRootNotFound = notFoundFiles.some(p => /(^|\/)app\/not-found\./i.test(p) || /(^|\/)src\/app\/not-found\./i.test(p));
 
-    // 6. Route Topology Patterns (Route Groups, Parallel Slots, Intercepting Routes)
+    // Extract App Router segments to check for missing loading/error boundaries
+    const missingLoadingSegments: string[] = [];
+    const missingErrorSegments: string[] = [];
+
+    const appSegments = new Set<string>();
+    for (const pagePath of appPagePaths) {
+      const parts = pagePath.split('/');
+      const appIdx = parts.lastIndexOf('app');
+      if (appIdx >= 0 && parts.length > appIdx + 2) {
+        const seg = parts[appIdx + 1];
+        if (!seg.startsWith('(') && !seg.startsWith('@')) {
+          appSegments.add(seg);
+        }
+      }
+    }
+
+    for (const segment of appSegments) {
+      const hasLoading = loadingFiles.some(f => f.includes(`/${segment}/`));
+      const hasError = errorFiles.some(f => f.includes(`/${segment}/`));
+
+      if (!hasLoading) {
+        missingLoadingSegments.push(segment);
+      }
+      if (!hasError) {
+        missingErrorSegments.push(segment);
+      }
+    }
+
+    if (!hasRootError && appPagePaths.length > 0) {
+      improvements.push({
+        id: 'resilience-missing-root-error',
+        category: 'route-resilience',
+        severity: 'critical',
+        title: 'Missing Root error.tsx Boundary in App Router',
+        impact: 'No root error.tsx boundary exists. If a Server Component or action throws an uncaught error, Next.js displays an unstyled server crash page instead of a graceful recovery UI.',
+        remediation: 'Create app/error.tsx with a user-friendly error state and a reset() retry trigger.',
+        file: 'app/error.tsx',
+      });
+    }
+
+    if (missingLoadingSegments.length > 0) {
+      improvements.push({
+        id: 'resilience-missing-loading-skeletons',
+        category: 'route-resilience',
+        severity: 'warning',
+        title: `Missing Loading Skeletons in ${missingLoadingSegments.slice(0, 3).join(', ')}`,
+        impact: `Route segments (${missingLoadingSegments.slice(0, 3).join(', ')}) do not define loading.tsx. Users will experience blank screen transitions during slow server fetches.`,
+        remediation: `Add loading.tsx with skeleton placeholders in critical route folders to enable instant streaming transitions.`,
+      });
+    }
+
+    // 6. Modernization & Breaking Version Migration
+    const hasLegacyMiddleware = middlewareFiles.some(p => /(^|\/)middleware\.(?:js|ts)$/i.test(p));
+    if (isNext16OrHigher && hasLegacyMiddleware) {
+      improvements.push({
+        id: 'modernization-next16-middleware',
+        category: 'modernization',
+        severity: 'critical',
+        title: 'Deprecated middleware.ts in Next.js 16 (Rename to proxy.ts)',
+        impact: 'Next.js 16 deprecates the middleware.ts naming convention in favor of proxy.ts for network-level request boundaries.',
+        remediation: 'Rename middleware.ts to proxy.ts and update config matcher rules to ensure seamless runtime compatibility.',
+        file: middlewareFiles[0],
+      });
+    }
+
+    if (isNext15OrHigher) {
+      improvements.push({
+        id: 'modernization-next15-async-cookies',
+        category: 'modernization',
+        severity: 'warning',
+        title: 'Next.js 15+ Async Request APIs (cookies & headers)',
+        impact: 'Next.js 15 makes cookies(), headers(), and route params asynchronous. Synchronous access triggers runtime deprecation warnings and will fail in future releases.',
+        remediation: 'Audit server components and server actions to ensure cookies() and headers() calls are preceded with await.',
+      });
+    }
+
+    if (pagesRoutePaths.length > 0 && appPagePaths.length > 0) {
+      improvements.push({
+        id: 'modernization-hybrid-migration',
+        category: 'modernization',
+        severity: 'optimization',
+        title: `Hybrid Pages Router (${pagesRoutePaths.length} routes) Migration Opportunity`,
+        impact: `Your application runs both the Pages Router (${pagesRoutePaths.length} routes) and the App Router (${appPagePaths.length} routes). Hybrid routing incurs double router bundle overhead.`,
+        remediation: `Migrate remaining pages/ routes to app/ to unlock nested layouts, React Server Components, and smaller client bundle size.`,
+      });
+    }
+
+    // 7. Route Topology
     const routeGroupsSet = new Set<string>();
     const parallelRoutesSet = new Set<string>();
     const interceptingRoutesSet = new Set<string>();
     let dynamicRoutesCount = 0;
 
     for (const path of appPagePaths) {
-      // Route groups: (name)
       const groupMatches = path.match(/\(([^)]+)\)/g);
-      if (groupMatches) {
-        groupMatches.forEach(g => routeGroupsSet.add(g));
-      }
-      // Parallel routes: @slot
+      if (groupMatches) groupMatches.forEach(g => routeGroupsSet.add(g));
       const slotMatches = path.match(/@([a-zA-Z0-9_-]+)/g);
-      if (slotMatches) {
-        slotMatches.forEach(s => parallelRoutesSet.add(s));
-      }
-      // Intercepting routes: (..) or (.)
-      if (/\/\(\.\.?/.test(path)) {
-        interceptingRoutesSet.add(path);
-      }
-      // Dynamic route count
-      if (/\[[^\]]+\]/.test(path)) {
-        dynamicRoutesCount += 1;
-      }
+      if (slotMatches) slotMatches.forEach(s => parallelRoutesSet.add(s));
+      if (/\/\(\.\.?/.test(path)) interceptingRoutesSet.add(path);
+      if (/\[[^\]]+\]/.test(path)) dynamicRoutesCount += 1;
     }
 
-    // 7. Universal Boundaries
     const universalBoundaries: UniversalBoundary[] = [];
     middlewareFiles.forEach(f => {
       universalBoundaries.push({
         type: 'middleware',
         file: f,
-        details: f.includes('proxy') ? 'Next.js 16 Proxy runtime' : 'Edge Middleware',
-      });
-    });
-    actionFiles.forEach(f => {
-      universalBoundaries.push({
-        type: 'server',
-        file: f.path,
-        details: `${f.exportedActions.length} Server Actions`,
+        details: f.includes('proxy') ? 'Next.js 16 Proxy boundary' : 'Edge Middleware',
       });
     });
 
-    // 8. Modernization & Migration Recommendations
-    const hasLegacyMiddleware = middlewareFiles.some(p => /(^|\/)middleware\.(?:js|ts)$/i.test(p));
-    const deprecatedMiddlewareDetected = Boolean(isNext16OrHigher && hasLegacyMiddleware);
-
-    const recommendations: NextJsSpecialization['modernization']['recommendations'] = [];
-
-    if (deprecatedMiddlewareDetected) {
-      recommendations.push({
-        title: 'Deprecated Middleware File Name in Next.js 16',
-        description: 'Next.js 16 replaces middleware.ts with proxy.ts for network-level request interception. Rename middleware.ts to proxy.ts before upgrading runtime dependencies.',
-        severity: 'action-required',
-      });
-    }
-
-    if (isNext15OrHigher) {
-      recommendations.push({
-        title: 'Async Request APIs in Next.js 15+',
-        description: 'Next.js 15 makes cookies(), headers(), and params asynchronous. Verify that all server-side cookie accesses and route parameter lookups are explicitly awaited.',
-        severity: 'info',
-      });
-    }
-
-    if (appPagePaths.length > 0 && pagesRoutePaths.length > 0) {
-      recommendations.push({
-        title: 'Hybrid Architecture Migration in Progress',
-        description: `${pagesRoutePaths.length} legacy Pages Router routes coexist with ${appPagePaths.length} App Router routes. Consolidating into the App Router will unlock nested layouts, React Server Components, and smaller client bundles.`,
-        severity: 'warning',
-      });
-    }
-
-    if (appPagePaths.length > 0 && loadingFiles.length === 0) {
-      recommendations.push({
-        title: 'Missing Suspense Loading Skeletons',
-        description: 'No loading.tsx files detected in the App Router. Implementing loading.tsx boundaries provides instant visual feedback and smooth navigation during asynchronous server data fetches.',
-        severity: 'warning',
-      });
-    }
-
-    if (appPagePaths.length > 0 && errorFiles.length === 0) {
-      recommendations.push({
-        title: 'Missing App Router Error Boundaries',
-        description: 'No error.tsx files found. Adding root and nested error.tsx boundaries prevents full-page crashes by gracefully isolating server render exceptions.',
-        severity: 'action-required',
-      });
-    }
-
-    // Assemble Specialization
     const specialization: NextJsSpecialization = {
       router,
-      componentDistribution: {
+      version: detectedVersion,
+      majorVersion,
+      actionAudit: {
+        totalActionsCount,
+        actionFilesCount: allActionPaths.length,
+        unvalidatedFilesCount,
+        unprotectedFilesCount,
+        complexActionsCount,
+        actionFiles: auditedActionFiles,
+      },
+      bundleAudit: {
         serverComponentsCount,
         clientComponentsCount,
         totalComponents,
         serverRatio,
         clientRatio,
-        clientComponentFiles: clientComponentFiles.slice(0, 50),
+        unnecessaryClientFiles,
       },
-      serverActions: {
-        totalActionsCount,
-        actionFilesCount: actionFiles.length,
-        actionFiles,
-      },
-      boundaryHealth: {
+      resilienceAudit: {
         hasRootLayout,
         hasRootLoading,
         hasRootError,
@@ -350,22 +430,10 @@ export const nextJsAnalyzer: FrameworkAnalyzer<NextJsSpecialization> = {
         loadingCount: loadingFiles.length,
         errorCount: errorFiles.length,
         notFoundCount: notFoundFiles.length,
-        middlewareFiles,
-        requestBoundaryNote: deprecatedMiddlewareDetected
-          ? 'Next.js 16 deprecates the middleware filename in favor of proxy; migrate to proxy.ts.'
-          : undefined,
+        missingLoadingSegments,
+        missingErrorSegments,
       },
-      modernization: {
-        version: detectedVersion,
-        majorVersion,
-        isNext14OrHigher,
-        isNext15OrHigher,
-        isNext16OrHigher,
-        deprecatedMiddlewareDetected,
-        legacyPagesRouterCount: pagesRoutePaths.length,
-        appRouterCount: appPagePaths.length,
-        recommendations,
-      },
+      improvements,
       routeGroups: Array.from(routeGroupsSet),
       parallelRoutes: Array.from(parallelRoutesSet),
       interceptingRoutes: Array.from(interceptingRoutesSet),
@@ -382,8 +450,8 @@ export const nextJsAnalyzer: FrameworkAnalyzer<NextJsSpecialization> = {
       boundaries: universalBoundaries,
       stats: {
         'App Router Pages': appPagePaths.length,
-        'API Endpoints': appApiPaths.length + pagesApiPaths.length,
-        'Server Actions': totalActionsCount,
+        'Action Risks': unvalidatedFilesCount + unprotectedFilesCount,
+        'Bundle Optimizations': unnecessaryClientFiles.length,
         'Server Component Ratio': `${serverRatio}%`,
       },
       specialization,

@@ -12,7 +12,7 @@
       "rootName": "transaction-checker-admin",
       "rootPath": "transaction-checker-admin",
       "directoryHandleId": "95563605-51b8-478c-8c49-b0345df9ec71",
-      "scannedAt": 1791653451807,
+      "scannedAt": 1791735350128,
       "filesScanned": 505,
       "sourceFiles": 442,
       "truncated": false,
@@ -64,6 +64,868 @@
           "middleware.ts"
         ],
         "requestBoundaryNote": "Next.js 16 deprecates the middleware filename in favor of proxy; confirm the project version and runtime needs before migrating."
+      },
+      "frameworkProfile": {
+        "id": "nextjs",
+        "name": "Next.js",
+        "version": "16.1.1",
+        "ecosystem": "node",
+        "routingModel": "file-system",
+        "routes": [
+          {
+            "path": "/login",
+            "pattern": "/login",
+            "type": "page",
+            "file": "app/login/page.tsx",
+            "dynamicParams": []
+          },
+          {
+            "path": "/register",
+            "pattern": "/register",
+            "type": "page",
+            "file": "app/register/page.tsx",
+            "dynamicParams": []
+          },
+          {
+            "path": "/dashboard",
+            "pattern": "/dashboard",
+            "type": "page",
+            "file": "app/dashboard/page.tsx",
+            "dynamicParams": []
+          },
+          {
+            "path": "/dashboard/sign-in-options",
+            "pattern": "/dashboard/sign-in-options",
+            "type": "page",
+            "file": "app/dashboard/sign-in-options/page.tsx",
+            "dynamicParams": []
+          },
+          {
+            "path": "/dashboard/notifications",
+            "pattern": "/dashboard/notifications",
+            "type": "page",
+            "file": "app/dashboard/notifications/page.tsx",
+            "dynamicParams": []
+          },
+          {
+            "path": "/dashboard/my-complaints",
+            "pattern": "/dashboard/my-complaints",
+            "type": "page",
+            "file": "app/dashboard/my-complaints/page.tsx",
+            "dynamicParams": []
+          },
+          {
+            "path": "/dashboard/payment-plans",
+            "pattern": "/dashboard/payment-plans",
+            "type": "page",
+            "file": "app/dashboard/payment-plans/page.tsx",
+            "dynamicParams": []
+          },
+          {
+            "path": "/dashboard/my-providers",
+            "pattern": "/dashboard/my-providers",
+            "type": "page",
+            "file": "app/dashboard/my-providers/page.tsx",
+            "dynamicParams": []
+          },
+          {
+            "path": "/dashboard/users",
+            "pattern": "/dashboard/users",
+            "type": "page",
+            "file": "app/dashboard/users/page.tsx",
+            "dynamicParams": []
+          },
+          {
+            "path": "/dashboard/access-denied",
+            "pattern": "/dashboard/access-denied",
+            "type": "page",
+            "file": "app/dashboard/access-denied/page.tsx",
+            "dynamicParams": []
+          },
+          {
+            "path": "/dashboard/profile",
+            "pattern": "/dashboard/profile",
+            "type": "page",
+            "file": "app/dashboard/profile/page.tsx",
+            "dynamicParams": []
+          },
+          {
+            "path": "/dashboard/test-api-settings",
+            "pattern": "/dashboard/test-api-settings",
+            "type": "page",
+            "file": "app/dashboard/test-api-settings/page.tsx",
+            "dynamicParams": []
+          },
+          {
+            "path": "/dashboard/transactions",
+            "pattern": "/dashboard/transactions",
+            "type": "page",
+            "file": "app/dashboard/transactions/page.tsx",
+            "dynamicParams": []
+          },
+          {
+            "path": "/dashboard/subscription",
+            "pattern": "/dashboard/subscription",
+            "type": "page",
+            "file": "app/dashboard/subscription/page.tsx",
+            "dynamicParams": []
+          },
+          {
+            "path": "/dashboard/api-documentation",
+            "pattern": "/dashboard/api-documentation",
+            "type": "page",
+            "file": "app/dashboard/api-documentation/page.tsx",
+            "dynamicParams": []
+          },
+          {
+            "path": "/dashboard/test-provider",
+            "pattern": "/dashboard/test-provider",
+            "type": "page",
+            "file": "app/dashboard/test-provider/page.tsx",
+            "dynamicParams": []
+          },
+          {
+            "path": "/dashboard/api-keys",
+            "pattern": "/dashboard/api-keys",
+            "type": "page",
+            "file": "app/dashboard/api-keys/page.tsx",
+            "dynamicParams": []
+          },
+          {
+            "path": "/dashboard/roles",
+            "pattern": "/dashboard/roles",
+            "type": "page",
+            "file": "app/dashboard/roles/page.tsx",
+            "dynamicParams": []
+          },
+          {
+            "path": "/dashboard/providers",
+            "pattern": "/dashboard/providers",
+            "type": "page",
+            "file": "app/dashboard/providers/page.tsx",
+            "dynamicParams": []
+          },
+          {
+            "path": "/dashboard/subscription-customers",
+            "pattern": "/dashboard/subscription-customers",
+            "type": "page",
+            "file": "app/dashboard/subscription-customers/page.tsx",
+            "dynamicParams": []
+          },
+          {
+            "path": "/dashboard/subscription-customers/[userId]",
+            "pattern": "/dashboard/subscription-customers/[userId]",
+            "type": "page",
+            "file": "app/dashboard/subscription-customers/[userId]/page.tsx",
+            "dynamicParams": [
+              "userId"
+            ]
+          },
+          {
+            "path": "/dashboard/verify-transaction",
+            "pattern": "/dashboard/verify-transaction",
+            "type": "page",
+            "file": "app/dashboard/verify-transaction/page.tsx",
+            "dynamicParams": []
+          },
+          {
+            "path": "/dashboard/complaints",
+            "pattern": "/dashboard/complaints",
+            "type": "page",
+            "file": "app/dashboard/complaints/page.tsx",
+            "dynamicParams": []
+          },
+          {
+            "path": "/dashboard/organizations",
+            "pattern": "/dashboard/organizations",
+            "type": "page",
+            "file": "app/dashboard/organizations/page.tsx",
+            "dynamicParams": []
+          },
+          {
+            "path": "/dashboard/ads",
+            "pattern": "/dashboard/ads",
+            "type": "page",
+            "file": "app/dashboard/ads/page.tsx",
+            "dynamicParams": []
+          },
+          {
+            "path": "/dashboard/subscription-payments",
+            "pattern": "/dashboard/subscription-payments",
+            "type": "page",
+            "file": "app/dashboard/subscription-payments/page.tsx",
+            "dynamicParams": []
+          },
+          {
+            "path": "/",
+            "pattern": "/",
+            "type": "page",
+            "file": "app/(marketing)/page.tsx",
+            "dynamicParams": []
+          },
+          {
+            "path": "/for-organizations",
+            "pattern": "/for-organizations",
+            "type": "page",
+            "file": "app/(marketing)/for-organizations/page.tsx",
+            "dynamicParams": []
+          },
+          {
+            "path": "/docs",
+            "pattern": "/docs",
+            "type": "page",
+            "file": "app/(marketing)/docs/page.tsx",
+            "dynamicParams": []
+          },
+          {
+            "path": "/delete-account",
+            "pattern": "/delete-account",
+            "type": "page",
+            "file": "app/(marketing)/delete-account/page.tsx",
+            "dynamicParams": []
+          },
+          {
+            "path": "/privacy",
+            "pattern": "/privacy",
+            "type": "page",
+            "file": "app/privacy/page.tsx",
+            "dynamicParams": []
+          },
+          {
+            "path": "/register-organization",
+            "pattern": "/register-organization",
+            "type": "page",
+            "file": "app/register-organization/page.tsx",
+            "dynamicParams": []
+          },
+          {
+            "path": "/api/login",
+            "pattern": "/api/login",
+            "type": "api",
+            "file": "app/api/login/route.ts",
+            "dynamicParams": []
+          },
+          {
+            "path": "/api/my-providers",
+            "pattern": "/api/my-providers",
+            "type": "api",
+            "file": "app/api/my-providers/route.ts",
+            "dynamicParams": []
+          },
+          {
+            "path": "/api/users/push-token",
+            "pattern": "/api/users/push-token",
+            "type": "api",
+            "file": "app/api/users/push-token/route.ts",
+            "dynamicParams": []
+          },
+          {
+            "path": "/api/register",
+            "pattern": "/api/register",
+            "type": "api",
+            "file": "app/api/register/route.ts",
+            "dynamicParams": []
+          },
+          {
+            "path": "/api/transactions",
+            "pattern": "/api/transactions",
+            "type": "api",
+            "file": "app/api/transactions/route.ts",
+            "dynamicParams": []
+          },
+          {
+            "path": "/api/verify-mobile",
+            "pattern": "/api/verify-mobile",
+            "type": "api",
+            "file": "app/api/verify-mobile/route.ts",
+            "dynamicParams": []
+          },
+          {
+            "path": "/api/cbe-receipt/[id]",
+            "pattern": "/api/cbe-receipt/[id]",
+            "type": "api",
+            "file": "app/api/cbe-receipt/[id]/route.ts",
+            "dynamicParams": [
+              "id"
+            ]
+          },
+          {
+            "path": "/api/health",
+            "pattern": "/api/health",
+            "type": "api",
+            "file": "app/api/health/route.ts",
+            "dynamicParams": []
+          },
+          {
+            "path": "/api/providers",
+            "pattern": "/api/providers",
+            "type": "api",
+            "file": "app/api/providers/route.ts",
+            "dynamicParams": []
+          },
+          {
+            "path": "/api/signin-options",
+            "pattern": "/api/signin-options",
+            "type": "api",
+            "file": "app/api/signin-options/route.ts",
+            "dynamicParams": []
+          },
+          {
+            "path": "/api/refresh",
+            "pattern": "/api/refresh",
+            "type": "api",
+            "file": "app/api/refresh/route.ts",
+            "dynamicParams": []
+          },
+          {
+            "path": "/api/verify",
+            "pattern": "/api/verify",
+            "type": "api",
+            "file": "app/api/verify/route.ts",
+            "dynamicParams": []
+          },
+          {
+            "path": "/api/push-tokens",
+            "pattern": "/api/push-tokens",
+            "type": "api",
+            "file": "app/api/push-tokens/route.ts",
+            "dynamicParams": []
+          },
+          {
+            "path": "/api/complaints",
+            "pattern": "/api/complaints",
+            "type": "api",
+            "file": "app/api/complaints/route.ts",
+            "dynamicParams": []
+          },
+          {
+            "path": "/api/complaints/[id]",
+            "pattern": "/api/complaints/[id]",
+            "type": "api",
+            "file": "app/api/complaints/[id]/route.ts",
+            "dynamicParams": [
+              "id"
+            ]
+          },
+          {
+            "path": "/api/organizations/[organizationId]/providers",
+            "pattern": "/api/organizations/[organizationId]/providers",
+            "type": "api",
+            "file": "app/api/organizations/[organizationId]/providers/route.ts",
+            "dynamicParams": [
+              "organizationId"
+            ]
+          },
+          {
+            "path": "/api/organizations/register",
+            "pattern": "/api/organizations/register",
+            "type": "api",
+            "file": "app/api/organizations/register/route.ts",
+            "dynamicParams": []
+          },
+          {
+            "path": "/api/ads",
+            "pattern": "/api/ads",
+            "type": "api",
+            "file": "app/api/ads/route.ts",
+            "dynamicParams": []
+          },
+          {
+            "path": "/api/subscription-payments/[requestId]/receipt",
+            "pattern": "/api/subscription-payments/[requestId]/receipt",
+            "type": "api",
+            "file": "app/api/subscription-payments/[requestId]/receipt/route.ts",
+            "dynamicParams": [
+              "requestId"
+            ]
+          },
+          {
+            "path": "/api/subscription-payments/[requestId]/identity",
+            "pattern": "/api/subscription-payments/[requestId]/identity",
+            "type": "api",
+            "file": "app/api/subscription-payments/[requestId]/identity/route.ts",
+            "dynamicParams": [
+              "requestId"
+            ]
+          },
+          {
+            "path": "/llms.txt",
+            "pattern": "/llms.txt",
+            "type": "api",
+            "file": "app/llms.txt/route.ts",
+            "dynamicParams": []
+          }
+        ],
+        "boundaries": [
+          {
+            "type": "middleware",
+            "file": "middleware.ts",
+            "details": "Edge Middleware"
+          },
+          {
+            "type": "server",
+            "file": "app/actions/api-documentation.ts",
+            "details": "2 Server Actions"
+          },
+          {
+            "type": "server",
+            "file": "app/actions/test-api-settings.ts",
+            "details": "2 Server Actions"
+          },
+          {
+            "type": "server",
+            "file": "app/actions/complaints.ts",
+            "details": "2 Server Actions"
+          },
+          {
+            "type": "server",
+            "file": "app/actions/notifications.ts",
+            "details": "5 Server Actions"
+          },
+          {
+            "type": "server",
+            "file": "app/actions/subscription-payments.ts",
+            "details": "10 Server Actions"
+          },
+          {
+            "type": "server",
+            "file": "app/actions/api-keys.ts",
+            "details": "5 Server Actions"
+          },
+          {
+            "type": "server",
+            "file": "app/actions/dashboard-usage-mode.ts",
+            "details": "1 Server Actions"
+          },
+          {
+            "type": "server",
+            "file": "app/actions/verify-transaction.ts",
+            "details": "3 Server Actions"
+          },
+          {
+            "type": "server",
+            "file": "app/actions/subscription-customers.ts",
+            "details": "6 Server Actions"
+          },
+          {
+            "type": "server",
+            "file": "app/actions/provider-test.ts",
+            "details": "4 Server Actions"
+          },
+          {
+            "type": "server",
+            "file": "app/actions/organizations.ts",
+            "details": "5 Server Actions"
+          },
+          {
+            "type": "server",
+            "file": "app/actions/dashboard.ts",
+            "details": "2 Server Actions"
+          },
+          {
+            "type": "server",
+            "file": "app/actions/roles.ts",
+            "details": "5 Server Actions"
+          },
+          {
+            "type": "server",
+            "file": "app/actions/payment-plans.ts",
+            "details": "5 Server Actions"
+          },
+          {
+            "type": "server",
+            "file": "app/actions/ads.ts",
+            "details": "4 Server Actions"
+          },
+          {
+            "type": "server",
+            "file": "app/actions/providers.ts",
+            "details": "4 Server Actions"
+          },
+          {
+            "type": "server",
+            "file": "app/actions/transactions.ts",
+            "details": "6 Server Actions"
+          },
+          {
+            "type": "server",
+            "file": "app/actions/users.ts",
+            "details": "4 Server Actions"
+          },
+          {
+            "type": "server",
+            "file": "app/actions/user-providers.ts",
+            "details": "3 Server Actions"
+          },
+          {
+            "type": "server",
+            "file": "app/actions/user-subscription.ts",
+            "details": "2 Server Actions"
+          },
+          {
+            "type": "server",
+            "file": "app/actions/auth.ts",
+            "details": "10 Server Actions"
+          },
+          {
+            "type": "server",
+            "file": "app/actions/my-complaints.ts",
+            "details": "3 Server Actions"
+          },
+          {
+            "type": "server",
+            "file": "app/actions/marketing-locale.ts",
+            "details": "1 Server Actions"
+          }
+        ],
+        "stats": {
+          "App Router Pages": 32,
+          "API Endpoints": 21,
+          "Server Actions": 94,
+          "Server Component Ratio": "51%"
+        },
+        "specialization": {
+          "router": "App Router",
+          "componentDistribution": {
+            "serverComponentsCount": 108,
+            "clientComponentsCount": 102,
+            "totalComponents": 210,
+            "serverRatio": 51,
+            "clientRatio": 49,
+            "clientComponentFiles": [
+              "components/ui-refresh-announcement.tsx",
+              "components/highlighted-code-block.tsx",
+              "components/dashboard-usage-onboarding.tsx",
+              "components/provider-distribution.tsx",
+              "components/auth-hydrator.tsx",
+              "components/overview.tsx",
+              "components/app-sidebar.tsx",
+              "components/dashboard-theme-toggle.tsx",
+              "components/provider-required-fields-display.tsx",
+              "components/dashboard-header.tsx",
+              "components/dashboard-user-filter.tsx",
+              "components/dashboard-date-filter.tsx",
+              "components/dashboard-user-menu.tsx",
+              "components/new-devices-chart.tsx",
+              "components/dynamic-breadcrumb.tsx",
+              "components/marketing/phone-mockup.tsx",
+              "components/marketing/marketing-theme-provider.tsx",
+              "components/marketing/free-to-use-note.tsx",
+              "components/marketing/theme-toggle.tsx",
+              "components/marketing/lazy-app-screenshots-section.tsx",
+              "components/marketing/app-screenshots-showcase.tsx",
+              "components/marketing/i18n/marketing-locale-provider.tsx",
+              "components/marketing/i18n/language-switcher.tsx",
+              "components/marketing/landing/pricing-plan-card.tsx",
+              "components/marketing/landing/site-header.tsx",
+              "components/api-documentation/api-documentation-view.tsx",
+              "components/providers/toaster-provider.tsx",
+              "components/providers/auth-providers.tsx",
+              "components/ui/alert-dialog.tsx",
+              "components/ui/tabs.tsx",
+              "components/ui/switch.tsx",
+              "components/ui/table.tsx",
+              "components/ui/sidebar.tsx",
+              "components/ui/tooltip.tsx",
+              "components/ui/label.tsx",
+              "components/ui/select.tsx",
+              "components/ui/form.tsx",
+              "components/ui/separator.tsx",
+              "components/ui/dropdown-menu.tsx",
+              "components/ui/calendar.tsx",
+              "components/ui/sheet.tsx",
+              "components/ui/avatar.tsx",
+              "components/ui/dialog.tsx",
+              "components/register-organization/register-organization-form.tsx",
+              "app/login/login-form.tsx",
+              "app/register/register-form.tsx",
+              "app/dashboard/sign-in-options/sign-in-options-client.tsx",
+              "app/dashboard/sign-in-options/sign-in-options-form.tsx",
+              "app/dashboard/notifications/notifications-client.tsx",
+              "app/dashboard/notifications/notifications-table.tsx"
+            ]
+          },
+          "serverActions": {
+            "totalActionsCount": 94,
+            "actionFilesCount": 23,
+            "actionFiles": [
+              {
+                "path": "app/actions/api-documentation.ts",
+                "exportedActions": [
+                  "getPublicApiDocProviders",
+                  "getApiDocumentationData"
+                ],
+                "lineCount": 68
+              },
+              {
+                "path": "app/actions/test-api-settings.ts",
+                "exportedActions": [
+                  "getTestApiSettingsForAdmin",
+                  "updateTestApiDailyLimit"
+                ],
+                "lineCount": 70
+              },
+              {
+                "path": "app/actions/complaints.ts",
+                "exportedActions": [
+                  "getAdminComplaints",
+                  "updateComplaintStatus"
+                ],
+                "lineCount": 233
+              },
+              {
+                "path": "app/actions/notifications.ts",
+                "exportedActions": [
+                  "getPushNotificationDevices",
+                  "getEnabledPushDevicesForCompose",
+                  "sendAdminPushNotification",
+                  "setPushDeviceNotificationsEnabled",
+                  "deletePushDevice"
+                ],
+                "lineCount": 382
+              },
+              {
+                "path": "app/actions/subscription-payments.ts",
+                "exportedActions": [
+                  "userHasPendingPaymentRequest",
+                  "getUserPendingPaymentRequest",
+                  "getUserLastRejectedPayment",
+                  "submitSubscriptionPayment",
+                  "getAdminReviewProvidersForUser",
+                  "getAdminReviewProviderSetupForUser",
+                  "adminVerifySubscriptionPaymentTransaction",
+                  "getAdminPaymentRequests",
+                  "approveSubscriptionPayment",
+                  "rejectSubscriptionPayment"
+                ],
+                "lineCount": 544
+              },
+              {
+                "path": "app/actions/api-keys.ts",
+                "exportedActions": [
+                  "getApiKeys",
+                  "createApiKey",
+                  "revokeApiKey",
+                  "deleteApiKey",
+                  "getApiKeySecretForCopy"
+                ],
+                "lineCount": 327
+              },
+              {
+                "path": "app/actions/dashboard-usage-mode.ts",
+                "exportedActions": [
+                  "setDashboardUsageMode"
+                ],
+                "lineCount": 78
+              },
+              {
+                "path": "app/actions/verify-transaction.ts",
+                "exportedActions": [
+                  "getVerifyTransactionProviders",
+                  "extractTransactionIdFromReceiptImage",
+                  "runVerifyTransaction"
+                ],
+                "lineCount": 178
+              },
+              {
+                "path": "app/actions/subscription-customers.ts",
+                "exportedActions": [
+                  "getSubscriptionCustomers",
+                  "getSubscriptionCustomerDetail",
+                  "revokeSubscriptionCustomerApiKey",
+                  "revokeAllSubscriptionCustomerApiKeys",
+                  "setSubscriptionCustomerSuspended",
+                  "resetUnlimitedCustomerBilling"
+                ],
+                "lineCount": 801
+              },
+              {
+                "path": "app/actions/provider-test.ts",
+                "exportedActions": [
+                  "getTestPageApiKeys",
+                  "getTestableProviders",
+                  "testProviderByTransactionId",
+                  "testProviderByReceipt"
+                ],
+                "lineCount": 205
+              },
+              {
+                "path": "app/actions/organizations.ts",
+                "exportedActions": [
+                  "getOrganizations",
+                  "getOrganizationsForUserForm",
+                  "createOrganization",
+                  "updateOrganization",
+                  "deleteOrganization"
+                ],
+                "lineCount": 246
+              },
+              {
+                "path": "app/actions/dashboard.ts",
+                "exportedActions": [
+                  "getDashboardUserFilterOptions",
+                  "getDashboardStats"
+                ],
+                "lineCount": 650
+              },
+              {
+                "path": "app/actions/roles.ts",
+                "exportedActions": [
+                  "getRoles",
+                  "getRolesForUserForm",
+                  "createRole",
+                  "updateRole",
+                  "deleteRole"
+                ],
+                "lineCount": 275
+              },
+              {
+                "path": "app/actions/payment-plans.ts",
+                "exportedActions": [
+                  "getPaymentPlans",
+                  "getActivePaymentPlans",
+                  "createPaymentPlan",
+                  "updatePaymentPlan",
+                  "deletePaymentPlan"
+                ],
+                "lineCount": 212
+              },
+              {
+                "path": "app/actions/ads.ts",
+                "exportedActions": [
+                  "getAds",
+                  "createAd",
+                  "updateAd",
+                  "deleteAd"
+                ],
+                "lineCount": 242
+              },
+              {
+                "path": "app/actions/providers.ts",
+                "exportedActions": [
+                  "getProviders",
+                  "createProvider",
+                  "updateProvider",
+                  "deleteProvider"
+                ],
+                "lineCount": 244
+              },
+              {
+                "path": "app/actions/transactions.ts",
+                "exportedActions": [
+                  "getTransactions",
+                  "setFalseCheckByDisplayValue",
+                  "getFalseCheckBlacklist",
+                  "setTransactionBlacklisted",
+                  "reapplyFalseCheckBlacklist",
+                  "saveFalseCheckBlacklist"
+                ],
+                "lineCount": 584
+              },
+              {
+                "path": "app/actions/users.ts",
+                "exportedActions": [
+                  "getUsers",
+                  "createUser",
+                  "updateUser",
+                  "deleteUser"
+                ],
+                "lineCount": 517
+              },
+              {
+                "path": "app/actions/user-providers.ts",
+                "exportedActions": [
+                  "getUserProviderChoices",
+                  "setUserProviderEnabled",
+                  "getEnabledProvidersForApiUser"
+                ],
+                "lineCount": 194
+              },
+              {
+                "path": "app/actions/user-subscription.ts",
+                "exportedActions": [
+                  "getUserSubscriptionPageData",
+                  "selectPaymentPlan"
+                ],
+                "lineCount": 122
+              },
+              {
+                "path": "app/actions/auth.ts",
+                "exportedActions": [
+                  "login",
+                  "signup",
+                  "logout",
+                  "getClientSession",
+                  "getUserProfile",
+                  "updateProfile",
+                  "updatePassword",
+                  "updateSignInOptions",
+                  "getSignInOptions",
+                  "getSession"
+                ],
+                "lineCount": 610
+              },
+              {
+                "path": "app/actions/my-complaints.ts",
+                "exportedActions": [
+                  "getMyComplaints",
+                  "createMyComplaint",
+                  "deleteMyComplaint"
+                ],
+                "lineCount": 206
+              },
+              {
+                "path": "app/actions/marketing-locale.ts",
+                "exportedActions": [
+                  "setMarketingLocale"
+                ],
+                "lineCount": 26
+              }
+            ]
+          },
+          "boundaryHealth": {
+            "hasRootLayout": true,
+            "hasRootLoading": false,
+            "hasRootError": false,
+            "hasRootNotFound": true,
+            "layoutCount": 7,
+            "loadingCount": 26,
+            "errorCount": 2,
+            "notFoundCount": 3,
+            "middlewareFiles": [
+              "middleware.ts"
+            ],
+            "requestBoundaryNote": "Next.js 16 deprecates the middleware filename in favor of proxy; migrate to proxy.ts."
+          },
+          "modernization": {
+            "version": "16.1.1",
+            "majorVersion": 16,
+            "isNext14OrHigher": true,
+            "isNext15OrHigher": true,
+            "isNext16OrHigher": true,
+            "deprecatedMiddlewareDetected": true,
+            "legacyPagesRouterCount": 0,
+            "appRouterCount": 32,
+            "recommendations": [
+              {
+                "title": "Deprecated Middleware File Name in Next.js 16",
+                "description": "Next.js 16 replaces middleware.ts with proxy.ts for network-level request interception. Rename middleware.ts to proxy.ts before upgrading runtime dependencies.",
+                "severity": "action-required"
+              },
+              {
+                "title": "Async Request APIs in Next.js 15+",
+                "description": "Next.js 15 makes cookies(), headers(), and params asynchronous. Verify that all server-side cookie accesses and route parameter lookups are explicitly awaited.",
+                "severity": "info"
+              }
+            ]
+          },
+          "routeGroups": [
+            "(marketing)"
+          ],
+          "parallelRoutes": [],
+          "interceptingRoutes": [],
+          "dynamicRoutesCount": 1
+        }
       },
       "dependencyInventory": {
         "ecosystem": "npm",
@@ -6596,7 +7458,7 @@
       },
       "dependencyRisk": {
         "provider": "OSV.dev",
-        "scannedAt": 1791704955401,
+        "scannedAt": 1791735370503,
         "packagesChecked": 678,
         "advisories": [
           {
@@ -9288,7 +10150,7 @@
       }
     },
     "createdAt": 1791369037652,
-    "updatedAt": 1791722711694
+    "updatedAt": 1791735370504
   },
   {
     "id": "proj_1791362236826",
