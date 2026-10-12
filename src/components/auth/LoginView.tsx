@@ -89,7 +89,7 @@ export const LoginView: React.FC = () => {
 
   const handleGuest = () => {
     loginAsGuest();
-    notify.info('Started guest session.');
+    notify.success('Local workspace ready.');
   };
 
   const muted = isDark ? 'text-slate-400' : 'text-slate-500';
@@ -152,8 +152,8 @@ export const LoginView: React.FC = () => {
             {mode === 'signin' ? 'Sign in to Blueprint' : 'Plan a new project'}
           </h1>
           <p className={`mt-1.5 text-sm leading-5 ${muted}`}>
-            {mode === 'signin' 
-              ? 'Sign in to access your projects and workspaces.' 
+            {mode === 'signin'
+              ? 'Sign in to sync your profile, or continue locally—projects stay in this browser.'
               : 'Set up your workspace to get started.'}
           </p>
         </div>
@@ -333,15 +333,6 @@ export const LoginView: React.FC = () => {
               </span>
             </label>
 
-            <button
-              type="button"
-              onClick={handleGuest}
-              className={`text-xs font-medium hover:underline cursor-pointer ${
-                isDark ? 'text-blue-400 hover:text-blue-300' : 'text-blue-600 hover:text-blue-700'
-              }`}
-            >
-              Guest mode
-            </button>
           </div>
 
           {/* Submit Button (Uses btn-primary-blue matching CreateProjectView) */}
@@ -360,6 +351,22 @@ export const LoginView: React.FC = () => {
               <span>{mode === 'signin' ? 'Sign In' : 'Create Profile'}</span>
             )}
           </button>
+
+          {mode === 'signin' ? (
+            <div className={`mt-4 space-y-2 border-t pt-4 ${divider}`}>
+              <button
+                type="button"
+                onClick={handleGuest}
+                disabled={isLoading}
+                className="btn-secondary w-full rounded-lg px-4 py-2.5 text-xs font-semibold disabled:opacity-50"
+              >
+                Continue with local workspace
+              </button>
+              <p className={`text-center text-[11px] leading-4 ${muted}`}>
+                No account required. Projects are saved in this browser&apos;s localStorage.
+              </p>
+            </div>
+          ) : null}
         </form>
 
           </div>
