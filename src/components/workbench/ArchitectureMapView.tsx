@@ -20,7 +20,7 @@ const TOPOLOGY_LABELS: Record<ArchitectureTopology, string> = {
 };
 
 export const ArchitectureMapView: React.FC<ArchitectureMapViewProps> = ({ onEditDecisions, onProceedToHandoff }) => {
-  const { activeProject } = useProjects();
+  const { activeProject, updateProjectSpec } = useProjects();
   const { isDark } = useTheme();
   const interview = activeProject?.spec.interview;
   const recommendation = activeProject?.spec.frameworkRecommendation || activeProject?.spec.frameworkRecommendations?.[0];
@@ -161,7 +161,14 @@ export const ArchitectureMapView: React.FC<ArchitectureMapViewProps> = ({ onEdit
               )}
             </section>
 
-            <ArchitectureMap recommendation={recommendation} decisions={decisions} isDark={isDark} />
+            <ArchitectureMap
+              projectId={activeProject.id}
+              recommendation={recommendation}
+              decisions={decisions}
+              isDark={isDark}
+              persistedLayout={activeProject.spec.architectureMapLayout}
+              onPersistLayout={layout => updateProjectSpec(activeProject.id, { architectureMapLayout: layout })}
+            />
 
             {recommendation.whyReasons && recommendation.whyReasons.length > 0 && (
               <section className={`border p-5 sm:p-6 ${cardRadius} ${surface}`}>

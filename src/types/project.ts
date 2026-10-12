@@ -22,6 +22,13 @@ export interface HandoffPackage {
   files: HandoffFile[];
 }
 
+export interface ArchitectureMapLayout {
+  /** Saved node coordinates; unset nodes use the default lane layout. */
+  positions?: Record<string, { x: number; y: number }>;
+  zoom?: number;
+  pan?: { x: number; y: number };
+}
+
 export interface FrameworkRecommendation {
   id: string;
   name: string;
@@ -118,6 +125,7 @@ export interface ProjectSpec {
   frameworkRecommendation?: FrameworkRecommendation;
   frameworkRecommendations?: FrameworkRecommendation[];
   handoff?: HandoffPackage;
+  architectureMapLayout?: ArchitectureMapLayout;
 }
 
 export interface Project {

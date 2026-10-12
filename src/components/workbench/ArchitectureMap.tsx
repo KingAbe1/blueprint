@@ -16,7 +16,12 @@ import {
   ShieldCheck,
   UserRound,
 } from 'lucide-react';
-import { ArchitectureQuestion, ArchitectureTopology, FrameworkRecommendation } from '../../types/project';
+import {
+  ArchitectureMapLayout,
+  ArchitectureQuestion,
+  ArchitectureTopology,
+  FrameworkRecommendation,
+} from '../../types/project';
 
 interface ArchitectureDecision {
   category: ArchitectureQuestion['category'];
@@ -24,9 +29,12 @@ interface ArchitectureDecision {
 }
 
 interface ArchitectureMapProps {
+  projectId: string;
   recommendation: FrameworkRecommendation;
   decisions: ArchitectureDecision[];
   isDark: boolean;
+  persistedLayout?: ArchitectureMapLayout;
+  onPersistLayout?: (layout: ArchitectureMapLayout) => void;
 }
 
 type Point = { x: number; y: number };
@@ -37,6 +45,7 @@ type MapNode = {
   detail: string;
   icon: React.ComponentType<{ className?: string }>;
   tone: 'blue' | 'violet' | 'emerald' | 'amber';
+  hidden?: boolean;
 };
 
 type GraphEdge = {
@@ -46,33 +55,62 @@ type GraphEdge = {
   dashed?: boolean;
 };
 
-const CANVAS_WIDTH = 1080;
-const CANVAS_HEIGHT = 600;
 const NODE_WIDTH = 192;
+const LANE_HORIZONTAL_GAP = 32;
+const CANVAS_PADDING_X = 16;
 const NODE_HEIGHT = 96;
+const LANE_HEADER_HEIGHT = 36;
+const LANE_NODE_GAP = 20;
+/** Primary path sits just under the lane header band (no large empty band above nodes). */
+const PRIMARY_ROW_Y = LANE_HEADER_HEIGHT + 20;
+/** Tall enough for a three-node lane stack plus bottom breathing room. */
+const CANVAS_HEIGHT = PRIMARY_ROW_Y + NODE_HEIGHT + 2 * (NODE_HEIGHT + LANE_NODE_GAP) + 28;
+const DEFAULT_MAP_ZOOM = 1;
 
-const DEFAULT_POSITIONS: Record<string, Point> = {
-  people: { x: 34, y: 225 },
-  experience: { x: 292, y: 92 },
-  access: { x: 292, y: 358 },
-  services: { x: 550, y: 225 },
-  data: { x: 838, y: 55 },
-  integrations: { x: 838, y: 205 },
-  operations: { x: 838, y: 355 },
-  delivery: { x: 550, y: 475 },
+/** Vertical stacking order within each lane (primary path nodes first). */
+const LANE_NODE_ORDER: Record<number, string[]> = {
+  0: ['people'],
+  1: ['experience', 'access'],
+  2: ['services', 'delivery'],
+  3: ['data', 'integrations', 'operations'],
 };
+
+const PRIMARY_PATH_NODES = new Set(['people', 'experience', 'services', 'data']);
 
 const EDGES: GraphEdge[] = [
   { from: 'people', to: 'experience', label: 'uses' },
   { from: 'experience', to: 'services', label: 'requests' },
   { from: 'access', to: 'experience', label: 'signs in' },
   { from: 'access', to: 'services', label: 'authorizes' },
-  { from: 'services', to: 'data', label: 'reads & writes' },
+  { from: 'services', to: 'data', label: 'stores' },
   { from: 'services', to: 'integrations', label: 'connects' },
-  { from: 'services', to: 'operations', label: 'reports health' },
+  { from: 'services', to: 'operations', label: 'health' },
   { from: 'delivery', to: 'experience', label: 'releases', dashed: true },
   { from: 'delivery', to: 'services', label: 'deploys', dashed: true },
 ];
+
+const PRIMARY_FLOW: Array<[string, string]> = [
+  ['people', 'experience'],
+  ['experience', 'services'],
+  ['services', 'data'],
+];
+
+const LANE_SPECS = [
+  { width: 252, label: 'People' },
+  { width: 264, label: 'Experience' },
+  { width: 284, label: 'Application' },
+  { width: 244, label: 'Platform' },
+] as const;
+
+const FLOW_LANES = LANE_SPECS.reduce<Array<{ x: number; width: number; label: string }>>((lanes, spec, index) => {
+  const x = index === 0
+    ? CANVAS_PADDING_X
+    : lanes[index - 1].x + lanes[index - 1].width + LANE_HORIZONTAL_GAP;
+  lanes.push({ x, width: spec.width, label: spec.label });
+  return lanes;
+}, []);
+
+const CANVAS_WIDTH = FLOW_LANES[FLOW_LANES.length - 1].x + FLOW_LANES[FLOW_LANES.length - 1].width + CANVAS_PADDING_X;
 
 const toneStyles = {
   blue: { icon: 'bg-blue-500/12 text-blue-500', border: 'border-blue-400', glow: 'shadow-blue-500/10' },
@@ -116,10 +154,55 @@ function recommendationTopology(recommendation: FrameworkRecommendation): Archit
 
 function fallbackModules(decisions: ArchitectureDecision[]) {
   const text = decisions.map(decision => decision.value).join(' ').toLowerCase();
+  if (/fleet|vehicle|dispatch|driver/.test(text)) {
+    return ['Fleet & assets', 'Live tracking', 'Dispatch', 'Drivers & attendance', 'Maintenance', 'Reporting'];
+  }
   if (/catalog|cart|checkout|order|inventory|payment|store/.test(text)) {
     return ['Accounts & access', 'Catalog', 'Cart & checkout', 'Orders & inventory', 'Payments', 'Notifications'];
   }
   return ['Accounts & access', 'Core product', 'Notifications', 'Administration'];
+}
+
+function integrationsAreInScope(decisions: ArchitectureDecision[], valueFor: (...categories: ArchitectureQuestion['category'][]) => string): boolean {
+  const value = valueFor('integrations', 'api');
+  if (!value) return false;
+  return !/no required|none|not needed|out of scope|no preference|let blueprint decide|no external/i.test(value.toLowerCase());
+}
+
+function isPrimaryEdge(from: string, to: string): boolean {
+  return PRIMARY_FLOW.some(([a, b]) => a === from && b === to);
+}
+
+function laneCenterX(laneIndex: number): number {
+  const lane = FLOW_LANES[laneIndex];
+  return lane.x + (lane.width - NODE_WIDTH) / 2;
+}
+
+/** Snap visible nodes into swim lanes; primary path shares one horizontal row. */
+function computeLaneLayout(visibleIds: Set<string>): Record<string, Point> {
+  const positions: Record<string, Point> = {};
+
+  for (let laneIndex = 0; laneIndex < FLOW_LANES.length; laneIndex += 1) {
+    const ordered = LANE_NODE_ORDER[laneIndex].filter(id => visibleIds.has(id));
+    if (ordered.length === 0) continue;
+
+    const x = laneCenterX(laneIndex);
+    const anchor = ordered.find(id => PRIMARY_PATH_NODES.has(id));
+    const rest = ordered.filter(id => id !== anchor);
+
+    if (anchor) {
+      positions[anchor] = { x, y: PRIMARY_ROW_Y };
+    }
+
+    rest.forEach((id, index) => {
+      const y = anchor
+        ? PRIMARY_ROW_Y + (NODE_HEIGHT + LANE_NODE_GAP) * (index + 1)
+        : PRIMARY_ROW_Y + (NODE_HEIGHT + LANE_NODE_GAP) * index;
+      positions[id] = { x, y };
+    });
+  }
+
+  return positions;
 }
 
 function uniqueValues(values: string[]) {
@@ -147,7 +230,49 @@ function edgePath(from: Point, to: Point) {
   return `M ${fromCenterX} ${verticalStartY} C ${fromCenterX} ${verticalStartY + direction * curve}, ${toCenterX} ${verticalEndY - direction * curve}, ${toCenterX} ${verticalEndY}`;
 }
 
-export const ArchitectureMap: React.FC<ArchitectureMapProps> = ({ recommendation, decisions, isDark }) => {
+function readSavedPositions(persisted?: ArchitectureMapLayout): Record<string, Point> {
+  if (persisted?.positions && Object.keys(persisted.positions).length > 0) {
+    return { ...persisted.positions };
+  }
+  return {};
+}
+
+function mergeNodePositions(
+  laneLayout: Record<string, Point>,
+  saved: Record<string, Point>,
+  visibleIds: Set<string>,
+): Record<string, Point> {
+  const merged = { ...laneLayout };
+  for (const id of visibleIds) {
+    if (saved[id]) merged[id] = saved[id];
+  }
+  return merged;
+}
+
+function seedLayoutState(persisted?: ArchitectureMapLayout): {
+  nodePositions: Record<string, Point>;
+  zoom: number;
+  pan: Point;
+} {
+  return {
+    nodePositions: readSavedPositions(persisted),
+    zoom: persisted?.zoom ?? DEFAULT_MAP_ZOOM,
+    pan: persisted?.pan ? { ...persisted.pan } : { x: 0, y: 0 },
+  };
+}
+
+export const ArchitectureMap: React.FC<ArchitectureMapProps> = ({
+  projectId,
+  recommendation,
+  decisions,
+  isDark,
+  persistedLayout,
+  onPersistLayout,
+}) => {
+  const topology = recommendationTopology(recommendation);
+  const selectedTopology = topologyMeta[topology];
+  const systemModules = recommendation.systemModules?.length ? recommendation.systemModules : fallbackModules(decisions);
+
   const valueFor = (...categories: ArchitectureQuestion['category'][]) => {
     const matches = uniqueValues(
       decisions.filter(decision => categories.includes(decision.category)).map(decision => decision.value),
@@ -155,9 +280,7 @@ export const ArchitectureMap: React.FC<ArchitectureMapProps> = ({ recommendation
     return matches.join(' · ');
   };
 
-  const topology = recommendationTopology(recommendation);
-  const selectedTopology = topologyMeta[topology];
-  const systemModules = recommendation.systemModules?.length ? recommendation.systemModules : fallbackModules(decisions);
+  const showIntegrations = integrationsAreInScope(decisions, valueFor);
 
   const nodes = useMemo<MapNode[]>(() => [
     {
@@ -207,6 +330,7 @@ export const ArchitectureMap: React.FC<ArchitectureMapProps> = ({ recommendation
       detail: 'Outside platforms used for payments, messaging, content, or other business workflows.',
       icon: PlugZap,
       tone: 'amber',
+      hidden: !showIntegrations,
     },
     {
       id: 'delivery',
@@ -225,48 +349,129 @@ export const ArchitectureMap: React.FC<ArchitectureMapProps> = ({ recommendation
       tone: 'blue',
     },
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  ], [recommendation, decisions, selectedTopology]);
+  ], [recommendation, decisions, selectedTopology, showIntegrations]);
 
-  const [positions, setPositions] = useState<Record<string, Point>>(() => ({ ...DEFAULT_POSITIONS }));
-  const [activeNodeId, setActiveNodeId] = useState('services');
-  const [zoom, setZoom] = useState(0.75);
-  const [pan, setPan] = useState<Point>({ x: 0, y: 0 });
+  const visibleNodes = useMemo(() => nodes.filter(node => !node.hidden), [nodes]);
+  const visibleNodeIds = useMemo(() => new Set(visibleNodes.map(node => node.id)), [visibleNodes]);
+  const visibleEdges = useMemo(
+    () => EDGES.filter(edge => visibleNodeIds.has(edge.from) && visibleNodeIds.has(edge.to)),
+    [visibleNodeIds],
+  );
+
+  const laneLayout = useMemo(() => computeLaneLayout(visibleNodeIds), [visibleNodeIds]);
+  const [nodePositions, setNodePositions] = useState<Record<string, Point>>(
+    () => seedLayoutState(persistedLayout).nodePositions,
+  );
+  const positions = useMemo(
+    () => mergeNodePositions(laneLayout, nodePositions, visibleNodeIds),
+    [laneLayout, nodePositions, visibleNodeIds],
+  );
+  const hasSavedNodePositions = Object.keys(nodePositions).length > 0;
+  const [activeNodeId, setActiveNodeId] = useState('people');
+  const [zoom, setZoom] = useState(() => seedLayoutState(persistedLayout).zoom);
+  const [pan, setPan] = useState<Point>(() => seedLayoutState(persistedLayout).pan);
   const [isExpanded, setIsExpanded] = useState(false);
   const viewportRef = useRef<HTMLDivElement | null>(null);
   const dragRef = useRef<{ id: string; pointerId: number; startX: number; startY: number; origin: Point } | null>(null);
   const panRef = useRef<{ pointerId: number; startX: number; startY: number; origin: Point } | null>(null);
+  const nodePositionsRef = useRef(nodePositions);
+  const zoomRef = useRef(zoom);
+  const panStateRef = useRef(pan);
 
-  const activeNode = nodes.find(node => node.id === activeNodeId) || nodes[1];
+  useEffect(() => {
+    nodePositionsRef.current = nodePositions;
+  }, [nodePositions]);
+  useEffect(() => {
+    zoomRef.current = zoom;
+  }, [zoom]);
+  useEffect(() => {
+    panStateRef.current = pan;
+  }, [pan]);
+
+  const activeNode = visibleNodes.find(node => node.id === activeNodeId) || visibleNodes[0];
   const ActiveIcon = activeNode.icon;
   const nodeSurface = isDark
     ? 'border-white/[0.12] bg-[#17191e]/95 hover:border-white/[0.22]'
     : 'border-slate-200 bg-white/95 hover:border-slate-300';
   const muted = isDark ? 'text-slate-400' : 'text-slate-500';
 
-  const centerMap = (nextZoom = zoom, nextPositions = positions) => {
-    const viewport = viewportRef.current;
-    if (!viewport) return;
-    const points = Object.values(nextPositions);
-    const minX = Math.min(...points.map(point => point.x));
-    const maxX = Math.max(...points.map(point => point.x + NODE_WIDTH));
-    const minY = Math.min(...points.map(point => point.y));
-    const maxY = Math.max(...points.map(point => point.y + NODE_HEIGHT));
-    setPan({
-      x: viewport.clientWidth / 2 - ((minX + maxX) / 2) * nextZoom,
-      y: viewport.clientHeight / 2 - ((minY + maxY) / 2) * nextZoom,
-    });
+  const persistLayoutRef = useRef(onPersistLayout);
+  persistLayoutRef.current = onPersistLayout;
+
+  const commitLayout = (overrides: Partial<ArchitectureMapLayout> = {}) => {
+    const savedPositions = overrides.positions ?? nodePositionsRef.current;
+    const next: ArchitectureMapLayout = {
+      zoom: overrides.zoom ?? zoomRef.current,
+      pan: overrides.pan ?? panStateRef.current,
+    };
+    if (Object.keys(savedPositions).length > 0) {
+      next.positions = savedPositions;
+    }
+    persistLayoutRef.current?.(next);
   };
 
   useEffect(() => {
-    const frame = requestAnimationFrame(() => centerMap());
-    return () => cancelAnimationFrame(frame);
-  // Recenter when the canvas switches between embedded and expanded sizes.
+    const seeded = seedLayoutState(persistedLayout);
+    setNodePositions(seeded.nodePositions);
+    nodePositionsRef.current = seeded.nodePositions;
+    setZoom(seeded.zoom);
+    zoomRef.current = seeded.zoom;
+    setPan(seeded.pan);
+    panStateRef.current = seeded.pan;
+    setActiveNodeId('people');
+  // Restore saved map view when switching projects only.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isExpanded]);
+  }, [projectId]);
+
+  /** Frame the full map (lane headers + nodes), not just node bounds. */
+  const fitMapInView = (nextPositions = positions, fixedZoom?: number): { zoom: number; pan: Point } | null => {
+    const viewport = viewportRef.current;
+    if (!viewport) return null;
+
+    const points = Object.values(nextPositions);
+    const nodeMaxY = points.length ? Math.max(...points.map(point => point.y + NODE_HEIGHT)) : CANVAS_HEIGHT;
+
+    const minX = 0;
+    const maxX = CANVAS_WIDTH;
+    const minY = Math.max(0, (points.length ? Math.min(...points.map(point => point.y)) : PRIMARY_ROW_Y) - 12);
+    const maxY = (points.length ? nodeMaxY : PRIMARY_ROW_Y + NODE_HEIGHT) + 20;
+    const contentW = maxX - minX;
+    const contentH = maxY - minY;
+
+    const nextZoom = fixedZoom ?? DEFAULT_MAP_ZOOM;
+
+    const contentCenterX = minX + contentW / 2;
+    const contentCenterY = minY + contentH / 2;
+    const nextPan = {
+      x: viewport.clientWidth / 2 - contentCenterX * nextZoom,
+      y: viewport.clientHeight / 2 - LANE_HEADER_HEIGHT / 2 - contentCenterY * nextZoom,
+    };
+
+    setZoom(nextZoom);
+    setPan(nextPan);
+    return { zoom: nextZoom, pan: nextPan };
+  };
+
+  useEffect(() => {
+    if (hasSavedNodePositions) return;
+    const frame = requestAnimationFrame(() => {
+      fitMapInView(laneLayout, DEFAULT_MAP_ZOOM);
+    });
+    return () => cancelAnimationFrame(frame);
+  // Refit when the canvas switches between embedded and expanded sizes or lane layout changes.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isExpanded, hasSavedNodePositions, laneLayout]);
 
   const onPointerDown = (event: React.PointerEvent<HTMLButtonElement>, id: string) => {
     event.stopPropagation();
     event.currentTarget.setPointerCapture(event.pointerId);
+
+    if (Object.keys(nodePositionsRef.current).length === 0) {
+      const seeded = mergeNodePositions(laneLayout, {}, visibleNodeIds);
+      nodePositionsRef.current = seeded;
+      setNodePositions(seeded);
+    }
+
     dragRef.current = {
       id,
       pointerId: event.pointerId,
@@ -279,13 +484,26 @@ export const ArchitectureMap: React.FC<ArchitectureMapProps> = ({ recommendation
   const onPointerMove = (event: React.PointerEvent<HTMLButtonElement>) => {
     const drag = dragRef.current;
     if (!drag || drag.pointerId !== event.pointerId) return;
-    const nextX = drag.origin.x + (event.clientX - drag.startX) / zoom;
-    const nextY = drag.origin.y + (event.clientY - drag.startY) / zoom;
-    setPositions(current => ({ ...current, [drag.id]: { x: nextX, y: nextY } }));
+    const nextX = drag.origin.x + (event.clientX - drag.startX) / zoomRef.current;
+    const nextY = drag.origin.y + (event.clientY - drag.startY) / zoomRef.current;
+    setNodePositions(current => {
+      const next = { ...current, [drag.id]: { x: nextX, y: nextY } };
+      nodePositionsRef.current = next;
+      return next;
+    });
   };
 
   const stopDragging = (event: React.PointerEvent<HTMLButtonElement>) => {
-    if (dragRef.current?.pointerId === event.pointerId) dragRef.current = null;
+    const drag = dragRef.current;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+
+    const nextX = drag.origin.x + (event.clientX - drag.startX) / zoomRef.current;
+    const nextY = drag.origin.y + (event.clientY - drag.startY) / zoomRef.current;
+    const nextPositions = { ...nodePositionsRef.current, [drag.id]: { x: nextX, y: nextY } };
+    nodePositionsRef.current = nextPositions;
+    setNodePositions(nextPositions);
+    dragRef.current = null;
+    commitLayout({ positions: nextPositions });
   };
 
   const startPanning = (event: React.PointerEvent<HTMLDivElement>) => {
@@ -309,7 +527,10 @@ export const ArchitectureMap: React.FC<ArchitectureMapProps> = ({ recommendation
   };
 
   const stopPanning = (event: React.PointerEvent<HTMLDivElement>) => {
-    if (panRef.current?.pointerId === event.pointerId) panRef.current = null;
+    if (panRef.current?.pointerId === event.pointerId) {
+      panRef.current = null;
+      commitLayout();
+    }
   };
 
   const changeZoom = (delta: number) => {
@@ -319,20 +540,28 @@ export const ArchitectureMap: React.FC<ArchitectureMapProps> = ({ recommendation
     const centerX = viewport.clientWidth / 2;
     const centerY = viewport.clientHeight / 2;
     const ratio = nextZoom / zoom;
-    setPan(current => ({
-      x: centerX - (centerX - current.x) * ratio,
-      y: centerY - (centerY - current.y) * ratio,
-    }));
+    setPan(current => {
+      const nextPan = {
+        x: centerX - (centerX - current.x) * ratio,
+        y: centerY - (centerY - current.y) * ratio,
+      };
+      panStateRef.current = nextPan;
+      commitLayout({ zoom: nextZoom, pan: nextPan });
+      return nextPan;
+    });
     setZoom(nextZoom);
+    zoomRef.current = nextZoom;
   };
 
   const resetView = () => {
-    const defaultPositions = { ...DEFAULT_POSITIONS };
-    const defaultZoom = 0.75;
-    setPositions(defaultPositions);
-    setZoom(defaultZoom);
-    setActiveNodeId('services');
-    requestAnimationFrame(() => centerMap(defaultZoom, defaultPositions));
+    requestAnimationFrame(() => {
+      const fitted = fitMapInView(positions, DEFAULT_MAP_ZOOM);
+      if (fitted) {
+        panStateRef.current = fitted.pan;
+        zoomRef.current = fitted.zoom;
+        commitLayout({ zoom: fitted.zoom, pan: fitted.pan });
+      }
+    });
   };
 
   useEffect(() => {
@@ -354,9 +583,11 @@ export const ArchitectureMap: React.FC<ArchitectureMapProps> = ({ recommendation
             <div className={`text-[10px] font-semibold uppercase tracking-[0.14em] ${isDark ? 'text-blue-300' : 'text-blue-700'}`}>System flow</div>
             <span className={`rounded-full px-2 py-0.5 text-[9px] font-semibold ${isDark ? 'bg-violet-500/12 text-violet-200' : 'bg-violet-100 text-violet-700'}`}>{selectedTopology.label}</span>
           </div>
-          <p className={`mt-1 text-xs ${muted}`}>Click a node for details · drag to rearrange · pan the canvas</p>
+          <p className={`mt-1 text-xs ${muted}`}>
+            Drag nodes to rearrange · positions save automatically · follow the blue path · click for detail
+          </p>
         </div>
-        <div className="flex items-center gap-1.5">
+        <div className="flex flex-wrap items-center justify-end gap-1.5">
           <button type="button" onClick={() => changeZoom(-0.1)} className="btn-secondary p-2" title="Zoom out" aria-label="Zoom out">
             <Minus className="h-3.5 w-3.5" />
           </button>
@@ -364,7 +595,7 @@ export const ArchitectureMap: React.FC<ArchitectureMapProps> = ({ recommendation
           <button type="button" onClick={() => changeZoom(0.1)} className="btn-secondary p-2" title="Zoom in" aria-label="Zoom in">
             <Plus className="h-3.5 w-3.5" />
           </button>
-          <button type="button" onClick={resetView} className="btn-secondary p-2" title="Reset layout" aria-label="Reset layout">
+          <button type="button" onClick={resetView} className="btn-secondary p-2" title="Reset zoom and pan" aria-label="Reset zoom and pan">
             <RotateCcw className="h-3.5 w-3.5" />
           </button>
           <button type="button" onClick={() => setIsExpanded(value => !value)} className="btn-secondary-accent p-2" title={isExpanded ? 'Exit full screen' : 'Expand map'} aria-label={isExpanded ? 'Exit full screen' : 'Expand map'}>
@@ -385,43 +616,109 @@ export const ArchitectureMap: React.FC<ArchitectureMapProps> = ({ recommendation
             ? 'radial-gradient(circle, rgba(255,255,255,0.10) 1px, transparent 1px)'
             : 'radial-gradient(circle, rgba(100,116,139,0.22) 1px, transparent 1px)',
           backgroundSize: `${20 * zoom}px ${20 * zoom}px`,
-          backgroundPosition: `${pan.x}px ${pan.y}px`,
+          backgroundPosition: `${pan.x}px ${pan.y + LANE_HEADER_HEIGHT}px`,
         }}
       >
           <div
+            className={`pointer-events-none absolute inset-x-0 top-0 z-10 border-b ${isDark ? 'border-white/[0.08] bg-[#101216]/95' : 'border-slate-200 bg-slate-50/95'}`}
+            style={{ height: LANE_HEADER_HEIGHT }}
+            aria-hidden="true"
+          >
+            {FLOW_LANES.map(lane => (
+              <div
+                key={lane.label}
+                className="absolute top-0 flex h-full items-center justify-center px-1"
+                style={{
+                  left: pan.x + lane.x * zoom,
+                  width: lane.width * zoom,
+                }}
+              >
+                <span className={`truncate text-[10px] font-semibold uppercase tracking-[0.12em] ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
+                  {lane.label}
+                </span>
+              </div>
+            ))}
+          </div>
+
+          <div
+            className="pointer-events-none absolute inset-0 z-0"
+            aria-hidden="true"
+          >
+            {FLOW_LANES.map(lane => (
+              <div
+                key={`${lane.label}-guide`}
+                className={`absolute rounded-b-xl border-x border-b ${isDark ? 'border-white/[0.05] bg-white/[0.015]' : 'border-slate-200/70 bg-white/40'}`}
+                style={{
+                  left: pan.x + lane.x * zoom,
+                  width: lane.width * zoom,
+                  top: LANE_HEADER_HEIGHT,
+                  bottom: 0,
+                }}
+              />
+            ))}
+          </div>
+
+          <div
             className="absolute left-0 top-0 overflow-visible"
-            style={{ width: CANVAS_WIDTH, height: CANVAS_HEIGHT, transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`, transformOrigin: 'top left' }}
+            style={{
+              width: CANVAS_WIDTH,
+              height: CANVAS_HEIGHT,
+              transform: `translate(${pan.x}px, ${pan.y + LANE_HEADER_HEIGHT}px) scale(${zoom})`,
+              transformOrigin: 'top left',
+            }}
           >
             <svg className="pointer-events-none absolute inset-0 overflow-visible" width={CANVAS_WIDTH} height={CANVAS_HEIGHT} viewBox={`0 0 ${CANVAS_WIDTH} ${CANVAS_HEIGHT}`} aria-hidden="true">
               <defs>
                 <marker id="architecture-arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto" markerUnits="strokeWidth">
                   <path d="M 0 0 L 8 4 L 0 8 z" fill={isDark ? '#64748b' : '#94a3b8'} />
                 </marker>
+                <marker id="architecture-arrow-primary" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto" markerUnits="strokeWidth">
+                  <path d="M 0 0 L 8 4 L 0 8 z" fill={isDark ? '#60a5fa' : '#2563eb'} />
+                </marker>
               </defs>
-              {EDGES.map(edge => {
+              {visibleEdges.map(edge => {
                 const from = positions[edge.from];
                 const to = positions[edge.to];
+                if (!from || !to) return null;
                 const path = edgePath(from, to);
                 const labelX = (from.x + NODE_WIDTH / 2 + to.x + NODE_WIDTH / 2) / 2;
                 const labelY = (from.y + NODE_HEIGHT / 2 + to.y + NODE_HEIGHT / 2) / 2 - 7;
+                const primary = isPrimaryEdge(edge.from, edge.to);
                 return (
                   <g key={`${edge.from}-${edge.to}`}>
                     <path
                       d={path}
                       fill="none"
-                      stroke={isDark ? '#64748b' : '#94a3b8'}
-                      strokeWidth="1.5"
+                      stroke={primary ? (isDark ? '#60a5fa' : '#2563eb') : isDark ? '#64748b' : '#94a3b8'}
+                      strokeWidth={primary ? 2.25 : 1.5}
+                      strokeOpacity={primary ? 0.95 : 0.85}
                       strokeDasharray={edge.dashed ? '6 6' : undefined}
-                      markerEnd="url(#architecture-arrow)"
+                      markerEnd={primary ? 'url(#architecture-arrow-primary)' : 'url(#architecture-arrow)'}
                     />
-                    <rect x={labelX - 34} y={labelY - 8} width="68" height="16" rx="8" fill={isDark ? '#101216' : '#f8fafc'} />
-                    <text x={labelX} y={labelY + 3} textAnchor="middle" fontSize="9" fontWeight="600" fill={isDark ? '#94a3b8' : '#64748b'}>{edge.label}</text>
+                    <rect
+                      x={labelX - 34}
+                      y={labelY - 8}
+                      width="68"
+                      height="16"
+                      rx="8"
+                      fill={primary ? (isDark ? '#1e3a5f' : '#eff6ff') : isDark ? '#101216' : '#f8fafc'}
+                    />
+                    <text
+                      x={labelX}
+                      y={labelY + 3}
+                      textAnchor="middle"
+                      fontSize="9"
+                      fontWeight="600"
+                      fill={primary ? (isDark ? '#93c5fd' : '#1d4ed8') : isDark ? '#94a3b8' : '#64748b'}
+                    >
+                      {edge.label}
+                    </text>
                   </g>
                 );
               })}
             </svg>
 
-            {nodes.map(node => {
+            {visibleNodes.map(node => {
               const Icon = node.icon;
               const position = positions[node.id];
               const selected = node.id === activeNode.id;
@@ -447,7 +744,7 @@ export const ArchitectureMap: React.FC<ArchitectureMapProps> = ({ recommendation
                     <div className="min-w-0 flex-1">
                       <div className={`flex items-center justify-between gap-2 text-[8px] font-semibold uppercase tracking-[0.12em] ${muted}`}>
                         <span>{node.eyebrow}</span>
-                        <Move className="h-3 w-3 shrink-0 opacity-50" />
+                        <Move className="h-3 w-3 shrink-0 opacity-40" />
                       </div>
                       <div className={`mt-1 line-clamp-3 text-[11px] font-semibold leading-4 ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>{node.label}</div>
                     </div>

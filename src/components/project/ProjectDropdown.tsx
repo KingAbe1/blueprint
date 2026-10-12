@@ -51,8 +51,8 @@ export const ProjectDropdown: React.FC<ProjectDropdownProps> = ({
   }, [isOpen, onClose]);
 
   return (
-    <div className="relative min-w-0 flex-1" ref={dropdownRef}>
-      <div className="flex items-center min-w-0 w-full">
+    <div className={`relative min-w-0 ${compact ? 'w-max max-w-full' : 'flex-1'}`} ref={dropdownRef}>
+      <div className="flex min-w-0 items-center w-full">
         {!compact && (
           <div className="flex items-center space-x-2 mr-2 shrink-0">
             <span className={`font-bold text-xs tracking-tight uppercase ${isDark ? 'text-white' : 'text-slate-900'}`}>
@@ -65,7 +65,7 @@ export const ProjectDropdown: React.FC<ProjectDropdownProps> = ({
         {activeProject ? (
           <button
             onClick={onToggle}
-            className={`flex items-center justify-between space-x-1 px-1.5 py-1 rounded-md text-xs font-medium border transition-all cursor-pointer min-w-0 flex-1 ${
+            className={`flex min-w-0 items-center justify-between space-x-1 rounded-md border px-1.5 py-1 text-xs font-medium transition-all cursor-pointer ${compact ? 'w-max max-w-full' : 'flex-1'} ${
               isDark 
                 ? 'bg-[#18191E] border-[#2B2C33] text-white hover:bg-[#20222A]' 
                 : 'bg-slate-100/80 border-slate-200 text-slate-900 hover:bg-slate-200/80 shadow-xs'
