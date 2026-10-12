@@ -16,6 +16,7 @@ import { useTheme } from '../../context/ThemeContext';
 import { isDesktopApp } from '../../utils/platform';
 import { Dropdown } from '../common/Dropdown';
 import { MarkdownDocumentPreview } from './MarkdownDocumentPreview';
+import { WorkbenchPhaseHeader } from './WorkbenchPhaseHeader';
 import { generateHandoffPackage } from '../../services/handoffService';
 import {
   chooseHandoffTarget,
@@ -212,21 +213,21 @@ export const BuildHandoffView: React.FC = () => {
   return (
     <div className="flex-1 overflow-y-auto">
       <div className={pagePadding}>
-        <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-          <div>
-            <p className={`text-xs font-medium ${muted}`}>Step 3 of 3 · {activeProject.name}</p>
-            <h1 className={`mt-1 text-2xl font-semibold tracking-tight sm:text-[1.75rem] ${isDark ? 'text-white' : 'text-slate-950'}`}>
-              Build handoff
-            </h1>
-            <p className={`mt-2 max-w-2xl text-sm leading-6 ${muted}`}>
-              Review agent-ready Markdown, pick your IDE, then write files into your project folder.
-            </p>
-          </div>
-          <button type="button" onClick={() => regenerate()} className="btn-secondary-accent flex shrink-0 items-center justify-center gap-2 self-start px-3.5 py-2.5 text-xs font-semibold lg:self-center">
-            <RefreshCw className="h-3.5 w-3.5" />
-            Regenerate from blueprint
-          </button>
-        </div>
+        <WorkbenchPhaseHeader
+          eyebrow={`${activeProject.name} · Step 3 of 3 · Export to your IDE`}
+          title="Build handoff"
+          description="Review agent-ready Markdown, pick your IDE, then write files into your project folder."
+          actions={
+            <button
+              type="button"
+              onClick={() => regenerate()}
+              className="btn-secondary-accent flex shrink-0 items-center justify-center gap-2 px-3.5 py-2.5 text-xs font-semibold"
+            >
+              <RefreshCw className="h-3.5 w-3.5" />
+              Regenerate from blueprint
+            </button>
+          }
+        />
 
         <div className="space-y-5">
           <section className={`border p-5 sm:p-6 ${cardRadius} ${surface}`}>

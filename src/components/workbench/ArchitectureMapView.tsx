@@ -5,6 +5,7 @@ import { useTheme } from '../../context/ThemeContext';
 import { isDesktopApp } from '../../utils/platform';
 import { ArchitectureQuestion, ArchitectureTopology } from '../../types/project';
 import { ArchitectureMap } from './ArchitectureMap';
+import { WorkbenchPhaseHeader } from './WorkbenchPhaseHeader';
 
 interface ArchitectureMapViewProps {
   onEditDecisions: () => void;
@@ -65,33 +66,33 @@ export const ArchitectureMapView: React.FC<ArchitectureMapViewProps> = ({ onEdit
   return (
     <div className="flex-1 overflow-y-auto">
       <div className={pagePadding}>
-        <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-          <div>
-            <p className={`text-xs font-medium ${muted}`}>
-              {ready ? 'Stack chosen from your brief and build questions' : 'Complete build questions to generate the map'}
-            </p>
-            <h1 className={`mt-1 text-2xl font-semibold tracking-tight sm:text-[1.75rem] ${isDark ? 'text-white' : 'text-slate-950'}`}>
-              Architecture map
-            </h1>
-            <p className={`mt-2 max-w-2xl text-sm leading-6 ${muted}`}>
-              {ready
-                ? 'See how users, apps, data, and delivery connect—then open build handoff when you’re ready to implement.'
-                : 'Blueprint turns your product brief and answers into an interactive system map.'}
-            </p>
-          </div>
-          {ready && (
-            <div className="flex flex-wrap items-center gap-2 lg:shrink-0">
-              <button type="button" onClick={onEditDecisions} className="btn-secondary-accent flex items-center justify-center gap-2 px-3.5 py-2.5 text-xs">
-                <ArrowLeft className="h-3.5 w-3.5" />
-                Edit decisions
-              </button>
-              <button type="button" onClick={onProceedToHandoff} className="btn-primary-blue flex items-center justify-center gap-2 px-4 py-2.5 text-xs font-semibold text-white">
-                Prepare build handoff
-                <ArrowRight className="h-3.5 w-3.5" />
-              </button>
-            </div>
-          )}
-        </div>
+        <WorkbenchPhaseHeader
+          eyebrow={
+            ready
+              ? `${activeProject.name} · Step 2 of 3 · Stack ready`
+              : `${activeProject.name} · Step 2 of 3 · Finish build questions first`
+          }
+          title="Architecture map"
+          description={
+            ready
+              ? 'See how users, apps, data, and delivery connect—then open build handoff when you’re ready to implement.'
+              : 'Blueprint turns your product brief and answers into an interactive system map.'
+          }
+          actions={
+            ready ? (
+              <div className="flex flex-wrap items-center gap-2">
+                <button type="button" onClick={onEditDecisions} className="btn-secondary-accent flex items-center justify-center gap-2 px-3.5 py-2.5 text-xs">
+                  <ArrowLeft className="h-3.5 w-3.5" />
+                  Edit decisions
+                </button>
+                <button type="button" onClick={onProceedToHandoff} className="btn-primary-blue flex items-center justify-center gap-2 px-4 py-2.5 text-xs font-semibold text-white">
+                  Prepare build handoff
+                  <ArrowRight className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            ) : undefined
+          }
+        />
 
         {!ready || !recommendation ? (
           <section className={`mx-auto mt-8 max-w-lg border p-8 text-center ${cardRadius} ${surface}`}>

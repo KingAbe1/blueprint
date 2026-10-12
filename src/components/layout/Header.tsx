@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Code2, FileText, Moon, Network, Plus, Settings2, Sun } from 'lucide-react';
+import { Code2, FileText, LayoutGrid, Moon, Network, Settings2, Sun } from 'lucide-react';
 import { useProjects } from '../../context/ProjectContext';
 import { useTheme } from '../../context/ThemeContext';
 import { useAI } from '../../context/AIContext';
@@ -93,6 +93,11 @@ export const Header: React.FC<HeaderProps> = ({
     ? 'text-[#8E9098] hover:bg-white/[0.06] hover:text-white'
     : 'text-slate-500 hover:bg-slate-100 hover:text-slate-900';
 
+  const goToProjectHome = () => {
+    setIsCreatingNew(true);
+    setIsProjectMenuOpen(false);
+  };
+
   const inGreenfieldProject = Boolean(activeProject && !activeProject.codebaseAnalysis && !isCreatingNew);
   const isHub = !activeProject || isCreatingNew;
   const showHeaderProjectMenu = Boolean(activeProject?.codebaseAnalysis && !isCreatingNew);
@@ -128,18 +133,6 @@ export const Header: React.FC<HeaderProps> = ({
         <Settings2 className="h-4 w-4" />
         <span className="hidden lg:inline">{isAiConfigured ? 'AI connected' : 'Connect AI'}</span>
       </button>
-
-      {projects.length > 0 && !isCreatingNew && (
-        <button
-          type="button"
-          onClick={() => setIsCreatingNew(true)}
-          className={`flex items-center gap-2 rounded-md px-2.5 py-2 text-xs transition-colors ${iconButton}`}
-          title="Create a new project"
-        >
-          <Plus className="h-4 w-4" />
-          <span className="hidden lg:inline">New</span>
-        </button>
-      )}
 
       <button
         type="button"
@@ -185,9 +178,13 @@ export const Header: React.FC<HeaderProps> = ({
       </span>
     </div>
   ) : isHub ? (
-    <span className={`text-sm font-medium ${isDark ? 'text-[#C4C6CC]' : 'text-slate-700'}`}>
+    <button
+      type="button"
+      onClick={() => setIsCreatingNew(true)}
+      className={`text-sm font-semibold transition-colors ${isDark ? 'text-[#C4C6CC] hover:text-white' : 'text-slate-700 hover:text-slate-950'}`}
+    >
       Blueprint Studio
-    </span>
+    </button>
   ) : null;
 
   return (
@@ -202,8 +199,19 @@ export const Header: React.FC<HeaderProps> = ({
             : `drag-window flex w-full items-center justify-between gap-3 ${desktop ? 'h-12 pl-0 pr-3 sm:pr-4' : 'h-14 px-3 sm:px-4'}`
         }
       >
-        <div className={`flex min-w-0 items-center justify-self-start ${desktop ? 'no-drag' : ''}`}>
+        <div className={`flex min-w-0 items-center gap-1.5 justify-self-start ${desktop ? 'no-drag' : ''}`}>
           {titlebarSpacer}
+          {activeProject && !isCreatingNew && (
+            <button
+              type="button"
+              onClick={goToProjectHome}
+              className={`btn-secondary flex shrink-0 items-center gap-1.5 rounded-lg px-2 py-2 text-xs font-medium ${isDark ? '' : ''}`}
+              title="All projects and new workspace"
+            >
+              <LayoutGrid className="h-4 w-4" />
+              <span className="hidden sm:inline">Home</span>
+            </button>
+          )}
           {leftSlot}
         </div>
 

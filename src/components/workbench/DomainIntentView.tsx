@@ -23,6 +23,7 @@ import {
 } from '../../services/aiService';
 import { isDesktopApp } from '../../utils/platform';
 import { ProductBriefDisplay } from './ProductBriefDisplay';
+import { WorkbenchPhaseHeader, WorkbenchStep } from './WorkbenchPhaseHeader';
 import { recommendFrameworkFromText } from '../../services/frameworkRecommender';
 import {
   ArchitectureAnswer,
@@ -496,6 +497,40 @@ export const DomainIntentView: React.FC<DomainIntentViewProps> = ({ onOpenArchit
         : 'Saving your answers…';
   const showArchitectureSection = descriptionReady || Boolean(interview);
   const foundationStep = descriptionReady ? 2 : 1;
+  const pinBuildQuestionsBesideBrief =
+    showArchitectureSection && descriptionReady && !interview;
+
+  const phaseDescription = useMemo(() => {
+    if (!showArchitectureSection) {
+      return 'Start with a plain-language description of the product.';
+    }
+    if (interview?.status === 'completed') {
+      return 'Your brief and build choices are saved. Edit below or open the architecture map when you’re ready.';
+    }
+    if (interview?.status === 'in_progress') {
+      return 'Answer each build question—one choice per step. Blueprint uses these to recommend a stack.';
+    }
+    if (pinBuildQuestionsBesideBrief) {
+      return 'Your brief is ready. Start build questions when you’re happy with it.';
+    }
+    return 'Add your brief, then work through build questions to shape the architecture.';
+  }, [showArchitectureSection, interview?.status, pinBuildQuestionsBesideBrief]);
+
+  const foundationSteps = useMemo((): WorkbenchStep[] => {
+    const briefState: WorkbenchStep['state'] = descriptionReady
+      ? 'complete'
+      : 'current';
+    let questionsState: WorkbenchStep['state'] = 'pending';
+    if (interview?.status === 'completed') {
+      questionsState = 'complete';
+    } else if (descriptionReady) {
+      questionsState = 'current';
+    }
+    return [
+      { id: 'brief', label: 'Product brief', state: briefState },
+      { id: 'questions', label: 'Build questions', state: questionsState },
+    ];
+  }, [descriptionReady, interview?.status]);
 
   const scrollToArchitecture = () => {
     document.getElementById('architecture-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -522,8 +557,6 @@ export const DomainIntentView: React.FC<DomainIntentViewProps> = ({ onOpenArchit
     : [];
 
   const desktop = isDesktopApp();
-  const pinBuildQuestionsBesideBrief =
-    showArchitectureSection && descriptionReady && !interview;
   const showBriefPreview = !showDescriptionTextarea && interview?.status !== 'completed';
   const briefLooksPolished = descriptionReady && (descriptionWordCountEarly >= 40 || spec.description.includes('\n'));
   const cardRadius = desktop ? 'rounded-lg' : 'rounded-2xl';
@@ -534,34 +567,12 @@ export const DomainIntentView: React.FC<DomainIntentViewProps> = ({ onOpenArchit
   return (
     <div className="flex-1 overflow-y-auto">
       <div className={pagePadding}>
-        <div className="mb-6">
-          <p className={`text-xs font-medium ${muted}`}>
-            Step {foundationStep} of 2 · {interviewStatus}
-          </p>
-          <h1 className={`mt-1 text-2xl font-semibold tracking-tight sm:text-[1.75rem] ${isDark ? 'text-white' : 'text-slate-950'}`}>
-            {activeProject.name}
-          </h1>
-          <p className={`mt-2 text-sm leading-6 ${muted}`}>
-            {!showArchitectureSection
-              ? 'Start with a plain-language description of the product.'
-              : pinBuildQuestionsBesideBrief
-                ? 'Your brief is ready. Start build questions when you’re happy with it.'
-                : 'Describe the product, then answer build questions—one choice per question.'}
-          </p>
-          <div className="mt-4 flex gap-2">
-            <div className={`h-1 flex-1 rounded-full ${descriptionReady ? 'bg-blue-500' : isDark ? 'bg-white/[0.08]' : 'bg-slate-200'}`} title="Product description" />
-            <div
-              className={`h-1 flex-1 rounded-full ${
-                selectedFramework || interview
-                  ? 'bg-blue-500'
-                  : descriptionReady
-                    ? isDark ? 'bg-blue-500/45' : 'bg-blue-300'
-                    : isDark ? 'bg-white/[0.08]' : 'bg-slate-200'
-              }`}
-              title="Build questions"
-            />
-          </div>
-        </div>
+        <WorkbenchPhaseHeader
+          eyebrow={`${activeProject.name} · Step ${foundationStep} of 2 · ${interviewStatus}`}
+          title="Product blueprint"
+          description={phaseDescription}
+          steps={foundationSteps}
+        />
 
         <div
           className={
@@ -571,26 +582,34 @@ export const DomainIntentView: React.FC<DomainIntentViewProps> = ({ onOpenArchit
           }
         >
         <section id="product-section" className={`scroll-mt-6 border p-5 sm:p-6 ${cardRadius} ${surface}`}>
-          <div className="mb-5 flex items-center justify-between gap-4">
-            <div className="flex gap-3">
-              <div className={`mt-0.5 flex h-8 w-8 items-center justify-center rounded-lg ${
-                isDark ? 'bg-blue-500/10 text-blue-400' : 'bg-blue-50 text-blue-600'
-              }`}>
-                <FileText className="h-4 w-4" />
+          <div
+            className={`mb-5 flex items-center justify-between gap-4 ${
+              interview?.status === 'completed'
+                ? `border-b pb-4 ${isDark ? 'border-white/[0.06]' : 'border-slate-100'}`
+                : ''
+            }`}
+          >
+            {interview?.status === 'completed' ? (
+              <p className={`text-sm font-semibold ${isDark ? 'text-white' : 'text-slate-900'}`}>Product brief</p>
+            ) : (
+              <div className="flex gap-3">
+                <div className={`mt-0.5 flex h-8 w-8 items-center justify-center rounded-lg ${
+                  isDark ? 'bg-blue-500/10 text-blue-400' : 'bg-blue-50 text-blue-600'
+                }`}>
+                  <FileText className="h-4 w-4" />
+                </div>
+                <div>
+                  <h2 className={`text-base font-semibold ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                    {showBriefPreview ? 'Product brief' : 'What are you building?'}
+                  </h2>
+                  {showBriefPreview ? null : (
+                    <p className={`mt-1 text-xs leading-5 ${muted}`}>
+                      Who it is for, what they can do, and what success looks like.
+                    </p>
+                  )}
+                </div>
               </div>
-              <div>
-                <h2 className={`text-base font-semibold ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                  {interview?.status === 'completed' ? 'Product brief' : showBriefPreview ? 'Product brief' : 'What are you building?'}
-                </h2>
-                {interview?.status === 'completed' ? (
-                  <p className={`mt-1 text-xs leading-5 ${muted}`}>Used to generate your architecture.</p>
-                ) : showBriefPreview ? null : (
-                  <p className={`mt-1 text-xs leading-5 ${muted}`}>
-                    Who it is for, what they can do, and what success looks like.
-                  </p>
-                )}
-              </div>
-            </div>
+            )}
             {interview?.status === 'completed' ? (
               <button
                 type="button"

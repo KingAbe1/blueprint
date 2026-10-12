@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { ArrowRight, CornerDownLeft, FolderCode, Layers, Loader2, SearchCode, Trash2 } from 'lucide-react';
+import { ArrowLeft, ArrowRight, CornerDownLeft, FolderCode, Layers, Loader2, SearchCode, Trash2 } from 'lucide-react';
 import { useProjects } from '../../context/ProjectContext';
 import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
@@ -61,8 +61,10 @@ export const CreateProjectView: React.FC = () => {
   const {
     projects,
     activeProjectId,
+    activeProject,
     setActiveProjectId,
     setIsCreatingNew,
+    isCreatingNew,
     createProject,
     createCodebaseProject,
     setProjectToDelete,
@@ -168,12 +170,23 @@ export const CreateProjectView: React.FC = () => {
   }
 
   const desktop = isDesktopApp();
+  const openedFromActiveProject = isCreatingNew && Boolean(activeProjectId && activeProject);
 
   return (
     <div className={`desktop-hub-shell flex h-full min-h-0 w-full flex-1 flex-col overflow-y-auto ${isDark ? 'bg-[#101113]' : desktop ? 'bg-[#F5F7FA]' : 'bg-[radial-gradient(ellipse_at_40%_38%,#ffffff_0%,#f7f9fd_48%,#eef3fa_100%)]'}`}>
       <div className="flex min-h-full items-center justify-center px-5 py-10 sm:px-8 min-[500px]:px-10">
         <div className="mx-auto flex w-full max-w-6xl flex-col items-stretch gap-8 lg:flex-row lg:items-start lg:gap-12 xl:max-w-[68rem]">
         <section className="min-w-0 flex-1 lg:max-w-xl">
+          {openedFromActiveProject && (
+            <button
+              type="button"
+              onClick={exitNewProjectFlow}
+              className={`btn-secondary-accent mb-4 inline-flex items-center gap-2 px-3 py-2 text-xs font-semibold`}
+            >
+              <ArrowLeft className="h-3.5 w-3.5" />
+              Back to {activeProject?.name}
+            </button>
+          )}
           {!desktop && (
             <div className={`mb-5 flex h-11 w-11 items-center justify-center rounded-xl ${isDark ? 'bg-blue-500/10 text-blue-300' : 'bg-blue-50 text-blue-700'}`}>
               <Layers className="h-5 w-5" />
@@ -183,12 +196,18 @@ export const CreateProjectView: React.FC = () => {
             {user ? user.name : 'Local workspace'}
           </p>
           <h1 className={`max-w-xl font-semibold tracking-tight ${desktop ? `mt-1 text-xl ${isDark ? 'text-white' : 'text-slate-950'}` : `mt-3 text-3xl sm:text-[2.65rem] sm:leading-[1.1] ${isDark ? 'text-white' : 'text-slate-950'}`}`}>
-            {desktop ? 'New project' : 'Where are we starting?'}
+            {openedFromActiveProject && projects.length > 0
+              ? 'Your projects'
+              : desktop
+                ? 'New project'
+                : 'Where are we starting?'}
           </h1>
           <p className={`mt-2 max-w-lg text-sm leading-6 ${muted}`}>
-            {desktop
-              ? 'Plan a product or scan a folder on this machine. Nothing is uploaded to Blueprint cloud.'
-              : 'Bring an idea to life or get oriented in a codebase you already have. Projects stay on this device only.'}
+            {openedFromActiveProject
+              ? 'Open a recent project, start a new blueprint, or scan a codebase. Everything stays on this device.'
+              : desktop
+                ? 'Plan a product or scan a folder on this machine. Nothing is uploaded to Blueprint cloud.'
+                : 'Bring an idea to life or get oriented in a codebase you already have. Projects stay on this device only.'}
           </p>
 
           <div className="mt-7 grid max-w-lg gap-3" role="listbox" aria-label="Project entry mode">

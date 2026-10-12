@@ -1,12 +1,13 @@
 import React, { useRef, useEffect } from 'react';
-import { 
-  FolderOpen, 
-  FolderCode, 
-  ChevronDown, 
-  Check, 
-  Edit3, 
-  Trash2, 
-  Plus 
+import {
+  FolderOpen,
+  FolderCode,
+  ChevronDown,
+  Check,
+  Edit3,
+  Trash2,
+  Plus,
+  Layers,
 } from 'lucide-react';
 import { useProjects } from '../../context/ProjectContext';
 import { useTheme } from '../../context/ThemeContext';
@@ -156,6 +157,23 @@ export const ProjectDropdown: React.FC<ProjectDropdownProps> = ({
             })}
           </div>
 
+          <div className={`space-y-0.5 pb-1 ${isDark ? 'border-[#23242A]' : 'border-slate-100'}`}>
+            <button
+              onClick={() => {
+                setIsCreatingNew(true);
+                onClose();
+              }}
+              className={`w-full flex items-center space-x-2 px-2.5 py-1.5 rounded-xl text-xs font-medium transition-colors cursor-pointer ${
+                isDark
+                  ? 'text-slate-300 hover:bg-white/[0.06] hover:text-white'
+                  : 'text-slate-700 hover:bg-slate-100 hover:text-slate-900'
+              }`}
+            >
+              <Layers className="w-3.5 h-3.5 text-blue-500" />
+              <span>All projects (home)</span>
+            </button>
+          </div>
+
           <div className={`pt-1.5 mt-1 border-t space-y-0.5 ${isDark ? 'border-[#23242A]' : 'border-slate-100'}`}>
             <button
               onClick={() => {
@@ -169,7 +187,7 @@ export const ProjectDropdown: React.FC<ProjectDropdownProps> = ({
               }`}
             >
               <Plus className="w-3.5 h-3.5" />
-              <span>Create New Project</span>
+              <span>Create new project</span>
             </button>
 
             <div className="flex items-center space-x-1 pt-1">
