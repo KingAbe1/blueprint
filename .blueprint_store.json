@@ -3,49 +3,114 @@
     "id": "proj_1791819209463",
     "name": "fleet management system",
     "spec": {
-      "description": "Summary\n\nFleet managers and dispatch teams need a centralized tool to monitor and manage over 500 vehicles. The fleet management system provides essential features for tracking vehicle status, driver attendance, and location data to support daily operations.\n\nWho it's for\n\n• Fleet managers\n• Dispatch teams\n• Driver teams\n• System administrators\n• IT admins\n• Finance teams\n\nWhat it does (first release)\n\n• Track live locations of all vehicles\n• Manage driver attendance and schedules\n• Set up geo-fencing for vehicle monitoring\n• Dispatch vehicles based on current demand\n• Monitor vehicle maintenance and asset status\n• Provide alerts for maintenance due dates\n• Record driver performance metrics\n• Generate reports on vehicle usage\n• Track fuel consumption for each vehicle\n• Manage vehicle assignments to drivers\n• Monitor compliance with regulations\n• Facilitate communication between drivers and dispatch\n\nOut of scope (for now)\n\n• Integration with third-party software",
-      "frameworkRecommendations": [],
+      "description": "Summary\n\nFleet managers need a centralized tool to monitor and manage over 500 vehicles. The fleet management system provides essential features for tracking vehicle status, driver attendance, and location data to support daily operations.\n\nWho it's for\n\n• Fleet managers\n• Dispatch teams\n• Driver teams\n• System administrators\n• IT admins\n• Finance teams\n\nWhat it does (first release)\n\n• Track live locations of all vehicles\n• Manage driver attendance and schedules\n• Set up geo-fencing for vehicle monitoring\n• Dispatch vehicles based on current demand\n• Monitor vehicle maintenance and asset status\n• Provide alerts for maintenance due dates\n• Record driver performance metrics\n• Generate reports on vehicle usage\n• Track fuel consumption for each vehicle\n• Manage vehicle assignments to drivers\n• Monitor compliance with regulations\n• Facilitate communication between drivers and dispatch\n\nOut of scope (for now)\n\n• Integration with third-party software",
+      "frameworkRecommendations": [
+        {
+          "id": "dotnet-react",
+          "name": "ASP.NET Core (C#) + React (TypeScript)",
+          "category": "Full-Stack Web",
+          "architecture": "Modular monolith",
+          "frontendStack": "React 19 + TypeScript + Vite",
+          "backendStack": "ASP.NET Core (C#) + Entity Framework Core",
+          "stylingStack": "Tailwind CSS v4 + shadcn/ui",
+          "databaseStack": "PostgreSQL + Entity Framework Core",
+          "deploymentTarget": "Docker + AWS ECS",
+          "topology": "modular_monolith",
+          "topologyRationale": "A modular monolith allows for clear domain separation while maintaining a single deployable unit, which is suitable for the project's scale and complexity.",
+          "systemModules": [
+            "Vehicle Tracking",
+            "Driver Management",
+            "Dispatching",
+            "Maintenance Monitoring",
+            "Alerts & Notifications",
+            "Reporting",
+            "Fuel Management",
+            "Compliance Monitoring"
+          ],
+          "description": "This architecture combines ASP.NET Core for the backend with a React frontend, providing a robust, scalable solution for managing fleet operations in real-time.",
+          "whyReasons": [
+            "ASP.NET Core offers high performance and security features, ensuring data safety and compliance.",
+            "React with TypeScript enhances developer velocity and maintainability through strong typing and component-based architecture.",
+            "PostgreSQL provides reliable data storage with advanced querying capabilities, suitable for handling historical data and performance metrics."
+          ],
+          "bestFor": "Enterprise-grade fleet management systems with real-time tracking needs.",
+          "isRecommended": true
+        }
+      ],
       "interview": {
-        "status": "in_progress",
-        "currentQuestionIndex": 0,
-        "totalEstimatedQuestions": 6,
+        "status": "completed",
+        "currentQuestionIndex": 6,
+        "totalEstimatedQuestions": 7,
         "questions": [
           {
-            "id": "vehicle_tracking_frequency",
-            "category": "realtime",
-            "question": "How often should vehicle locations be updated for tracking?",
-            "context": "More frequent updates provide better visibility but increase costs.",
+            "id": "primary_experience_surface",
+            "category": "platform",
+            "question": "Where should people mainly open and use this product?",
+            "context": "Live maps, drivers, and geo-fencing do not automatically mean phone apps—many fleet and ops products start with a browser dashboard for managers and dispatch.",
             "allowCustom": true,
             "options": [
               {
-                "id": "every_5_seconds",
-                "label": "Every 5 seconds",
-                "description": "Provides real-time tracking but can be costly for data usage.",
+                "id": "web_primary",
+                "label": "Web browser (managers & dispatch)",
+                "description": "Control room and office users on laptops—maps, reports, admin, and dispatch in one hub.",
+                "recommended": true
+              },
+              {
+                "id": "mobile_native",
+                "label": "Native phone apps (iPhone & Android)",
+                "description": "When drivers or field staff need an installed app on their phone most of the day.",
+                "recommended": false
+              },
+              {
+                "id": "web_and_mobile",
+                "label": "Web hub plus driver phone apps",
+                "description": "Managers and dispatch on the web; drivers on phones—shared backend, two experiences.",
+                "recommended": false
+              },
+              {
+                "id": "desktop_installed",
+                "label": "Installed desktop application",
+                "description": "When the product must run as a local app on macOS or Windows workstations.",
+                "recommended": false
+              },
+              {
+                "id": "blueprint_decide",
+                "label": "Let Blueprint decide",
+                "description": "Choose the most sensible mix from the roles listed in the brief.",
+                "recommended": false
+              }
+            ]
+          },
+          {
+            "id": "vehicle_tracking_frequency",
+            "category": "realtime",
+            "question": "How often should the system update the live locations of vehicles?",
+            "context": "More frequent updates provide better tracking but increase data costs and processing needs.",
+            "allowCustom": true,
+            "options": [
+              {
+                "id": "every_10_seconds",
+                "label": "Every 10 seconds",
+                "description": "Provides near real-time tracking, ideal for active dispatching.",
                 "recommended": false
               },
               {
                 "id": "every_30_seconds",
                 "label": "Every 30 seconds",
-                "description": "Balances cost and visibility, suitable for most operations.",
+                "description": "Balances tracking accuracy with data costs, suitable for most operations.",
                 "recommended": true
               },
               {
-                "id": "every_1_minute",
-                "label": "Every 1 minute",
-                "description": "Reduces costs but may lag in urgent situations.",
-                "recommended": false
-              },
-              {
-                "id": "custom_frequency",
-                "label": "Custom frequency",
-                "description": "Allows flexibility based on specific needs.",
+                "id": "every_minute",
+                "label": "Every minute",
+                "description": "Reduces data usage significantly but may lag in urgent situations.",
                 "recommended": false
               }
             ]
           },
           {
             "id": "driver_attendance_management",
-            "category": "users",
+            "category": "product",
             "question": "How should driver attendance be managed?",
             "context": "Different methods can impact ease of use and accuracy.",
             "allowCustom": true,
@@ -53,164 +118,224 @@
               {
                 "id": "manual_check_in",
                 "label": "Manual check-in by drivers",
-                "description": "Simple but relies on driver honesty and can be inaccurate.",
+                "description": "Simple but relies on drivers remembering to check in.",
                 "recommended": false
               },
               {
                 "id": "automated_check_in",
                 "label": "Automated check-in via GPS",
-                "description": "More accurate and reduces manual work, but may raise privacy concerns.",
+                "description": "More accurate and reduces manual effort, but requires reliable GPS.",
                 "recommended": true
               },
               {
                 "id": "biometric_check_in",
-                "label": "Biometric check-in (fingerprint/face recognition)",
+                "label": "Biometric check-in (e.g., fingerprint)",
                 "description": "Highly secure but may require additional hardware.",
                 "recommended": false
-              },
-              {
-                "id": "custom_method",
-                "label": "Custom method",
-                "description": "Allows for tailored solutions based on specific needs.",
-                "recommended": false
               }
             ]
           },
           {
-            "id": "geo_fencing_implementation",
-            "category": "realtime",
-            "question": "What should trigger alerts for geo-fencing?",
-            "context": "Different triggers can impact how proactive the system is.",
+            "id": "geo_fencing_accuracy",
+            "category": "product",
+            "question": "What level of accuracy is needed for geo-fencing?",
+            "context": "Higher accuracy can improve monitoring but may increase costs.",
             "allowCustom": true,
             "options": [
               {
-                "id": "enter_exit",
-                "label": "Entering or exiting a geo-fenced area",
-                "description": "Provides immediate alerts for better control.",
+                "id": "high_accuracy",
+                "label": "High accuracy (within 5 meters)",
+                "description": "Best for precise monitoring but may increase processing costs.",
                 "recommended": true
               },
               {
-                "id": "speed_limit_exceed",
-                "label": "Exceeding speed limits within the area",
-                "description": "Helps monitor driver behavior but may create alert fatigue.",
+                "id": "medium_accuracy",
+                "label": "Medium accuracy (within 20 meters)",
+                "description": "Balances cost and effectiveness for general monitoring.",
                 "recommended": false
               },
               {
-                "id": "custom_trigger",
-                "label": "Custom trigger conditions",
-                "description": "Allows flexibility for specific operational needs.",
+                "id": "low_accuracy",
+                "label": "Low accuracy (within 50 meters)",
+                "description": "Cheapest option but may lead to missed alerts.",
                 "recommended": false
               }
             ]
           },
           {
-            "id": "maintenance_alerts",
+            "id": "maintenance_alert_timing",
+            "category": "observability",
+            "question": "How far in advance should maintenance alerts be sent?",
+            "context": "Early alerts can help prevent breakdowns but may lead to alert fatigue.",
+            "allowCustom": true,
+            "options": [
+              {
+                "id": "one_week",
+                "label": "One week in advance",
+                "description": "Gives ample time for scheduling but may overwhelm users with alerts.",
+                "recommended": false
+              },
+              {
+                "id": "three_days",
+                "label": "Three days in advance",
+                "description": "A good balance for timely reminders without excess notifications.",
+                "recommended": true
+              },
+              {
+                "id": "one_day",
+                "label": "One day in advance",
+                "description": "Minimizes alert fatigue but risks last-minute scheduling.",
+                "recommended": false
+              }
+            ]
+          },
+          {
+            "id": "data_retention_period",
             "category": "data",
-            "question": "What should trigger maintenance alerts for vehicles?",
-            "context": "Different triggers can affect how timely maintenance is addressed.",
+            "question": "How long should historical data be kept for vehicle usage and performance?",
+            "context": "Longer retention supports better analysis but increases storage costs.",
             "allowCustom": true,
             "options": [
               {
-                "id": "mileage_based",
-                "label": "Based on mileage",
-                "description": "Standard method, ensures regular maintenance.",
+                "id": "one_year",
+                "label": "One year",
+                "description": "Provides a good overview for trends without excessive storage costs.",
                 "recommended": true
               },
               {
-                "id": "time_based",
-                "label": "Based on time intervals",
-                "description": "Useful for vehicles that may not accumulate mileage quickly.",
+                "id": "six_months",
+                "label": "Six months",
+                "description": "Reduces storage needs but may limit trend analysis.",
                 "recommended": false
               },
               {
-                "id": "custom_criteria",
-                "label": "Custom criteria",
-                "description": "Allows for tailored maintenance schedules based on unique needs.",
+                "id": "two_years",
+                "label": "Two years",
+                "description": "Supports long-term analysis but increases costs significantly.",
                 "recommended": false
               }
             ]
           },
           {
-            "id": "report_generation_frequency",
-            "category": "data",
-            "question": "How frequently should reports on vehicle usage be generated?",
-            "context": "Frequency can impact decision-making and resource allocation.",
+            "id": "system_hosting_option",
+            "category": "deployment",
+            "question": "Where should the fleet management system be hosted?",
+            "context": "Hosting choices affect maintenance, cost, and data security.",
             "allowCustom": true,
             "options": [
               {
-                "id": "daily",
-                "label": "Daily",
-                "description": "Provides timely insights but may require more resources.",
-                "recommended": false
-              },
-              {
-                "id": "weekly",
-                "label": "Weekly",
-                "description": "Balances insight with resource use, suitable for most operations.",
+                "id": "managed_cloud",
+                "label": "Managed cloud service",
+                "description": "Simplifies maintenance and scaling, ideal for a growing fleet.",
                 "recommended": true
               },
               {
-                "id": "monthly",
-                "label": "Monthly",
-                "description": "Less frequent, may miss urgent issues but reduces workload.",
+                "id": "on_premises",
+                "label": "Company-owned servers",
+                "description": "Offers more control but requires significant IT resources.",
                 "recommended": false
               },
               {
-                "id": "custom_frequency",
-                "label": "Custom frequency",
-                "description": "Allows flexibility based on specific reporting needs.",
-                "recommended": false
-              }
-            ]
-          },
-          {
-            "id": "driver_performance_metrics",
-            "category": "data",
-            "question": "What key metrics should be tracked for driver performance?",
-            "context": "Choosing the right metrics can help improve overall fleet efficiency.",
-            "allowCustom": true,
-            "options": [
-              {
-                "id": "speeding_incidents",
-                "label": "Speeding incidents",
-                "description": "Helps identify unsafe driving behavior.",
-                "recommended": true
-              },
-              {
-                "id": "fuel_efficiency",
-                "label": "Fuel efficiency",
-                "description": "Tracks how efficiently drivers use fuel, impacting costs.",
-                "recommended": false
-              },
-              {
-                "id": "on_time_deliveries",
-                "label": "On-time deliveries",
-                "description": "Measures reliability and punctuality, crucial for customer satisfaction.",
-                "recommended": false
-              },
-              {
-                "id": "custom_metrics",
-                "label": "Custom metrics",
-                "description": "Allows for tracking of specific performance indicators relevant to your fleet.",
+                "id": "hybrid_solution",
+                "label": "Hybrid (some cloud, some on-premises)",
+                "description": "Balances control and convenience but adds complexity.",
                 "recommended": false
               }
             ]
           }
         ],
-        "answers": [],
-        "inferredFacts": [
+        "answers": [
           {
-            "category": "platform",
-            "value": "iOS and Android mobile application",
-            "evidence": "The description explicitly calls this a mobile app.",
-            "source": "ai"
+            "questionId": "primary_experience_surface",
+            "optionId": "web_primary",
+            "value": "web_primary",
+            "label": "Web browser (managers & dispatch)"
+          },
+          {
+            "questionId": "vehicle_tracking_frequency",
+            "optionId": "every_30_seconds",
+            "value": "every_30_seconds",
+            "label": "Every 30 seconds"
+          },
+          {
+            "questionId": "driver_attendance_management",
+            "optionId": "automated_check_in",
+            "value": "automated_check_in",
+            "label": "Automated check-in via GPS"
+          },
+          {
+            "questionId": "geo_fencing_accuracy",
+            "optionId": "high_accuracy",
+            "value": "high_accuracy",
+            "label": "High accuracy (within 5 meters)"
+          },
+          {
+            "questionId": "maintenance_alert_timing",
+            "optionId": "three_days",
+            "value": "three_days",
+            "label": "Three days in advance"
+          },
+          {
+            "questionId": "data_retention_period",
+            "optionId": "one_year",
+            "value": "one_year",
+            "label": "One year"
+          },
+          {
+            "questionId": "system_hosting_option",
+            "optionId": "managed_cloud",
+            "value": "managed_cloud",
+            "label": "Managed cloud service"
           }
         ],
-        "providerName": "OpenAI"
-      }
+        "inferredFacts": [],
+        "providerName": "OpenAI",
+        "summaryInsights": [
+          "Target platform: Web browser (managers & dispatch)",
+          "Realtime & offline: Every 30 seconds",
+          "Product scope: Automated check-in via GPS",
+          "Product scope: High accuracy (within 5 meters)",
+          "Monitoring & alerts: Three days in advance",
+          "Data & storage: One year",
+          "Hosting & deployment: Managed cloud service"
+        ]
+      },
+      "targetFramework": "dotnet-react",
+      "frameworkRecommendation": {
+        "id": "dotnet-react",
+        "name": "ASP.NET Core (C#) + React (TypeScript)",
+        "category": "Full-Stack Web",
+        "architecture": "Modular monolith",
+        "frontendStack": "React 19 + TypeScript + Vite",
+        "backendStack": "ASP.NET Core (C#) + Entity Framework Core",
+        "stylingStack": "Tailwind CSS v4 + shadcn/ui",
+        "databaseStack": "PostgreSQL + Entity Framework Core",
+        "deploymentTarget": "Docker + AWS ECS",
+        "topology": "modular_monolith",
+        "topologyRationale": "A modular monolith allows for clear domain separation while maintaining a single deployable unit, which is suitable for the project's scale and complexity.",
+        "systemModules": [
+          "Vehicle Tracking",
+          "Driver Management",
+          "Dispatching",
+          "Maintenance Monitoring",
+          "Alerts & Notifications",
+          "Reporting",
+          "Fuel Management",
+          "Compliance Monitoring"
+        ],
+        "description": "This architecture combines ASP.NET Core for the backend with a React frontend, providing a robust, scalable solution for managing fleet operations in real-time.",
+        "whyReasons": [
+          "ASP.NET Core offers high performance and security features, ensuring data safety and compliance.",
+          "React with TypeScript enhances developer velocity and maintainability through strong typing and component-based architecture.",
+          "PostgreSQL provides reliable data storage with advanced querying capabilities, suitable for handling historical data and performance metrics."
+        ],
+        "bestFor": "Enterprise-grade fleet management systems with real-time tracking needs.",
+        "isRecommended": true
+      },
+      "customRequirements": "Target platform — Where should people mainly open and use this product?\nAnswer: Web browser (managers & dispatch)\n\nRealtime & offline — How often should the system update the live locations of vehicles?\nAnswer: Every 30 seconds\n\nProduct scope — How should driver attendance be managed?\nAnswer: Automated check-in via GPS\n\nProduct scope — What level of accuracy is needed for geo-fencing?\nAnswer: High accuracy (within 5 meters)\n\nMonitoring & alerts — How far in advance should maintenance alerts be sent?\nAnswer: Three days in advance\n\nData & storage — How long should historical data be kept for vehicle usage and performance?\nAnswer: One year\n\nHosting & deployment — Where should the fleet management system be hosted?\nAnswer: Managed cloud service"
     },
     "createdAt": 1791819209463,
-    "updatedAt": 1791823008017
+    "updatedAt": 1791825920848
   },
   {
     "id": "proj_1791369037652",

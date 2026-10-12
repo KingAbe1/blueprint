@@ -60,7 +60,7 @@ const CATEGORY_LABELS: Record<ArchitectureQuestion['category'], string> = {
   product: 'Product scope',
   users: 'Users & workflows',
   platform: 'Target platform',
-  approach: 'How choices are made',
+  approach: 'Decision defaults',
   ui: 'User experience',
   access: 'Sign-in & access',
   frontend: 'App screens',
@@ -269,9 +269,6 @@ export const DomainIntentView: React.FC<DomainIntentViewProps> = ({ onOpenArchit
 
   const surface = isDark ? 'bg-[#141518] border-white/[0.08]' : 'bg-white border-slate-200';
   const muted = isDark ? 'text-[#92949C]' : 'text-slate-500';
-  const subtleButton = isDark
-    ? 'border-white/[0.09] bg-white/[0.03] text-slate-300 hover:bg-white/[0.06] hover:text-white'
-    : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:text-slate-900';
   const input = isDark
     ? 'bg-[#0F1012] border-white/[0.09] text-white placeholder:text-[#5F6169] focus:border-blue-500/70'
     : 'bg-slate-50/70 border-slate-200 text-slate-900 placeholder:text-slate-400 focus:bg-white focus:border-blue-500';
@@ -598,7 +595,7 @@ export const DomainIntentView: React.FC<DomainIntentViewProps> = ({ onOpenArchit
               <button
                 type="button"
                 onClick={handleEditProduct}
-                className={`flex shrink-0 items-center gap-2 rounded-lg border px-3 py-2 text-xs font-medium transition-colors ${subtleButton}`}
+                className="btn-secondary-accent flex shrink-0 items-center gap-2 px-3 py-2 text-xs"
               >
                 <Pencil className="h-3.5 w-3.5" />
                 Edit product
@@ -608,7 +605,7 @@ export const DomainIntentView: React.FC<DomainIntentViewProps> = ({ onOpenArchit
                 <button
                   type="button"
                   onClick={() => setDescriptionViewMode('edit')}
-                  className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-xs font-medium transition-colors ${subtleButton}`}
+                  className="btn-secondary-accent flex items-center gap-2 px-3 py-2 text-xs"
                 >
                   <Pencil className="h-3.5 w-3.5" />
                   Edit
@@ -617,7 +614,7 @@ export const DomainIntentView: React.FC<DomainIntentViewProps> = ({ onOpenArchit
                   type="button"
                   onClick={handlePolish}
                   disabled={isPolishing}
-                  className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-xs font-medium transition-colors disabled:opacity-50 ${subtleButton}`}
+                  className="btn-secondary flex items-center gap-2 px-3 py-2 text-xs disabled:opacity-50"
                 >
                   {isPolishing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <WandSparkles className="h-3.5 w-3.5" />}
                   {isPolishing ? 'Refining…' : isAiConfigured ? (briefLooksPolished ? 'Refine with AI' : 'Polish with AI') : 'Connect AI'}
@@ -629,7 +626,7 @@ export const DomainIntentView: React.FC<DomainIntentViewProps> = ({ onOpenArchit
                   <button
                     type="button"
                     onClick={() => setDescriptionViewMode('preview')}
-                    className={`rounded-lg border px-3 py-2 text-xs font-medium transition-colors ${subtleButton}`}
+                    className="btn-secondary px-3 py-2 text-xs"
                   >
                     Preview
                   </button>
@@ -638,7 +635,7 @@ export const DomainIntentView: React.FC<DomainIntentViewProps> = ({ onOpenArchit
                   type="button"
                   onClick={handlePolish}
                   disabled={isPolishing}
-                  className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-xs font-medium transition-colors disabled:opacity-50 ${subtleButton}`}
+                  className="btn-secondary flex items-center gap-2 px-3 py-2 text-xs disabled:opacity-50"
                 >
                   {isPolishing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <WandSparkles className="h-3.5 w-3.5" />}
                   {isPolishing ? 'Polishing…' : isAiConfigured ? 'Polish with AI' : 'Connect AI'}
@@ -730,7 +727,7 @@ export const DomainIntentView: React.FC<DomainIntentViewProps> = ({ onOpenArchit
             </div>
             {interview?.status === 'completed' && (
               <div className="flex flex-wrap gap-2 sm:justify-end">
-                <button type="button" onClick={editInterview} className={`flex items-center gap-1.5 rounded-lg border px-3 py-2 text-xs font-medium ${subtleButton}`}>
+                <button type="button" onClick={editInterview} className="btn-secondary-accent flex items-center gap-1.5 px-3 py-2 text-xs">
                   <Pencil className="h-3.5 w-3.5" />
                   Edit answers
                 </button>
@@ -738,7 +735,7 @@ export const DomainIntentView: React.FC<DomainIntentViewProps> = ({ onOpenArchit
                   type="button"
                   onClick={() => startInterview()}
                   disabled={isGeneratingInterview}
-                  className={`flex items-center gap-1.5 rounded-lg border px-3 py-2 text-xs font-medium disabled:opacity-50 ${subtleButton}`}
+                  className="btn-secondary-accent flex items-center gap-1.5 px-3 py-2 text-xs disabled:opacity-50"
                 >
                   {isGeneratingInterview ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
                   New question set
@@ -876,7 +873,7 @@ export const DomainIntentView: React.FC<DomainIntentViewProps> = ({ onOpenArchit
                   type="button"
                   onClick={goBack}
                   disabled={interview.currentQuestionIndex === 0}
-                  className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-xs font-medium transition-colors disabled:invisible ${subtleButton}`}
+                  className="btn-secondary flex items-center gap-2 px-3 py-2 text-xs disabled:invisible"
                 >
                   <ArrowLeft className="h-3.5 w-3.5" />
                   Back
@@ -926,7 +923,7 @@ export const DomainIntentView: React.FC<DomainIntentViewProps> = ({ onOpenArchit
               ) : (
                 <div className={`mt-5 rounded-xl border border-dashed px-5 py-7 text-center ${isDark ? 'border-white/[0.1]' : 'border-slate-200'}`}>
                   <p className={`text-xs ${muted}`}>The final architecture could not be prepared.</p>
-                  <button type="button" onClick={() => generateStackRecommendations(interview)} className={`mt-3 rounded-lg border px-3 py-2 text-xs font-medium ${subtleButton}`}>
+                  <button type="button" onClick={() => generateStackRecommendations(interview)} className="btn-secondary mt-3 px-3 py-2 text-xs">
                     Try again
                   </button>
                 </div>
@@ -945,17 +942,27 @@ export const DomainIntentView: React.FC<DomainIntentViewProps> = ({ onOpenArchit
                 </summary>
 
                 <div className={`grid gap-3 border-t p-3 lg:grid-cols-2 ${isDark ? 'border-white/[0.06]' : 'border-slate-200'}`}>
+                  {(interview.inferredFacts || []).length > 0 && (
+                    <div className={`overflow-hidden rounded-xl border lg:col-span-2 ${isDark ? 'border-emerald-500/15 bg-emerald-500/[0.03]' : 'border-emerald-100 bg-emerald-50/40'}`}>
+                      <div className={`border-b px-4 py-3 ${isDark ? 'border-emerald-500/10' : 'border-emerald-100'}`}>
+                        <h4 className={`text-xs font-semibold ${isDark ? 'text-emerald-200' : 'text-emerald-900'}`}>From your brief</h4>
+                        <p className={`mt-0.5 text-[10px] ${muted}`}>Blueprint treated these as already decided—no question asked.</p>
+                      </div>
+                      <ul className={`divide-y ${isDark ? 'divide-emerald-500/10' : 'divide-emerald-100'}`}>
+                        {(interview.inferredFacts || []).map(fact => (
+                          <li key={`${fact.category}-${fact.value}`} className="flex flex-wrap items-baseline gap-x-2 gap-y-1 px-4 py-2.5">
+                            <span className={`text-[9px] font-semibold uppercase tracking-[0.11em] ${muted}`}>{CATEGORY_LABELS[fact.category]}</span>
+                            <span className={`text-xs font-medium ${isDark ? 'text-slate-100' : 'text-slate-800'}`}>{fact.value}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
                   {DECISION_GROUPS.map(group => {
-                    const rows = group.categories.map(category => {
-                      const matches = decisionItems.filter(item => item.category === category);
-                      return {
-                        category,
-                        values: compactDecisionValues(matches.map(item => item.value)),
-                        fromDescription: matches.some(item => item.fromDescription),
-                      };
-                    }).filter(row => row.values.length > 0);
-
-                    if (rows.length === 0) return null;
+                    const groupQuestions = interview.questions.filter(question =>
+                      group.categories.includes(question.category),
+                    );
+                    if (groupQuestions.length === 0) return null;
 
                     return (
                       <div key={group.title} className={`overflow-hidden rounded-xl border ${isDark ? 'border-white/[0.07] bg-[#141518]' : 'border-slate-200 bg-white'}`}>
@@ -964,23 +971,21 @@ export const DomainIntentView: React.FC<DomainIntentViewProps> = ({ onOpenArchit
                             <h4 className={`text-xs font-semibold ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>{group.title}</h4>
                             <p className={`mt-0.5 text-[10px] ${muted}`}>{group.description}</p>
                           </div>
-                          <span className={`rounded-full px-2 py-0.5 text-[9px] font-semibold ${isDark ? 'bg-white/[0.05] text-slate-400' : 'bg-slate-50 text-slate-500'}`}>{rows.length}</span>
+                          <span className={`rounded-full px-2 py-0.5 text-[9px] font-semibold ${isDark ? 'bg-white/[0.05] text-slate-400' : 'bg-slate-50 text-slate-500'}`}>{groupQuestions.length}</span>
                         </div>
                         <div className={`divide-y ${isDark ? 'divide-white/[0.05]' : 'divide-slate-200'}`}>
-                          {rows.map(row => (
-                            <div key={row.category} className="grid gap-1 px-4 py-3 sm:grid-cols-[150px_minmax(0,1fr)] sm:gap-4">
-                              <div className="flex items-center gap-2">
-                                <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${row.fromDescription ? 'bg-emerald-500' : 'bg-blue-500'}`} />
-                                <span className={`text-[9px] font-semibold uppercase tracking-[0.11em] ${muted}`}>{CATEGORY_LABELS[row.category]}</span>
+                          {groupQuestions.map(question => {
+                            const answer = interview.answers.find(item => item.questionId === question.id);
+                            return (
+                              <div key={question.id} className="px-4 py-3">
+                                <p className={`text-[9px] font-semibold uppercase tracking-[0.11em] ${muted}`}>{CATEGORY_LABELS[question.category]}</p>
+                                <p className={`mt-1 text-xs leading-5 ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>{question.question}</p>
+                                <p className={`mt-2 text-xs font-semibold leading-5 ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                                  {answer?.label || 'No preference'}
+                                </p>
                               </div>
-                              <div className="flex flex-wrap items-center gap-2">
-                                <span className={`text-xs font-medium leading-4 ${isDark ? 'text-slate-200' : 'text-slate-800'}`}>{row.values.join(' · ')}</span>
-                                {row.fromDescription && (
-                                  <span className={`rounded-full px-1.5 py-0.5 text-[8px] font-semibold ${isDark ? 'bg-emerald-500/10 text-emerald-300' : 'bg-emerald-50 text-emerald-700'}`}>From description</span>
-                                )}
-                              </div>
-                            </div>
-                          ))}
+                            );
+                          })}
                         </div>
                       </div>
                     );

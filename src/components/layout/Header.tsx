@@ -94,7 +94,9 @@ export const Header: React.FC<HeaderProps> = ({
                           isActive
                             ? isDark ? 'bg-white/[0.08] text-white' : 'bg-white text-slate-900 shadow-xs'
                             : isAvailable
-                              ? isDark ? 'text-[#92949C] hover:text-white' : 'text-slate-500 hover:text-slate-900'
+                              ? isDark
+                                ? 'text-slate-300 hover:bg-white/[0.07] hover:text-white'
+                                : 'text-slate-600 hover:bg-white hover:text-slate-900'
                               : isDark ? 'cursor-not-allowed text-[#494B51]' : 'cursor-not-allowed text-slate-300'
                         }`}
                       >

@@ -515,12 +515,26 @@ Requirements:
 - Do not ask anything already fully settled by an inferredFact. You may ask a different question in the same broad area when it resolves another material decision.
 - Example: if the description says "mobile app", record platform and do not ask where it should run.
 - Example: if it names React Native, record frontend facts and do not ask the user to choose those again.
+- NEVER infer platform (web, mobile, desktop) from domain clues alone. Live GPS, drivers, dispatch, geo-fencing, fleet tracking, or "communication in the field" do NOT mean iOS/Android apps—operations teams often use browser dashboards. If the brief does not explicitly say web, mobile, desktop, or CLI, do NOT add a platform inferredFact; you MUST include a plain-language platform question instead.
 - Do not infer a hard decision from weak clues. When a choice is genuinely ambiguous, ask a clarifying question.
 - Each question must have a unique "id" (snake_case, descriptive, e.g. "fleet_map_freshness").
 - "category" is a UI grouping tag only—pick the closest: product, users, platform, approach, ui, access, frontend, topology, backend, api, data, realtime, integrations, security, compliance, scale, reliability, deployment, delivery, testing, observability, operations, budget. Multiple questions may share a category.
+- The category MUST match the question topic. Geo-fencing, map accuracy, and location refresh belong in product or realtime—not "approach". Maintenance alert lead time belongs in product or observability—not "operations" unless the question is literally about who owns the system. Reserve "approach" for how strict vs flexible Blueprint should be when choosing defaults. Reserve "operations" for who runs and maintains the system day to day.
 - Tailoring is mandatory: every question and option must reference this project (roles, features, data, workflows from the description)—never generic checklist wording.
 - Ask one decision per question. Questions must yield actionable constraints for an AI coding agent (scope, access, data accuracy, integrations, recovery, release process, monitoring, ownership, cost).
 - Ask about outcomes and tradeoffs, not implementation jargon (no "REST vs GraphQL"; no database or framework names unless the description named them).
+- Balance product behavior vs build constraints: every question must change implementation choices (hosting, data retention, system shape, security, scale, release)—not fine-grained feature UX (geofence editor complexity, messaging screen layout) unless the brief leaves a compliance or integration gap. Cap feature-behavior questions at ~30% of the set; the rest should constrain how the system is built and operated.
+- For products that store operational or customer data (typical SaaS, fleet, admin tools), include at least one WHERE IT RUNS question (category deployment): managed cloud vs company-owned servers vs data residency—without naming AWS, Azure, or GCP.
+- Include at least one DATA KEEPING question (category data): how long history must be kept, how bad would losing recent records be—not "SQL vs NoSQL".
+- Capture how the builder imagines the system's future—in plain language—whenever it would change implementation. Do not use the words "scalability", "architecture", or "stack" in questions; translate intent into concrete scenarios from this product.
+- When the product is multi-user, operational, customer-facing, or data-heavy (not a trivial solo scratchpad), include tailored questions that surface:
+  • Growth headroom (category scale or product): e.g. fleet/users/records doubling or 10×—must it still feel fast and accurate, or is early size enough for years?
+  • Downtime impact (category reliability or operations): e.g. can dispatch stop for an hour overnight, or is it unacceptable during business hours?
+  • Change pace & ownership (category operations, delivery, or approach): solo vibe-coder vs small product team vs company IT; ship experiments often vs slow-and-stable?
+  • Cost & complexity appetite (category budget or deployment): keep running cost low and simple vs invest for headroom and polish—without naming cloud vendors.
+  Skip any of the above only when clearly irrelevant (personal notes app, one-off script, fixed tiny audience with no growth implied).
+- Wrong (too technical): "Monolith or microservices?" / "Which database?" / "Do you need horizontal scaling?"
+- Right (same intent): "If this grows from hundreds to thousands of vehicles, should tracking and reports still feel instant?" / "Will one team maintain everything, or will different departments own separate pieces and release on their own schedule?"
 - Assume the user may be a non-technical "vibe coder". Use everyday language, short sentences, and concrete examples. Never use an acronym such as SSO, API, CI/CD, RTO, RPO, SLO, PCI, or SOC 2 without immediately explaining it in plain language.
 - When a technical choice does not require user knowledge, make "Let Blueprint decide" the recommended option and derive the technology later from the user's outcome-based answers.
 - Each question must have 3 to 5 concise answer options.
@@ -593,13 +607,15 @@ Respond ONLY with a valid JSON object in this shape:
       const rawCategory = String(item.category || '').toLowerCase();
       const value = String(item.value || '').trim();
       const evidence = item.evidence ? String(item.evidence).trim() : undefined;
-      if (!validCategories.has(rawCategory) || !value || !isConcreteArchitectureFact(value, evidence)) return null;
-      return {
+      if (!validCategories.has(rawCategory) || !value) return null;
+      const candidate: ArchitectureFact = {
         category: rawCategory as ArchitectureQuestion['category'],
         value,
         evidence,
         source: 'ai' as const,
       };
+      if (!shouldAcceptAiInferredFact(description, candidate)) return null;
+      return candidate;
     })
     .filter(Boolean) as ArchitectureFact[];
 
@@ -645,6 +661,22 @@ Respond ONLY with a valid JSON object in this shape:
     return true;
   });
 
+  const platformSettled = inferredFacts.some(fact => fact.category === 'platform');
+  if (!descriptionSpecifiesPlatform(description) && !platformSettled && !questions.some(q => q.category === 'platform')) {
+    questions = [buildPlatformClarificationQuestion(), ...questions];
+  }
+
+  if (descriptionImpliesStoredOperationalData(description)) {
+    const ensureTail: ArchitectureQuestion[] = [];
+    if (!questions.some(q => q.category === 'deployment') && !inferredFacts.some(f => f.category === 'deployment')) {
+      ensureTail.push(buildDeploymentClarificationQuestion());
+    }
+    if (!questions.some(q => q.category === 'data') && !inferredFacts.some(f => f.category === 'data')) {
+      ensureTail.push(buildDataRetentionClarificationQuestion());
+    }
+    questions = [...questions, ...ensureTail];
+  }
+
   if (questions.length < 5) {
     throw new Error(`${activeConfig.name} returned too few tailored questions for this project. Please try again.`);
   }
@@ -656,6 +688,153 @@ function isConcreteArchitectureFact(value: string, evidence?: string): boolean {
   const candidate = `${value} ${evidence || ''}`.toLowerCase();
   const vagueOnly = /\b(user[- ]friendly|intuitive(?: layout| interface)?|robust backend|robust system|fast and reliable|reliable performance|high performance|scalable architecture|secure transactions?|modern interface|uses? apis?|apis? for)\b/;
   return !vagueOnly.test(candidate);
+}
+
+/** True only when the brief explicitly names how the product is delivered (not inferred from fleet/GPS/etc.). */
+export function descriptionSpecifiesPlatform(description: string): boolean {
+  return /\b(mobile app|ios app|android app|iphone app|ipad app|web app|web application|website|browser-based|runs? in (?:the )?browser|desktop app|desktop application|desktop software|command[- ]line|terminal tool|\bcli\b)\b/i.test(
+    description,
+  );
+}
+
+function shouldAcceptAiInferredFact(description: string, fact: ArchitectureFact): boolean {
+  if (!isConcreteArchitectureFact(fact.value, fact.evidence)) return false;
+  if (fact.category === 'platform') {
+    return descriptionSpecifiesPlatform(description);
+  }
+  const value = fact.value.toLowerCase();
+  const desc = description.toLowerCase();
+  const namedTechnologies = ['flutter', 'firebase', 'react native', 'expo', 'swiftui', 'next.js', 'nextjs', 'supabase'];
+  if (namedTechnologies.some(term => value.includes(term) && !desc.includes(term.replace('.', '')))) {
+    return false;
+  }
+  if (fact.category === 'frontend' && /\b(ios|android|mobile application)\b/.test(value) && !descriptionSpecifiesPlatform(description)) {
+    return false;
+  }
+  return true;
+}
+
+function descriptionImpliesStoredOperationalData(description: string): boolean {
+  const text = description.trim().toLowerCase();
+  if (text.split(/\s+/).filter(Boolean).length < 20) return false;
+  return /\b(track|store|record|report|history|dashboard|manage|monitor|fleet|customer|order|payment|inventory|attendance|compliance|audit|account|database|persist)\b/.test(
+    text,
+  );
+}
+
+function buildDeploymentClarificationQuestion(): ArchitectureQuestion {
+  return {
+    id: 'where_system_runs',
+    category: 'deployment',
+    question: 'Where should this system run in production?',
+    context: 'This drives hosting, networking, and how backups are handled—not which brand of cloud to buy.',
+    allowCustom: true,
+    options: [
+      {
+        id: 'managed_cloud',
+        label: 'Managed cloud (simplest to start)',
+        description: 'Blueprint picks a mainstream hosted setup; you focus on the product, not servers.',
+        recommended: true,
+      },
+      {
+        id: 'company_servers',
+        label: 'Company-owned servers or private network',
+        description: 'Data and apps must stay on infrastructure your organization controls.',
+        recommended: false,
+      },
+      {
+        id: 'region_locked',
+        label: 'Specific country or region only',
+        description: 'User and vehicle data must stay in a chosen geography for policy or legal reasons.',
+        recommended: false,
+      },
+      {
+        id: 'blueprint_decide',
+        label: 'Let Blueprint decide',
+        description: 'Use the safest default for a team your size.',
+        recommended: false,
+      },
+    ],
+  };
+}
+
+function buildDataRetentionClarificationQuestion(): ArchitectureQuestion {
+  return {
+    id: 'data_history_importance',
+    category: 'data',
+    question: 'How important is keeping historical records (locations, reports, attendance)?',
+    context: 'This drives database design, backups, and storage cost—not the name of a database product.',
+    allowCustom: true,
+    options: [
+      {
+        id: 'years_required',
+        label: 'Years of history—must be recoverable',
+        description: 'Losing old data would be a serious business or legal problem; plan for backups and retention.',
+        recommended: false,
+      },
+      {
+        id: 'months_enough',
+        label: 'Several months is enough',
+        description: 'Recent operational data matters most; older summaries can be archived or dropped.',
+        recommended: true,
+      },
+      {
+        id: 'recent_only',
+        label: 'Mostly live data—short history',
+        description: 'Only the last few days or weeks need to be queryable; minimal archive needs.',
+        recommended: false,
+      },
+      {
+        id: 'blueprint_decide',
+        label: 'Let Blueprint decide',
+        description: 'Match retention to the features in the brief.',
+        recommended: false,
+      },
+    ],
+  };
+}
+
+function buildPlatformClarificationQuestion(): ArchitectureQuestion {
+  return {
+    id: 'primary_experience_surface',
+    category: 'platform',
+    question: 'Where should people mainly open and use this product?',
+    context:
+      'Live maps, drivers, and geo-fencing do not automatically mean phone apps—many fleet and ops products start with a browser dashboard for managers and dispatch.',
+    allowCustom: true,
+    options: [
+      {
+        id: 'web_primary',
+        label: 'Web browser (managers & dispatch)',
+        description: 'Control room and office users on laptops—maps, reports, admin, and dispatch in one hub.',
+        recommended: true,
+      },
+      {
+        id: 'mobile_native',
+        label: 'Native phone apps (iPhone & Android)',
+        description: 'When drivers or field staff need an installed app on their phone most of the day.',
+        recommended: false,
+      },
+      {
+        id: 'web_and_mobile',
+        label: 'Web hub plus driver phone apps',
+        description: 'Managers and dispatch on the web; drivers on phones—shared backend, two experiences.',
+        recommended: false,
+      },
+      {
+        id: 'desktop_installed',
+        label: 'Installed desktop application',
+        description: 'When the product must run as a local app on macOS or Windows workstations.',
+        recommended: false,
+      },
+      {
+        id: 'blueprint_decide',
+        label: 'Let Blueprint decide',
+        description: 'Choose the most sensible mix from the roles listed in the brief.',
+        recommended: false,
+      },
+    ],
+  };
 }
 
 function questionTextBlob(question: ArchitectureQuestion): string {
@@ -783,6 +962,19 @@ export async function analyzeFrameworksWithAI(
     dynamicConstraints.push('- Product delivery: Native desktop application (installable on macOS, Windows, and/or Linux)—not a browser-hosted website as the primary product.');
   }
 
+  const decisionText = `${description}\n${options?.customRequirements || ''}`;
+  const platformExplicitInBrief = descriptionSpecifiesPlatform(description);
+  const platformChoseNativeMobile =
+    /\b(native phone|iphone|android|ios app|mobile app|app store|google play|react native|expo|flutter)\b/i.test(decisionText);
+  const platformChoseWeb =
+    /\b(web browser|browser dashboard|full-stack web|website|web app|managers?\s*&\s*dispatch|web hub|office users)\b/i.test(decisionText);
+
+  if (!platformChoseNativeMobile && (platformChoseWeb || !platformExplicitInBrief)) {
+    dynamicConstraints.push(
+      '- Target platform: The brief does not require native iOS/Android apps as the primary product (and build-question answers favor web or are silent on mobile). Prefer a full-stack WEB application (browser) for manager, dispatch, and operations workflows—not Flutter, Expo, or Firebase-as-the-default mobile stack unless answers explicitly chose native phone apps for drivers or field staff.',
+    );
+  }
+
   const constraintSection = dynamicConstraints.length > 0
     ? `User Technical Preferences & Architectural Directives:\n${dynamicConstraints.join('\n')}\n`
     : `User Technical Preferences:\n- Architecture: Analyze the domain requirements to pick the optimal production architecture.\n- Technologies: Select the best-in-class programming languages and ecosystems for this specific domain.\n`;
@@ -809,6 +1001,8 @@ Architectural Guidelines:
 - For a mobile product, deploymentTarget must include app signing/builds and distribution through Apple App Store and Google Play as well as the backend hosting target.
 - For a desktop product, category must be "Desktop Software" (or equivalent), architecture must be "Desktop Native" (or hybrid with a local shell), deploymentTarget must describe native installers or app bundles—not Vercel or a public URL as the main way users run the product. Prefer stacks such as Tauri, Electron, or platform-native UI when the brief or interview says desktop.
 - Do not recommend "Full-Stack Web" or a hosted SPA as the primary architecture when the user is building desktop software unless they explicitly chose a web client.
+- Do NOT treat fleet tracking, live GPS, drivers, or geo-fencing as proof the product must be Flutter, React Native, or Firebase mobile. Default to web for centralized monitoring unless the brief or build-question answers explicitly chose native phone apps.
+- Recommend Flutter, Expo/React Native, or Firebase as the primary stack only when the brief or build-question answers explicitly chose native mobile apps—not from domain stereotypes alone.
 - If recommending Supabase, describe its data layer as PostgreSQL with Row Level Security and its normal client/query tooling; never call it "Supabase ORM" or "Supabase Hosting".
 
 For the final architecture, provide one object with:

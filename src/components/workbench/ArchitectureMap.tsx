@@ -345,30 +345,29 @@ export const ArchitectureMap: React.FC<ArchitectureMapProps> = ({ recommendation
   }, [isExpanded]);
 
   const mapContent = (
-    <section className={`${isExpanded ? 'flex h-full min-h-0 flex-col shadow-2xl' : 'relative'} overflow-hidden rounded-2xl border ${
+    <section className={`${isExpanded ? 'flex h-full min-h-0 flex-col shadow-2xl' : 'relative'} overflow-hidden rounded-xl border lg:rounded-2xl ${
       isDark ? 'border-white/[0.08] bg-[#101216]' : 'border-slate-200 bg-slate-50'
     }`}>
-      <div className={`shrink-0 flex flex-col gap-3 border-b px-5 py-4 sm:flex-row sm:items-center sm:justify-between ${isDark ? 'border-white/[0.07]' : 'border-slate-200'}`}>
+      <div className={`shrink-0 flex flex-col gap-3 border-b px-4 py-3.5 sm:flex-row sm:items-center sm:justify-between sm:px-5 sm:py-4 ${isDark ? 'border-white/[0.07] bg-black/15' : 'border-slate-200 bg-white/80'}`}>
         <div>
           <div className="flex flex-wrap items-center gap-2">
-            <div className={`text-[10px] font-semibold uppercase tracking-[0.14em] ${isDark ? 'text-blue-300' : 'text-blue-700'}`}>Interactive architecture map</div>
-            <span className={`rounded-full px-2 py-0.5 text-[9px] font-semibold ${isDark ? 'bg-violet-500/10 text-violet-300' : 'bg-violet-100 text-violet-700'}`}>{selectedTopology.label}</span>
+            <div className={`text-[10px] font-semibold uppercase tracking-[0.14em] ${isDark ? 'text-blue-300' : 'text-blue-700'}`}>System flow</div>
+            <span className={`rounded-full px-2 py-0.5 text-[9px] font-semibold ${isDark ? 'bg-violet-500/12 text-violet-200' : 'bg-violet-100 text-violet-700'}`}>{selectedTopology.label}</span>
           </div>
-          <h3 className={`mt-1 text-sm font-semibold ${isDark ? 'text-white' : 'text-slate-950'}`}>Explore how the product fits together</h3>
-          <p className={`mt-1 text-[10px] ${muted}`}>Select a node for context. Drag nodes to rearrange, or drag the canvas to explore.</p>
+          <p className={`mt-1 text-xs ${muted}`}>Click a node for details · drag to rearrange · pan the canvas</p>
         </div>
         <div className="flex items-center gap-1.5">
-          <button type="button" onClick={() => changeZoom(-0.1)} className={`rounded-lg border p-2 ${nodeSurface}`} title="Zoom out">
+          <button type="button" onClick={() => changeZoom(-0.1)} className="btn-secondary p-2" title="Zoom out" aria-label="Zoom out">
             <Minus className="h-3.5 w-3.5" />
           </button>
-          <span className={`w-11 text-center text-[10px] font-medium tabular-nums ${muted}`}>{Math.round(zoom * 100)}%</span>
-          <button type="button" onClick={() => changeZoom(0.1)} className={`rounded-lg border p-2 ${nodeSurface}`} title="Zoom in">
+          <span className={`min-w-11 text-center text-[10px] font-semibold tabular-nums ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>{Math.round(zoom * 100)}%</span>
+          <button type="button" onClick={() => changeZoom(0.1)} className="btn-secondary p-2" title="Zoom in" aria-label="Zoom in">
             <Plus className="h-3.5 w-3.5" />
           </button>
-          <button type="button" onClick={resetView} className={`rounded-lg border p-2 ${nodeSurface}`} title="Reset layout">
+          <button type="button" onClick={resetView} className="btn-secondary p-2" title="Reset layout" aria-label="Reset layout">
             <RotateCcw className="h-3.5 w-3.5" />
           </button>
-          <button type="button" onClick={() => setIsExpanded(value => !value)} className={`rounded-lg border p-2 ${nodeSurface}`} title={isExpanded ? 'Exit full screen' : 'Expand map'}>
+          <button type="button" onClick={() => setIsExpanded(value => !value)} className="btn-secondary-accent p-2" title={isExpanded ? 'Exit full screen' : 'Expand map'} aria-label={isExpanded ? 'Exit full screen' : 'Expand map'}>
             {isExpanded ? <Minimize2 className="h-3.5 w-3.5" /> : <Maximize2 className="h-3.5 w-3.5" />}
           </button>
         </div>
@@ -380,7 +379,7 @@ export const ArchitectureMap: React.FC<ArchitectureMapProps> = ({ recommendation
         onPointerMove={moveCanvas}
         onPointerUp={stopPanning}
         onPointerCancel={stopPanning}
-        className={`relative touch-none overflow-hidden ${panRef.current ? 'cursor-grabbing' : 'cursor-grab'} ${isExpanded ? 'min-h-0 flex-1' : 'h-[500px]'}`}
+        className={`relative touch-none overflow-hidden ${panRef.current ? 'cursor-grabbing' : 'cursor-grab'} ${isExpanded ? 'min-h-0 flex-1' : 'h-[min(52vh,520px)] min-h-[420px]'}`}
         style={{
           backgroundImage: isDark
             ? 'radial-gradient(circle, rgba(255,255,255,0.10) 1px, transparent 1px)'
@@ -459,16 +458,14 @@ export const ArchitectureMap: React.FC<ArchitectureMapProps> = ({ recommendation
           </div>
       </div>
 
-      <div className={`shrink-0 flex items-start gap-3 border-t px-5 py-4 ${isDark ? 'border-white/[0.07] bg-black/10' : 'border-slate-200 bg-white'}`}>
-        <span className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${toneStyles[activeNode.tone].icon}`}>
+      <div className={`shrink-0 flex items-start gap-3 border-t px-4 py-4 sm:px-5 ${isDark ? 'border-white/[0.07] bg-[#141518]/90' : 'border-slate-200 bg-white'}`}>
+        <span className={`mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${toneStyles[activeNode.tone].icon}`}>
           <ActiveIcon className="h-4 w-4" />
         </span>
-        <div className="min-w-0">
-          <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-            <span className={`text-xs font-semibold ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>{activeNode.eyebrow}</span>
-            <span className={`text-[10px] ${muted}`}>{activeNode.label}</span>
-          </div>
-          <p className={`mt-1 text-[11px] leading-5 ${muted}`}>{activeNode.detail}</p>
+        <div className="min-w-0 flex-1">
+          <p className={`text-[10px] font-semibold uppercase tracking-[0.1em] ${muted}`}>{activeNode.eyebrow}</p>
+          <p className={`mt-1 text-sm font-semibold leading-5 ${isDark ? 'text-white' : 'text-slate-900'}`}>{activeNode.label}</p>
+          <p className={`mt-1.5 text-xs leading-5 ${muted}`}>{activeNode.detail}</p>
           {activeNode.id === 'services' && (
             <div className="mt-2 flex flex-wrap gap-1.5">
               {systemModules.map(module => (

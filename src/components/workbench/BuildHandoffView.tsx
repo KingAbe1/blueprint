@@ -137,10 +137,6 @@ export const BuildHandoffView: React.FC = () => {
   })).filter(group => group.files.length > 0), [handoff]);
   const surface = isDark ? 'border-white/[0.08] bg-[#141518]' : 'border-slate-200 bg-white';
   const muted = isDark ? 'text-slate-400' : 'text-slate-500';
-  const subtle = isDark
-    ? 'border-white/[0.09] bg-white/[0.03] text-slate-300 hover:bg-white/[0.06] hover:text-white'
-    : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:text-slate-900';
-
   if (!activeProject) return null;
 
   const regenerate = (ide: IDETarget = handoff?.ide || 'cursor', skipEditCheck = false) => {
@@ -246,7 +242,7 @@ export const BuildHandoffView: React.FC = () => {
               <FolderOpen className="h-3.5 w-3.5" />
               {target ? 'Review & add files' : 'Choose project folder'}
             </button>
-            <button type="button" onClick={() => regenerate()} className={`flex items-center justify-center gap-2 rounded-lg border px-3 py-2.5 text-xs font-medium transition-colors ${subtle}`}>
+            <button type="button" onClick={() => regenerate()} className="btn-secondary flex items-center justify-center gap-2 px-3 py-2.5 text-xs">
               <RefreshCw className="h-3.5 w-3.5" />
               Regenerate package
             </button>
@@ -347,7 +343,7 @@ export const BuildHandoffView: React.FC = () => {
                   <h2 className={`text-base font-semibold ${isDark ? 'text-white' : 'text-slate-900'}`}>Add to your workspace</h2>
                   <p className={`mt-1 text-xs leading-5 ${muted}`}>Choose your IDE and project folder to add these blueprint files.</p>
                 </div>
-                <button ref={workspaceCloseRef} type="button" aria-label="Close workspace setup" onClick={() => setIsWorkspacePanelOpen(false)} className={`rounded-lg border p-2 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${subtle}`}>
+                <button ref={workspaceCloseRef} type="button" aria-label="Close workspace setup" onClick={() => setIsWorkspacePanelOpen(false)} className="btn-secondary p-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500">
                   <X className="h-4 w-4" />
                 </button>
               </div>
@@ -379,7 +375,7 @@ export const BuildHandoffView: React.FC = () => {
                   <span className="flex h-5 w-5 items-center justify-center rounded-full bg-blue-500/10 text-[9px] text-blue-500">2</span>
                   Project folder
                 </div>
-                <button type="button" onClick={chooseFolder} disabled={isChoosingFolder} className={`mt-2 flex w-full items-center gap-2.5 rounded-lg border px-3 py-2.5 text-left text-xs font-medium disabled:opacity-50 ${subtle}`}>
+                <button type="button" onClick={chooseFolder} disabled={isChoosingFolder} className="btn-secondary mt-2 flex w-full items-center gap-2.5 px-3 py-2.5 text-left text-xs disabled:opacity-50">
                   {isChoosingFolder ? <Loader2 className="h-4 w-4 shrink-0 animate-spin" /> : <FolderOpen className="h-4 w-4 shrink-0 text-blue-500" />}
                   <span className="min-w-0 flex-1 truncate">{target ? target.name : 'Select your project folder'}</span>
                   {target && <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-emerald-500" />}
