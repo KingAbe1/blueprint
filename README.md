@@ -23,7 +23,7 @@ Projects are persisted **on your machine only** (browser storage and/or `.bluepr
 
 - **Codebase scans** run locally. File contents used for analysis stay on your device except where you explicitly opt in (see below).
 - **Blueprint does not** operate a cloud repository for your company code, scan results, or project specs.
-- **Optional AI** (architecture interview, description polish, quality review): prompts are sent from your browser/desktop app **directly to the provider you configure** (OpenAI, Anthropic, Ollama on localhost, etc.). Use Ollama or your org’s gateway if nothing may leave your network.
+- **Optional AI** (architecture interview, description polish, quality review): **one provider setup for all projects**—stored in `localStorage` and `.blueprint_ai_settings.json` in dev. Prompts go **directly to the provider you configure** (OpenAI, Anthropic, Ollama on localhost, etc.). Use Ollama or your org’s gateway if nothing may leave your network.
 - **Optional GitHub status** uses a token you supply; requests go to GitHub, not Blueprint.
 - **Dependency advisories** may query public npm/OSV APIs using package names and versions from your lockfile—not your source tree.
 

@@ -18,12 +18,17 @@ export const ThemeProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
   useEffect(() => {
     localStorage.setItem('blueprint_theme', theme);
+    const root = document.documentElement;
     if (theme === 'dark') {
       document.body.classList.add('dark');
       document.body.classList.remove('light');
+      root.classList.add('dark');
+      root.classList.remove('light');
     } else {
       document.body.classList.add('light');
       document.body.classList.remove('dark');
+      root.classList.add('light');
+      root.classList.remove('dark');
     }
   }, [theme]);
 

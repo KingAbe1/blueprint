@@ -6,7 +6,6 @@ import { NotificationProvider } from './context/NotificationContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { GitHubProvider } from './context/GitHubContext';
 import { Header } from './components/layout/Header';
-import { Sidebar } from './components/layout/Sidebar';
 import { LoginView } from './components/auth/LoginView';
 import { CreateProjectView } from './components/project/CreateProjectView';
 import { CodebaseAnalysisView } from './components/project/CodebaseAnalysisView';
@@ -31,33 +30,9 @@ const AppContent: React.FC = () => {
     return savedTab && AVAILABLE_TABS.includes(savedTab) ? savedTab : 'domain-intent';
   });
   
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(() => {
-    return localStorage.getItem('blueprint_sidebar_collapsed_v2') === 'true';
-  });
-
-  const toggleSidebar = () => {
-    setIsSidebarCollapsed(prev => {
-      const next = !prev;
-      localStorage.setItem('blueprint_sidebar_collapsed_v2', String(next));
-      return next;
-    });
-  };
-
   useEffect(() => {
     localStorage.setItem(ACTIVE_TAB_STORAGE_KEY, activeTab);
   }, [activeTab]);
-
-  // Keyboard shortcut ⌘B / Ctrl+B to toggle sidebar
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'b') {
-        e.preventDefault();
-        toggleSidebar();
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []);
 
   // Show login screen before selecting a project or adding existing project
   if (!isAuthenticated) {
@@ -70,22 +45,10 @@ const AppContent: React.FC = () => {
         ? 'text-[#F4F4F6] selection:bg-blue-500/30 selection:text-blue-200 bg-[#101113]'
         : 'text-slate-900 selection:bg-blue-500/20 selection:text-blue-900 bg-slate-50'
     }`}>
-      {/* Full-Height Left Sidebar */}
-      {activeProject && !activeProject.codebaseAnalysis && !isCreatingNew && (
-        <Sidebar 
-          activeTab={activeTab} 
-          onSelectTab={setActiveTab}
-          isCollapsed={isSidebarCollapsed}
-          onToggleCollapse={toggleSidebar}
-        />
-      )}
-
-      {/* Right Column: Top Header + Workspace Canvas */}
-      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        <Header 
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+        <Header
           activeTab={activeTab}
-          isSidebarCollapsed={isSidebarCollapsed} 
-          onToggleSidebar={toggleSidebar} 
+          onSelectTab={setActiveTab}
         />
 
         <main className="flex-1 flex overflow-hidden min-h-0">

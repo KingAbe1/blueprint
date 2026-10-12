@@ -13,6 +13,7 @@ import {
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import { useNotification } from '../../context/NotificationContext';
+import { isDesktopApp } from '../../utils/platform';
 
 export const LoginView: React.FC = () => {
   const { 
@@ -93,35 +94,51 @@ export const LoginView: React.FC = () => {
 
   const muted = isDark ? 'text-slate-400' : 'text-slate-500';
   const divider = isDark ? 'border-white/[0.08]' : 'border-slate-200';
+  const desktop = isDesktopApp();
+
+  const shellBg = isDark
+    ? 'text-[#F4F4F6] selection:bg-blue-500/30 selection:text-blue-200 bg-[#101113]'
+    : desktop
+      ? 'text-slate-900 selection:bg-blue-500/20 selection:text-blue-900 bg-[#F5F7FA]'
+      : 'text-slate-900 selection:bg-blue-500/20 selection:text-blue-900 bg-[radial-gradient(ellipse_at_40%_38%,#ffffff_0%,#f7f9fd_48%,#eef3fa_100%)]';
+
+  const themeToggle = (
+    <button
+      type="button"
+      onClick={toggleTheme}
+      className={`rounded-lg p-2 transition-colors cursor-pointer ${
+        isDark
+          ? 'text-[#8E9098] hover:bg-white/[0.06] hover:text-white'
+          : 'text-slate-500 hover:bg-slate-100 hover:text-slate-900'
+      }`}
+      title={`Switch to ${isDark ? 'light' : 'dark'} mode`}
+    >
+      {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+    </button>
+  );
 
   return (
-    <div className={`h-screen w-screen relative flex items-center justify-center p-4 sm:p-6 select-none overflow-hidden font-display transition-colors duration-200 ${
-      isDark 
-        ? 'text-[#F4F4F6] selection:bg-blue-500/30 selection:text-blue-200 bg-[#101113]' 
-        : 'text-slate-900 selection:bg-blue-500/20 selection:text-blue-900 bg-[radial-gradient(ellipse_at_40%_38%,#ffffff_0%,#f7f9fd_48%,#eef3fa_100%)]'
-    }`}>
-      
-      {/* Top-Right Theme Toggle (Matching Header styling) */}
-      <div className="absolute top-4 right-4 z-20">
-        <button
-          type="button"
-          onClick={toggleTheme}
-          className={`rounded-lg p-2 transition-colors cursor-pointer ${
-            isDark 
-              ? 'text-[#8E9098] hover:bg-white/[0.06] hover:text-white' 
-              : 'text-slate-500 hover:bg-slate-100 hover:text-slate-900'
-          }`}
-          title={`Switch to ${isDark ? 'light' : 'dark'} mode`}
+    <div className={`desktop-hub-shell relative flex h-screen w-screen flex-col select-none overflow-hidden font-display transition-colors duration-200 ${shellBg}`}>
+      {desktop ? (
+        <div
+          data-tauri-drag-region
+          className={`drag-window desktop-titlebar-inset flex h-12 shrink-0 items-center justify-between border-b pr-4 ${isDark ? 'border-white/[0.07]' : 'border-slate-200'}`}
         >
-          {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-        </button>
-      </div>
+          <span className={`text-sm font-medium ${isDark ? 'text-[#C4C6CC]' : 'text-slate-700'}`}>Blueprint Studio</span>
+          <div className="no-drag">{themeToggle}</div>
+        </div>
+      ) : (
+        <div className="absolute top-4 right-4 z-20">{themeToggle}</div>
+      )}
 
-      {/* Login Card (Exact same surface colors as CreateProjectView card) */}
-      <div className={`relative z-10 w-full max-w-[420px] rounded-2xl border p-6 sm:p-7 shadow-sm transition-all ${
+      <div className="relative flex min-h-0 flex-1 overflow-y-auto">
+        <div className="flex min-h-full w-full items-center justify-center px-5 py-10 sm:px-8">
+          <div className={`desktop-panel w-full max-w-[420px] border p-6 sm:p-7 transition-all ${desktop ? 'rounded-lg shadow-none' : 'rounded-2xl shadow-sm'} ${
         isDark 
           ? 'border-white/[0.09] bg-[#141518]' 
-          : 'border-slate-200/80 bg-white/95 shadow-[0_20px_60px_-36px_rgba(15,23,42,0.26)]'
+          : desktop
+            ? 'border-slate-200 bg-white'
+            : 'border-slate-200/80 bg-white/95 shadow-[0_20px_60px_-36px_rgba(15,23,42,0.26)]'
       }`}>
         
         {/* Simplified Header */}
@@ -345,8 +362,9 @@ export const LoginView: React.FC = () => {
           </button>
         </form>
 
+          </div>
+        </div>
       </div>
-
     </div>
   );
 };

@@ -132,10 +132,10 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({ children })
       name: trimmed,
       spec: {
         ...defaultSpec,
-        description: description.trim()
+        description: description.trim(),
       },
       createdAt: Date.now(),
-      updatedAt: Date.now()
+      updatedAt: Date.now(),
     };
 
     setProjects(prev => [newProject, ...prev]);

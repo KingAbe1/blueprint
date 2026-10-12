@@ -83,7 +83,7 @@ function decisionsFor(project: Project) {
   const answers = interview.questions.map(question => ({
     category: question.category,
     value: interview.answers.find(answer => answer.questionId === question.id)?.label || 'No preference',
-    source: 'Architecture interview',
+    source: 'Build questions',
   }));
   return [...facts, ...answers];
 }
@@ -169,7 +169,7 @@ ${description}
 
 ## Product boundaries
 
-The first release should prioritize the complete user journeys implied by the description and architecture interview. Capabilities not required for those journeys should remain deferred until a roadmap decision introduces them.
+The first release should prioritize the complete user journeys implied by the description and build-question answers. Capabilities not required for those journeys should remain deferred until a roadmap decision introduces them.
 
 ## Source of truth
 
@@ -196,7 +196,7 @@ ${recommendation.description}
 
 ${recommendation.topologyRationale || (topology === 'modular_monolith'
   ? 'Use one deployable application with clear internal modules. This keeps delivery and operations simple while preserving boundaries that can be separated later if evidence justifies it.'
-  : `Use ${topologyLabel.toLowerCase()} because the architecture interview identified a need for independently operated workloads or boundaries.`)}
+  : `Use ${topologyLabel.toLowerCase()} because your build-question answers identified a need for independently operated workloads or boundaries.`)}
 
 ## Domain boundaries
 
@@ -431,7 +431,7 @@ Use \`AGENTS.md\` as the entry point for this project. Read the linked product, 
 - **Target IDE:** ${ide}
 - **Blueprint topology:** ${topologyLabel}
 
-The files in this package were generated from the approved Blueprint product description and architecture interview. Review changes before regenerating over files that have been edited by hand.
+The files in this package were generated from the approved Blueprint product brief and build-question answers. Review changes before regenerating over files that have been edited by hand.
 `,
   });
 

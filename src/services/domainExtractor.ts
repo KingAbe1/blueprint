@@ -39,3 +39,91 @@ export function formatSpecificationTemplate(rawText: string): string {
 
   return text.trim();
 }
+
+const POLISH_PREFACE_PATTERN = /^(?:(?:here(?:'s| is)|below is|certainly|sure)[^\n]*\n+|(?:i(?:'ve| have)) (?:expanded|polished|rewritten)[^\n]*\n+)/i;
+
+const SECTION_LABELS = [
+  'Summary',
+  'Who it\'s for',
+  'What it does (first release)',
+  'What it does',
+  'Out of scope (for now)',
+  'Out of scope',
+] as const;
+
+/** Formats AI-polished product copy for the blueprint textarea and downstream interview. */
+export function formatPolishedProductDescription(rawText: string): string {
+  let text = formatSpecificationTemplate(rawText);
+  text = text.replace(POLISH_PREFACE_PATTERN, '').trim();
+  text = text.replace(/^["'](.*)["']$/s, '$1').trim();
+
+  for (const label of SECTION_LABELS) {
+    const escaped = label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    text = text.replace(new RegExp(`^${escaped}\\s*:`, 'gim'), `${label}\n`);
+    text = text.replace(new RegExp(`^${escaped}[ \\t]+$`, 'gim'), `${label}\n`);
+  }
+
+  text = text.split('\n').map(line => line.replace(/[ \t]+$/g, '')).join('\n');
+  text = text.replace(/\n{3,}/g, '\n\n').trim();
+  return text;
+}
+
+export type ProductBriefSection = {
+  id: string;
+  title: string;
+  paragraphs: string[];
+  bullets: string[];
+};
+
+const BRIEF_SECTION_HEADERS: Array<{ id: string; title: string; pattern: RegExp }> = [
+  { id: 'summary', title: 'Summary', pattern: /^Summary\s*$/i },
+  { id: 'audience', title: "Who it's for", pattern: /^Who it's for\s*$/i },
+  { id: 'capabilities', title: 'First release', pattern: /^What it does(?:\s*\(first release\))?\s*$/i },
+  { id: 'out_of_scope', title: 'Out of scope', pattern: /^Out of scope(?:\s*\(for now\))?\s*$/i },
+];
+
+/** Parses polished brief text into labeled sections; falls back to one overview block. */
+export function parseProductBriefSections(text: string): ProductBriefSection[] {
+  const trimmed = text.trim();
+  if (!trimmed) return [];
+
+  const sections: ProductBriefSection[] = [];
+  let current: ProductBriefSection | null = null;
+
+  const flush = () => {
+    if (current && (current.paragraphs.length > 0 || current.bullets.length > 0)) {
+      sections.push(current);
+    }
+    current = null;
+  };
+
+  for (const rawLine of trimmed.split('\n')) {
+    const line = rawLine.trim();
+    if (!line) continue;
+
+    const header = BRIEF_SECTION_HEADERS.find(item => item.pattern.test(line));
+    if (header) {
+      flush();
+      current = { id: header.id, title: header.title, paragraphs: [], bullets: [] };
+      continue;
+    }
+
+    if (!current) {
+      current = { id: 'overview', title: 'Overview', paragraphs: [], bullets: [] };
+    }
+
+    if (/^[•\-*–—]\s+/.test(line) || (/^[•\-*–—]/.test(line) && line.length > 1)) {
+      current.bullets.push(line.replace(/^[•\-*–—]\s*/, '').trim());
+    } else {
+      current.paragraphs.push(line);
+    }
+  }
+
+  flush();
+
+  if (sections.length === 0) {
+    return [{ id: 'overview', title: 'Overview', paragraphs: [trimmed], bullets: [] }];
+  }
+
+  return sections;
+}

@@ -1,9 +1,10 @@
 import { AIProviderConfig, AISettings } from '../types/ai';
 import { ArchitectureFact, ArchitectureQuestion, ArchitectureTopology, FrameworkRecommendation } from '../types/project';
-import { 
+import {
   cleanRawDescription,
-  formatSpecificationTemplate 
+  formatPolishedProductDescription,
 } from './domainExtractor';
+import { providerIsConfigured, resolveActiveProvider } from './aiSettingsStorage';
 
 
 /**
@@ -390,10 +391,12 @@ export async function expandAndPolishDescription(
   currentDescription: string,
   settings: AISettings
 ): Promise<{ text: string; providerName: string }> {
-  const activeConfig = settings.providers[settings.activeProvider];
-  const hasKey = activeConfig && (activeConfig.provider === 'ollama' || Boolean(activeConfig.apiKey?.trim()));
+  const providerId = resolveActiveProvider(settings);
+  const activeConfig = settings.providers[providerId];
+  const hasKey = activeConfig && providerIsConfigured(activeConfig);
 
-  const coreInput = cleanRawDescription(currentDescription) || (projectName || '').trim();
+  const draft = currentDescription.trim();
+  const coreInput = cleanRawDescription(draft) || (projectName || '').trim();
 
   if (coreInput.length < 2) {
     throw new Error('Please enter a project name or brief idea before expanding.');
@@ -403,28 +406,78 @@ export async function expandAndPolishDescription(
     throw new Error(`API key is required for ${activeConfig?.name || 'AI'}. Please click 'Configure AI Key' to connect.`);
   }
 
-  const prompt = `You are an expert software architect and product designer.
-A developer is building a project called "${projectName || 'Unnamed Project'}".
-Here is their core product idea:
+  const wordCount = draft.split(/\s+/).filter(Boolean).length;
+  const draftBulletCount = (draft.match(/^[ \t]*[•\-*–—]\s+/gm) || []).length;
+  const mode: 'expand' | 'polish' | 'tighten' =
+    wordCount < 18 ? 'expand' : wordCount > 140 ? 'tighten' : 'polish';
+
+  const modeInstruction =
+    mode === 'expand'
+      ? 'The input is short. Add reasonable detail, but do not invent features that are not implied.'
+      : mode === 'tighten'
+        ? 'The input is long. Clarify and deduplicate wording only—keep every distinct feature, role, and constraint from the draft; do not drop bullets to save space.'
+        : 'Keep roughly the same length. Improve clarity, specificity, and flow without removing content the draft already states.';
+
+  const preserveBulletsNote =
+    draftBulletCount > 0
+      ? `\nThe draft already lists ${draftBulletCount} bullet item(s). Under "What it does (first release)", include at least ${draftBulletCount} bullets—one per distinct capability from the draft (merge duplicates, but do not omit any capability the draft mentions).\n`
+      : '';
+
+  const prompt = `You are a senior product writer helping a developer describe software before architecture planning.
+Project name: "${projectName || 'Unnamed project'}"
+
+Draft idea:
 """
-${coreInput}
+${draft || coreInput}
 """
 
-Instructions:
-- Expand and polish this into a clear, compelling, professional product specification focused specifically on "What It Does & Core Value Proposition".
-- Describe the core purpose, key user-facing features, business value, technical capabilities, and primary problem solved by this application.
-- Write in clean, highly readable paragraphs and bullet points focused strictly on the core product value proposition and what it does.
-- Do NOT create separate sections for "Target Users & Primary Workflows" or "Key Data & Reliability Expectations".
-- Do NOT use markdown hash tags (### or ####) or bold asterisks (** or ****).
-- Return ONLY the clean, polished product description text without preamble, introductions, or code blocks.`;
+${modeInstruction}
+${preserveBulletsNote}
 
-  const rawText = await callAIModel(activeConfig, prompt, { temperature: 0.3, maxTokens: 1200 });
+Write a product brief in plain text using EXACTLY this structure (keep labels as written, no markdown # headers, no **bold**, no code fences):
+
+Summary
+[2–3 sentences: problem, who it helps, what the product does at a high level. Mention "${projectName}" naturally once if it fits.]
+
+Who it's for
+• [primary user or role]
+• [secondary user or role, if any]
+
+What it does (first release)
+• [one bullet per capability—include every feature the draft mentions, including newly added lines]
+• [each bullet is one clear outcome, not technical jargon]
+
+Out of scope (for now)
+• [one or two things explicitly deferred, or "Not specified" if nothing obvious]
+
+Rules:
+- Cumulative merge: the draft is the source of truth. Never remove a feature, user role, or constraint that appears in the draft unless the draft explicitly deletes it. New sentences in the draft must appear in the output (usually as new or updated bullets).
+- Write like internal product notes, not marketing copy or a pitch deck.
+- Keep every specific number, domain term, and constraint from the draft (e.g. fleet size, vehicle types, regions).
+- Summary: max 2 sentences, max 55 words. Say what the product is and who uses it—no filler.
+- Never use these phrases (or close variants): "addresses the challenges", "enhance efficiency", "cut costs", "improve service delivery", "real-time insights", "organizations managing", "comprehensive solution", "streamline operations".
+- Bullets: start with a verb; max 12 words each; describe what a user can do or see, not abstract benefits.
+- Plain language; no architecture acronyms or stack unless the draft names them.
+- Do not add login, payments, admin dashboards, or analytics unless the draft implies them.
+- Out of scope: only defer things that would be tempting given the draft—not generic "integrations" unless relevant.
+- No preamble ("Here is…"). Output only the brief.
+
+Example of a bad Summary (do not write like this):
+"The Fleet Management System addresses the challenges of overseeing a large fleet... enhance efficiency, cut costs..."
+
+Example of a good Summary:
+"Fleet managers need one place to see vehicle location, maintenance due dates, and fuel spend across 500+ vehicles. This product is that operations hub—built for dispatch and maintenance teams, not executives reading slide decks."`;
+
+  const rawText = await callAIModel(activeConfig, prompt, { temperature: 0.25, maxTokens: 900 });
 
   if (rawText && rawText.trim().length > 15) {
-    const formatted = formatSpecificationTemplate(rawText);
+    const formatted = formatPolishedProductDescription(rawText);
+    if (formatted.length < 20) {
+      throw new Error(`Received empty or invalid response from ${activeConfig.name}.`);
+    }
     return {
       text: formatted,
-      providerName: activeConfig.name
+      providerName: activeConfig.name,
     };
   }
 
@@ -436,11 +489,12 @@ export async function generateArchitectureInterview(
   description: string,
   settings: AISettings
 ): Promise<{ questions: ArchitectureQuestion[]; inferredFacts: ArchitectureFact[]; providerName: string }> {
-  const activeConfig = settings.providers[settings.activeProvider];
-  const hasKey = activeConfig && (activeConfig.provider === 'ollama' || Boolean(activeConfig.apiKey?.trim()));
+  const providerId = resolveActiveProvider(settings);
+  const activeConfig = settings.providers[providerId];
+  const hasKey = activeConfig && providerIsConfigured(activeConfig);
 
   if (!hasKey) {
-    throw new Error(`API key is required for ${activeConfig?.name || 'AI'} to generate a tailored architecture interview.`);
+    throw new Error(`API key is required for ${activeConfig?.name || 'AI'} to generate build questions.`);
   }
 
   const prompt = `You are a principal software architect interviewing a product builder before implementation.
@@ -450,22 +504,23 @@ Project description:
 ${description.trim()}
 """
 
-First extract concrete architectural decisions that are already explicit in the description. Then create a thorough, start-to-finish system-design interview for every important decision that is still missing or ambiguous. The result must be detailed enough to guide an AI coding agent through implementation, release, and operation—not merely select a frontend and backend framework.
+First extract concrete architectural decisions that are already explicit in the description. Then create an interview containing ONLY the decisions that still matter for this specific project—nothing else.
 
 Requirements:
-- Cover the full lifecycle in a logical order: product scope and users; target platforms and experience; identity and permissions; frontend technology; system shape and service boundaries; backend technology; API shape; database and data ownership; realtime/offline behavior; third-party integrations; security and privacy; compliance; expected scale and performance; resilience, backups, and disaster recovery; hosting and deployment; environments and CI/CD; testing strategy; observability and alerts; operational ownership; and cost constraints.
+- Fully dynamic scope: do NOT walk a fixed checklist. Choose 6–18 questions based on what this product actually needs. A small internal tool may need ~6; a regulated multi-tenant product may need ~18.
+- Order questions the way a builder should answer them for this product (scope and users before hosting, etc.).
+- Skip entire topics that do not apply (no payment-compliance questions without payments; no app-store questions for a CLI-only tool).
 - Put only genuinely explicit, decision-ready choices from the description into "inferredFacts". A named technology, platform, standard, provider, or unambiguous requirement can be a fact.
-- Generic aspirations such as "user-friendly interface", "robust backend", "secure", "scalable", "fast", "uses APIs", or "reliable performance" are NOT decisions and must never be inferred as answers. Ask a concrete question that turns each relevant aspiration into an actionable constraint.
-- Do not repeat the exact decision represented by an inferred fact. You may still ask a different question in the same broad area when it resolves another material decision; for example, knowing Stripe is required does not answer which email, push-notification, or analytics integrations are needed.
-- Example: if the description says "mobile app", record platform = "iOS and Android mobile application" and do not ask where it should run.
-- Example: if it names React Native, record both the relevant UI/frontend facts and do not ask the user to choose those again.
+- Generic aspirations such as "user-friendly interface", "robust backend", "secure", "scalable", "fast", "uses APIs", or "reliable performance" are NOT decisions and must never be inferred as answers.
+- Do not ask anything already fully settled by an inferredFact. You may ask a different question in the same broad area when it resolves another material decision.
+- Example: if the description says "mobile app", record platform and do not ask where it should run.
+- Example: if it names React Native, record frontend facts and do not ask the user to choose those again.
 - Do not infer a hard decision from weak clues. When a choice is genuinely ambiguous, ask a clarifying question.
-- Return 16 to 22 focused questions in a logical order. Use fewer only when the description explicitly resolves several decisions; even then, return at least 10 unanswered questions.
-- Use these exact category values where appropriate: product, users, platform, approach, ui, access, frontend, topology, backend, api, data, realtime, integrations, security, compliance, scale, reliability, deployment, delivery, testing, observability, operations, budget.
-- Tailor every question and option to this particular product. Reference known features and risks such as payments, sensitive data, notifications, collaboration, media, AI workloads, or offline use when present.
-- Ask one decision per question. Do not combine database, hosting, security, and deployment into one answer.
-- Questions must yield actionable decisions: specific scope boundaries, access models, consistency needs, recovery objectives, deployment environments, release controls, quality gates, monitoring, and ownership.
-- Ask about outcomes and tradeoffs, not implementation jargon. For example, ask who needs to connect to the product instead of asking REST versus GraphQL; ask how much data loss is acceptable instead of asking for RPO.
+- Each question must have a unique "id" (snake_case, descriptive, e.g. "fleet_map_freshness").
+- "category" is a UI grouping tag only—pick the closest: product, users, platform, approach, ui, access, frontend, topology, backend, api, data, realtime, integrations, security, compliance, scale, reliability, deployment, delivery, testing, observability, operations, budget. Multiple questions may share a category.
+- Tailoring is mandatory: every question and option must reference this project (roles, features, data, workflows from the description)—never generic checklist wording.
+- Ask one decision per question. Questions must yield actionable constraints for an AI coding agent (scope, access, data accuracy, integrations, recovery, release process, monitoring, ownership, cost).
+- Ask about outcomes and tradeoffs, not implementation jargon (no "REST vs GraphQL"; no database or framework names unless the description named them).
 - Assume the user may be a non-technical "vibe coder". Use everyday language, short sentences, and concrete examples. Never use an acronym such as SSO, API, CI/CD, RTO, RPO, SLO, PCI, or SOC 2 without immediately explaining it in plain language.
 - When a technical choice does not require user knowledge, make "Let Blueprint decide" the recommended option and derive the technology later from the user's outcome-based answers.
 - Each question must have 3 to 5 concise answer options.
@@ -485,10 +540,10 @@ Respond ONLY with a valid JSON object in this shape:
   ],
   "questions": [
     {
-      "id": "deployment_hosting",
-      "category": "deployment",
-      "question": "How much hosting infrastructure does your team want to manage?",
-      "context": "Blueprint will translate this into a hosting setup that balances maintenance, control, and cost.",
+      "id": "fleet_map_freshness",
+      "category": "realtime",
+      "question": "How fresh should vehicle locations be for dispatchers on the live map?",
+      "context": "Fresher GPS updates cost more to ingest and store for a large fleet.",
       "allowCustom": true,
       "options": [
         {
@@ -514,17 +569,17 @@ Respond ONLY with a valid JSON object in this shape:
   const jsonMatch = cleanedResponse.match(/\{[\s\S]*\}/);
 
   if (!jsonMatch) {
-    throw new Error(`${activeConfig.name} connected successfully, but returned an unexpected interview format. Please try generating the questions again.`);
+    throw new Error(`${activeConfig.name} connected successfully, but returned an unexpected question format. Please try again.`);
   }
 
   let parsed: any;
   try {
     parsed = JSON.parse(jsonMatch[0]);
   } catch {
-    throw new Error(`${activeConfig.name} connected successfully, but its interview response was incomplete. Please try again.`);
+    throw new Error(`${activeConfig.name} connected successfully, but its response was incomplete. Please try again.`);
   }
   if (!parsed || !Array.isArray(parsed.questions)) {
-    throw new Error(`${activeConfig.name} connected successfully, but returned an invalid architecture interview. Please try again.`);
+    throw new Error(`${activeConfig.name} connected successfully, but returned invalid build questions. Please try again.`);
   }
 
   const validCategories = new Set([
@@ -554,19 +609,9 @@ Respond ONLY with a valid JSON object in this shape:
   aiFacts.forEach(fact => {
     if (!inferredFacts.some(existing => existing.category === fact.category)) inferredFacts.push(fact);
   });
-  // These categories represent one primary choice. Other areas can contain
-  // several independent decisions (for example multiple integrations), so an
-  // existing fact should inform rather than suppress the entire topic.
-  const singleDecisionCategories = new Set<ArchitectureQuestion['category']>([
-    'platform', 'approach', 'ui', 'frontend', 'topology', 'backend', 'api', 'data', 'access', 'deployment',
-  ]);
-  const knownCategories = new Set(
-    inferredFacts
-      .filter(fact => singleDecisionCategories.has(fact.category))
-      .map(fact => fact.category),
-  );
+  const seenQuestionIds = new Set<string>();
 
-  let questions: ArchitectureQuestion[] = parsed.questions.slice(0, 20).map((item: any, questionIndex: number) => {
+  let questions: ArchitectureQuestion[] = parsed.questions.map((item: any, questionIndex: number) => {
     const rawCategory = String(item.category || item.id || 'operations').toLowerCase();
     const category = validCategories.has(rawCategory) ? rawCategory : 'operations';
     const options = Array.isArray(item.options) ? item.options : [];
@@ -592,46 +637,16 @@ Respond ONLY with a valid JSON object in this shape:
       allowCustom: item.allowCustom !== false,
       options: normalizedOptions,
     };
-  }).filter((question: ArchitectureQuestion) =>
-    question.question &&
-    question.options.length >= 2 &&
-    !knownCategories.has(question.category)
-  );
-
-  // Models sometimes fall back to architecture jargon even when instructed
-  // otherwise. Replace implementation-choice questions with outcome questions,
-  // then fill any lifecycle areas the model skipped.
-  const guardedCategories = new Set<ArchitectureQuestion['category']>([
-    'product', 'ui', 'frontend', 'topology', 'backend', 'api', 'data', 'realtime', 'integrations', 'security', 'compliance',
-    'deployment', 'delivery', 'observability', 'budget',
-  ]);
-  questions = questions.map(question =>
-    guardedCategories.has(question.category)
-      ? buildOutcomeQuestion(question.category, description) || question
-      : question
-  );
-
-  const requiredOrder: ArchitectureQuestion['category'][] = [
-    'product', 'users', 'platform', 'ui', 'access', 'frontend', 'topology', 'backend', 'api', 'data', 'realtime',
-    'integrations', 'security', 'compliance', 'scale', 'reliability', 'deployment', 'delivery', 'testing',
-    'observability', 'operations', 'budget',
-  ];
-  const byCategory = new Map<ArchitectureQuestion['category'], ArchitectureQuestion>();
-  questions.forEach(question => {
-    if (!byCategory.has(question.category)) byCategory.set(question.category, question);
+  }).filter((question: ArchitectureQuestion) => {
+    if (!question.question || question.options.length < 2) return false;
+    if (isImplementationJargonQuestion(question)) return false;
+    if (seenQuestionIds.has(question.id)) return false;
+    seenQuestionIds.add(question.id);
+    return true;
   });
-  requiredOrder.forEach(category => {
-    if (knownCategories.has(category) || byCategory.has(category)) return;
-    const fallback = buildOutcomeQuestion(category, description);
-    if (fallback) byCategory.set(category, fallback);
-  });
-  questions = requiredOrder
-    .filter(category => !knownCategories.has(category))
-    .map(category => byCategory.get(category))
-    .filter(Boolean) as ArchitectureQuestion[];
 
-  if (questions.length < 10) {
-    throw new Error(`${activeConfig.name} returned too few usable blueprint questions. Please generate the interview again.`);
+  if (questions.length < 5) {
+    throw new Error(`${activeConfig.name} returned too few tailored questions for this project. Please try again.`);
   }
 
   return { questions, inferredFacts, providerName: activeConfig.name };
@@ -643,178 +658,17 @@ function isConcreteArchitectureFact(value: string, evidence?: string): boolean {
   return !vagueOnly.test(candidate);
 }
 
-function buildOutcomeQuestion(
-  category: ArchitectureQuestion['category'],
-  description: string,
-): ArchitectureQuestion | null {
-  const mobile = /\b(mobile|ios|android|phone|tablet)\b/i.test(description);
-  const commerce = /\b(store|commerce|checkout|payment|order|inventory|product)\b/i.test(description);
-  const option = (id: string, label: string, detail: string, recommended = false) => ({ id, label, description: detail, recommended });
-  const question = (
-    prompt: string,
-    context: string,
-    options: ReturnType<typeof option>[],
-  ): ArchitectureQuestion => ({
-    id: `guided_${category}`,
-    category,
-    question: prompt,
-    context,
-    allowCustom: true,
-    options,
-  });
+function questionTextBlob(question: ArchitectureQuestion): string {
+  return [
+    question.question,
+    question.context || '',
+    ...question.options.map(option => `${option.label} ${option.description || ''}`),
+  ].join(' ').toLowerCase();
+}
 
-  switch (category) {
-    case 'product':
-      return question('What should the first release optimize for?', 'Choose the launch ambition; features can expand after the first complete release.', [
-        option('focused', 'A focused first release', 'Ship the smallest complete customer journey and learn quickly.', true),
-        option('market_ready', 'A polished public launch', 'Include onboarding, support, analytics, and operational tools.'),
-        option('enterprise', 'An enterprise-ready launch', 'Include advanced controls, audit history, and administration from day one.'),
-      ]);
-    case 'users':
-      return question('Who needs their own workspace or controls?', 'This defines roles, permissions, and administrative experiences.', [
-        option('users_admins', commerce ? 'Customers and store administrators' : 'Users and administrators', 'Separate the main experience from protected management controls.', true),
-        option('one_role', 'One type of user', 'Keep access and navigation simple for the first release.'),
-        option('teams', 'Organizations and teams', 'Support owners, managers, and collaborators with different access.'),
-      ]);
-    case 'platform':
-      return question('Where should people use the product?', 'Choose every experience that must be supported at launch.', [
-        option('web', 'In a web browser', 'Works through a link without installing an app.', !mobile),
-        option('mobile', 'On iPhone and Android', 'A touch-first app delivered through app stores.', mobile),
-        option('web_mobile', 'On web and mobile', 'Support both browser and phone experiences.'),
-        option('desktop', 'As a desktop app', 'Install it on macOS, Windows, or Linux.'),
-      ]);
-    case 'ui':
-      return question('How should the product feel to people using it?', 'Blueprint will translate the desired experience into interface technology.', [
-        option('familiar', 'Familiar, clean, and accessible', 'Use established patterns that are easy to learn.', !mobile),
-        option('device_native', 'Natural on each device', 'Follow the behavior people expect on iPhone and Android.', mobile),
-        option('consistent', 'Consistent everywhere', 'Keep the experience closely matched across platforms.'),
-        option('branded', 'Highly distinctive and branded', 'Prioritize a unique visual identity.'),
-      ]);
-    case 'access':
-      return question('How should people sign in and place an order?', 'This affects checkout friction, account recovery, and protected actions.', [
-        option('guest_account', commerce ? 'Guest checkout plus optional accounts' : 'Easy sign-in plus optional guest access', 'Reduce friction while preserving saved history.', true),
-        option('account_required', 'Require an account', 'Make every activity traceable to a signed-in user.'),
-        option('company_login', 'Use company-managed sign-in', 'Let workplace customers control access.'),
-        option('decide', 'Let Blueprint decide', 'Choose the safest low-friction approach from the workflows.'),
-      ]);
-    case 'frontend':
-      return question(mobile ? 'How should iPhone and Android development be balanced?' : 'How should the product screens be built?', 'Choose the team and experience tradeoff, not a framework name.', [
-        option('shared', mobile ? 'Share most work across both phones' : 'Use one modern web application', 'Move faster with one main interface codebase.', true),
-        option('separate', mobile ? 'Build separately for each phone platform' : 'Use separate experiences where needed', 'Accept more work for deeper platform-specific control.'),
-        option('hybrid', 'Share the core and customize key screens', 'Balance development speed with platform-specific polish.'),
-        option('decide', 'Let Blueprint decide', 'Select the screen technology from all interview answers.'),
-      ]);
-    case 'topology':
-      return question('How independently should different parts of the product change and operate?', 'Blueprint will translate this into one well-organized application, independent services, managed functions, or a mixed design.', [
-        option('one_team', 'Keep it simple for one product team', 'Release one application with clear internal modules. This is usually the safest starting point.', true),
-        option('independent_areas', 'Let separate product areas evolve independently', 'Allow different teams to release and scale areas without coordinating every change.'),
-        option('uneven_bursts', 'Minimize operations and handle uneven demand', 'Use managed functions that run independently when work arrives.'),
-        option('background_work', 'Prioritize resilient background workflows', 'Let longer-running work continue through events without making users wait.'),
-        option('mixed', 'Keep a simple core and isolate critical parts', 'Use one main system with only selected high-risk or high-scale capabilities separated.'),
-      ]);
-    case 'backend':
-      return question('How much behind-the-scenes infrastructure should the team manage?', 'This powers business rules, scheduled work, payments, and notifications.', [
-        option('managed', 'As little as possible', 'Use managed services and keep maintenance low.', true),
-        option('balanced', 'A balanced amount of control', 'Use a conventional application service that remains easy to operate.'),
-        option('full_control', 'Full control for unusual needs', 'Accept more complexity for specialized performance or hosting.'),
-        option('decide', 'Let Blueprint decide', 'Choose from the workflows, scale, and team capacity.'),
-      ]);
-    case 'api':
-      return question('Who else needs to connect to this product?', 'Blueprint will design the connection method and documentation from this answer.', [
-        option('our_apps', 'Only our own app', 'Keep connections private and optimized for first-party screens.', true),
-        option('partners', 'A few trusted partners', 'Provide stable access for selected outside systems.'),
-        option('public', 'Outside developers', 'Provide public, versioned access with keys and limits.'),
-        option('live_systems', 'Many systems with live updates', 'Support frequent two-way updates and background work.'),
-      ]);
-    case 'data':
-      return question('What kind of information must stay most dependable?', 'Blueprint will choose storage that protects accuracy, search, and reporting.', [
-        option('connected_records', commerce ? 'Accounts, products, inventory, orders, and payments' : 'Connected business records', 'Prioritize accuracy when related information changes together.', true),
-        option('content', 'Flexible content and documents', 'Prioritize changing content shapes and simple publishing.'),
-        option('device_data', 'Information stored on each device', 'Keep the product useful without a connection and synchronize later.'),
-        option('decide', 'Let Blueprint decide', 'Choose storage from the product workflows.'),
-      ]);
-    case 'realtime':
-      return question('What should happen when the connection is slow or unavailable?', 'This determines what is cached and whether people can continue working.', [
-        option('online', 'Require a connection for changes', 'Keep the system simpler and show clear retry states.', true),
-        option('read_offline', 'Allow viewing saved information offline', 'Cache useful content but require a connection for changes.'),
-        option('full_offline', 'Allow full use offline', 'Save changes on the device and combine them safely later.'),
-      ]);
-    case 'integrations':
-      return question(commerce ? 'Which outside services must work at launch besides payments?' : 'Which outside services must work at launch?', 'Every connection adds setup, testing, and failure handling.', [
-        option('essential', commerce ? 'Order messages and analytics' : 'Only the essentials', 'Cover the main customer journey with few dependencies.', true),
-        option('full_suite', commerce ? 'Shipping, tax, inventory, messages, and analytics' : 'A complete launch integration set', 'Connect the wider operating workflow from day one.'),
-        option('later', 'Add most integrations later', 'Keep the first release smaller and easier to operate.'),
-        option('decide', 'Let Blueprint prioritize them', 'Create an integration plan from the product description.'),
-      ]);
-    case 'security':
-      return question('How sensitive is the information and activity in this product?', 'Blueprint will translate the risk into concrete protection and review steps.', [
-        option('standard', 'Normal customer and business information', 'Use strong standard protection for accounts and administrative actions.', !commerce),
-        option('payments', 'Payments or other sensitive transactions', 'Add stricter access history, monitoring, and provider boundaries.', commerce),
-        option('high_risk', 'Highly sensitive or regulated information', 'Use formal security reviews and stronger isolation.'),
-      ]);
-    case 'compliance':
-      return question('Are there legal or industry rules the first release must follow?', 'Choose the situation; specialists can confirm the exact obligations later.', [
-        option('privacy', 'General consumer privacy rules', 'Support consent, data export, deletion, and privacy-safe defaults.', !commerce),
-        option('payments', 'Payment-industry rules', 'Keep card data with approved payment providers and document responsibilities.', commerce),
-        option('regulated', 'Health, finance, government, or enterprise rules', 'Plan for stronger controls and evidence.'),
-        option('unknown', 'Not sure yet', 'Use a strong baseline and flag this for review.'),
-      ]);
-    case 'scale':
-      return question('How many people do you expect to use the product at first?', 'A rough estimate is enough to choose a sensible starting size.', [
-        option('small', 'Hundreds to a few thousand', 'Keep early costs low and leave a clear path to grow.', true),
-        option('medium', 'Tens of thousands', 'Prepare for steady growth and predictable busy periods.'),
-        option('large', 'Hundreds of thousands or more', 'Prepare for many people using it at the same time.'),
-      ]);
-    case 'reliability':
-      return question('How disruptive would an outage or lost update be?', 'This determines backups, recovery speed, and additional cost.', [
-        option('standard', 'Inconvenient but manageable', 'Use managed reliability and tested daily backups.', true),
-        option('critical', 'Lost sales or important work', 'Use frequent backups, health checks, and faster recovery.'),
-        option('essential', 'The product must stay available', 'Use redundancy and strict recovery targets.'),
-      ]);
-    case 'deployment':
-      return question('How much hosting infrastructure does the team want to manage?', 'Blueprint will choose hosting that balances maintenance, control, and cost.', [
-        option('minimal', 'As little as possible', 'Use managed hosting and databases so the team can focus on the product.', true),
-        option('some_control', 'Some control through a major cloud', 'Accept more setup for wider infrastructure choices.'),
-        option('portable', 'Keep it easy to move later', 'Package the system so it can run with different providers.'),
-        option('self_hosted', 'Manage our own servers', 'Keep full control and accept the maintenance responsibility.'),
-      ]);
-    case 'delivery':
-      return question('How carefully should updates be checked before users receive them?', 'This determines previews, approvals, automatic checks, and rollback.', [
-        option('standard', 'A standard safe release process', 'Check changes automatically, test them before launch, and support rollback.', true),
-        option('preview', 'A private preview for every change', 'Let the team review each feature separately.'),
-        option('simple', 'Simple releases for a small team', 'Use fewer steps for an early, lower-risk product.'),
-        option('formal', 'Formal approval before release', 'Require evidence, named approval, and complete history.'),
-      ]);
-    case 'testing':
-      return question('How much checking should happen before each release?', 'Focus effort on the failures that would hurt users or the business most.', [
-        option('balanced', 'Balanced automated testing', 'Test small pieces plus the most important complete user journeys.', true),
-        option('journeys', 'Test real user journeys heavily', 'Prioritize checkout, sign-in, and outside-service behavior.'),
-        option('strict', 'Very strict automated checks', 'Require broad tests, security scanning, and speed checks.'),
-        option('human', 'Core automation plus human review', 'Automate repeatable risks and review the rest manually.'),
-      ]);
-    case 'observability':
-      return question('How should the team learn that something is going wrong?', 'Choose the alerting depth; Blueprint will select the monitoring tools.', [
-        option('useful', 'Useful alerts and clear dashboards', 'Track errors, speed, system health, and important business events.', true),
-        option('essential', 'Only essential alerts', 'Notify the team when the product is down or a critical journey fails.'),
-        option('formal', 'Formal reliability targets', 'Measure agreed availability and speed goals over time.'),
-      ]);
-    case 'operations':
-      return question('Who will look after the product after launch?', 'Team capacity should shape maintenance and automation choices.', [
-        option('small_team', 'The product team', 'Favor managed services and simple operating instructions.', true),
-        option('dedicated', 'A dedicated operations specialist', 'Support deeper infrastructure control.'),
-        option('partner', 'An outside partner', 'Design clear access boundaries, handoffs, and support procedures.'),
-        option('unknown', 'Not decided yet', 'Use conservative managed defaults.'),
-      ]);
-    case 'budget':
-      return question('What cost approach should guide the system after launch?', 'This concerns ongoing hosting and service costs, not the development budget.', [
-        option('lean', 'Keep early running costs low', 'Prefer usage-based services and grow spending with demand.', true),
-        option('balanced', 'Balance cost and reliability', 'Pay for dependable safeguards without enterprise overhead.'),
-        option('reliability', 'Prioritize reliability over cost', 'Fund redundancy, faster recovery, and deeper monitoring.'),
-        option('fixed', 'Work within a specific monthly limit', 'Enter the amount as a custom answer.'),
-      ]);
-    default:
-      return null;
-  }
+function isImplementationJargonQuestion(question: ArchitectureQuestion): boolean {
+  const blob = questionTextBlob(question);
+  return /\b(restful?\s+api|graphql|grpc|postgresql|postgres|mongodb|mysql|redis|kafka|rabbitmq|kubernetes|k8s|docker\s+compose|terraform|lambda|serverless\s+functions?|vercel|next\.?js|nestjs|fastapi|django|react\s+native|flutter|swiftui|microservices?|modular\s+monolith|ci\/cd|oauth|openid|jwt|websocket|websockets|rpo|rto|slo|pci\s+dss|soc\s+2)\b/i.test(blob);
 }
 
 export function inferArchitectureFactsFromDescription(description: string): ArchitectureFact[] {
@@ -827,7 +681,7 @@ export function inferArchitectureFactsFromDescription(description: string): Arch
   };
 
   const mentionsMobile = /\b(mobile app|ios app|android app|iphone app|ipad app|for ios|for android)\b/i.test(description);
-  const mentionsDesktop = /\b(desktop app|desktop application|macos app|windows app|linux app|native desktop)\b/i.test(description);
+  const mentionsDesktop = /\b(desktop app|desktop application|desktop software|macos app|windows app|linux app|native desktop|tauri|electron app)\b/i.test(description);
   const mentionsWeb = /\b(web app|web application|website|browser-based|runs? in (?:the )?browser)\b/i.test(description);
   const mentionsCli = /\b(cli|command[- ]line|terminal tool)\b/i.test(description);
 
@@ -923,6 +777,12 @@ export async function analyzeFrameworksWithAI(
     dynamicConstraints.push(`- Custom Architectural Directives: ${options.customRequirements.trim()}`);
   }
 
+  const desktopProduct = /\b(desktop app|desktop application|native desktop|macos app|windows app|linux app|tauri|electron|installed (?:app|application)|local-first app)\b/i.test(description)
+    || /\btarget platform\b[\s\S]{0,80}\bdesktop\b/i.test(options?.customRequirements || '');
+  if (desktopProduct) {
+    dynamicConstraints.push('- Product delivery: Native desktop application (installable on macOS, Windows, and/or Linux)—not a browser-hosted website as the primary product.');
+  }
+
   const constraintSection = dynamicConstraints.length > 0
     ? `User Technical Preferences & Architectural Directives:\n${dynamicConstraints.join('\n')}\n`
     : `User Technical Preferences:\n- Architecture: Analyze the domain requirements to pick the optimal production architecture.\n- Technologies: Select the best-in-class programming languages and ecosystems for this specific domain.\n`;
@@ -947,6 +807,8 @@ Architectural Guidelines:
 - When payments use Stripe, Apple Pay, or a similar provider, keep raw card data out of the application and describe this as reducing payment-compliance scope—not guaranteeing compliance.
 - Use only real, correctly named products and libraries. Do not invent an ORM, hosting product, or integration that the provider does not offer.
 - For a mobile product, deploymentTarget must include app signing/builds and distribution through Apple App Store and Google Play as well as the backend hosting target.
+- For a desktop product, category must be "Desktop Software" (or equivalent), architecture must be "Desktop Native" (or hybrid with a local shell), deploymentTarget must describe native installers or app bundles—not Vercel or a public URL as the main way users run the product. Prefer stacks such as Tauri, Electron, or platform-native UI when the brief or interview says desktop.
+- Do not recommend "Full-Stack Web" or a hosted SPA as the primary architecture when the user is building desktop software unless they explicitly chose a web client.
 - If recommending Supabase, describe its data layer as PostgreSQL with Row Level Security and its normal client/query tooling; never call it "Supabase ORM" or "Supabase Hosting".
 
 For the final architecture, provide one object with:

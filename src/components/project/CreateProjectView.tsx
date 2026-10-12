@@ -7,6 +7,7 @@ import { CodebaseAnalysis } from '../../types/codebase';
 import { Project } from '../../types/project';
 import { chooseAndAnalyzeCodebase, reanalyzeCodebase } from '../../services/codebaseAnalysisService';
 import { CodebaseAnalysisView } from './CodebaseAnalysisView';
+import { isDesktopApp } from '../../utils/platform';
 
 type EntryMode = 'greenfield' | 'brownfield';
 
@@ -70,6 +71,7 @@ export const CreateProjectView: React.FC = () => {
   const { isDark } = useTheme();
   const [entryMode, setEntryMode] = useState<EntryMode>('greenfield');
   const [inputName, setInputName] = useState('');
+  const [inputIdea, setInputIdea] = useState('');
   const [isFocused, setIsFocused] = useState(false);
   const [codebaseAnalysis, setCodebaseAnalysis] = useState<CodebaseAnalysis | null>(loadPendingCodebaseAnalysis);
   const [isAnalyzingCodebase, setIsAnalyzingCodebase] = useState(false);
@@ -99,8 +101,9 @@ export const CreateProjectView: React.FC = () => {
   const handleSubmit = (event: React.FormEvent) => {
     event.preventDefault();
     if (!inputName.trim()) return;
-    createProject(inputName);
+    createProject(inputName, inputIdea);
     setInputName('');
+    setInputIdea('');
   };
 
   const handleAnalyzeCodebase = async () => {
@@ -164,21 +167,28 @@ export const CreateProjectView: React.FC = () => {
     );
   }
 
+  const desktop = isDesktopApp();
+
   return (
-    <div className={`relative flex min-h-0 flex-1 items-start justify-center overflow-y-auto px-5 py-8 sm:px-8 min-[1024px]:items-center min-[500px]:px-10 ${isDark ? 'bg-[#101113]' : 'bg-[radial-gradient(ellipse_at_40%_38%,#ffffff_0%,#f7f9fd_48%,#eef3fa_100%)]'}`}>
-      <div className="grid w-full max-w-6xl grid-cols-1 items-start gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(260px,480px)] lg:items-center lg:gap-16">
-        <section className="min-w-0">
-          <div className={`mb-5 flex h-11 w-11 items-center justify-center rounded-xl ${isDark ? 'bg-blue-500/10 text-blue-300' : 'bg-blue-50 text-blue-700'}`}>
-            <Layers className="h-5 w-5" />
-          </div>
-          <p className={`text-xs font-semibold uppercase tracking-[0.12em] ${isDark ? 'text-blue-300' : 'text-blue-700'}`}>
-            {user ? `Welcome, ${user.name}` : 'Start here'}
+    <div className={`desktop-hub-shell flex h-full min-h-0 w-full flex-1 flex-col overflow-y-auto ${isDark ? 'bg-[#101113]' : desktop ? 'bg-[#F5F7FA]' : 'bg-[radial-gradient(ellipse_at_40%_38%,#ffffff_0%,#f7f9fd_48%,#eef3fa_100%)]'}`}>
+      <div className="flex min-h-full items-center justify-center px-5 py-10 sm:px-8 min-[500px]:px-10">
+        <div className="mx-auto flex w-full max-w-6xl flex-col items-stretch gap-8 lg:flex-row lg:items-start lg:gap-12 xl:max-w-[68rem]">
+        <section className="min-w-0 flex-1 lg:max-w-xl">
+          {!desktop && (
+            <div className={`mb-5 flex h-11 w-11 items-center justify-center rounded-xl ${isDark ? 'bg-blue-500/10 text-blue-300' : 'bg-blue-50 text-blue-700'}`}>
+              <Layers className="h-5 w-5" />
+            </div>
+          )}
+          <p className={`text-xs font-medium ${isDark ? 'text-[#8E9098]' : 'text-slate-500'}`}>
+            {user ? user.name : 'Local workspace'}
           </p>
-          <h1 className={`mt-3 max-w-xl text-3xl font-semibold tracking-tight sm:text-[2.65rem] sm:leading-[1.1] ${isDark ? 'text-white' : 'text-slate-950'}`}>
-            Where are we starting?
+          <h1 className={`max-w-xl font-semibold tracking-tight ${desktop ? `mt-1 text-xl ${isDark ? 'text-white' : 'text-slate-950'}` : `mt-3 text-3xl sm:text-[2.65rem] sm:leading-[1.1] ${isDark ? 'text-white' : 'text-slate-950'}`}`}>
+            {desktop ? 'New project' : 'Where are we starting?'}
           </h1>
-          <p className={`mt-4 max-w-lg text-sm leading-6 sm:text-base sm:leading-7 ${muted}`}>
-            Bring an idea to life or get oriented in a codebase you already have. Projects stay on this device only.
+          <p className={`mt-2 max-w-lg text-sm leading-6 ${muted}`}>
+            {desktop
+              ? 'Plan a product or scan a folder on this machine. Nothing is uploaded to Blueprint cloud.'
+              : 'Bring an idea to life or get oriented in a codebase you already have. Projects stay on this device only.'}
           </p>
 
           <div className="mt-7 grid max-w-lg gap-3" role="listbox" aria-label="Project entry mode">
@@ -268,11 +278,11 @@ export const CreateProjectView: React.FC = () => {
           )}
         </section>
 
-        <section className={`w-full rounded-2xl border p-6 shadow-sm sm:p-7 ${panelClass}`}>
+        <section className={`desktop-panel w-full shrink-0 border p-5 sm:p-6 lg:w-[min(100%,400px)] lg:max-w-[400px] ${desktop ? 'rounded-lg' : 'rounded-2xl p-6 shadow-sm sm:p-7'} ${panelClass}`}>
           {entryMode === 'greenfield' ? (
             <>
               <h2 className={`text-xl font-semibold tracking-tight ${isDark ? 'text-white' : 'text-slate-950'}`}>Plan a new project</h2>
-              <p className={`mt-1.5 text-sm leading-5 ${muted}`}>Give your workspace a name to get started.</p>
+              <p className={`mt-1.5 text-sm leading-5 ${muted}`}>Name the workspace, then describe the product on the next screen.</p>
 
               <form onSubmit={handleSubmit} className="mt-7 space-y-6">
                 <div className="space-y-2">
@@ -295,6 +305,23 @@ export const CreateProjectView: React.FC = () => {
                       autoFocus
                     />
                   </div>
+                </div>
+
+                <div className="space-y-2">
+                  <label htmlFor="new-project-idea" className={`text-xs font-medium ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+                    One-line idea <span className={`font-normal ${muted}`}>(optional)</span>
+                  </label>
+                  <textarea
+                    id="new-project-idea"
+                    rows={2}
+                    value={inputIdea}
+                    onChange={event => setInputIdea(event.target.value)}
+                    placeholder="Who is it for and what should they be able to do?"
+                    className={`w-full resize-none rounded-xl border px-4 py-3 text-sm leading-5 outline-none transition-colors ${isDark
+                      ? 'border-white/[0.1] bg-[#0F1012] text-white placeholder:text-slate-600 focus:border-blue-500/70'
+                      : 'border-slate-300 bg-white text-slate-900 placeholder:text-slate-400 focus:border-blue-500'
+                    }`}
+                  />
                 </div>
 
                 <div className={`flex flex-wrap items-center justify-between gap-3 border-t pt-5 ${divider}`}>
@@ -372,6 +399,7 @@ export const CreateProjectView: React.FC = () => {
             </>
           )}
         </section>
+        </div>
       </div>
     </div>
   );

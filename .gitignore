@@ -11,6 +11,8 @@ node_modules
 dist
 dist-ssr
 *.local
+.blueprint_store.json
+.blueprint_ai_settings.json
 src-tauri/target/
 
 # Editor directories and files

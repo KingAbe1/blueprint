@@ -77,6 +77,16 @@
   -webkit-app-region: no-drag;
 }
 
+/* Tauri / native window chrome (overlay title bar on macOS) */
+.desktop-app .desktop-titlebar-inset {
+  padding-left: 4.75rem;
+}
+
+.desktop-app .desktop-panel {
+  border-radius: 0.5rem;
+  box-shadow: none;
+}
+
 /* ============================================
    PREMIUM ANIMATIONS & KEYFRAMES
    ============================================ */

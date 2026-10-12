@@ -226,7 +226,7 @@ export const BuildHandoffView: React.FC = () => {
         <div className={`mx-auto max-w-2xl rounded-2xl border p-8 text-center ${surface}`}>
           <Sparkles className="mx-auto h-6 w-6 text-blue-500" />
           <h1 className={`mt-4 text-lg font-semibold ${isDark ? 'text-white' : 'text-slate-950'}`}>Complete the architecture first</h1>
-          <p className={`mt-2 text-sm leading-6 ${muted}`}>The build handoff is generated from the approved product brief, interview decisions, architecture, and system map.</p>
+          <p className={`mt-2 text-sm leading-6 ${muted}`}>The build handoff is generated from your product brief, build-question answers, architecture, and system map.</p>
         </div>
       </div>
     );

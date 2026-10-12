@@ -72,8 +72,8 @@ export const ArchitectureMapView: React.FC<ArchitectureMapViewProps> = ({ onEdit
             <div className={`mx-auto flex h-12 w-12 items-center justify-center rounded-2xl ${isDark ? 'bg-violet-500/10 text-violet-300' : 'bg-violet-50 text-violet-600'}`}>
               <Sparkles className="h-5 w-5" />
             </div>
-            <h2 className={`mt-4 text-lg font-semibold ${isDark ? 'text-white' : 'text-slate-950'}`}>Complete the architecture interview first</h2>
-            <p className={`mx-auto mt-2 max-w-lg text-sm leading-6 ${muted}`}>Blueprint will create an interactive map from your product description and design decisions. You can return here as soon as the interview is complete.</p>
+            <h2 className={`mt-4 text-lg font-semibold ${isDark ? 'text-white' : 'text-slate-950'}`}>Finish the build questions first</h2>
+            <p className={`mx-auto mt-2 max-w-lg text-sm leading-6 ${muted}`}>Blueprint will create an interactive map from your product brief and your answers. You can return here once every question is answered.</p>
             <button type="button" onClick={onEditDecisions} className="mt-5 inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2.5 text-xs font-semibold text-white transition-colors hover:bg-blue-500">
               Go to product blueprint
               <ArrowRight className="h-3.5 w-3.5" />

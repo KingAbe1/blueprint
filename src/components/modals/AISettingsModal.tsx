@@ -233,7 +233,7 @@ export const AISettingsModal: React.FC = () => {
           <p>
             <span className="font-semibold text-emerald-600 dark:text-emerald-400">No Blueprint cloud for your code.</span>
             {' '}
-            Scans and project data stay on this device. If you use AI features, only the text you send (e.g. selected files or your product description) goes to the provider you configure here—or to Ollama on your machine. API keys are stored locally in this browser or app.
+            One connection for every project in Blueprint Studio. Scans and project data stay on this device. If you use AI features, only the text you send goes to the provider you configure here—or to Ollama on your machine. API keys are stored locally on this device.
           </p>
         </div>
 

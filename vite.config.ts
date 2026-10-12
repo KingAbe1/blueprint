@@ -8,12 +8,47 @@ import { fileURLToPath } from 'url'
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 const STORE_FILE = path.resolve(__dirname, '.blueprint_store.json')
+const AI_SETTINGS_FILE = path.resolve(__dirname, '.blueprint_ai_settings.json')
 
 function projectPersistencePlugin(): Plugin {
   return {
     name: 'project-persistence',
     configureServer(server) {
       server.middlewares.use((req, res, next) => {
+        if (req.url === '/api/ai-settings') {
+          if (req.method === 'GET') {
+            res.setHeader('Content-Type', 'application/json')
+            if (fs.existsSync(AI_SETTINGS_FILE)) {
+              try {
+                const data = fs.readFileSync(AI_SETTINGS_FILE, 'utf-8').trim()
+                if (data) {
+                  res.end(data)
+                  return
+                }
+              } catch (e) {
+                console.error('Failed to read .blueprint_ai_settings.json', e)
+              }
+            }
+            res.end('{}')
+            return
+          }
+          if (req.method === 'POST') {
+            let body = ''
+            req.on('data', chunk => { body += chunk })
+            req.on('end', () => {
+              try {
+                const parsed = JSON.parse(body)
+                fs.writeFileSync(AI_SETTINGS_FILE, JSON.stringify(parsed, null, 2), 'utf-8')
+                res.setHeader('Content-Type', 'application/json')
+                res.end(JSON.stringify({ success: true }))
+              } catch {
+                res.statusCode = 400
+                res.end(JSON.stringify({ error: 'Invalid JSON' }))
+              }
+            })
+            return
+          }
+        }
         if (req.url === '/api/projects') {
           if (req.method === 'GET') {
             res.setHeader('Content-Type', 'application/json')
@@ -65,7 +100,7 @@ export default defineConfig({
     port: 5173,
     host: true,
     watch: {
-      ignored: ['**/.blueprint_store.json', '**/.blueprint_store.json*']
+      ignored: ['**/.blueprint_store.json', '**/.blueprint_store.json*', '**/.blueprint_ai_settings.json', '**/.blueprint_ai_settings.json*']
     }
   }
 })
