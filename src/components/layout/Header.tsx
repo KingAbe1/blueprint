@@ -84,7 +84,7 @@ export const Header: React.FC<HeaderProps> = ({
   activeTab = 'domain-intent',
   onSelectTab,
 }) => {
-  const { projects, isCreatingNew, setIsCreatingNew, activeProject, storageSource } = useProjects();
+  const { isCreatingNew, setIsCreatingNew, activeProject } = useProjects();
   const { isDark, toggleTheme } = useTheme();
   const { isAiConfigured, setIsSettingsOpen } = useAI();
   const [isProjectMenuOpen, setIsProjectMenuOpen] = useState(false);
@@ -108,9 +108,7 @@ export const Header: React.FC<HeaderProps> = ({
     && (activeProject.spec.frameworkRecommendation || activeProject.spec.frameworkRecommendations?.[0]),
   );
 
-  const storageTooltip = storageSource === 'disk'
-    ? `${LOCAL_STORAGE_TOOLTIP} (saved to .blueprint_store.json on this machine.)`
-    : LOCAL_STORAGE_TOOLTIP;
+  const storageTooltip = `${LOCAL_STORAGE_TOOLTIP} Projects live in this browser’s localStorage.`;
 
   const desktop = isDesktopApp();
 
@@ -121,7 +119,7 @@ export const Header: React.FC<HeaderProps> = ({
         title={storageTooltip}
         aria-label={storageTooltip}
       >
-        <span className={`h-1.5 w-1.5 rounded-full ${storageSource === 'disk' ? 'bg-emerald-500' : 'bg-amber-500'}`} />
+        <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
       </div>
 
       <button

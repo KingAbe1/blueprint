@@ -17,13 +17,13 @@ Desktop and browser workstation for **spec-first greenfield planning** and **bro
 - Next.js-specific analysis when detected.
 - Optional AI quality review on selected source files (requires configured provider).
 
-Projects are persisted **on your machine only** (browser storage and/or `.blueprint_store.json` in dev/Tauri)—not on a Blueprint-hosted cloud.
+Projects are persisted **on your machine only** in the browser’s **localStorage** (use Export JSON in the project menu for backups)—not on a Blueprint-hosted cloud.
 
 ## Data & privacy
 
 - **Codebase scans** run locally. File contents used for analysis stay on your device except where you explicitly opt in (see below).
 - **Blueprint does not** operate a cloud repository for your company code, scan results, or project specs.
-- **Optional AI** (architecture interview, description polish, quality review): **one provider setup for all projects**—stored in `localStorage` and `.blueprint_ai_settings.json` in dev. Prompts go **directly to the provider you configure** (OpenAI, Anthropic, Ollama on localhost, etc.). Use Ollama or your org’s gateway if nothing may leave your network.
+- **Optional AI** (architecture interview, description polish, quality review): **one provider setup for all projects**—stored in `localStorage`. Prompts go **directly to the provider you configure** (OpenAI, Anthropic, Ollama on localhost, etc.). Use Ollama or your org’s gateway if nothing may leave your network.
 - **Optional GitHub status** uses a token you supply; requests go to GitHub, not Blueprint.
 - **Dependency advisories** may query public npm/OSV APIs using package names and versions from your lockfile—not your source tree.
 

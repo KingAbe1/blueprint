@@ -10,7 +10,6 @@ interface ProjectContextType {
   isCreatingNew: boolean;
   editingProjectId: string | null;
   projectToDelete: Project | null;
-  storageSource: 'disk' | 'local';
   isLoaded: boolean;
   setIsCreatingNew: (isCreating: boolean) => void;
   setEditingProjectId: (id: string | null) => void;
@@ -67,18 +66,15 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({ children })
   );
   const [editingProjectId, setEditingProjectId] = useState<string | null>(null);
   const [projectToDelete, setProjectToDelete] = useState<Project | null>(null);
-  const [storageSource, setStorageSource] = useState<'disk' | 'local'>('local');
   const [isLoaded, setIsLoaded] = useState(false);
 
   const lastSavedJsonRef = React.useRef<string>('');
 
-  // Load from disk API on startup
   useEffect(() => {
     let isSubscribed = true;
-    storageService.loadProjects().then(({ projects: loadedProjects, source }) => {
+    storageService.loadProjects().then(({ projects: loadedProjects }) => {
       if (!isSubscribed) return;
-      setStorageSource(source);
-      if (loadedProjects && loadedProjects.length > 0) {
+      if (loadedProjects.length > 0) {
         lastSavedJsonRef.current = JSON.stringify(loadedProjects);
         setProjects(loadedProjects);
         if (!activeProjectId || !loadedProjects.some(p => p.id === activeProjectId)) {
@@ -87,7 +83,7 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({ children })
       }
       setIsLoaded(true);
     }).catch(err => {
-      console.warn('Async disk load fallback:', err);
+      console.warn('Failed to load projects from localStorage:', err);
       setIsLoaded(true);
     });
     return () => { isSubscribed = false; };
@@ -265,7 +261,6 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({ children })
         isCreatingNew,
         editingProjectId,
         projectToDelete,
-        storageSource,
         isLoaded,
         setIsCreatingNew,
         setEditingProjectId,

@@ -1,7 +1,6 @@
 import { AIProviderId, AISettings, AIProviderConfig, DEFAULT_AI_PROVIDERS } from '../types/ai';
 
 const LOCAL_STORAGE_KEY = 'blueprint_ai_settings';
-const API_URL = '/api/ai-settings';
 
 export function mergeAISettings(parsed: Partial<AISettings> | null | undefined): AISettings {
   const providers = {} as Record<AIProviderId, AIProviderConfig>;
@@ -51,30 +50,12 @@ export function readAISettingsFromLocalStorage(): AISettings | null {
   }
 }
 
-export async function loadAISettings(): Promise<{ settings: AISettings; source: 'disk' | 'local' }> {
-  try {
-    const response = await fetch(API_URL, { headers: { Accept: 'application/json' } });
-    if (response.ok) {
-      const rawText = await response.text();
-      if (rawText?.trim()) {
-        const disk = normalizeAISettings(JSON.parse(rawText) as Partial<AISettings>);
-        if (Object.values(disk.providers).some(providerIsConfigured)) {
-          localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(disk));
-          return { settings: disk, source: 'disk' };
-        }
-      }
-    }
-  } catch {
-    // Dev disk API may be unavailable in static preview builds.
-  }
-
+export async function loadAISettings(): Promise<{ settings: AISettings }> {
   const local = readAISettingsFromLocalStorage();
   if (local) {
-    void saveAISettings(local).catch(() => {});
-    return { settings: local, source: 'local' };
+    return { settings: local };
   }
-
-  return { settings: normalizeAISettings(null), source: 'local' };
+  return { settings: normalizeAISettings(null) };
 }
 
 export async function saveAISettings(settings: AISettings): Promise<void> {
@@ -83,15 +64,5 @@ export async function saveAISettings(settings: AISettings): Promise<void> {
     localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(normalized));
   } catch (error) {
     console.error('Failed to save AI settings to localStorage', error);
-  }
-
-  try {
-    await fetch(API_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(normalized),
-    });
-  } catch (error) {
-    console.warn('Could not persist AI settings to disk API', error);
   }
 }
