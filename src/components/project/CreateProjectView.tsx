@@ -1,13 +1,39 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { FolderCode, ArrowRight, CornerDownLeft, Layers, SearchCode, ShieldCheck, Trash2, X } from 'lucide-react';
+import { ArrowRight, CornerDownLeft, FolderCode, Layers, Loader2, SearchCode, Trash2 } from 'lucide-react';
 import { useProjects } from '../../context/ProjectContext';
 import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
 import { CodebaseAnalysis } from '../../types/codebase';
+import { Project } from '../../types/project';
 import { chooseAndAnalyzeCodebase, reanalyzeCodebase } from '../../services/codebaseAnalysisService';
 import { CodebaseAnalysisView } from './CodebaseAnalysisView';
 
+type EntryMode = 'greenfield' | 'brownfield';
+
 const PENDING_CODEBASE_ANALYSIS_KEY = 'blueprint_pending_codebase_analysis_v1';
+
+const STARTING_POINTS: {
+  mode: EntryMode;
+  title: string;
+  description: string;
+  icon: typeof FolderCode;
+  idleBadge: string;
+}[] = [
+  {
+    mode: 'greenfield',
+    title: 'Plan a new project',
+    description: 'Shape the product brief, architecture, and coding-agent handoff.',
+    icon: FolderCode,
+    idleBadge: 'New blueprint',
+  },
+  {
+    mode: 'brownfield',
+    title: 'Understand an existing codebase',
+    description: 'Explore its structure, understand how it works, and plan what to change.',
+    icon: SearchCode,
+    idleBadge: 'Local scan',
+  },
+];
 
 function loadPendingCodebaseAnalysis(): CodebaseAnalysis | null {
   try {
@@ -25,16 +51,29 @@ function loadPendingCodebaseAnalysis(): CodebaseAnalysis | null {
   }
 }
 
+function projectKind(project: Project): 'codebase' | 'blueprint' {
+  return project.codebaseAnalysis ? 'codebase' : 'blueprint';
+}
+
 export const CreateProjectView: React.FC = () => {
   const { user } = useAuth();
-  const { projects, activeProjectId, setActiveProjectId, setIsCreatingNew, createProject, createCodebaseProject, setProjectToDelete, isLoaded } = useProjects();
+  const {
+    projects,
+    activeProjectId,
+    setActiveProjectId,
+    setIsCreatingNew,
+    createProject,
+    createCodebaseProject,
+    setProjectToDelete,
+    isLoaded,
+  } = useProjects();
   const { isDark } = useTheme();
+  const [entryMode, setEntryMode] = useState<EntryMode>('greenfield');
   const [inputName, setInputName] = useState('');
   const [isFocused, setIsFocused] = useState(false);
   const [codebaseAnalysis, setCodebaseAnalysis] = useState<CodebaseAnalysis | null>(loadPendingCodebaseAnalysis);
   const [isAnalyzingCodebase, setIsAnalyzingCodebase] = useState(false);
   const [codebaseError, setCodebaseError] = useState<string | null>(null);
-  const [isCodebasePermissionExplainerOpen, setIsCodebasePermissionExplainerOpen] = useState(false);
   const migratedPendingAnalysis = useRef(false);
 
   useEffect(() => {
@@ -80,22 +119,35 @@ export const CreateProjectView: React.FC = () => {
     }
   };
 
+  const exitNewProjectFlow = () => {
+    setIsCreatingNew(false);
+    if (!activeProjectId && projects.length > 0) {
+      setActiveProjectId(projects[0].id);
+    }
+  };
+
+  const selectMode = (mode: EntryMode) => {
+    setEntryMode(mode);
+    setCodebaseError(null);
+    if (mode === 'greenfield') {
+      requestAnimationFrame(() => document.getElementById('new-project-name')?.focus());
+    }
+  };
+
   const muted = isDark ? 'text-slate-400' : 'text-slate-500';
   const divider = isDark ? 'border-white/[0.08]' : 'border-slate-200';
-  const startingPoints = [
-    {
-      title: 'Plan a new project',
-      description: 'Shape the product brief, architecture, and coding-agent handoff.',
-      icon: FolderCode,
-      selected: true,
-    },
-    {
-      title: 'Understand an existing codebase',
-      description: 'Explore its structure, understand how it works, and plan what to change.',
-      icon: SearchCode,
-      selected: false,
-    },
-  ];
+  const panelClass = isDark
+    ? 'border-white/[0.09] bg-[#141518]'
+    : 'border-slate-200/80 bg-white/95 shadow-[0_20px_60px_-36px_rgba(15,23,42,0.26)]';
+
+  const modeCardClass = (selected: boolean) => {
+    if (selected) {
+      return isDark ? 'border-blue-400/30 bg-blue-500/[0.08]' : 'border-blue-200 bg-blue-50/70';
+    }
+    return isDark
+      ? 'border-white/[0.08] bg-white/[0.02] hover:border-white/[0.14] hover:bg-white/[0.04]'
+      : 'border-slate-200 bg-white/60 hover:border-slate-300 hover:bg-white';
+  };
 
   if (codebaseAnalysis) {
     return (
@@ -114,9 +166,7 @@ export const CreateProjectView: React.FC = () => {
 
   return (
     <div className={`relative flex min-h-0 flex-1 items-start justify-center overflow-y-auto px-5 py-8 sm:px-8 min-[1024px]:items-center min-[500px]:px-10 ${isDark ? 'bg-[#101113]' : 'bg-[radial-gradient(ellipse_at_40%_38%,#ffffff_0%,#f7f9fd_48%,#eef3fa_100%)]'}`}>
-      <div
-        className="grid w-full max-w-6xl grid-cols-1 items-center gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(260px,480px)] lg:gap-16"
-      >
+      <div className="grid w-full max-w-6xl grid-cols-1 items-start gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(260px,480px)] lg:items-center lg:gap-16">
         <section className="min-w-0">
           <div className={`mb-5 flex h-11 w-11 items-center justify-center rounded-xl ${isDark ? 'bg-blue-500/10 text-blue-300' : 'bg-blue-50 text-blue-700'}`}>
             <Layers className="h-5 w-5" />
@@ -128,201 +178,201 @@ export const CreateProjectView: React.FC = () => {
             Where are we starting?
           </h1>
           <p className={`mt-4 max-w-lg text-sm leading-6 sm:text-base sm:leading-7 ${muted}`}>
-            Bring an idea to life or get oriented in a codebase you already have.
+            Bring an idea to life or get oriented in a codebase you already have. Projects stay on this device only.
           </p>
 
-          <div className="mt-7 grid max-w-lg gap-3">
-            {startingPoints.map(({ title, description, icon: Icon, selected }) => (
-              <button
-                key={title}
-                type="button"
-                onClick={() => selected ? document.getElementById('new-project-name')?.focus() : setIsCodebasePermissionExplainerOpen(true)}
-                disabled={isAnalyzingCodebase}
-                className={`flex w-full items-start gap-3 rounded-xl border p-4 text-left transition-colors disabled:opacity-60 ${selected
-                    ? isDark ? 'border-blue-400/30 bg-blue-500/[0.08]' : 'border-blue-200 bg-blue-50/70'
-                    : isDark ? 'border-white/[0.08] bg-white/[0.02] hover:border-blue-400/30 hover:bg-white/[0.04]' : 'border-slate-200 bg-white/60 hover:border-blue-200 hover:bg-white'
-                  }`}
-              >
-                <div className={`mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${selected
+          <div className="mt-7 grid max-w-lg gap-3" role="listbox" aria-label="Project entry mode">
+            {STARTING_POINTS.map(({ mode, title, description, icon: Icon, idleBadge }) => {
+              const selected = entryMode === mode;
+              return (
+                <button
+                  key={mode}
+                  type="button"
+                  role="option"
+                  aria-selected={selected}
+                  onClick={() => selectMode(mode)}
+                  disabled={isAnalyzingCodebase}
+                  className={`flex w-full items-start gap-3 rounded-xl border p-4 text-left transition-colors disabled:opacity-60 ${modeCardClass(selected)}`}
+                >
+                  <div className={`mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${selected
                     ? isDark ? 'bg-blue-400/10 text-blue-300' : 'bg-white text-blue-700'
                     : isDark ? 'bg-white/[0.05] text-slate-400' : 'bg-slate-100 text-slate-500'
                   }`}>
-                  <Icon className="h-4 w-4" />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <p className={`text-sm font-semibold ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>{title}</p>
-                    <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${selected
+                    <Icon className="h-4 w-4" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className={`text-sm font-semibold ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>{title}</p>
+                      <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${selected
                         ? isDark ? 'bg-blue-400/10 text-blue-300' : 'bg-blue-100 text-blue-700'
                         : isDark ? 'bg-white/[0.06] text-slate-400' : 'bg-slate-100 text-slate-600'
                       }`}>
-                      {selected ? 'Selected' : isAnalyzingCodebase ? 'Scanning…' : 'Analyze repository'}
-                    </span>
+                        {selected ? 'Selected' : mode === 'brownfield' && isAnalyzingCodebase ? 'Scanning…' : idleBadge}
+                      </span>
+                    </div>
+                    <p className={`mt-1 text-xs leading-5 ${muted}`}>{description}</p>
                   </div>
-                  <p className={`mt-1 text-xs leading-5 ${muted}`}>{description}</p>
-                </div>
-              </button>
-            ))}
+                </button>
+              );
+            })}
           </div>
 
-          {codebaseError && <p role="alert" className="mt-3 rounded-lg border border-rose-500/20 bg-rose-500/10 px-3 py-2 text-xs text-rose-500">{codebaseError}</p>}
+          {codebaseError && (
+            <p role="alert" className="mt-3 max-w-lg rounded-lg border border-rose-500/20 bg-rose-500/10 px-3 py-2 text-xs text-rose-500">
+              {codebaseError}
+            </p>
+          )}
 
           {projects.length > 0 && (
             <div className={`mt-7 max-w-lg border-t pt-6 ${divider}`}>
               <h2 className={`text-sm font-semibold ${isDark ? 'text-slate-200' : 'text-slate-800'}`}>Open a recent project</h2>
               <div className={`mt-2 divide-y ${isDark ? 'divide-white/[0.07]' : 'divide-slate-200/60'}`}>
-                {projects.map(project => (
-                  <div key={project.id} className="group flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setActiveProjectId(project.id);
-                        setIsCreatingNew(false);
-                      }}
-                      className={`flex min-w-0 flex-1 items-center justify-between gap-3 py-3 text-left transition-colors ${isDark ? 'text-slate-300 hover:text-white' : 'text-slate-700 hover:text-slate-950'}`}
-                    >
-                      <span className="flex min-w-0 items-center gap-2.5">
-                        <FolderCode className="h-4 w-4 shrink-0 text-blue-500" />
-                        <span className="truncate text-sm font-medium">{project.name}</span>
-                      </span>
-                      <ArrowRight className={`h-4 w-4 shrink-0 opacity-40 transition-all group-hover:translate-x-0.5 group-hover:opacity-100 ${isDark ? 'text-blue-300' : 'text-blue-600'}`} />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setProjectToDelete(project)}
-                      aria-label={`Delete ${project.name}`}
-                      title="Delete project"
-                      className={`shrink-0 rounded-md p-1.5 opacity-60 transition-colors hover:opacity-100 ${isDark ? 'text-slate-500 hover:bg-red-500/10 hover:text-red-300' : 'text-slate-400 hover:bg-red-50 hover:text-red-600'}`}
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </button>
-                  </div>
-                ))}
+                {projects.map(project => {
+                  const kind = projectKind(project);
+                  const KindIcon = kind === 'codebase' ? SearchCode : FolderCode;
+                  return (
+                    <div key={project.id} className="group flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setActiveProjectId(project.id);
+                          setIsCreatingNew(false);
+                        }}
+                        className={`flex min-w-0 flex-1 items-center justify-between gap-3 py-3 text-left transition-colors ${isDark ? 'text-slate-300 hover:text-white' : 'text-slate-700 hover:text-slate-950'}`}
+                      >
+                        <span className="flex min-w-0 items-center gap-2.5">
+                          <KindIcon className="h-4 w-4 shrink-0 text-blue-500" />
+                          <span className="min-w-0">
+                            <span className="block truncate text-sm font-medium">{project.name}</span>
+                            <span className={`text-[10px] ${muted}`}>
+                              {kind === 'codebase' ? 'Codebase scan' : 'Product blueprint'}
+                            </span>
+                          </span>
+                        </span>
+                        <ArrowRight className={`h-4 w-4 shrink-0 opacity-40 transition-all group-hover:translate-x-0.5 group-hover:opacity-100 ${isDark ? 'text-blue-300' : 'text-blue-600'}`} />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setProjectToDelete(project)}
+                        aria-label={`Delete ${project.name}`}
+                        title="Delete project"
+                        className={`shrink-0 rounded-md p-1.5 opacity-60 transition-colors hover:opacity-100 ${isDark ? 'text-slate-500 hover:bg-red-500/10 hover:text-red-300' : 'text-slate-400 hover:bg-red-50 hover:text-red-600'}`}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           )}
         </section>
 
-        <section className={`w-full rounded-2xl border p-6 shadow-sm sm:p-7 ${isDark ? 'border-white/[0.09] bg-[#141518]' : 'border-slate-200/80 bg-white/95 shadow-[0_20px_60px_-36px_rgba(15,23,42,0.26)]'}`}>
-          <div>
-            <h2 className={`text-xl font-semibold tracking-tight ${isDark ? 'text-white' : 'text-slate-950'}`}>Plan a new project</h2>
-            <p className={`mt-1.5 text-sm leading-5 ${muted}`}>Give your workspace a name to get started.</p>
-          </div>
+        <section className={`w-full rounded-2xl border p-6 shadow-sm sm:p-7 ${panelClass}`}>
+          {entryMode === 'greenfield' ? (
+            <>
+              <h2 className={`text-xl font-semibold tracking-tight ${isDark ? 'text-white' : 'text-slate-950'}`}>Plan a new project</h2>
+              <p className={`mt-1.5 text-sm leading-5 ${muted}`}>Give your workspace a name to get started.</p>
 
-          <form onSubmit={handleSubmit} className="mt-7 space-y-6">
-            <div className="space-y-2">
-              <label htmlFor="new-project-name" className={`text-xs font-medium ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>Project name</label>
-              <div className={`rounded-xl transition-shadow ${isFocused ? 'ring-2 ring-blue-500/20' : ''}`}>
-                <input
-                  id="new-project-name"
-                  type="text"
-                  className={`w-full rounded-xl border px-4 py-3.5 text-sm font-medium outline-none transition-colors ${isDark
-                      ? 'border-white/[0.1] bg-[#0F1012] text-white placeholder:text-slate-600 focus:border-blue-500/70'
-                      : 'border-slate-300 bg-white text-slate-900 placeholder:text-slate-400 focus:border-blue-500'
-                    }`}
-                  placeholder="e.g. online-store"
-                  value={inputName}
-                  onChange={event => setInputName(event.target.value)}
-                  onFocus={() => setIsFocused(true)}
-                  onBlur={() => setIsFocused(false)}
-                  autoFocus
-                />
-              </div>
-              <div className={`inline-flex max-w-full items-center gap-2 rounded-md px-2 py-1.5 text-xs ${isDark ? 'bg-white/[0.04] text-slate-400' : 'bg-slate-50 text-slate-500'}`}>
-                <Layers className="h-3.5 w-3.5 shrink-0" />
-                <span className="truncate font-mono">~/blueprint/{inputName.trim() ? inputName.trim().toLowerCase().replace(/\s+/g, '-') : 'project-name'}</span>
-              </div>
-            </div>
+              <form onSubmit={handleSubmit} className="mt-7 space-y-6">
+                <div className="space-y-2">
+                  <label htmlFor="new-project-name" className={`text-xs font-medium ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+                    Project name
+                  </label>
+                  <div className={`rounded-xl transition-shadow ${isFocused ? 'ring-2 ring-blue-500/20' : ''}`}>
+                    <input
+                      id="new-project-name"
+                      type="text"
+                      className={`w-full rounded-xl border px-4 py-3.5 text-sm font-medium outline-none transition-colors ${isDark
+                        ? 'border-white/[0.1] bg-[#0F1012] text-white placeholder:text-slate-600 focus:border-blue-500/70'
+                        : 'border-slate-300 bg-white text-slate-900 placeholder:text-slate-400 focus:border-blue-500'
+                      }`}
+                      placeholder="e.g. online-store"
+                      value={inputName}
+                      onChange={event => setInputName(event.target.value)}
+                      onFocus={() => setIsFocused(true)}
+                      onBlur={() => setIsFocused(false)}
+                      autoFocus
+                    />
+                  </div>
+                </div>
 
-            <div className={`flex flex-wrap items-center justify-between gap-3 border-t pt-5 ${divider}`}>
-              <span className={`flex items-center gap-1.5 text-xs ${muted}`}>
-                <CornerDownLeft className="h-3.5 w-3.5" />
-                Press Enter to continue
-              </span>
-              <div className="flex items-center gap-2">
-                {projects.length > 0 && (
+                <div className={`flex flex-wrap items-center justify-between gap-3 border-t pt-5 ${divider}`}>
+                  <span className={`flex items-center gap-1.5 text-xs ${muted}`}>
+                    <CornerDownLeft className="h-3.5 w-3.5" />
+                    Press Enter to continue
+                  </span>
+                  <div className="flex items-center gap-2">
+                    {projects.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={exitNewProjectFlow}
+                        className={`rounded-lg px-2.5 py-2 text-xs font-medium transition-colors ${isDark ? 'text-slate-400 hover:bg-white/[0.05] hover:text-white' : 'text-slate-500 hover:bg-slate-100 hover:text-slate-900'}`}
+                      >
+                        Cancel
+                      </button>
+                    )}
+                    <button
+                      type="submit"
+                      disabled={!inputName.trim()}
+                      className={`group inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold transition-colors disabled:pointer-events-none ${inputName.trim()
+                        ? 'btn-primary-blue text-white'
+                        : isDark ? 'bg-white/[0.07] text-slate-500' : 'bg-slate-200 text-slate-500'
+                      }`}
+                    >
+                      Create project
+                      <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+                    </button>
+                  </div>
+                </div>
+              </form>
+            </>
+          ) : (
+            <>
+              <h2 className={`text-xl font-semibold tracking-tight ${isDark ? 'text-white' : 'text-slate-950'}`}>Scan a codebase</h2>
+              <p className={`mt-1.5 text-sm leading-5 ${muted}`}>
+                Choose a folder on this device. Blueprint reads names and manifests only—read-only, nothing uploaded to Blueprint.
+              </p>
+
+              <div className={`mt-7 flex flex-wrap items-center justify-between gap-3 border-t pt-5 ${divider}`}>
+                <span className={`text-xs ${muted}`}>
+                  {isAnalyzingCodebase ? 'Scanning…' : 'Opens the system folder picker'}
+                </span>
+                <div className="flex items-center gap-2">
+                  {projects.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={exitNewProjectFlow}
+                      disabled={isAnalyzingCodebase}
+                      className={`rounded-lg px-2.5 py-2 text-xs font-medium transition-colors disabled:opacity-50 ${isDark ? 'text-slate-400 hover:bg-white/[0.05] hover:text-white' : 'text-slate-500 hover:bg-slate-100 hover:text-slate-900'}`}
+                    >
+                      Cancel
+                    </button>
+                  )}
                   <button
                     type="button"
-                    onClick={() => {
-                      setIsCreatingNew(false);
-                      if (!activeProjectId) setActiveProjectId(projects[0].id);
-                    }}
-                    className={`rounded-lg px-2.5 py-2 text-xs font-medium transition-colors ${isDark ? 'text-slate-400 hover:bg-white/[0.05] hover:text-white' : 'text-slate-500 hover:bg-slate-100 hover:text-slate-900'}`}
+                    onClick={() => void handleAnalyzeCodebase()}
+                    disabled={isAnalyzingCodebase}
+                    className="group inline-flex items-center gap-1.5 rounded-lg btn-primary-blue px-3 py-2 text-xs font-semibold text-white transition-colors disabled:opacity-60"
                   >
-                    Cancel
+                    {isAnalyzingCodebase ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Scanning…
+                      </>
+                    ) : (
+                      <>
+                        Choose folder
+                        <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+                      </>
+                    )}
                   </button>
-                )}
-                <button
-                  type="submit"
-                  disabled={!inputName.trim()}
-                  className={`group inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold transition-colors disabled:pointer-events-none ${inputName.trim()
-                      ? 'btn-primary-blue text-white'
-                      : isDark ? 'bg-white/[0.07] text-slate-500' : 'bg-slate-200 text-slate-500'
-                    }`}
-                >
-                  Create project
-                  <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
-                </button>
+                </div>
               </div>
-            </div>
-          </form>
+            </>
+          )}
         </section>
       </div>
-
-      {isCodebasePermissionExplainerOpen && (
-        <div className={`fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm ${isDark ? 'bg-black/60' : 'bg-slate-950/55'}`} onMouseDown={event => {
-          if (event.target === event.currentTarget) setIsCodebasePermissionExplainerOpen(false);
-        }}>
-          <section
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="codebase-access-title"
-            className={`w-full max-w-md rounded-2xl border p-5 shadow-2xl sm:p-6 ${isDark ? 'border-white/[0.1] bg-[#17181c]' : 'border-slate-200 bg-white'}`}
-          >
-            <div className="flex items-start justify-between gap-4">
-              <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${isDark ? 'bg-blue-500/10 text-blue-300' : 'bg-blue-50 text-blue-700'}`}>
-                <ShieldCheck className="h-5 w-5" />
-              </div>
-              <button
-                type="button"
-                onClick={() => setIsCodebasePermissionExplainerOpen(false)}
-                aria-label="Close"
-                className={`rounded-md p-1.5 ${isDark ? 'text-slate-400 hover:bg-white/[0.06] hover:text-white' : 'text-slate-400 hover:bg-slate-100 hover:text-slate-700'}`}
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-            <h2 id="codebase-access-title" className={`mt-4 text-lg font-semibold ${isDark ? 'text-white' : 'text-slate-950'}`}>
-              Blueprint needs read-only folder access
-            </h2>
-            <p className={`mt-2 text-sm leading-6 ${muted}`}>
-              Choose the codebase you want to understand. Blueprint will scan file names and selected project manifests on this device. It won’t change or upload your files.
-            </p>
-            <p className={`mt-3 text-xs leading-5 ${muted}`}>
-              Your browser will ask you to allow access to the folder next. You can cancel there at any time.
-            </p>
-            <div className="mt-6 flex justify-end gap-2">
-              <button
-                type="button"
-                onClick={() => setIsCodebasePermissionExplainerOpen(false)}
-                className={`rounded-lg px-3 py-2 text-xs font-medium ${isDark ? 'text-slate-300 hover:bg-white/[0.06]' : 'text-slate-600 hover:bg-slate-100'}`}
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setIsCodebasePermissionExplainerOpen(false);
-                  void handleAnalyzeCodebase();
-                }}
-                className="rounded-lg btn-primary-blue px-3.5 py-2 text-xs font-semibold text-white"
-              >
-                Continue to folder selection
-              </button>
-            </div>
-          </section>
-        </div>
-      )}
     </div>
   );
 };

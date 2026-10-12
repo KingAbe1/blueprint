@@ -229,6 +229,14 @@ export const AISettingsModal: React.FC = () => {
           </button>
         </header>
 
+        <div className={`shrink-0 border-b px-6 py-3 text-xs leading-5 ${border} ${isDark ? 'bg-emerald-500/[0.06] text-slate-300' : 'bg-emerald-50/90 text-slate-600'}`}>
+          <p>
+            <span className="font-semibold text-emerald-600 dark:text-emerald-400">No Blueprint cloud for your code.</span>
+            {' '}
+            Scans and project data stay on this device. If you use AI features, only the text you send (e.g. selected files or your product description) goes to the provider you configure here—or to Ollama on your machine. API keys are stored locally in this browser or app.
+          </p>
+        </div>
+
         <div className="flex min-h-0 flex-1">
           <aside className={`w-56 shrink-0 overflow-y-auto border-r p-3 ${border} ${isDark ? 'bg-[#0E0F11]' : 'bg-slate-50/70'}`}>
             <div className={`mb-2 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] ${muted}`}>Providers</div>
@@ -443,7 +451,7 @@ export const AISettingsModal: React.FC = () => {
               <div className="flex items-center gap-3">
                 <span className={`hidden items-center gap-1.5 text-[11px] sm:flex ${muted}`}>
                   <ShieldCheck className="h-3.5 w-3.5 text-emerald-500" />
-                  Stored locally
+                  Keys stored on this device
                 </span>
                 <button
                   type="button"

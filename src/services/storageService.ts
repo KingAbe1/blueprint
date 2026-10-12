@@ -5,8 +5,8 @@ const API_URL = '/api/projects';
 
 export const storageService = {
   /**
-   * Fetch projects from disk endpoint (/api/projects).
-   * Fallback to localStorage if API call fails or is unavailable.
+   * Fetch projects from the local dev disk endpoint (/api/projects → .blueprint_store.json).
+   * Not a remote Blueprint cloud—only this machine. Falls back to localStorage if unavailable.
    */
   async loadProjects(): Promise<{ projects: Project[]; source: 'disk' | 'local' }> {
     try {
@@ -45,7 +45,7 @@ export const storageService = {
   },
 
   /**
-   * Save projects to both disk (/api/projects) and localStorage.
+   * Save projects to local disk (dev plugin) and localStorage. Never sent to a Blueprint cloud API.
    */
   async saveProjects(projects: Project[]): Promise<boolean> {
     try {
