@@ -66,18 +66,24 @@ export const ProjectDropdown: React.FC<ProjectDropdownProps> = ({
         {activeProject ? (
           <button
             onClick={onToggle}
-            className={`flex min-w-0 items-center justify-between space-x-1 rounded-md border px-1.5 py-1 text-xs font-medium transition-all cursor-pointer ${compact ? 'w-max max-w-full' : 'flex-1'} ${
-              isDark 
-                ? 'bg-[#18191E] border-[#2B2C33] text-white hover:bg-[#20222A]' 
-                : 'bg-slate-100/80 border-slate-200 text-slate-900 hover:bg-slate-200/80 shadow-xs'
+            className={`flex min-w-0 items-center justify-between gap-1.5 text-xs font-medium transition-all cursor-pointer ${
+              compact
+                ? 'btn-secondary w-max max-w-full rounded-lg px-2 py-2'
+                : `flex-1 rounded-md border px-1.5 py-1 ${
+                    isDark
+                      ? 'bg-[#18191E] border-[#2B2C33] text-white hover:bg-[#20222A]'
+                      : 'bg-slate-100/80 border-slate-200 text-slate-900 hover:bg-slate-200/80 shadow-xs'
+                  }`
             }`}
             title={activeProject.name}
           >
-            <div className="flex items-center space-x-1.5 min-w-0 overflow-hidden">
-              <FolderOpen className="w-3.5 h-3.5 text-blue-500 shrink-0" />
+            <div className="flex min-w-0 items-center gap-1.5 overflow-hidden">
+              <FolderOpen className={`shrink-0 text-blue-500 ${compact ? 'h-4 w-4' : 'h-3.5 w-3.5'}`} />
               <span className="truncate text-xs">{activeProject.name}</span>
             </div>
-            <ChevronDown className="w-3 h-3 text-[#7A7B85] shrink-0 ml-0.5" />
+            <ChevronDown
+              className={`shrink-0 ${compact ? 'h-3.5 w-3.5 opacity-70' : 'ml-0.5 h-3 w-3 text-[#7A7B85]'}`}
+            />
           </button>
         ) : (
           <span className={`text-xs ${isDark ? 'text-[#9496A1]' : 'text-slate-500'}`}>
