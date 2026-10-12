@@ -1,5 +1,5 @@
 import { AIProviderConfig, AISettings } from '../types/ai';
-import { ArchitectureFact, ArchitectureQuestion, ArchitectureTopology, DomainEntity, FrameworkRecommendation } from '../types/project';
+import { ArchitectureFact, ArchitectureQuestion, ArchitectureTopology, FrameworkRecommendation } from '../types/project';
 import { 
   cleanRawDescription,
   formatSpecificationTemplate 
@@ -383,55 +383,6 @@ export async function testAIConnection(config: AIProviderConfig): Promise<TestRe
       modelUsed: model
     };
   }
-}
-
-export async function generateEntitiesWithAI(
-  projectName: string,
-  description: string,
-  settings: AISettings
-): Promise<{ entities: DomainEntity[]; providerName: string }> {
-  const activeConfig = settings.providers[settings.activeProvider];
-  const hasKey = activeConfig && (activeConfig.provider === 'ollama' || Boolean(activeConfig.apiKey?.trim()));
-
-  if (!hasKey) {
-    throw new Error(`API key is required for ${activeConfig?.name || 'AI'}. Please configure it in AI Settings.`);
-  }
-
-  const prompt = `You are a software architect assisting in designing a project called "${projectName}".
-The user describes what they are building as follows:
-"""
-${description || projectName}
-"""
-
-Please identify 3 to 6 essential "Key Items & People" (the core records, items, entities, or user types) needed for this system.
-Respond ONLY with a valid JSON array of objects in this exact structure:
-[
-  {
-    "name": "Customer",
-    "description": "Stores user profile, email address, and billing information."
-  }
-]
-Do not include any text outside the JSON array.`;
-
-  const rawText = await callAIModel(activeConfig, prompt, { temperature: 0.2, maxTokens: 1024 });
-
-  const jsonMatch = rawText.match(/\[[\s\S]*\]/);
-  if (jsonMatch) {
-    const parsed = JSON.parse(jsonMatch[0]);
-    if (Array.isArray(parsed) && parsed.length > 0) {
-      const entities: DomainEntity[] = parsed.map((item: any, idx: number) => ({
-        id: 'ent_' + Date.now() + '_' + idx,
-        name: String(item.name || 'Item').trim(),
-        description: String(item.description || '').trim()
-      }));
-      return {
-        entities,
-        providerName: activeConfig.name
-      };
-    }
-  }
-
-  throw new Error(`Could not parse domain entities from ${activeConfig.name} response.`);
 }
 
 export async function expandAndPolishDescription(

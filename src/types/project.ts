@@ -22,12 +22,6 @@ export interface HandoffPackage {
   files: HandoffFile[];
 }
 
-export interface DomainEntity {
-  id: string;
-  name: string;
-  description: string;
-}
-
 export interface FrameworkRecommendation {
   id: string;
   name: string;
@@ -123,9 +117,6 @@ export interface ProjectSpec {
   targetFramework?: string;
   frameworkRecommendation?: FrameworkRecommendation;
   frameworkRecommendations?: FrameworkRecommendation[];
-  coreEntities?: DomainEntity[];
-  criticalWorkflows?: string[];
-  nonNegotiables?: string[];
   handoff?: HandoffPackage;
 }
 

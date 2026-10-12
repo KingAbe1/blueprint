@@ -28,9 +28,6 @@ interface ProjectContextType {
 
 const defaultSpec: ProjectSpec = {
   description: '',
-  coreEntities: [],
-  criticalWorkflows: [],
-  nonNegotiables: []
 };
 
 const CREATING_NEW_STORAGE_KEY = 'blueprint_is_creating_new';

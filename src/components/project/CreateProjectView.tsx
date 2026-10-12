@@ -121,17 +121,9 @@ export const CreateProjectView: React.FC = () => {
           <div className={`mb-5 flex h-11 w-11 items-center justify-center rounded-xl ${isDark ? 'bg-blue-500/10 text-blue-300' : 'bg-blue-50 text-blue-700'}`}>
             <Layers className="h-5 w-5" />
           </div>
-          <div className="flex items-center space-x-2">
-            <p className={`text-xs font-semibold uppercase tracking-[0.12em] ${isDark ? 'text-blue-300' : 'text-blue-700'}`}>
-              {user ? `Welcome, ${user.name}` : 'Start here'}
-            </p>
-            {user?.role && (
-              <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full border ${isDark ? 'border-blue-500/20 bg-blue-500/10 text-blue-300' : 'border-blue-200 bg-blue-50 text-blue-700'
-                }`}>
-                {user.role}
-              </span>
-            )}
-          </div>
+          <p className={`text-xs font-semibold uppercase tracking-[0.12em] ${isDark ? 'text-blue-300' : 'text-blue-700'}`}>
+            {user ? `Welcome, ${user.name}` : 'Start here'}
+          </p>
           <h1 className={`mt-3 max-w-xl text-3xl font-semibold tracking-tight sm:text-[2.65rem] sm:leading-[1.1] ${isDark ? 'text-white' : 'text-slate-950'}`}>
             Where are we starting?
           </h1>

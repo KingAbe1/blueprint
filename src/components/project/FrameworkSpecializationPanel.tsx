@@ -1,6 +1,6 @@
 import React from 'react';
 import { CodebaseAnalysis } from '../../types/codebase';
-import { NextJsSpecialization, NextJsArchitecturalImprovement } from '../../types/framework';
+import { NextJsActionAudit, NextJsSpecialization, NextJsArchitecturalImprovement } from '../../types/framework';
 import { NextJsSpecializationPanel } from './NextJsSpecializationPanel';
 import { SafeErrorBoundary } from '../common/SafeErrorBoundary';
 
@@ -44,7 +44,7 @@ const FrameworkSpecializationContent: React.FC<FrameworkSpecializationPanelProps
     const legacyActions = legacySpecialization?.serverActions;
     const legacyDist = legacySpecialization?.componentDistribution;
 
-    const actionFiles = legacyActions?.actionFiles?.length > 0
+    const actionFiles: NextJsActionAudit['actionFiles'] = legacyActions?.actionFiles?.length > 0
       ? legacyActions.actionFiles
       : paths
           .filter(p => p.toLowerCase().includes('/actions/') && /\.(?:js|jsx|ts|tsx)$/i.test(p))
@@ -52,6 +52,8 @@ const FrameworkSpecializationContent: React.FC<FrameworkSpecializationPanelProps
             path: p,
             exportedActions: ['actionHandler'],
             lineCount: 65,
+            hasValidation: false,
+            hasAuth: false,
           }));
 
     const clientComponentFiles = legacyDist?.clientComponentFiles?.length > 0
