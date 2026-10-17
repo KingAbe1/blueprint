@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { lazy, Suspense, useState, useEffect } from 'react';
 import { ThemeProvider, useTheme } from './context/ThemeContext';
 import { ProjectProvider, useProjects } from './context/ProjectContext';
 import { AIProvider } from './context/AIContext';
@@ -9,17 +9,38 @@ import { GitHubProvider } from './context/GitHubContext';
 import { Header } from './components/layout/Header';
 import { CodebaseWorkspaceProvider } from './context/CodebaseWorkspaceContext';
 import { CreateProjectView } from './components/project/CreateProjectView';
-import { CodebaseAnalysisView } from './components/project/CodebaseAnalysisView';
-import { reanalyzeCodebase } from './services/codebaseAnalysisService';
-import { DomainIntentView } from './components/workbench/DomainIntentView';
-import { ArchitectureMapView } from './components/workbench/ArchitectureMapView';
-import { BuildHandoffView } from './components/workbench/BuildHandoffView';
+import { RouteLoadingFallback } from './components/common/RouteLoadingFallback';
+import { reanalyzeCodebase } from './services/codebaseAnalysisLoader';
 import { RenameModal } from './components/modals/RenameModal';
 import { DeleteModal } from './components/modals/DeleteModal';
 import { AISettingsModal } from './components/modals/AISettingsModal';
 import { SafeErrorBoundary } from './components/common/SafeErrorBoundary';
 import { PhaseTab } from './types/project';
 import { Loader2 } from 'lucide-react';
+
+const CodebaseAnalysisView = lazy(() =>
+  import('./components/project/CodebaseAnalysisView').then(module => ({
+    default: module.CodebaseAnalysisView,
+  })),
+);
+
+const DomainIntentView = lazy(() =>
+  import('./components/workbench/DomainIntentView').then(module => ({
+    default: module.DomainIntentView,
+  })),
+);
+
+const ArchitectureMapView = lazy(() =>
+  import('./components/workbench/ArchitectureMapView').then(module => ({
+    default: module.ArchitectureMapView,
+  })),
+);
+
+const BuildHandoffView = lazy(() =>
+  import('./components/workbench/BuildHandoffView').then(module => ({
+    default: module.BuildHandoffView,
+  })),
+);
 
 const ACTIVE_TAB_STORAGE_KEY = 'blueprint_active_tab_v1';
 const AVAILABLE_TABS: PhaseTab[] = ['domain-intent', 'architecture-map', 'in-flight'];
@@ -81,27 +102,43 @@ const AppContent: React.FC = () => {
             ) : !activeProject || isCreatingNew ? (
               <CreateProjectView />
             ) : activeProject.codebaseAnalysis ? (
-              <CodebaseAnalysisView
-                analysis={activeProject.codebaseAnalysis}
-                projectId={activeProject.id}
-                onDelete={() => setProjectToDelete(activeProject)}
-                onUpdateAnalysis={analysis => updateCodebaseAnalysis(activeProject.id, analysis)}
-                onRescan={() => reanalyzeCodebase(activeProject.codebaseAnalysis!)}
-              />
+              <Suspense fallback={<RouteLoadingFallback label="Loading codebase workspace…" />}>
+                <CodebaseAnalysisView
+                  analysis={activeProject.codebaseAnalysis}
+                  projectId={activeProject.id}
+                  onDelete={() => setProjectToDelete(activeProject)}
+                  onUpdateAnalysis={analysis => updateCodebaseAnalysis(activeProject.id, analysis)}
+                  onRescan={() => reanalyzeCodebase(activeProject.codebaseAnalysis!)}
+                />
+              </Suspense>
             ) : (
             <div className={`flex-1 flex overflow-hidden min-h-0 ${isDark ? 'bg-[#0E0F12]' : 'bg-[#F6F7F9]'}`}>
-              {activeTab === 'in-flight' ? (
-                <BuildHandoffView />
-              ) : activeTab === 'architecture-map' ? (
-                <ArchitectureMapView
-                  onEditDecisions={() => setActiveTab('domain-intent')}
-                  onProceedToHandoff={() => setActiveTab('in-flight')}
-                />
-              ) : (
-                <DomainIntentView
-                  onOpenArchitectureMap={() => setActiveTab('architecture-map')}
-                />
-              )}
+              <Suspense
+                fallback={
+                  <RouteLoadingFallback
+                    label={
+                      activeTab === 'in-flight'
+                        ? 'Loading build handoff…'
+                        : activeTab === 'architecture-map'
+                          ? 'Loading architecture map…'
+                          : 'Loading product blueprint…'
+                    }
+                  />
+                }
+              >
+                {activeTab === 'in-flight' ? (
+                  <BuildHandoffView />
+                ) : activeTab === 'architecture-map' ? (
+                  <ArchitectureMapView
+                    onEditDecisions={() => setActiveTab('domain-intent')}
+                    onProceedToHandoff={() => setActiveTab('in-flight')}
+                  />
+                ) : (
+                  <DomainIntentView
+                    onOpenArchitectureMap={() => setActiveTab('architecture-map')}
+                  />
+                )}
+              </Suspense>
             </div>
           )}
           </main>

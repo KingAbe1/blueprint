@@ -33,7 +33,7 @@ import {
 import { CodebaseAnalysis, DependencyRiskAssessment, DependencyAdvisory, DependencySeverity } from '../../types/codebase';
 import { scanNpmDependencyRisks } from '../../services/dependencyRiskService';
 import { useCodebaseWorkspace } from '../../context/CodebaseWorkspaceContext';
-import { recalculateQualityWithDependencyRisk } from '../../services/codebaseAnalysisService';
+import { recalculateQualityWithDependencyRisk } from '../../services/codebaseAnalysisLoader';
 import { useTheme } from '../../context/ThemeContext';
 import {
   overviewBorderClass,
@@ -123,7 +123,7 @@ export const DependencySecurityPanel: React.FC<DependencySecurityPanelProps> = R
       const riskAssessment = await scanNpmDependencyRisks(inventory);
       if (onUpdateAnalysis) {
         const updatedQuality = analysis.quality
-          ? recalculateQualityWithDependencyRisk(analysis.quality, riskAssessment)
+          ? await recalculateQualityWithDependencyRisk(analysis.quality, riskAssessment)
           : analysis.quality;
         onUpdateAnalysis({
           ...analysis,
@@ -162,13 +162,12 @@ export const DependencySecurityPanel: React.FC<DependencySecurityPanelProps> = R
         analysis.quality.findings.some(f => f.ruleId?.startsWith('cve-') || f.title.toLowerCase().startsWith('vulnerable package'))
       )
     ) {
-      const updatedQuality = recalculateQualityWithDependencyRisk(analysis.quality, assessment);
-      if (onUpdateAnalysis) {
+      void recalculateQualityWithDependencyRisk(analysis.quality, assessment).then(updatedQuality => {
         onUpdateAnalysis({
           ...analysis,
           quality: updatedQuality,
         });
-      }
+      });
     }
   }, [assessment, analysis, onUpdateAnalysis]);
 

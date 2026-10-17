@@ -22,7 +22,7 @@ import { useGitHub } from '../../context/GitHubContext';
 import { parseGitHubRemote } from '../../services/githubService';
 import { overviewBorderClass, overviewDivideClass, overviewPanelClass, overviewSeverityLabel } from './overviewUi';
 import { startRescanProgressTicker } from '../../utils/rescanProgress';
-import { ensureAnalysisDependencyAudit } from '../../services/codebaseAnalysisService';
+import { ensureAnalysisDependencyAudit } from '../../services/codebaseAnalysisLoader';
 
 export type ProjectSection = CodebaseProjectSection;
 

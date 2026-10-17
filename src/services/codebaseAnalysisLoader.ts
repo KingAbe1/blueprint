@@ -1,4 +1,4 @@
-import type { CodebaseAnalysis, DependencyRiskAssessment } from '../types/codebase';
+import type { CodebaseAnalysis, DependencyRiskAssessment, QualityAssessment } from '../types/codebase';
 
 /** Loads the heavy codebase analysis module on demand (keeps TypeScript off the greenfield path). */
 async function loadCodebaseAnalysisService() {
@@ -25,9 +25,9 @@ export async function ensureAnalysisDependencyAudit(
 }
 
 export async function recalculateQualityWithDependencyRisk(
-  analysis: CodebaseAnalysis,
+  quality: QualityAssessment,
   dependencyRisk: DependencyRiskAssessment,
-): Promise<CodebaseAnalysis> {
+): Promise<QualityAssessment> {
   const mod = await loadCodebaseAnalysisService();
-  return mod.recalculateQualityWithDependencyRisk(analysis, dependencyRisk);
+  return mod.recalculateQualityWithDependencyRisk(quality, dependencyRisk);
 }

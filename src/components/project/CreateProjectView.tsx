@@ -22,7 +22,7 @@ import { useNotification } from '../../context/NotificationContext';
 import { getBlueprintHubStatus } from '../../services/greenfieldProgress';
 import { CodebaseAnalysis } from '../../types/codebase';
 import { Project } from '../../types/project';
-import { chooseAndAnalyzeCodebase } from '../../services/codebaseAnalysisService';
+import { chooseAndAnalyzeCodebase } from '../../services/codebaseAnalysisLoader';
 import { isDesktopApp } from '../../utils/platform';
 import { formatRelativeTime } from '../../utils/formatRelativeTime';
 import {
@@ -235,6 +235,8 @@ export const CreateProjectView: React.FC = () => {
     setCodebaseError(null);
     if (mode === 'greenfield') {
       requestAnimationFrame(() => document.getElementById('new-project-name')?.focus());
+    } else {
+      void import('../../services/codebaseAnalysisLoader');
     }
   };
 
