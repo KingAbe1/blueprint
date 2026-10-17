@@ -4,9 +4,14 @@ import React, {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from 'react';
 import { QualityOverviewFocus } from '../components/project/CodebaseHeroPulse';
+import {
+  CodebaseRescanOverlay,
+  type CodebaseRescanOverlayState,
+} from '../components/project/CodebaseRescanOverlay';
 
 export type CodebaseProjectSection = 'overview' | 'analysis' | 'quality';
 
@@ -55,6 +60,12 @@ interface CodebaseWorkspaceContextValue {
   consumePendingTreeFilePath: () => string | null;
   clearQualitySectionFocus: () => void;
   registerToolbar: (handlers: CodebaseToolbarHandlers) => void;
+  rescanOverlay: CodebaseRescanOverlayState | null;
+  isRescanning: boolean;
+  beginRescan: (projectLabel: string) => void;
+  updateRescan: (progress: number, phase: string) => void;
+  completeRescan: () => void;
+  cancelRescan: () => void;
 }
 
 const CodebaseWorkspaceContext = createContext<CodebaseWorkspaceContextValue | null>(null);
@@ -80,15 +91,26 @@ export const CodebaseWorkspaceProvider: React.FC<CodebaseWorkspaceProviderProps>
   const [qualitySectionFocus, setQualitySectionFocus] = useState<QualityOverviewFocus | null>(null);
   const [pendingTreeFilePath, setPendingTreeFilePath] = useState<string | null>(null);
   const [toolbar, setToolbar] = useState<CodebaseToolbarHandlers>({});
+  const [rescanOverlay, setRescanOverlay] = useState<CodebaseRescanOverlayState | null>(null);
+  const rescanFinishTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
     if (!enabled) return;
     setActiveSection(readSavedProjectSection(navigationStorageKey));
   }, [enabled, navigationStorageKey]);
 
+  useEffect(() => {
+    if (enabled) return;
+    setRescanOverlay(null);
+    if (rescanFinishTimerRef.current !== null) {
+      window.clearTimeout(rescanFinishTimerRef.current);
+      rescanFinishTimerRef.current = null;
+    }
+  }, [enabled]);
+
   const selectSection = useCallback(
     (section: CodebaseProjectSection) => {
-      if (!enabled) return;
+      if (!enabled || rescanOverlay) return;
       try {
         window.localStorage.setItem(navigationStorageKey, section);
       } catch {
@@ -96,7 +118,7 @@ export const CodebaseWorkspaceProvider: React.FC<CodebaseWorkspaceProviderProps>
       }
       setActiveSection(section);
     },
-    [enabled, navigationStorageKey],
+    [enabled, navigationStorageKey, rescanOverlay],
   );
 
   const openQualitySection = useCallback(
@@ -133,9 +155,62 @@ export const CodebaseWorkspaceProvider: React.FC<CodebaseWorkspaceProviderProps>
     setToolbar(handlers);
   }, []);
 
+  const beginRescan = useCallback((projectLabel: string) => {
+    if (rescanFinishTimerRef.current !== null) {
+      window.clearTimeout(rescanFinishTimerRef.current);
+      rescanFinishTimerRef.current = null;
+    }
+    setRescanOverlay({
+      projectLabel,
+      progress: 6,
+      phase: 'Reading project files…',
+    });
+  }, []);
+
+  const updateRescan = useCallback((progress: number, phase: string) => {
+    setRescanOverlay(prev =>
+      prev
+        ? {
+            ...prev,
+            progress: Math.max(prev.progress, Math.min(99, progress)),
+            phase,
+          }
+        : null,
+    );
+  }, []);
+
+  const completeRescan = useCallback(() => {
+    setRescanOverlay(prev =>
+      prev
+        ? {
+            ...prev,
+            progress: 100,
+            phase: 'Scan complete',
+          }
+        : null,
+    );
+    if (rescanFinishTimerRef.current !== null) {
+      window.clearTimeout(rescanFinishTimerRef.current);
+    }
+    rescanFinishTimerRef.current = window.setTimeout(() => {
+      setRescanOverlay(null);
+      rescanFinishTimerRef.current = null;
+    }, 500);
+  }, []);
+
+  const cancelRescan = useCallback(() => {
+    if (rescanFinishTimerRef.current !== null) {
+      window.clearTimeout(rescanFinishTimerRef.current);
+      rescanFinishTimerRef.current = null;
+    }
+    setRescanOverlay(null);
+  }, []);
+
   useEffect(() => {
     if (!enabled) setToolbar({});
   }, [enabled]);
+
+  const isRescanning = Boolean(rescanOverlay);
 
   const value = useMemo<CodebaseWorkspaceContextValue>(
     () => ({
@@ -150,6 +225,12 @@ export const CodebaseWorkspaceProvider: React.FC<CodebaseWorkspaceProviderProps>
       consumePendingTreeFilePath,
       clearQualitySectionFocus,
       registerToolbar,
+      rescanOverlay: enabled ? rescanOverlay : null,
+      isRescanning: enabled ? isRescanning : false,
+      beginRescan,
+      updateRescan,
+      completeRescan,
+      cancelRescan,
     }),
     [
       enabled,
@@ -163,11 +244,20 @@ export const CodebaseWorkspaceProvider: React.FC<CodebaseWorkspaceProviderProps>
       consumePendingTreeFilePath,
       clearQualitySectionFocus,
       registerToolbar,
+      rescanOverlay,
+      isRescanning,
+      beginRescan,
+      updateRescan,
+      completeRescan,
+      cancelRescan,
     ],
   );
 
   return (
-    <CodebaseWorkspaceContext.Provider value={value}>{children}</CodebaseWorkspaceContext.Provider>
+    <CodebaseWorkspaceContext.Provider value={value}>
+      {children}
+      {enabled && rescanOverlay ? <CodebaseRescanOverlay state={rescanOverlay} /> : null}
+    </CodebaseWorkspaceContext.Provider>
   );
 };
 
@@ -186,6 +276,12 @@ export function useCodebaseWorkspace(): CodebaseWorkspaceContextValue {
       consumePendingTreeFilePath: () => null,
       clearQualitySectionFocus: () => {},
       registerToolbar: () => {},
+      rescanOverlay: null,
+      isRescanning: false,
+      beginRescan: () => {},
+      updateRescan: () => {},
+      completeRescan: () => {},
+      cancelRescan: () => {},
     };
   }
   return ctx;

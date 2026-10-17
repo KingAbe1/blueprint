@@ -7,6 +7,15 @@ export type { QualityReviewSourceFile } from './qualityReviewSourceService';
 import { LANGUAGE_SOURCE_RULES, NEXT_SOURCE_RULES, TOOLCHAIN_QUALITY_RULES } from './codeQualityRules';
 import { extractNpmDependencyInventory, scanNpmDependencyRisks } from './dependencyRiskService';
 import { detectAndAnalyzeFramework } from './frameworks/frameworkRegistry';
+import {
+  collectParsedFileFindings,
+  collectProjectHygieneFindings,
+  collectTestFileFindings,
+} from './qualityExtendedFindings';
+import {
+  analyzeFunctionBodyComplexity,
+  evaluateFunctionComplexityFinding,
+} from './functionComplexityAnalysis';
 
 const EXTENSION_LANGUAGES: Record<string, string> = {
   ts: 'TypeScript', tsx: 'TypeScript', mts: 'TypeScript', cts: 'TypeScript',
@@ -94,6 +103,7 @@ async function inspectSourceCode(source: CodebaseSource): Promise<{ findings: Qu
     { pattern: /\bshell\s*=\s*True\b/i, title: 'Shell execution enabled', detail: 'A process call appears to invoke a shell. Avoid building the command from untrusted input; argument arrays are safer.', priority: 'medium' },
     { pattern: /\bverify\s*=\s*False\b/i, title: 'TLS certificate verification disabled', detail: 'A network request may skip certificate validation. Keep verification enabled outside narrowly controlled local tests.', priority: 'high' },
     { pattern: /\b(?:password|secret|api[_-]?key|access[_-]?token)\b\s*[:=]\s*(['"`])[^'"`\r\n]{8,}\1/i, title: 'Possible hard-coded credential', detail: 'A credential-like value appears to be assigned directly in source. Move real secrets to a secret store or environment variable.', priority: 'high' },
+    { pattern: /\bNEXT_PUBLIC_[A-Z0-9_]*(?:SECRET|TOKEN|KEY|PASSWORD|PRIVATE)[A-Z0-9_]*\b/i, title: 'Sensitive NEXT_PUBLIC variable name', detail: 'NEXT_PUBLIC_* values are exposed to the browser bundle. Do not prefix secrets or private API keys with NEXT_PUBLIC_; use server-only env vars instead.', priority: 'high' },
   ];
   for (const [path, content] of contentEntries) {
     const extension = normalizedName(path).split('.').pop() || '';
@@ -127,6 +137,8 @@ async function inspectSourceCode(source: CodebaseSource): Promise<{ findings: Qu
     }
   }
 
+  findings.push(...collectTestFileFindings(contentEntries, isRecognizedTestFile));
+
   if (!entriesToParse.length) return { findings, parsedFiles: 0, skippedFiles };
   const ts = await import('typescript');
   const duplicateBodies = new Map<string, Array<{ path: string; name: string; line: number }>>();
@@ -150,7 +162,7 @@ async function inspectSourceCode(source: CodebaseSource): Promise<{ findings: Qu
     }
 
     const imports: string[] = [];
-    const visit = (node: import('typescript').Node, currentFunction?: import('typescript').Node) => {
+    const visitImports = (node: import('typescript').Node) => {
       if (ts.isImportDeclaration(node) || ts.isExportDeclaration(node)) {
         const specifier = node.moduleSpecifier;
         if (specifier && ts.isStringLiteral(specifier) && specifier.text.startsWith('.')) imports.push(specifier.text);
@@ -158,30 +170,25 @@ async function inspectSourceCode(source: CodebaseSource): Promise<{ findings: Qu
       if (ts.isCallExpression(node) && node.expression.kind === ts.SyntaxKind.ImportKeyword && node.arguments[0] && ts.isStringLiteral(node.arguments[0]) && node.arguments[0].text.startsWith('.')) {
         imports.push(node.arguments[0].text);
       }
-      if (currentFunction && node !== currentFunction && isFunctionNode(node)) {
-        ts.forEachChild(node, child => visit(child, node));
-        return;
-      }
-      if (currentFunction && (ts.isIfStatement(node) || ts.isForStatement(node) || ts.isForInStatement(node) || ts.isForOfStatement(node)
-        || ts.isWhileStatement(node) || ts.isDoStatement(node) || ts.isCatchClause(node) || ts.isConditionalExpression(node)
-        || (ts.isCaseClause(node) && node.expression !== undefined)
-        || (ts.isBinaryExpression(node) && [ts.SyntaxKind.AmpersandAmpersandToken, ts.SyntaxKind.BarBarToken, ts.SyntaxKind.QuestionQuestionToken].includes(node.operatorToken.kind)))) {
-        complexityByFunction.set(currentFunction, (complexityByFunction.get(currentFunction) || 1) + 1);
-      }
-      ts.forEachChild(node, child => visit(child, isFunctionNode(node) ? node : currentFunction));
+      ts.forEachChild(node, visitImports);
     };
-    const complexityByFunction = new Map<import('typescript').Node, number>();
-    visit(file);
+    visitImports(file);
 
     const visitFunctions = (node: import('typescript').Node) => {
       if (isFunctionNode(node) && node.body) {
         const start = file.getLineAndCharacterOfPosition(node.getStart(file)).line + 1;
         const end = file.getLineAndCharacterOfPosition(node.getEnd()).line + 1;
-        const lineCount = end - start + 1;
-        const complexity = complexityByFunction.get(node) || 1;
         const name = 'name' in node && node.name && ts.isIdentifier(node.name) ? node.name.text : 'anonymous function';
-        if (complexity >= 12 || lineCount >= 80) {
-          findings.push({ title: complexity >= 12 ? 'High-complexity function' : 'Oversized function', detail: `${name} spans ${lineCount} lines and has a branch-complexity estimate of ${complexity}. Smaller functions are usually easier to test and change safely.`, priority: complexity >= 18 ? 'high' : 'medium', evidence: [`${path}:${start}–${end}`, `Estimated complexity: ${complexity}`], codeSnippet: createSourceSnippet(content, start) });
+        const metrics = analyzeFunctionBodyComplexity(ts, file, node.body, isFunctionNode);
+        const evaluated = evaluateFunctionComplexityFinding(name, metrics);
+        if (evaluated) {
+          findings.push({
+            title: evaluated.title,
+            detail: evaluated.detail,
+            priority: evaluated.priority,
+            evidence: [`${path}:${start}–${end}`, evaluated.evidenceExtra],
+            codeSnippet: createSourceSnippet(content, start),
+          });
         }
         const bodyText = node.body.getText(file).replace(/\s+/g, ' ').trim();
         if (bodyText.length >= 160) {
@@ -193,6 +200,11 @@ async function inspectSourceCode(source: CodebaseSource): Promise<{ findings: Qu
       ts.forEachChild(node, visitFunctions);
     };
     visitFunctions(file);
+    findings.push(
+      ...collectParsedFileFindings(ts, path, content, file, isFunctionNode, (snippetContent, line) =>
+        createSourceSnippet(snippetContent, line),
+      ),
+    );
     importEdges.set(path.replace(/\\/g, '/').toLowerCase(), imports.map(specifier => normalizeImportPath(path, specifier).toLowerCase()));
   }
 
@@ -339,7 +351,9 @@ function categoryForFinding(title: string): QualityFinding['category'] {
   if (/readme|documentation/i.test(title)) return 'documentation';
   if (/folder|project root|circular module|import target/i.test(title)) return 'structure';
   if (/next\.js|server component|router api|router data|route handler|page or layout|syntax issue|parse|error handler|exception handler|exception swallowed|forced error handling|forced optional unwrap|forced null assertion|panic-prone|function result discarded/i.test(title)) return 'correctness';
-  if (/large source|todo|complexity|function body|debug logging|typescript checking/i.test(title)) return 'maintainability';
+  if (/large source|todo|complexity|function body|debug logging|typescript checking|nesting|explicit any|error suppression/i.test(title)) return 'maintainability';
+  if (/lockfile|engine constraint|dockerfile|environment file|\.env/i.test(title)) return 'delivery';
+  if (/skipped test|assertion/i.test(title)) return 'testing';
   return 'tooling';
 }
 
@@ -434,6 +448,7 @@ function assessCodeQuality(
   testFilesCount: number,
   sourceMetrics: SourceContentMetrics,
   manifests: Record<string, string>,
+  sourceContents: Record<string, string>,
   deepAnalysis: Awaited<ReturnType<typeof inspectSourceCode>>,
   dependencyRisk?: DependencyRiskAssessment,
 ): QualityAssessment {
@@ -518,6 +533,9 @@ function assessCodeQuality(
   if (sourceMetrics.todoMarkers > 0) findings.push({ title: `${sourceMetrics.todoMarkers} TODO/FIXME markers found`, detail: 'These comments may be intentional, but reviewing them helps distinguish planned work from forgotten follow-ups.', priority: sourceMetrics.todoMarkers >= 10 ? 'medium' : 'low', evidence: [`${sourceMetrics.todoMarkers} markers across ${sourceMetrics.analyzedFiles} inspected source files`] });
   if (sourcePaths.length >= 5 && rootSourceRatio > 0.3) findings.push({ title: 'Many source files sit at the project root', detail: 'Grouping related files into clear feature or layer folders can make the codebase easier to navigate as it grows.', priority: 'low', evidence: [`${rootLevelSourceFiles} of ${sourcePaths.length} source files (${Math.round(rootSourceRatio * 100)}%) are at the root`] });
   if (!hasReadme) findings.push({ title: 'No README detected', detail: 'Add setup, run, and test instructions so a new contributor can get oriented without guessing.', priority: 'low', evidence: ['No README file found in scanned paths'] });
+  findings.push(
+    ...collectProjectHygieneFindings(normalizedPaths, lowerPaths, manifests, sourceContents),
+  );
   findings.push(...deepAnalysis.findings);
 
   const availableScore = dimensions.reduce((total, dimension) => total + dimension.score, 0);
@@ -644,6 +662,38 @@ export function recalculateQualityWithDependencyRisk(
     findings: nonCveFindings,
     checks: updatedChecks,
   };
+}
+
+/** Ensures OSV.dev CVE audit finished and quality scores include dependency CVEs (used after rescan). */
+export async function ensureAnalysisDependencyAudit(analysis: CodebaseAnalysis): Promise<CodebaseAnalysis> {
+  const inventory = analysis.dependencyInventory;
+  if (!inventory || inventory.packages.length === 0) {
+    return analysis;
+  }
+
+  try {
+    const dependencyRisk =
+      analysis.dependencyRisk ?? (await scanNpmDependencyRisks(inventory));
+    const qualityIncludesCveDimension = analysis.quality?.dimensions.some(
+      dimension => dimension.name === 'Dependency CVEs' && dimension.maxScore > 0,
+    );
+    if (
+      analysis.dependencyRisk === dependencyRisk &&
+      qualityIncludesCveDimension
+    ) {
+      return analysis;
+    }
+
+    return {
+      ...analysis,
+      dependencyRisk,
+      quality: analysis.quality
+        ? recalculateQualityWithDependencyRisk(analysis.quality, dependencyRisk)
+        : analysis.quality,
+    };
+  } catch {
+    return analysis;
+  }
 }
 
 function assessPipeline(source: CodebaseSource, paths: string[]): PipelineAssessment {
@@ -781,7 +831,7 @@ export async function analyzeCodebaseSource(source: CodebaseSource): Promise<Cod
       .sort((a, b) => a.parent.localeCompare(b.parent) || b.files - a.files || a.name.localeCompare(b.name))
       .slice(0, 24),
     testFilesCount,
-    quality: assessCodeQuality(paths, source.directories || [], scripts, testFiles.length, sourceMetrics, source.manifests, deepAnalysis, dependencyRisk),
+    quality: assessCodeQuality(paths, source.directories || [], scripts, testFiles.length, sourceMetrics, source.manifests, source.sourceContents || {}, deepAnalysis, dependencyRisk),
     architecture: assessArchitecture(source, paths),
     suggestions: suggestImprovements(paths, scripts, testFiles.length, hasNextJsProjectSignal(paths, source.manifests)),
     git: source.git,

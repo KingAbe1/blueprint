@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { Dropdown } from '../common/Dropdown';
 import {
   ShieldAlert,
   ShieldCheck,
@@ -31,6 +32,7 @@ import {
 } from 'lucide-react';
 import { CodebaseAnalysis, DependencyRiskAssessment, DependencyAdvisory, DependencySeverity } from '../../types/codebase';
 import { scanNpmDependencyRisks } from '../../services/dependencyRiskService';
+import { useCodebaseWorkspace } from '../../context/CodebaseWorkspaceContext';
 import { recalculateQualityWithDependencyRisk } from '../../services/codebaseAnalysisService';
 import { useTheme } from '../../context/ThemeContext';
 import {
@@ -90,6 +92,7 @@ export const DependencySecurityPanel: React.FC<DependencySecurityPanelProps> = R
   onUpdateAnalysis,
 }) => {
   const { isDark } = useTheme();
+  const { isRescanning } = useCodebaseWorkspace();
   const [isAuditing, setIsAuditing] = useState(false);
   const [auditError, setAuditError] = useState<string | null>(null);
 
@@ -137,12 +140,17 @@ export const DependencySecurityPanel: React.FC<DependencySecurityPanelProps> = R
 
   // Automatically run the dependency audit as soon as inventory is available
   useEffect(() => {
+    if (isRescanning) return;
     const auditKey = `${analysis.rootPath}:${analysis.scannedAt}:${inventory?.packages.length || 0}`;
-    if (!assessment && inventory && inventory.packages.length > 0 && lastAuditedKeyRef.current !== auditKey && !isAuditing) {
+    if (assessment) {
+      lastAuditedKeyRef.current = auditKey;
+      return;
+    }
+    if (inventory && inventory.packages.length > 0 && lastAuditedKeyRef.current !== auditKey && !isAuditing) {
       lastAuditedKeyRef.current = auditKey;
       void runVulnerabilityAudit();
     }
-  }, [assessment, inventory, analysis.rootPath, isAuditing, runVulnerabilityAudit]);
+  }, [assessment, inventory, analysis.rootPath, analysis.scannedAt, isAuditing, isRescanning, runVulnerabilityAudit]);
 
   // Sync existing assessment into quality assessment if not yet factored or if legacy duplicate findings exist
   useEffect(() => {
@@ -640,20 +648,25 @@ export const DependencySecurityPanel: React.FC<DependencySecurityPanelProps> = R
                 </button>
               )}
 
-              {/* Sort Selector */}
-              <div className="relative">
-                <select
-                  value={sortBy}
-                  onChange={e => setSortBy(e.target.value as any)}
-                  className={`rounded-lg border px-2.5 py-1.5 text-xs outline-none cursor-pointer ${
-                    isDark ? 'border-white/[0.08] bg-black/30 text-slate-300' : 'border-slate-200 bg-slate-50 text-slate-700'
-                  }`}
-                >
-                  <option value="severity">Sort: Severity</option>
-                  <option value="cves">Sort: CVE Count</option>
-                  <option value="name">Sort: Name (A-Z)</option>
-                </select>
-              </div>
+              <Dropdown<'severity' | 'cves' | 'name'>
+                options={[
+                  { value: 'severity', label: 'Sort: Severity' },
+                  { value: 'cves', label: 'Sort: CVE count' },
+                  { value: 'name', label: 'Sort: Name (A–Z)' },
+                ]}
+                value={sortBy}
+                onChange={setSortBy}
+                size="sm"
+                variant="subtle"
+                fullWidth={false}
+                className="min-w-[9.5rem]"
+                triggerClassName={
+                  isDark
+                    ? '!rounded-lg !border-white/[0.08] !bg-black/30 !text-slate-300 !font-normal'
+                    : '!rounded-lg !border-slate-200 !bg-slate-50 !text-slate-700 !font-normal'
+                }
+                menuClassName="!min-w-[11rem]"
+              />
 
               {/* View Mode Switcher */}
               <div className={`flex items-center p-0.5 rounded-lg border ${

@@ -21,6 +21,8 @@ import { useTheme } from '../../context/ThemeContext';
 import { useGitHub } from '../../context/GitHubContext';
 import { parseGitHubRemote } from '../../services/githubService';
 import { overviewBorderClass, overviewDivideClass, overviewPanelClass, overviewSeverityLabel } from './overviewUi';
+import { startRescanProgressTicker } from '../../utils/rescanProgress';
+import { ensureAnalysisDependencyAudit } from '../../services/codebaseAnalysisService';
 
 export type ProjectSection = CodebaseProjectSection;
 
@@ -275,7 +277,7 @@ const CodeAnalysisInspector: React.FC<CodeAnalysisInspectorProps> = React.memo((
 interface CodebaseAnalysisViewProps {
   analysis: CodebaseAnalysis;
   projectId?: string;
-  onRescan?: () => Promise<void>;
+  onRescan?: () => Promise<CodebaseAnalysis | null | void>;
   onDelete?: () => void;
   onUpdateAnalysis?: (analysis: CodebaseAnalysis) => void;
 }
@@ -298,7 +300,13 @@ export const CodebaseAnalysisView: React.FC<CodebaseAnalysisViewProps> = ({
     registerToolbar,
   } = useCodebaseWorkspace();
   const activeSection = activePage ?? 'overview';
-  const [isRescanning, setIsRescanning] = useState(false);
+  const {
+    beginRescan,
+    updateRescan,
+    completeRescan,
+    cancelRescan,
+    isRescanning,
+  } = useCodebaseWorkspace();
   const [scanError, setScanError] = useState<string | null>(null);
   const [showGitHubDialog, setShowGitHubDialog] = useState(false);
   const [githubTokenInput, setGitHubTokenInput] = useState('');
@@ -400,17 +408,48 @@ export const CodebaseAnalysisView: React.FC<CodebaseAnalysisViewProps> = ({
   };
 
   const rescan = useCallback(async () => {
-    if (!onRescan) return;
-    setIsRescanning(true);
+    if (!onRescan || isRescanning) return;
+    beginRescan(analysis.rootName);
     setScanError(null);
+    const stopProgress = startRescanProgressTicker(updateRescan);
     try {
-      await onRescan();
+      const scanned = await onRescan();
+      stopProgress();
+
+      if (!scanned) {
+        cancelRescan();
+        setScanError('Scan was cancelled or the project folder could not be read.');
+        return;
+      }
+
+      let finalized = scanned;
+      const packageCount = finalized.dependencyInventory?.packages.length ?? 0;
+      if (packageCount > 0) {
+        updateRescan(
+          72,
+          `Checking dependency advisories (${packageCount.toLocaleString()} locked packages)…`,
+        );
+        finalized = await ensureAnalysisDependencyAudit(finalized);
+        updateRescan(96, 'Finalizing quality scores…');
+      }
+
+      onUpdateAnalysis?.(finalized);
+      completeRescan();
     } catch (error) {
+      stopProgress();
+      cancelRescan();
       setScanError(error instanceof Error ? error.message : 'Could not scan this codebase.');
-    } finally {
-      setIsRescanning(false);
     }
-  }, [onRescan]);
+  }, [
+    onRescan,
+    onUpdateAnalysis,
+    analysis,
+    isRescanning,
+    beginRescan,
+    updateRescan,
+    completeRescan,
+    cancelRescan,
+  ]);
 
   const exportSummaryMarkdown = useCallback(() => {
     const lines = [
@@ -496,38 +535,6 @@ export const CodebaseAnalysisView: React.FC<CodebaseAnalysisViewProps> = ({
     <div className={`relative flex flex-col flex-1 h-full min-h-0 overflow-hidden ${
       isDark ? 'bg-[#0E0F12] text-[#F4F4F6]' : 'bg-[#F6F7F9] text-slate-900'
     }`}>
-      {isRescanning ? (
-        <div
-          className="absolute inset-0 z-30 flex items-center justify-center px-6"
-          role="status"
-          aria-live="polite"
-          aria-busy="true"
-        >
-          <div
-            className={`absolute inset-0 backdrop-blur-[2px] ${
-              isDark ? 'bg-[#0E0F12]/80' : 'bg-[#F6F7F9]/85'
-            }`}
-          />
-          <div
-            className={`relative flex max-w-sm flex-col items-center gap-3 rounded-2xl border px-8 py-7 text-center shadow-lg ${
-              isDark
-                ? 'border-white/[0.1] bg-[#16171B]'
-                : 'border-slate-200 bg-white'
-            }`}
-          >
-            <Loader2 className={`h-9 w-9 animate-spin ${isDark ? 'text-blue-400' : 'text-blue-600'}`} />
-            <div>
-              <p className={`text-sm font-semibold ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                Rescanning project
-              </p>
-              <p className={`mt-1.5 text-xs leading-relaxed ${muted}`}>
-                Reading files and checking dependency advisories. This can take a moment on large repos.
-              </p>
-            </div>
-          </div>
-        </div>
-      ) : null}
-
       {/* Scrollable content canvas */}
       <div className="flex-1 min-h-0 overflow-y-auto px-6 py-5 lg:px-8">
         <div className="flex min-h-full w-full flex-col">

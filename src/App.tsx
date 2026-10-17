@@ -81,10 +81,7 @@ const AppContent: React.FC = () => {
                 projectId={activeProject.id}
                 onDelete={() => setProjectToDelete(activeProject)}
                 onUpdateAnalysis={analysis => updateCodebaseAnalysis(activeProject.id, analysis)}
-                onRescan={async () => {
-                  const analysis = await reanalyzeCodebase(activeProject.codebaseAnalysis!);
-                  if (analysis) updateCodebaseAnalysis(activeProject.id, analysis);
-                }}
+                onRescan={() => reanalyzeCodebase(activeProject.codebaseAnalysis!)}
               />
             ) : (
             <div className="flex-1 flex overflow-hidden min-h-0">

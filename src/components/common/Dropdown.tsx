@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useMemo } from 'react';
+import React, { useState, useRef, useEffect, useLayoutEffect, useMemo, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { ChevronDown, Check, Search, X } from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
@@ -71,33 +71,59 @@ export function Dropdown<T = string>({
   const menuRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
-  // Position calculation for Portaled popup to escape overflow boundaries
-  const updatePosition = () => {
-    if (!dropdownRef.current) return;
+  type MenuCoords = { top: number; left: number; width: number; openUpward: boolean };
+
+  const measureMenuCoords = useCallback((): MenuCoords | null => {
+    if (!dropdownRef.current) return null;
     const rect = dropdownRef.current.getBoundingClientRect();
     const spaceBelow = window.innerHeight - rect.bottom;
     const spaceAbove = rect.top;
-    const shouldOpenUpward = placement === 'top' || (placement === 'auto' && spaceBelow < 260 && spaceAbove > 200);
+    const shouldOpenUpward =
+      placement === 'top' || (placement === 'auto' && spaceBelow < 260 && spaceAbove > 200);
+    const menuWidth = Math.max(rect.width, 200);
+    let left = rect.left;
+    if (align === 'right') {
+      left = rect.right - menuWidth;
+    }
+    left = Math.max(8, Math.min(left, window.innerWidth - menuWidth - 8));
 
-    setCoords({
+    return {
       top: shouldOpenUpward ? rect.top - 6 : rect.bottom + 6,
-      left: rect.left,
-      width: rect.width,
-      openUpward: shouldOpenUpward
+      left,
+      width: menuWidth,
+      openUpward: shouldOpenUpward,
+    };
+  }, [align, placement]);
+
+  const applyMenuCoords = useCallback(() => {
+    const next = measureMenuCoords();
+    if (next) setCoords(next);
+  }, [measureMenuCoords]);
+
+  const toggleOpen = () => {
+    if (disabled) return;
+    setIsOpen(prev => {
+      if (prev) return false;
+      const next = measureMenuCoords();
+      if (next) setCoords(next);
+      return true;
     });
   };
 
+  useLayoutEffect(() => {
+    if (!isOpen) return;
+    applyMenuCoords();
+  }, [isOpen, applyMenuCoords]);
+
   useEffect(() => {
-    if (isOpen) {
-      updatePosition();
-      window.addEventListener('resize', updatePosition);
-      window.addEventListener('scroll', updatePosition, true);
-    }
+    if (!isOpen) return;
+    window.addEventListener('resize', applyMenuCoords);
+    window.addEventListener('scroll', applyMenuCoords, true);
     return () => {
-      window.removeEventListener('resize', updatePosition);
-      window.removeEventListener('scroll', updatePosition, true);
+      window.removeEventListener('resize', applyMenuCoords);
+      window.removeEventListener('scroll', applyMenuCoords, true);
     };
-  }, [isOpen, placement]);
+  }, [isOpen, applyMenuCoords]);
 
   // Close dropdown on outside click (supporting portal ref)
   useEffect(() => {
@@ -199,7 +225,9 @@ export function Dropdown<T = string>({
         }`;
   };
 
-  const portalMenu = isOpen && typeof document !== 'undefined' ? createPortal(
+  const menuReady = isOpen && coords.width > 0;
+
+  const portalMenu = menuReady && typeof document !== 'undefined' ? createPortal(
     <div
       ref={menuRef}
       style={{
@@ -208,9 +236,10 @@ export function Dropdown<T = string>({
         width: `${coords.width}px`,
         top: coords.openUpward ? 'auto' : `${coords.top}px`,
         bottom: coords.openUpward ? `${window.innerHeight - coords.top}px` : 'auto',
-        zIndex: 99999
+        zIndex: 99999,
+        transformOrigin: coords.openUpward ? 'bottom center' : 'top center',
       }}
-      className={`min-w-[200px] rounded-xl border shadow-2xl backdrop-blur-2xl animate-in fade-in zoom-in-95 duration-100 overflow-hidden ${
+      className={`min-w-[200px] rounded-xl border shadow-2xl backdrop-blur-2xl overflow-hidden transition-[opacity,transform] duration-100 ease-out opacity-100 ${
         isDark 
           ? 'bg-[#12141A] border-[#2A2E3D] shadow-2xl text-slate-200' 
           : 'bg-white border-slate-200 shadow-2xl text-slate-800'
@@ -345,14 +374,14 @@ export function Dropdown<T = string>({
 
       {/* Trigger Button */}
       {renderTrigger ? (
-        <div onClick={() => !disabled && setIsOpen(prev => !prev)}>
+        <div onClick={toggleOpen}>
           {renderTrigger(selectedOption, isOpen)}
         </div>
       ) : (
         <button
           type="button"
           disabled={disabled}
-          onClick={() => setIsOpen(prev => !prev)}
+          onClick={toggleOpen}
           className={`flex items-center justify-between w-full border font-medium transition-all cursor-pointer select-none outline-none ${
             sizeClasses[size]
           } ${getTriggerVariantClasses()} ${triggerClassName}`}

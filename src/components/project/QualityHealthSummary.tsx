@@ -1,5 +1,5 @@
-import React from 'react';
-import { Check, Download } from 'lucide-react';
+import React, { useEffect } from 'react';
+import { Check, Download, X } from 'lucide-react';
 import { CodebaseAnalysis, QualityDimension } from '../../types/codebase';
 import {
   overviewBorderClass,
@@ -55,6 +55,16 @@ export const QualityHealthSummary: React.FC<QualityHealthSummaryProps> = ({
   const panel = overviewPanelClass(isDark);
   const divide = overviewDivideClass(isDark);
   const border = overviewBorderClass(isDark);
+  const modalSurface = isDark ? 'border-white/[0.09] bg-[#141518]' : 'border-slate-200/80 bg-white';
+
+  useEffect(() => {
+    if (!showScoreBreakdown) return;
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') onToggleScoreBreakdown();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [showScoreBreakdown, onToggleScoreBreakdown]);
 
   const renderDimensionList = (dims: QualityDimension[]) => (
     <ul className={`divide-y ${divide}`}>
@@ -142,22 +152,75 @@ export const QualityHealthSummary: React.FC<QualityHealthSummaryProps> = ({
               : 'mt-2 text-[13px] font-medium text-blue-600 hover:text-blue-800'
           }
         >
-          {showScoreBreakdown ? 'Hide score breakdown' : 'How is this score calculated?'}
+          How is this score calculated?
         </button>
-        {showScoreBreakdown ? (
-          <ul className={`mt-3 space-y-2 border-t pt-3 text-xs ${border} ${muted}`}>
-            {(quality.dimensions || []).map(dim => (
-              <li key={dim.name} className="flex flex-wrap items-baseline justify-between gap-x-2">
-                <span className={title}>{dim.name}</span>
-                <span className="tabular-nums">
-                  {dim.score}/{dim.maxScore} pts
-                </span>
-                <span className={`w-full text-[11px] ${muted}`}>{dim.summary}</span>
-              </li>
-            ))}
-          </ul>
-        ) : null}
       </div>
+
+      {showScoreBreakdown ? (
+        <div
+          className={`fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm ${
+            isDark ? 'bg-black/55' : 'bg-slate-950/40'
+          }`}
+          onMouseDown={event => {
+            if (event.target === event.currentTarget) onToggleScoreBreakdown();
+          }}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="quality-score-breakdown-title"
+            className={`max-h-[min(85vh,640px)] w-full max-w-lg overflow-hidden rounded-2xl border shadow-2xl ${modalSurface} ${
+              isDark ? 'shadow-black/50' : 'shadow-slate-900/15'
+            }`}
+            onMouseDown={event => event.stopPropagation()}
+          >
+            <header className={`flex items-start justify-between gap-3 border-b px-5 py-4 sm:px-6 ${border}`}>
+              <div>
+                <h2 id="quality-score-breakdown-title" className={`text-[15px] font-medium ${title}`}>
+                  How health score is calculated
+                </h2>
+                <p className={`mt-1 text-[13px] leading-relaxed ${muted}`}>
+                  The score sums dimension points from the local static scan (structure, maintainability, tests, tooling,
+                  and related checks). Supply-chain CVEs are tracked separately in the supply chain section.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={onToggleScoreBreakdown}
+                className={`shrink-0 rounded-md p-1 ${muted} ${isDark ? 'hover:text-slate-200' : 'hover:text-slate-900'}`}
+                aria-label="Close"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </header>
+            <div className="max-h-[calc(min(85vh,640px)-8rem)] overflow-y-auto px-5 py-4 sm:px-6">
+              <ul className={`divide-y ${divide}`}>
+                {(quality.dimensions || []).map(dim => (
+                  <li key={dim.name} className="py-3 first:pt-0 last:pb-0">
+                    <div className="flex items-baseline justify-between gap-2">
+                      <span className={`text-[13px] font-medium ${title}`}>{dim.name}</span>
+                      <span className={`shrink-0 text-xs tabular-nums ${muted}`}>
+                        {dim.score}/{dim.maxScore} pts
+                      </span>
+                    </div>
+                    <p className={`mt-1 text-xs leading-relaxed ${muted}`}>{dim.summary}</p>
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <footer className={`border-t px-5 py-3 sm:px-6 ${border}`}>
+              <p className={`text-xs tabular-nums ${muted}`}>
+                Total{' '}
+                <span className={title}>
+                  {(quality.dimensions || []).reduce((n, d) => n + d.score, 0)}/
+                  {(quality.dimensions || []).reduce((n, d) => n + d.maxScore, 0)}
+                </span>{' '}
+                dimension points · displayed health index {score}/100
+              </p>
+            </footer>
+          </div>
+        </div>
+      ) : null}
 
       <div className={`grid grid-cols-1 border-t md:grid-cols-2 md:divide-x ${divide} ${border}`}>
         <div className="px-5 py-4 sm:px-6">

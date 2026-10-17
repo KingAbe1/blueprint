@@ -1,8 +1,10 @@
 import React, { useState, useMemo, useCallback } from 'react';
 import { AlertTriangle, CheckCircle2, Search, RefreshCw, Loader2 } from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
+import { useAI } from '../../context/AIContext';
 import { CodebaseAnalysis, QualityFinding, QualityDimension } from '../../types/codebase';
 import { SafeErrorBoundary } from '../common/SafeErrorBoundary';
+import { Dropdown } from '../common/Dropdown';
 import { AIReviewPanel } from './AIReviewPanel';
 import { DependencySecurityPanel } from './DependencySecurityPanel';
 import { QualityHealthSummary } from './QualityHealthSummary';
@@ -30,31 +32,62 @@ interface ParsedFindingInfo {
   remediationAdvice: string[];
 }
 
+function qualityReviewPathFromFinding(finding: QualityFinding): string | undefined {
+  if (finding.location?.path) return finding.location.path;
+  for (const evidence of finding.evidence) {
+    const match = evidence.match(/^(.*?):\d+(?:[–-]\d+)?$/);
+    if (match?.[1]) return match[1];
+  }
+  return undefined;
+}
+
 function parseFindingInfo(finding: QualityFinding): ParsedFindingInfo {
   const detail = finding.detail || '';
   const title = finding.title || '';
 
   // 1. Complexity Findings
-  if (title.toLowerCase().includes('complexity') || detail.toLowerCase().includes('branch-complexity')) {
-    const match = detail.match(/([a-zA-Z0-9_$]+)\s+spans\s+(\d+)\s+lines(?:\s+and\s+has\s+a\s+branch-complexity\s+estimate\s+of\s+(\d+))?/i);
-    const funcName = match ? (match[1] === 'anonymous' ? 'anonymous handler' : `${match[1]}()`) : 'Monolithic routine';
-    const lines = match ? match[2] : undefined;
-    const complexity = match ? match[3] : undefined;
+  if (
+    title.toLowerCase().includes('complexity') ||
+    title.toLowerCase().includes('oversized function') ||
+    detail.toLowerCase().includes('branch-complexity') ||
+    detail.toLowerCase().includes('effective complexity')
+  ) {
+    const legacyMatch = detail.match(
+      /([a-zA-Z0-9_$]+)\s+spans\s+(\d+)\s+lines(?:\s+and\s+has\s+a\s+branch-complexity\s+estimate\s+of\s+(\d+))?/i,
+    );
+    const modernMatch = detail.match(/^([a-zA-Z0-9_$]+)\s+has effective complexity\s+(\d+)/i);
+    const oversizedMatch = detail.match(/^([a-zA-Z0-9_$]+)\s+spans\s+(\d+)\s+logical lines/i);
+
+    const rawName = modernMatch?.[1] || oversizedMatch?.[1] || legacyMatch?.[1];
+    const funcName = rawName
+      ? rawName.includes('anonymous')
+        ? 'anonymous handler'
+        : `${rawName}()`
+      : 'Monolithic routine';
+    const complexity = modernMatch?.[2] || legacyMatch?.[3];
+    const lines = oversizedMatch?.[2] || legacyMatch?.[2];
 
     const metrics: Array<{ label: string; value: string }> = [];
-    if (lines) metrics.push({ label: 'Span', value: `${lines} LOC` });
-    if (complexity) metrics.push({ label: 'Complexity', value: `${complexity} / 15` });
+    if (lines) metrics.push({ label: 'Logical lines', value: lines });
+    if (complexity) metrics.push({ label: 'Effective complexity', value: complexity });
     metrics.push({ label: 'Target', value: funcName });
 
+    const isOversized = title.toLowerCase().includes('oversized');
     return {
-      headline: `High Complexity · ${funcName}`,
+      headline: isOversized ? `Oversized · ${funcName}` : `High Complexity · ${funcName}`,
       target: funcName,
       metrics,
-      remediationAdvice: [
-        'Decompose monolithic handler into specialized single-purpose functions or domain services.',
-        'Extract complex branching (switch / nested if) into guard clauses or a lookup strategy map.',
-        'Separate I/O operations (database/network) from core data formatting and transformation logic.',
-      ],
+      remediationAdvice: isOversized
+        ? [
+            'Split long functions by responsibility (fetch vs transform vs render/format).',
+            'Move repeated object shapes into shared builders or config tables.',
+            'Keep each exported helper focused on one stat, field group, or UI block.',
+          ]
+        : [
+            'Replace nested if/else chains with guard clauses or a lookup map keyed by status/type.',
+            'Extract inner loops and switch cases into named helpers with unit tests.',
+            'If the function is mostly data shaping, use declarative config arrays instead of branching.',
+          ],
     };
   }
 
@@ -133,6 +166,7 @@ export const CodebaseQualityView: React.FC<CodebaseQualityViewProps> = React.mem
   onUpdateAnalysis,
 }) => {
   const { isDark } = useTheme();
+  const { isAiConfigured } = useAI();
   const { openFileInAnalysis } = useCodebaseWorkspace();
   const muted = isDark ? 'text-slate-400' : 'text-slate-500';
 
@@ -144,6 +178,7 @@ export const CodebaseQualityView: React.FC<CodebaseQualityViewProps> = React.mem
   const [copiedPath, setCopiedPath] = useState(false);
   const [copiedReport, setCopiedReport] = useState(false);
   const [showScoreBreakdown, setShowScoreBreakdown] = useState(false);
+  const [aiReviewFocus, setAiReviewFocus] = useState<{ paths: string[]; note?: string } | null>(null);
 
   // Pure static code findings only (preventing duplicate CVE entries since they have their dedicated panel)
   const qualityFindings = useMemo(() => {
@@ -156,6 +191,51 @@ export const CodebaseQualityView: React.FC<CodebaseQualityViewProps> = React.mem
   const totalQualityFindings = qualityFindings.length + omittedQualityFindings;
 
   const highPriorityCount = qualityFindings.filter(f => f.priority === 'high').length;
+
+  const findingsCategoryOptions = useMemo(
+    () =>
+      (
+        [
+          ['all', 'All categories'],
+          ['maintainability', 'Maintainability'],
+          ['security', 'Security'],
+          ['testing', 'Testing'],
+          ['correctness', 'Correctness'],
+          ['structure', 'Structure'],
+          ['delivery', 'Delivery'],
+          ['documentation', 'Documentation'],
+          ['tooling', 'Tooling'],
+        ] as const
+      ).map(([value, label]) => ({
+        value,
+        label,
+        badge: String(
+          value === 'all'
+            ? qualityFindings.length
+            : qualityFindings.filter(f => f.category === value).length,
+        ),
+      })),
+    [qualityFindings],
+  );
+
+  const findingsPriorityOptions = useMemo(
+    () =>
+      (['all', 'high', 'medium', 'low'] as const).map(value => ({
+        value,
+        label: value === 'all' ? 'All priorities' : value.charAt(0).toUpperCase() + value.slice(1),
+        badge: String(
+          value === 'all'
+            ? qualityFindings.length
+            : qualityFindings.filter(f => f.priority === value).length,
+        ),
+      })),
+    [qualityFindings],
+  );
+
+  const findingsFilterTriggerClass = isDark
+    ? '!rounded-lg !border-white/[0.08] !bg-black/20 !text-slate-200 !font-normal'
+    : '!rounded-lg !border-slate-200 !bg-white !text-slate-800 !font-normal';
+
   // Filtered findings list
   const filteredFindings = useMemo(() => {
     return qualityFindings.filter(f => {
@@ -417,58 +497,46 @@ ${selectedFinding.detail}${snippetText}${evidenceText}
                 </div>
 
                 <div className="flex flex-wrap items-center gap-2">
-                  <select
+                  <Dropdown
+                    options={findingsCategoryOptions}
                     value={categoryFilter}
-                    onChange={e => {
-                      setCategoryFilter(e.target.value);
+                    onChange={value => {
+                      setCategoryFilter(value);
                       setSelectedIndex(0);
                     }}
-                    className={`rounded-lg border px-2.5 py-1.5 text-xs outline-none ${
-                      isDark ? 'border-white/[0.08] bg-black/20 text-slate-200' : 'border-slate-200 bg-white text-slate-800'
-                    }`}
-                  >
-                    <option value="all">All categories</option>
-                    <option value="maintainability">Maintainability</option>
-                    <option value="security">Security</option>
-                    <option value="testing">Testing</option>
-                    <option value="correctness">Correctness</option>
-                    <option value="structure">Structure</option>
-                    <option value="delivery">Delivery</option>
-                  </select>
-
-                  <div className={`flex flex-wrap items-center gap-1 border-l pl-2 ${qualityBorder}`}>
-                    {(['all', 'high', 'medium', 'low'] as const).map(p => {
-                      const count =
-                        p === 'all' ? qualityFindings.length : qualityFindings.filter(f => f.priority === p).length;
-                      const isSelected = qualityPriorityFilter === p;
-                      return (
-                        <button
-                          key={p}
-                          type="button"
-                          onClick={() => {
-                            setQualityPriorityFilter(p);
-                            setSelectedIndex(0);
-                          }}
-                          className={`rounded-md px-2 py-1 text-xs capitalize transition-colors ${
-                            isSelected
-                              ? isDark
-                                ? 'bg-white/[0.08] font-medium text-slate-100'
-                                : 'bg-slate-100 font-medium text-slate-900'
-                              : isDark
-                                ? 'text-slate-500 hover:text-slate-300'
-                                : 'text-slate-500 hover:text-slate-800'
-                          }`}
-                        >
-                          {p === 'all' ? 'All' : p}{' '}
-                          <span className="tabular-nums opacity-70">({count})</span>
-                        </button>
-                      );
-                    })}
-                  </div>
+                    placeholder="Category"
+                    size="sm"
+                    variant="subtle"
+                    fullWidth={false}
+                    className="min-w-[10.5rem]"
+                    triggerClassName={findingsFilterTriggerClass}
+                    menuClassName="!min-w-[12rem]"
+                  />
+                  <Dropdown<'all' | 'high' | 'medium' | 'low'>
+                    options={findingsPriorityOptions}
+                    value={qualityPriorityFilter}
+                    onChange={value => {
+                      setQualityPriorityFilter(value);
+                      setSelectedIndex(0);
+                    }}
+                    placeholder="Priority"
+                    size="sm"
+                    variant="subtle"
+                    fullWidth={false}
+                    className="min-w-[9.5rem]"
+                    triggerClassName={findingsFilterTriggerClass}
+                    menuClassName="!min-w-[11rem]"
+                  />
                 </div>
               </div>
               <p className={`mt-2 text-xs tabular-nums ${muted}`}>
                 Showing {filteredFindings.length} of {qualityFindings.length}
+                {omittedQualityFindings > 0 ? (
+                  <span>
+                    {' '}
+                    · {omittedQualityFindings} more omitted from this list (see total {totalQualityFindings})
+                  </span>
+                ) : null}
               </p>
             </div>
 
@@ -587,6 +655,24 @@ ${selectedFinding.detail}${snippetText}${evidenceText}
                         >
                           {copiedRemediation ? 'Prompt copied' : 'Copy prompt'}
                         </button>
+                        {isAiConfigured && selectedFinding && qualityReviewPathFromFinding(selectedFinding) ? (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const path = qualityReviewPathFromFinding(selectedFinding!);
+                              if (!path) return;
+                              setAiReviewFocus({
+                                paths: [path],
+                                note: `Validate or nuance the static finding “${selectedFinding.title}” using the supplied source.`,
+                              });
+                            }}
+                            className={
+                              isDark ? 'text-violet-300 hover:text-violet-200' : 'text-violet-700 hover:text-violet-900'
+                            }
+                          >
+                            Review with AI
+                          </button>
+                        ) : null}
                       </div>
                     </div>
 
@@ -660,7 +746,12 @@ ${selectedFinding.detail}${snippetText}${evidenceText}
           {/* ========================================================================= */}
           {/* 4. OPTIONAL AI DEEP CODE REVIEW ACCORDION                                */}
           {/* ========================================================================= */}
-          <AIReviewPanel analysis={analysis} />
+          <AIReviewPanel
+            analysis={analysis}
+            focusPaths={aiReviewFocus?.paths}
+            focusNote={aiReviewFocus?.note}
+            onFocusHandled={() => setAiReviewFocus(null)}
+          />
         </>
       ) : (
         <section className={`rounded-2xl border p-8 text-center ${qualityPanel}`}>

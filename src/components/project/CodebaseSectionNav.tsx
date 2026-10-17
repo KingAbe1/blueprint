@@ -18,7 +18,7 @@ export const CodebaseSectionNav: React.FC<CodebaseSectionNavProps> = ({
   openIssueCount = 0,
 }) => {
   const { isDark } = useTheme();
-  const { enabled, activeSection, selectSection } = useCodebaseWorkspace();
+  const { enabled, activeSection, selectSection, isRescanning } = useCodebaseWorkspace();
   if (!enabled) return null;
 
   const current = activeSection ?? 'overview';
@@ -39,8 +39,10 @@ export const CodebaseSectionNav: React.FC<CodebaseSectionNavProps> = ({
             key={sectionId}
             type="button"
             onClick={() => selectSection(sectionId)}
+            disabled={isRescanning}
             aria-current={selected ? 'page' : undefined}
-            className={`flex shrink-0 items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[11px] font-semibold transition-colors sm:px-3 ${
+            title={isRescanning ? 'Section navigation is paused while the project rescan runs.' : undefined}
+            className={`flex shrink-0 items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[11px] font-semibold transition-colors sm:px-3 disabled:cursor-not-allowed disabled:opacity-45 ${
               selected
                 ? 'btn-secondary-accent shadow-sm'
                 : isDark
