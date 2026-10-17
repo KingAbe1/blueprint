@@ -162,12 +162,15 @@ export const DependencySecurityPanel: React.FC<DependencySecurityPanelProps> = R
         analysis.quality.findings.some(f => f.ruleId?.startsWith('cve-') || f.title.toLowerCase().startsWith('vulnerable package'))
       )
     ) {
-      void recalculateQualityWithDependencyRisk(analysis.quality, assessment).then(updatedQuality => {
+      void (async () => {
+        const quality = analysis.quality;
+        if (!onUpdateAnalysis || !quality) return;
+        const updatedQuality = await recalculateQualityWithDependencyRisk(quality, assessment);
         onUpdateAnalysis({
           ...analysis,
           quality: updatedQuality,
         });
-      });
+      })();
     }
   }, [assessment, analysis, onUpdateAnalysis]);
 
