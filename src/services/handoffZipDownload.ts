@@ -1,4 +1,5 @@
 import { HandoffFile } from '../types/project';
+import { isDesktopApp } from '../utils/platform';
 import { triggerBrowserDownload } from '../utils/browserDownload';
 
 /** Builds a ZIP blob from handoff files (store-only, no compression). */
@@ -73,15 +74,55 @@ export async function buildHandoffZipBlob(files: HandoffFile[]): Promise<Blob> {
   return new Blob(parts, { type: 'application/zip' });
 }
 
-function toBlobPart(bytes: Uint8Array): BlobPart {
-  return bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer;
+function handoffZipFilename(projectName: string): string {
+  const slug = projectName.trim().replace(/\s+/g, '-').toLowerCase() || 'handoff';
+  return `${slug}-handoff.zip`;
 }
 
-export function downloadHandoffZip(files: HandoffFile[], projectName: string) {
-  void buildHandoffZipBlob(files).then(blob => {
-    const slug = projectName.trim().replace(/\s+/g, '-').toLowerCase() || 'handoff';
-    triggerBrowserDownload(blob, `${slug}-handoff.zip`);
-  });
+/** @returns true when saved/downloaded; false if the user cancelled a save dialog. */
+export async function downloadHandoffZip(files: HandoffFile[], projectName: string): Promise<boolean> {
+  const filename = handoffZipFilename(projectName);
+
+  if (isDesktopApp()) {
+    const { save } = await import('@tauri-apps/plugin-dialog');
+    const path = await save({
+      defaultPath: filename,
+      filters: [{ name: 'ZIP archive', extensions: ['zip'] }],
+    });
+    if (!path) return false;
+
+    const blob = await buildHandoffZipBlob(files);
+    const bytes = new Uint8Array(await blob.arrayBuffer());
+    const { invoke } = await import('@tauri-apps/api/core');
+    await invoke('write_export_file', { path, data: Array.from(bytes) });
+    return true;
+  }
+
+  if ('showSaveFilePicker' in window && typeof window.showSaveFilePicker === 'function') {
+    try {
+      const handle = await window.showSaveFilePicker({
+        suggestedName: filename,
+        types: [{ description: 'ZIP archive', accept: { 'application/zip': ['.zip'] } }],
+      });
+      const blob = await buildHandoffZipBlob(files);
+      const writable = await handle.createWritable();
+      await writable.write(blob);
+      await writable.close();
+      return true;
+    } catch (error) {
+      if (error instanceof DOMException && error.name === 'AbortError') {
+        return false;
+      }
+    }
+  }
+
+  const blob = await buildHandoffZipBlob(files);
+  triggerBrowserDownload(blob, filename);
+  return true;
+}
+
+function toBlobPart(bytes: Uint8Array): BlobPart {
+  return bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer;
 }
 
 function concatUint8(...chunks: Uint8Array[]): Uint8Array {

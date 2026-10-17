@@ -24,7 +24,6 @@ import { generateHandoffPackage } from '../../services/handoffService';
 import {
   chooseHandoffTarget,
   exportHandoffFiles,
-  HandoffExportResult,
   HandoffTarget,
   inspectHandoffConflicts,
   openHandoffFolder,
@@ -59,6 +58,10 @@ function fileBaseName(path: string) {
   return parts[parts.length - 1] || path;
 }
 
+function handoffTargetKey(target: HandoffTarget): string {
+  return target.kind === 'tauri' ? target.path : `browser:${target.name}`;
+}
+
 export const BuildHandoffView: React.FC = () => {
   const { activeProject, updateProjectSpec } = useProjects();
   const { isDark } = useTheme();
@@ -75,9 +78,11 @@ export const BuildHandoffView: React.FC = () => {
   const [selectedPath, setSelectedPath] = useState(handoff?.files[0]?.path || '');
   const [target, setTarget] = useState<HandoffTarget | null>(null);
   const [conflicts, setConflicts] = useState<string[]>([]);
+  /** Paths last written to the current target; used for “on disk” vs “will replace” UI. */
+  const [lastExportSync, setLastExportSync] = useState<{ targetKey: string; paths: string[] } | null>(null);
   const [isChoosingFolder, setIsChoosingFolder] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
-  const [exportResult, setExportResult] = useState<HandoffExportResult | null>(null);
+  const [isDownloadingZip, setIsDownloadingZip] = useState(false);
   const [hasManualEdits, setHasManualEdits] = useState(false);
   const [isSourceView, setIsSourceView] = useState(false);
 
@@ -98,7 +103,7 @@ export const BuildHandoffView: React.FC = () => {
     setSelectedPath(next?.files[0]?.path || '');
     setTarget(null);
     setConflicts([]);
-    setExportResult(null);
+    setLastExportSync(null);
     setHasManualEdits(false);
   // The project ID is the boundary for a separate handoff package.
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -119,6 +124,26 @@ export const BuildHandoffView: React.FC = () => {
     ...group,
     files: handoff?.files.filter(file => fileGroup(file.path) === group.id) || [],
   })).filter(group => group.files.length > 0), [handoff]);
+
+  const exportStillValid = Boolean(
+    target
+    && lastExportSync
+    && lastExportSync.targetKey === handoffTargetKey(target)
+    && !hasManualEdits,
+  );
+  const syncedPathSet = useMemo(
+    () => new Set(exportStillValid ? lastExportSync?.paths ?? [] : []),
+    [exportStillValid, lastExportSync],
+  );
+  const overwriteConflictCount = useMemo(
+    () => conflicts.filter(path => !syncedPathSet.has(path)).length,
+    [conflicts, syncedPathSet],
+  );
+  const allHandoffFilesOnDisk = exportStillValid
+    && handoff != null
+    && handoff.files.length > 0
+    && handoff.files.every(file => syncedPathSet.has(file.path));
+
   const desktop = isDesktopApp();
   const { border, panel, muted, title: titleText, inner, input } = workbenchTheme(isDark);
   const divide = overviewDivideClass(isDark);
@@ -147,7 +172,7 @@ export const BuildHandoffView: React.FC = () => {
     setSelectedPath(next.files[0]?.path || '');
     setTarget(null);
     setConflicts([]);
-    setExportResult(null);
+    setLastExportSync(null);
     setHasManualEdits(false);
     notify.success('Build handoff regenerated from the current blueprint.');
   };
@@ -171,13 +196,13 @@ export const BuildHandoffView: React.FC = () => {
   const chooseFolder = async () => {
     if (!handoff) return;
     setIsChoosingFolder(true);
-    setExportResult(null);
     try {
       const nextTarget = await chooseHandoffTarget();
       if (!nextTarget) return;
       const existing = await inspectHandoffConflicts(nextTarget, handoff.files);
       setTarget(nextTarget);
       setConflicts(existing);
+      setLastExportSync(null);
       saveHandoffPrefs(activeProject.id, { target: nextTarget });
     } catch (error: any) {
       notify.error(error?.message || 'Could not access that project folder.');
@@ -188,10 +213,10 @@ export const BuildHandoffView: React.FC = () => {
 
   const exportPackage = async () => {
     if (!handoff || !target) return;
-    if (conflicts.length > 0) {
+    if (overwriteConflictCount > 0) {
       const confirmed = await confirm({
         title: 'Replace existing files?',
-        description: `${conflicts.length} file${conflicts.length === 1 ? '' : 's'} already exist in ${target.name}. Only generated paths will be written; conflicting files will be replaced.`,
+        description: `${overwriteConflictCount} file${overwriteConflictCount === 1 ? '' : 's'} already exist in ${target.name}. Only generated paths will be written; conflicting files will be replaced.`,
         confirmLabel: 'Export anyway',
         tone: 'danger',
       });
@@ -200,14 +225,45 @@ export const BuildHandoffView: React.FC = () => {
 
     setIsExporting(true);
     try {
-      const result = await exportHandoffFiles(target, handoff.files, conflicts.length > 0);
-      setExportResult(result);
+      const result = await exportHandoffFiles(target, handoff.files, overwriteConflictCount > 0);
       saveHandoffPrefs(activeProject.id, { ide: handoff.ide, target });
-      notify.success(`Handoff exported to ${target.name}.`);
+      setLastExportSync({ targetKey: handoffTargetKey(target), paths: result.written });
+      const refreshed = await inspectHandoffConflicts(target, handoff.files);
+      setConflicts(refreshed);
+      const overwriteNote =
+        result.overwritten.length > 0
+          ? ` Updated ${result.overwritten.length} existing file${result.overwritten.length === 1 ? '' : 's'}.`
+          : '';
+      notify.success(
+        `${result.written.length} files written to ${target.name}. Open ${selectedIDE.label} and start with AGENTS.md.${overwriteNote}`,
+        {
+          title: 'Handoff complete',
+          duration: 9000,
+          action:
+            target.kind === 'tauri'
+              ? { label: 'Open folder', onClick: () => void openProjectFolder() }
+              : undefined,
+        },
+      );
     } catch (error: any) {
       notify.error(error?.message || 'Could not export the handoff package.');
     } finally {
       setIsExporting(false);
+    }
+  };
+
+  const downloadZip = async () => {
+    if (!handoff || !activeProject) return;
+    setIsDownloadingZip(true);
+    try {
+      const saved = await downloadHandoffZip(handoff.files, activeProject.name);
+      if (saved) {
+        notify.success('Handoff ZIP saved.');
+      }
+    } catch (error: any) {
+      notify.error(error?.message || 'Could not download the handoff ZIP.');
+    } finally {
+      setIsDownloadingZip(false);
     }
   };
 
@@ -228,7 +284,6 @@ export const BuildHandoffView: React.FC = () => {
       files: handoff.files.map(file => file.path === selectedFile.path ? { ...file, content } : file),
     });
     setHasManualEdits(true);
-    setExportResult(null);
   };
 
   if (!canGenerate || !handoff) {
@@ -355,26 +410,19 @@ export const BuildHandoffView: React.FC = () => {
                   {target ? (
                   <div className="space-y-2">
                     <div className={`flex items-start gap-2 rounded-lg border px-3 py-2.5 ${border} ${inner}`}>
-                      {conflicts.length > 0 ? (
+                      {overwriteConflictCount > 0 ? (
                         <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-500" />
                       ) : (
                         <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-500" />
                       )}
                       <p className={`text-[11px] leading-relaxed ${muted}`}>
-                        {conflicts.length > 0
-                          ? `${conflicts.length} file${conflicts.length === 1 ? '' : 's'} already exist — you’ll confirm before replacing.`
-                          : `Ready to add ${handoff.files.length} files without overwriting.`}
+                        {allHandoffFilesOnDisk
+                          ? `All ${handoff.files.length} handoff files are in this folder. Re-export after you edit the preview.`
+                          : overwriteConflictCount > 0
+                            ? `${overwriteConflictCount} file${overwriteConflictCount === 1 ? '' : 's'} will be replaced — you’ll confirm before exporting.`
+                            : `Ready to add ${handoff.files.length} files without overwriting.`}
                       </p>
                     </div>
-                    {conflicts.length > 0 ? (
-                      <ul className={`max-h-28 overflow-y-auto rounded-lg border px-3 py-2 ${border} ${inner}`}>
-                        {conflicts.map(path => (
-                          <li key={path} className={`truncate font-mono text-[10px] ${muted}`}>
-                            {path}
-                          </li>
-                        ))}
-                      </ul>
-                    ) : null}
                   </div>
                   ) : null}
                 </div>
@@ -391,11 +439,12 @@ export const BuildHandoffView: React.FC = () => {
                 <div className="mt-3 flex flex-col gap-3">
                 <button
                   type="button"
-                  onClick={() => downloadHandoffZip(handoff.files, activeProject.name)}
-                  className={`flex w-full items-center justify-center gap-2 rounded-lg border px-4 py-2.5 text-xs font-medium transition-colors ${ghostButton}`}
+                  onClick={() => void downloadZip()}
+                  disabled={isDownloadingZip}
+                  className={`flex w-full items-center justify-center gap-2 rounded-lg border px-4 py-2.5 text-xs font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${ghostButton}`}
                 >
-                  <Download className="h-3.5 w-3.5" />
-                  Download ZIP
+                  {isDownloadingZip ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
+                  {isDownloadingZip ? 'Preparing ZIP…' : 'Download ZIP'}
                 </button>
                 <button
                   type="button"
@@ -406,36 +455,6 @@ export const BuildHandoffView: React.FC = () => {
                   {isExporting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <FileCode2 className="h-3.5 w-3.5" />}
                   {isExporting ? 'Writing files…' : `Add ${handoff.files.length} files`}
                 </button>
-
-                {exportResult ? (
-                  <div className={`rounded-xl border p-3.5 ${border} ${inner}`}>
-                    <div className="flex gap-2.5">
-                      <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500" />
-                      <div className="min-w-0">
-                        <p className={`text-[13px] ${titleText}`}>Handoff complete</p>
-                        <p className={`mt-1 text-[11px] leading-relaxed ${muted}`}>
-                          {exportResult.written.length} files in {target?.name}. Open {selectedIDE.label} and start with{' '}
-                          <span className="font-mono">AGENTS.md</span>.
-                        </p>
-                        {exportResult.overwritten.length > 0 ? (
-                          <p className={`mt-1 text-[11px] ${muted}`}>
-                            Updated {exportResult.overwritten.length} existing file{exportResult.overwritten.length === 1 ? '' : 's'}.
-                          </p>
-                        ) : null}
-                        {target?.kind === 'tauri' ? (
-                          <button
-                            type="button"
-                            onClick={openProjectFolder}
-                            className="btn-secondary-accent mt-2.5 inline-flex items-center gap-1.5 px-2.5 py-1.5 text-[10px] font-medium"
-                          >
-                            <FolderOpen className="h-3 w-3" />
-                            Open folder
-                          </button>
-                        ) : null}
-                      </div>
-                    </div>
-                  </div>
-                ) : null}
                 </div>
               </div>
             </div>
@@ -462,7 +481,8 @@ export const BuildHandoffView: React.FC = () => {
                       <ul className={`divide-y ${divide}`}>
                         {group.files.map(file => {
                           const active = file.path === selectedFile?.path;
-                          const existing = conflicts.includes(file.path);
+                          const onDisk = Boolean(target && conflicts.includes(file.path) && syncedPathSet.has(file.path));
+                          const willReplace = Boolean(target && conflicts.includes(file.path) && !syncedPathSet.has(file.path));
                           return (
                             <li key={file.path}>
                               <button
@@ -497,8 +517,10 @@ export const BuildHandoffView: React.FC = () => {
                                   <span className={`block truncate text-[12px] ${titleText}`}>{fileBaseName(file.path)}</span>
                                   <span className={`mt-0.5 block truncate font-mono text-[10px] ${muted}`}>{file.path}</span>
                                 </span>
-                                {existing ? (
-                                  <AlertTriangle className="h-3.5 w-3.5 shrink-0 text-amber-500" aria-label="File already exists in target folder" />
+                                {onDisk ? (
+                                  <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-emerald-500" aria-label="On disk in project folder" />
+                                ) : willReplace ? (
+                                  <AlertTriangle className="h-3.5 w-3.5 shrink-0 text-amber-500" aria-label="Will replace existing file in project folder" />
                                 ) : null}
                               </button>
                             </li>

@@ -84,3 +84,12 @@ export const DECISION_GROUPS: Array<{
     categories: ['deployment', 'delivery', 'testing', 'observability', 'operations', 'budget'],
   },
 ];
+
+export function parseStoredOptionIds(optionId?: string): string[] {
+  if (!optionId?.trim()) return [];
+  return optionId.split(',').map(id => id.trim()).filter(Boolean);
+}
+
+export function isExclusivePreferenceLabel(label: string): boolean {
+  return /let blueprint decide|no preference|not sure|either is fine|doesn't matter/i.test(label);
+}

@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import {
   ArrowLeft,
   ArrowRight,
@@ -20,14 +20,17 @@ import {
   generateArchitectureInterview,
 } from '../../services/aiService';
 import { isDesktopApp } from '../../utils/platform';
-import { ProductBriefDisplay } from './ProductBriefDisplay';
+import { ProductBriefRichEditor } from './ProductBriefRichEditor';
 import { WorkbenchPhaseHeader, WorkbenchStep } from './WorkbenchPhaseHeader';
 import { workbenchCanvasClass, workbenchPagePadding, workbenchTheme } from './workbenchUi';
-import { CATEGORY_LABELS } from './architectureInterviewLabels';
+import {
+  CATEGORY_LABELS,
+  isExclusivePreferenceLabel,
+  parseStoredOptionIds,
+} from './architectureInterviewLabels';
 import { DesignDecisionsPanel } from './DesignDecisionsPanel';
 import { InterviewReviewPanel } from './InterviewReviewPanel';
 import { useConfirm } from '../../context/ConfirmContext';
-import { createStaticArchitectureInterview } from '../../services/staticArchitectureInterview';
 import { recommendFrameworkFromText } from '../../services/frameworkRecommender';
 import {
   ArchitectureAnswer,
@@ -39,26 +42,6 @@ import {
 
 interface DomainIntentViewProps {
   onOpenArchitectureMap?: () => void;
-}
-
-const DESCRIPTION_TEXTAREA_MIN_PX = 120;
-/** Keeps build questions on screen; longer briefs scroll inside the field. */
-const DESCRIPTION_TEXTAREA_MAX_REM = 26;
-
-function descriptionEditorMaxHeightPx() {
-  if (typeof window === 'undefined') {
-    return DESCRIPTION_TEXTAREA_MAX_REM * 16;
-  }
-  return Math.min(window.innerHeight * 0.45, DESCRIPTION_TEXTAREA_MAX_REM * 16);
-}
-
-function fitDescriptionTextareaHeight(element: HTMLTextAreaElement) {
-  const maxHeight = descriptionEditorMaxHeightPx();
-  element.style.height = '0px';
-  const contentHeight = element.scrollHeight;
-  const nextHeight = Math.min(Math.max(contentHeight, DESCRIPTION_TEXTAREA_MIN_PX), maxHeight);
-  element.style.height = `${nextHeight}px`;
-  element.style.overflowY = contentHeight > maxHeight ? 'auto' : 'hidden';
 }
 
 function compactDecisionValues(values: string[]): string[] {
@@ -156,14 +139,11 @@ export const DomainIntentView: React.FC<DomainIntentViewProps> = ({ onOpenArchit
   const [isGeneratingInterview, setIsGeneratingInterview] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [selectedOptionId, setSelectedOptionId] = useState('');
+  const [selectedOptionIds, setSelectedOptionIds] = useState<string[]>([]);
   const [customAnswer, setCustomAnswer] = useState('');
   const [interviewBeforeEdit, setInterviewBeforeEdit] = useState<ArchitecturalInterview | null>(null);
   const [descriptionViewMode, setDescriptionViewMode] = useState<'edit' | 'preview'>('edit');
-  const descriptionRef = useRef<HTMLTextAreaElement>(null);
-  const bindDescriptionRef = useCallback((node: HTMLTextAreaElement | null) => {
-    descriptionRef.current = node;
-    if (node) fitDescriptionTextareaHeight(node);
-  }, []);
+  const scrollToQuestionsAfterGenerate = useRef(false);
 
   const descriptionDraft = activeProject?.spec.description ?? '';
   const interviewCompleted = activeProject?.spec.interview?.status === 'completed';
@@ -179,23 +159,6 @@ export const DomainIntentView: React.FC<DomainIntentViewProps> = ({ onOpenArchit
     setDescriptionViewMode(looksLikeBrief ? 'preview' : 'edit');
   }, [activeProject?.id]);
 
-  useLayoutEffect(() => {
-    if (!showDescriptionTextarea) return;
-    const node = descriptionRef.current;
-    if (!node) return;
-    fitDescriptionTextareaHeight(node);
-  }, [descriptionDraft, showDescriptionTextarea, isPolishing]);
-
-  useEffect(() => {
-    if (!showDescriptionTextarea) return;
-    const onResize = () => {
-      const node = descriptionRef.current;
-      if (node) fitDescriptionTextareaHeight(node);
-    };
-    window.addEventListener('resize', onResize);
-    return () => window.removeEventListener('resize', onResize);
-  }, [showDescriptionTextarea, descriptionDraft, isPolishing]);
-
   useEffect(() => {
     if (!activeProject?.id) return;
     setSeedBannerDismissed(localStorage.getItem(`blueprint_brief_seed_ack_${activeProject.id}`) === '1');
@@ -203,9 +166,22 @@ export const DomainIntentView: React.FC<DomainIntentViewProps> = ({ onOpenArchit
     setPrePolishDescription(null);
     setInterviewBeforeEdit(null);
     setSelectedOptionId('');
+    setSelectedOptionIds([]);
     setCustomAnswer('');
     setIsGeneratingInterview(false);
+    scrollToQuestionsAfterGenerate.current = false;
   }, [activeProject?.id]);
+
+  useLayoutEffect(() => {
+    if (!scrollToQuestionsAfterGenerate.current) return;
+    if (activeProject?.spec.interview?.status !== 'in_progress') return;
+    scrollToQuestionsAfterGenerate.current = false;
+    document.getElementById('architecture-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, [
+    activeProject?.id,
+    activeProject?.spec.interview?.status,
+    activeProject?.spec.interview?.questions?.length,
+  ]);
 
   if (!activeProject) return null;
 
@@ -225,9 +201,17 @@ export const DomainIntentView: React.FC<DomainIntentViewProps> = ({ onOpenArchit
   );
 
   useEffect(() => {
-    setSelectedOptionId(currentAnswer?.optionId || '');
-    setCustomAnswer(currentAnswer?.optionId ? '' : currentAnswer?.value || '');
-  }, [currentQuestion?.id, currentAnswer?.optionId, currentAnswer?.value]);
+    if (!currentQuestion) return;
+    const storedOptionId = currentAnswer?.optionId || '';
+    if (currentQuestion.allowMultiple) {
+      setSelectedOptionIds(parseStoredOptionIds(storedOptionId));
+      setSelectedOptionId('');
+    } else {
+      setSelectedOptionIds([]);
+      setSelectedOptionId(storedOptionId);
+    }
+    setCustomAnswer(storedOptionId ? '' : currentAnswer?.value || '');
+  }, [currentQuestion?.id, currentQuestion?.allowMultiple, currentAnswer?.optionId, currentAnswer?.value]);
 
   const { border, panel, muted, title: titleText, input, inner } = workbenchTheme(isDark);
 
@@ -249,7 +233,7 @@ export const DomainIntentView: React.FC<DomainIntentViewProps> = ({ onOpenArchit
     setIsPolishing(true);
     try {
       const result = await expandAndPolishDescription(activeProject.name, spec.description, settings);
-      updateSpec({ description: result.text });
+      updateSpec({ description: result.text, descriptionHtml: undefined });
       setDescriptionViewMode('preview');
       notify.success(`Product brief updated with ${result.providerName}.`);
     } catch (error: any) {
@@ -277,21 +261,6 @@ export const DomainIntentView: React.FC<DomainIntentViewProps> = ({ onOpenArchit
       customRequirements: undefined,
     });
   };
-
-  const startStaticInterview = () => {
-    if (!spec.description?.trim()) {
-      notify.warning('Describe the product before designing its architecture.');
-      return;
-    }
-    setInterviewBeforeEdit(interview?.status === 'completed' ? interview : null);
-    updateSpec({ interview: createStaticArchitectureInterview() });
-    notify.success('Standard build questions loaded.');
-  };
-
-  const isStaticInterview = Boolean(
-    interview?.providerName === 'Blueprint template'
-    || interview?.questions.some(question => question.id.startsWith('static-')),
-  );
 
   const startInterview = async () => {
     if (!spec.description?.trim()) {
@@ -331,6 +300,7 @@ export const DomainIntentView: React.FC<DomainIntentViewProps> = ({ onOpenArchit
         providerName: result.providerName,
       };
 
+      scrollToQuestionsAfterGenerate.current = true;
       updateSpec({
         interview: nextInterview,
       });
@@ -390,19 +360,34 @@ export const DomainIntentView: React.FC<DomainIntentViewProps> = ({ onOpenArchit
   const saveCurrentAnswer = async () => {
     if (!interview || !currentQuestion) return;
 
-    const option = currentQuestion.options.find(item => item.id === selectedOptionId);
     const typedAnswer = customAnswer.trim();
-    if (!option && !typedAnswer) {
-      notify.warning('Choose an option or enter your own answer.');
-      return;
-    }
+    let answer: ArchitectureAnswer;
 
-    const answer: ArchitectureAnswer = {
-      questionId: currentQuestion.id,
-      optionId: option?.id,
-      value: option?.id || typedAnswer,
-      label: option?.label || typedAnswer,
-    };
+    if (currentQuestion.allowMultiple) {
+      const chosen = currentQuestion.options.filter(item => selectedOptionIds.includes(item.id));
+      if (chosen.length === 0 && !typedAnswer) {
+        notify.warning('Choose at least one option or enter your own answer.');
+        return;
+      }
+      answer = {
+        questionId: currentQuestion.id,
+        optionId: chosen.map(item => item.id).join(','),
+        value: chosen.map(item => item.id).join(',') || typedAnswer,
+        label: chosen.map(item => item.label).join(' · ') || typedAnswer,
+      };
+    } else {
+      const option = currentQuestion.options.find(item => item.id === selectedOptionId);
+      if (!option && !typedAnswer) {
+        notify.warning('Choose an option or enter your own answer.');
+        return;
+      }
+      answer = {
+        questionId: currentQuestion.id,
+        optionId: option?.id,
+        value: option?.id || typedAnswer,
+        label: option?.label || typedAnswer,
+      };
+    }
     const answers = [
       ...interview.answers.filter(item => item.questionId !== currentQuestion.id),
       answer,
@@ -689,7 +674,7 @@ export const DomainIntentView: React.FC<DomainIntentViewProps> = ({ onOpenArchit
               <button
                 type="button"
                 onClick={() => {
-                  updateSpec({ description: prePolishDescription });
+                  updateSpec({ description: prePolishDescription, descriptionHtml: undefined });
                   setPrePolishDescription(null);
                   notify.success('Previous brief restored.');
                 }}
@@ -700,18 +685,19 @@ export const DomainIntentView: React.FC<DomainIntentViewProps> = ({ onOpenArchit
             </div>
           ) : null}
           {interview?.status === 'completed' || showBriefPreview ? (
-            <ProductBriefDisplay text={spec.description || ''} wordCount={wordCount} />
+            <ProductBriefRichEditor
+              readOnly
+              text={spec.description || ''}
+              html={spec.descriptionHtml}
+              inputClassName={input}
+            />
           ) : (
-            <textarea
-              ref={bindDescriptionRef}
-              value={spec.description || ''}
-              onChange={event => {
-                updateSpec({ description: event.target.value });
-                fitDescriptionTextareaHeight(event.target);
-              }}
-              rows={1}
-              placeholder={`What should ${activeProject.name} do? Example: A workspace where teams plan work, assign tasks, and keep a searchable history of decisions.`}
-              className={`box-border w-full min-h-[7.5rem] resize-none rounded-lg border px-3 py-3 text-sm leading-6 outline-none transition-colors ${input}`}
+            <ProductBriefRichEditor
+              text={spec.description || ''}
+              html={spec.descriptionHtml}
+              onChange={(plain, nextHtml) => updateSpec({ description: plain, descriptionHtml: nextHtml })}
+              inputClassName={input}
+              placeholder={`What should ${activeProject.name} do? Use bullet lists for features and headings for sections like Summary or Who it's for.`}
             />
           )}
 
@@ -777,7 +763,7 @@ export const DomainIntentView: React.FC<DomainIntentViewProps> = ({ onOpenArchit
                   {interview?.status === 'completed'
                     ? 'Drives stack and structure choices.'
                     : pinBuildQuestionsBesideBrief && !interview
-                      ? 'AI set from your brief, or the standard template.'
+                      ? 'AI-generated from your brief when you start.'
                       : 'One answer per question for this project.'}
                 </p>
               </div>
@@ -831,15 +817,7 @@ export const DomainIntentView: React.FC<DomainIntentViewProps> = ({ onOpenArchit
                   className="flex w-full items-center justify-center gap-2 rounded-lg btn-primary-blue px-4 py-3 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-40"
                 >
                   {isGeneratingInterview ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowRight className="h-4 w-4" />}
-                  {isGeneratingInterview ? 'Preparing…' : isAiConfigured ? 'Start AI questions' : 'Connect AI for tailored questions'}
-                </button>
-                <button
-                  type="button"
-                  onClick={startStaticInterview}
-                  disabled={!descriptionReady}
-                  className="btn-secondary flex w-full items-center justify-center gap-2 px-4 py-2.5 text-xs disabled:opacity-40"
-                >
-                  Use standard question set
+                  {isGeneratingInterview ? 'Preparing…' : isAiConfigured ? 'Start build questions' : 'Connect AI to start'}
                 </button>
               </div>
             ) : (
@@ -847,25 +825,15 @@ export const DomainIntentView: React.FC<DomainIntentViewProps> = ({ onOpenArchit
                 <p className={`max-w-lg text-sm leading-6 ${muted}`}>
                   Blueprint turns your answers into stack choices and constraints for the coding agent.
                 </p>
-                <div className="flex flex-wrap gap-2">
-                  <button
-                    type="button"
-                    onClick={startStaticInterview}
-                    disabled={!descriptionReady}
-                    className="btn-secondary px-4 py-2.5 text-xs disabled:opacity-40"
-                  >
-                    Standard questions
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => startInterview()}
-                    disabled={isGeneratingInterview || !descriptionReady}
-                    className="flex items-center justify-center gap-2 rounded-lg btn-primary-blue px-4 py-2.5 text-xs font-medium text-white disabled:cursor-not-allowed disabled:opacity-40"
-                  >
-                    {isGeneratingInterview ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ArrowRight className="h-3.5 w-3.5" />}
-                    {isGeneratingInterview ? 'Preparing…' : isAiConfigured ? 'Start AI questions' : 'Connect AI'}
-                  </button>
-                </div>
+                <button
+                  type="button"
+                  onClick={() => startInterview()}
+                  disabled={isGeneratingInterview || !descriptionReady}
+                  className="flex shrink-0 items-center justify-center gap-2 rounded-lg btn-primary-blue px-4 py-2.5 text-xs font-medium text-white disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  {isGeneratingInterview ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ArrowRight className="h-3.5 w-3.5" />}
+                  {isGeneratingInterview ? 'Preparing…' : isAiConfigured ? 'Start build questions' : 'Connect AI'}
+                </button>
               </div>
             )
           )}
@@ -875,11 +843,9 @@ export const DomainIntentView: React.FC<DomainIntentViewProps> = ({ onOpenArchit
               <div className="mb-4 flex items-center justify-between gap-4">
                 <div className="min-w-0">
                   <span className={`text-[11px] ${muted}`}>
-                    {isStaticInterview
-                      ? 'Standard template · same outline for every project'
-                      : `AI questions · tailored to “${activeProject.name}”`}
+                    {`Build questions · tailored to “${activeProject.name}”`}
                   </span>
-                  {!isStaticInterview && interview.providerName ? (
+                  {interview.providerName ? (
                     <span className={`mt-0.5 block text-[10px] ${muted}`}>via {interview.providerName}</span>
                   ) : null}
                 </div>
@@ -915,16 +881,40 @@ export const DomainIntentView: React.FC<DomainIntentViewProps> = ({ onOpenArchit
                 </div>
                 <h3 className={`text-xl font-semibold tracking-tight ${isDark ? 'text-white' : 'text-slate-950'}`}>{currentQuestion.question}</h3>
                 {currentQuestion.context && <p className={`mt-2 text-sm leading-6 ${muted}`}>{currentQuestion.context}</p>}
+                {currentQuestion.allowMultiple ? (
+                  <p className={`mt-2 text-xs font-medium ${isDark ? 'text-blue-300/90' : 'text-blue-700'}`}>
+                    Select all that apply.
+                  </p>
+                ) : null}
               </div>
 
               <div className="grid gap-2 sm:grid-cols-2">
                 {currentQuestion.options.map(option => {
-                  const selected = selectedOptionId === option.id;
+                  const selected = currentQuestion.allowMultiple
+                    ? selectedOptionIds.includes(option.id)
+                    : selectedOptionId === option.id;
                   return (
                     <button
                       key={option.id}
                       type="button"
                       onClick={() => {
+                        if (currentQuestion.allowMultiple) {
+                          setCustomAnswer('');
+                          if (isExclusivePreferenceLabel(option.label)) {
+                            setSelectedOptionIds([option.id]);
+                            return;
+                          }
+                          setSelectedOptionIds(previous => {
+                            const withoutExclusive = previous.filter(id => {
+                              const match = currentQuestion.options.find(item => item.id === id);
+                              return match ? !isExclusivePreferenceLabel(match.label) : true;
+                            });
+                            return withoutExclusive.includes(option.id)
+                              ? withoutExclusive.filter(id => id !== option.id)
+                              : [...withoutExclusive, option.id];
+                          });
+                          return;
+                        }
                         setSelectedOptionId(option.id);
                         setCustomAnswer('');
                       }}
@@ -935,7 +925,9 @@ export const DomainIntentView: React.FC<DomainIntentViewProps> = ({ onOpenArchit
                       }`}
                     >
                       <div className="flex items-start gap-3">
-                        <span className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border ${
+                        <span className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center border ${
+                          currentQuestion.allowMultiple ? 'rounded-md' : 'rounded-full'
+                        } ${
                           selected ? 'border-blue-500 bg-blue-500 text-white' : isDark ? 'border-white/20' : 'border-slate-300'
                         }`}>
                           {selected && <Check className="h-3 w-3" />}
@@ -962,7 +954,10 @@ export const DomainIntentView: React.FC<DomainIntentViewProps> = ({ onOpenArchit
                   value={customAnswer}
                   onChange={event => {
                     setCustomAnswer(event.target.value);
-                    if (event.target.value) setSelectedOptionId('');
+                    if (event.target.value) {
+                      setSelectedOptionId('');
+                      setSelectedOptionIds([]);
+                    }
                   }}
                   placeholder="Or enter a different preference"
                   className={`mt-3 w-full rounded-lg border px-3 py-2.5 text-xs outline-none ${input}`}
@@ -982,7 +977,11 @@ export const DomainIntentView: React.FC<DomainIntentViewProps> = ({ onOpenArchit
                 <button
                   type="button"
                   onClick={saveCurrentAnswer}
-                  disabled={!selectedOptionId && !customAnswer.trim()}
+                  disabled={
+                    currentQuestion.allowMultiple
+                      ? selectedOptionIds.length === 0 && !customAnswer.trim()
+                      : !selectedOptionId && !customAnswer.trim()
+                  }
                   className="btn-primary-blue flex items-center gap-2 px-4 py-2.5 text-xs font-medium text-white disabled:cursor-not-allowed disabled:opacity-40"
                 >
                   {interview.currentQuestionIndex === interview.questions.length - 1 ? 'Review answers' : 'Continue'}

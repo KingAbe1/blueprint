@@ -24,7 +24,7 @@ export const GreenfieldAiBanner: React.FC = () => {
         <div className="flex min-w-0 items-center gap-2.5">
           <PlugZap className={`h-4 w-4 shrink-0 ${isDark ? 'text-blue-300' : 'text-blue-600'}`} />
           <p className={`text-xs leading-relaxed ${isDark ? 'text-blue-100/90' : 'text-blue-900'}`}>
-            Connect AI to generate build questions and polish your brief. You can still use the standard question template without a key.
+            Connect AI to generate build questions tailored to your brief and to polish your product description.
           </p>
         </div>
         <div className="flex shrink-0 items-center gap-2">

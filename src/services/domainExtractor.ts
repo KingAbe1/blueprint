@@ -170,3 +170,42 @@ export function parseProductBriefSections(text: string): ProductBriefSection[] {
 
   return sections;
 }
+
+export const BRIEF_SECTION_SERIALIZE_LABEL: Record<string, string> = {
+  summary: 'Summary',
+  audience: "Who it's for",
+  capabilities: 'What it does (first release)',
+  out_of_scope: 'Out of scope (for now)',
+};
+
+/** Writes parsed brief sections back to the plain-text format used in spec.description. */
+export function serializeProductBriefSections(sections: ProductBriefSection[]): string {
+  if (sections.length === 0) return '';
+
+  if (sections.length === 1 && sections[0].id === 'overview') {
+    const overview = sections[0];
+    const parts = [...overview.paragraphs.map(p => p.trim()).filter(Boolean)];
+    overview.bullets.forEach(bullet => {
+      const trimmed = bullet.trim();
+      if (trimmed) parts.push(`• ${trimmed}`);
+    });
+    return parts.join('\n').trim();
+  }
+
+  return sections
+    .map(section => {
+      const header = BRIEF_SECTION_SERIALIZE_LABEL[section.id] ?? section.title;
+      const lines: string[] = [header];
+      section.paragraphs.forEach(paragraph => {
+        const trimmed = paragraph.trim();
+        if (trimmed) lines.push(trimmed);
+      });
+      section.bullets.forEach(bullet => {
+        const trimmed = bullet.trim();
+        if (trimmed) lines.push(`• ${trimmed}`);
+      });
+      return lines.join('\n');
+    })
+    .join('\n\n')
+    .trim();
+}

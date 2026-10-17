@@ -3,14 +3,11 @@ import {
   ArrowLeft,
   ArrowRight,
   Check,
-  Code2,
   Copy,
   CornerDownLeft,
-  FileText,
   FolderCode,
   Layers,
   Loader2,
-  Network,
   SearchCode,
   Settings2,
   Trash2,
@@ -42,12 +39,6 @@ const SCAN_DELIVERABLES = [
   'Languages, frameworks, and entry points',
   'Folder structure and dependency inventory',
   'Static quality hints and optional AI review',
-] as const;
-
-const GREENFIELD_STEPS = [
-  { icon: FileText, label: 'Product blueprint', detail: 'Brief and build questions' },
-  { icon: Network, label: 'Architecture map', detail: 'Stack and system flow' },
-  { icon: Code2, label: 'Build handoff', detail: 'Agent-ready export' },
 ] as const;
 
 const IDEA_STARTERS = [
@@ -395,38 +386,6 @@ export const CreateProjectView: React.FC = () => {
     </div>
   ) : null;
 
-  const greenfieldStepsPanel = (
-    <div className={`mt-6 max-w-xl rounded-xl border px-4 py-4 sm:px-5 sm:py-5 ${border} ${isDark ? 'bg-white/[0.02]' : 'bg-white/60'}`}>
-      <p className={`text-[10px] font-medium uppercase tracking-wide ${muted}`}>What you&apos;ll do next</p>
-      <ol className="mt-3 flex flex-col gap-4 sm:flex-row sm:gap-6 lg:gap-8">
-        {GREENFIELD_STEPS.map((step, index) => {
-          const Icon = step.icon;
-          return (
-            <li
-              key={step.label}
-              className={`flex min-w-0 flex-1 flex-col gap-1.5 sm:max-w-[11rem] ${
-                index > 0 ? `sm:border-l sm:pl-6 lg:pl-8 ${border}` : ''
-              }`}
-            >
-              <span className={`flex items-center gap-2 text-xs font-medium ${titleText}`}>
-                <span
-                  className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md text-[10px] font-semibold tabular-nums ${
-                    isDark ? 'bg-blue-500/15 text-blue-200' : 'bg-blue-100 text-blue-800'
-                  }`}
-                >
-                  {index + 1}
-                </span>
-                <Icon className="h-3.5 w-3.5 shrink-0 opacity-70" strokeWidth={1.75} />
-                <span>{step.label}</span>
-              </span>
-              <span className={`text-[11px] leading-relaxed ${muted}`}>{step.detail}</span>
-            </li>
-          );
-        })}
-      </ol>
-    </div>
-  );
-
   return (
     <div
       className={`desktop-hub-shell relative flex h-full min-h-0 w-full flex-1 flex-col overflow-y-auto ${
@@ -555,8 +514,6 @@ export const CreateProjectView: React.FC = () => {
             })}
           </div>
 
-          {entryMode === 'greenfield' ? <div className="mb-2">{greenfieldStepsPanel}</div> : null}
-
           {codebaseError && (
             <p role="alert" className="mt-3 max-w-lg rounded-lg border border-rose-500/20 bg-rose-500/10 px-3 py-2 text-xs text-rose-500">
               {codebaseError}
@@ -564,7 +521,7 @@ export const CreateProjectView: React.FC = () => {
           )}
 
           {recentProjectsSection ? (
-            <div className={`hidden lg:block ${entryMode === 'greenfield' ? 'mt-10' : 'mt-8'}`}>{recentProjectsSection}</div>
+            <div className="mt-8 hidden lg:block">{recentProjectsSection}</div>
           ) : null}
         </section>
 
@@ -633,8 +590,7 @@ export const CreateProjectView: React.FC = () => {
                   >
                     <Settings2 className="mt-0.5 h-3.5 w-3.5 shrink-0 opacity-80" aria-hidden />
                     <p>
-                      Connect AI for tailored build questions. The{' '}
-                      <span className={isDark ? 'text-amber-50' : 'font-medium'}>standard question set</span> works without a key.{' '}
+                      Connect AI for build questions tailored to your product brief.{' '}
                       <button
                         type="button"
                         onClick={() => setIsSettingsOpen(true)}

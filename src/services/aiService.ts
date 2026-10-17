@@ -522,6 +522,7 @@ Requirements:
 - The category MUST match the question topic. Geo-fencing, map accuracy, and location refresh belong in product or realtime—not "approach". Maintenance alert lead time belongs in product or observability—not "operations" unless the question is literally about who owns the system. Reserve "approach" for how strict vs flexible Blueprint should be when choosing defaults. Reserve "operations" for who runs and maintains the system day to day.
 - Tailoring is mandatory: every question and option must reference this project (roles, features, data, workflows from the description)—never generic checklist wording.
 - Ask one decision per question. Questions must yield actionable constraints for an AI coding agent (scope, access, data accuracy, integrations, recovery, release process, monitoring, ownership, cost).
+- Set "allowMultiple": true when several options can legitimately apply together (e.g. multiple user roles, integrations, regions, or compliance needs). Keep "allowMultiple": false (default) for mutually exclusive choices (primary platform, deployment model, monolith vs services, budget tier).
 - Ask about outcomes and tradeoffs, not implementation jargon (no "REST vs GraphQL"; no database or framework names unless the description named them).
 - Balance product behavior vs build constraints: every question must change implementation choices (hosting, data retention, system shape, security, scale, release)—not fine-grained feature UX (geofence editor complexity, messaging screen layout) unless the brief leaves a compliance or integration gap. Cap feature-behavior questions at ~30% of the set; the rest should constrain how the system is built and operated.
 - For products that store operational or customer data (typical SaaS, fleet, admin tools), include at least one WHERE IT RUNS question (category deployment): managed cloud vs company-owned servers vs data residency—without naming AWS, Azure, or GCP.
@@ -559,6 +560,7 @@ Respond ONLY with a valid JSON object in this shape:
       "question": "How up to date should live information on the main screen feel?",
       "context": "Fresher updates usually mean more infrastructure work and cost.",
       "allowCustom": true,
+      "allowMultiple": false,
       "options": [
         {
           "id": "managed_cloud",
@@ -641,9 +643,12 @@ Respond ONLY with a valid JSON object in this shape:
     const fallbackRecommendedIndex = normalizedOptions.findIndex((option: ArchitectureQuestion['options'][number]) =>
       /let blueprint decide|no preference/i.test(option.label)
     );
-    normalizedOptions.forEach((option: ArchitectureQuestion['options'][number], index: number) => {
-      option.recommended = index === (recommendedIndex >= 0 ? recommendedIndex : fallbackRecommendedIndex);
-    });
+    const allowMultiple = Boolean(item.allowMultiple);
+    if (!allowMultiple) {
+      normalizedOptions.forEach((option: ArchitectureQuestion['options'][number], index: number) => {
+        option.recommended = index === (recommendedIndex >= 0 ? recommendedIndex : fallbackRecommendedIndex);
+      });
+    }
 
     return {
       id: String(item.id || `${category}_${questionIndex}`).toLowerCase().replace(/[^a-z0-9_-]/g, '_'),
@@ -651,6 +656,7 @@ Respond ONLY with a valid JSON object in this shape:
       question: String(item.question || 'Which approach should Blueprint use?').trim(),
       context: item.context ? String(item.context).trim() : undefined,
       allowCustom: item.allowCustom !== false,
+      allowMultiple,
       options: normalizedOptions,
     };
   }).filter((question: ArchitectureQuestion) => {

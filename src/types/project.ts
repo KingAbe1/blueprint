@@ -85,6 +85,8 @@ export interface ArchitectureQuestion {
   context?: string;
   options: ArchitectureOption[];
   allowCustom?: boolean;
+  /** When true, the user may pick more than one option (stored as comma-separated option ids). */
+  allowMultiple?: boolean;
 }
 
 export interface ArchitectureAnswer {
@@ -114,6 +116,8 @@ export interface ArchitecturalInterview {
 
 export interface ProjectSpec {
   description: string;
+  /** Rich-text HTML for product brief preview/editing; plain `description` is kept for AI. */
+  descriptionHtml?: string;
   /** One-line idea from home screen, used for first-run brief highlight. */
   initialOneLineIdea?: string;
   architecturePreference?: ArchitecturePreference;
