@@ -5,6 +5,7 @@ import { useTheme } from '../../context/ThemeContext';
 
 interface UsefulCommandsPanelProps {
   scripts: NonNullable<CodebaseAnalysis['scripts']>;
+  embedded?: boolean;
 }
 
 const SCRIPT_PURPOSES: Record<string, { label: string; badge: string; color: string }> = {
@@ -19,7 +20,7 @@ const SCRIPT_PURPOSES: Record<string, { label: string; badge: string; color: str
   'tauri:dev': { label: 'Launch Desktop Tauri App', badge: 'DESKTOP', color: 'text-rose-400 bg-rose-500/10 border-rose-500/20' },
 };
 
-export const UsefulCommandsPanel: React.FC<UsefulCommandsPanelProps> = React.memo(({ scripts }) => {
+export const UsefulCommandsPanel: React.FC<UsefulCommandsPanelProps> = React.memo(({ scripts, embedded = false }) => {
   const { isDark } = useTheme();
   const muted = isDark ? 'text-slate-400' : 'text-slate-500';
   const panel = isDark ? 'border-white/[0.08] bg-[#141518]' : 'border-slate-200/90 bg-white shadow-2xs';
@@ -37,28 +38,34 @@ export const UsefulCommandsPanel: React.FC<UsefulCommandsPanelProps> = React.mem
     }
   };
 
+  const shellClass = embedded ? 'px-5 py-4 sm:px-6' : `rounded-xl border p-4 sm:p-5 ${panel}`;
+  const Shell = embedded ? 'div' : 'section';
+  const title = isDark ? 'text-slate-100' : 'text-slate-900';
+
   return (
-    <section className={`rounded-xl border p-4 sm:p-5 ${panel}`}>
-      <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
-        <div className="flex items-center gap-2">
-          <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-blue-500/15 text-blue-400 border border-blue-500/20">
-            <Terminal className="h-3.5 w-3.5" />
-          </div>
-          <div>
+    <Shell className={shellClass}>
+      {!embedded ? (
+        <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+          <div className="flex items-center gap-2">
+            <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-blue-500/15 text-blue-400 border border-blue-500/20">
+              <Terminal className="h-3.5 w-3.5" />
+            </div>
             <h2 className={`text-xs font-semibold uppercase tracking-wider ${isDark ? 'text-slate-200' : 'text-slate-800'}`}>
               Available Package Scripts & Commands
             </h2>
           </div>
+          {scripts.length > 0 ? (
+            <span className={`text-[10px] font-mono ${muted}`}>
+              {scripts.length} declared {scripts.length === 1 ? 'script' : 'scripts'}
+            </span>
+          ) : null}
         </div>
-        {scripts.length > 0 && (
-          <span className={`text-[10px] font-mono ${muted}`}>
-            {scripts.length} declared {scripts.length === 1 ? 'script' : 'scripts'}
-          </span>
-        )}
-      </div>
+      ) : scripts.length > 0 ? (
+        <p className={`mb-3 text-[13px] ${muted}`}>{scripts.length} npm scripts from package.json</p>
+      ) : null}
 
       {scripts.length > 0 ? (
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className={`grid gap-3 ${embedded ? 'grid-cols-1' : 'sm:grid-cols-2'}`}>
           {scripts.map(script => {
             const runCommand = script.runCommand || `npm run ${script.name}`;
             const meta = SCRIPT_PURPOSES[script.name] || {
@@ -71,17 +78,25 @@ export const UsefulCommandsPanel: React.FC<UsefulCommandsPanelProps> = React.mem
             return (
               <div
                 key={script.name}
-                className={`group min-w-0 rounded-xl border p-3.5 flex flex-col justify-between transition-all ${
-                  isDark
-                    ? 'border-white/[0.06] bg-white/[0.02] hover:border-white/[0.12] hover:bg-white/[0.03]'
-                    : 'border-slate-200 bg-slate-50/70 hover:border-slate-300 hover:bg-white'
+                className={`group min-w-0 flex flex-col justify-between transition-colors ${
+                  embedded
+                    ? `border-b py-3 last:border-b-0 ${isDark ? 'border-white/[0.06]' : 'border-slate-200/90'}`
+                    : `rounded-xl border p-3.5 ${
+                        isDark
+                          ? 'border-white/[0.06] bg-white/[0.02] hover:border-white/[0.12] hover:bg-white/[0.03]'
+                          : 'border-slate-200 bg-slate-50/70 hover:border-slate-300 hover:bg-white'
+                      }`
                 }`}
               >
                 <div>
                   <div className="flex items-center justify-between gap-2 mb-2">
-                    <span className={`text-[8px] font-mono font-semibold px-1.5 py-0.2 rounded border ${meta.color}`}>
-                      {meta.badge}
-                    </span>
+                    {embedded ? (
+                      <span className={`text-sm font-medium ${title}`}>{script.name}</span>
+                    ) : (
+                      <span className={`text-[8px] font-mono font-semibold px-1.5 py-0.2 rounded border ${meta.color}`}>
+                        {meta.badge}
+                      </span>
+                    )}
                     <button
                       type="button"
                       onClick={() => void copyCommand(runCommand)}
@@ -99,9 +114,11 @@ export const UsefulCommandsPanel: React.FC<UsefulCommandsPanelProps> = React.mem
                       <span>{isCopied ? 'Copied' : 'Copy'}</span>
                     </button>
                   </div>
-                  <h4 className={`text-xs font-semibold ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>
-                    {meta.label}
-                  </h4>
+                  {!embedded ? (
+                    <h4 className={`text-xs font-semibold ${title}`}>{meta.label}</h4>
+                  ) : (
+                    <p className={`text-xs ${muted}`}>{meta.label}</p>
+                  )}
                 </div>
 
                 <div className="mt-3">
@@ -125,6 +142,6 @@ export const UsefulCommandsPanel: React.FC<UsefulCommandsPanelProps> = React.mem
           {copyError}
         </p>
       )}
-    </section>
+    </Shell>
   );
 });

@@ -12,7 +12,7 @@ export type CodebaseProjectSection = 'overview' | 'analysis' | 'quality';
 
 const SECTION_LABELS: Record<CodebaseProjectSection, string> = {
   overview: 'Overview',
-  analysis: 'Code',
+  analysis: 'Code analysis',
   quality: 'Quality',
 };
 

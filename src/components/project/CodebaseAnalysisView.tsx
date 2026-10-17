@@ -6,7 +6,6 @@ import {
   Loader2,
 } from 'lucide-react';
 import { CodebaseAnalysis } from '../../types/codebase';
-import { StartupAndTestsPanel } from './StartupAndTestsPanel';
 import { UsefulCommandsPanel } from './UsefulCommandsPanel';
 import { CodebaseQualityView } from './CodebaseQualityView';
 import { ProjectStructureTree } from './ProjectStructureTree';
@@ -18,10 +17,10 @@ import {
 import { FrameworkSpecializationPanel } from './FrameworkSpecializationPanel';
 import { LanguageDistributionBar } from './LanguageDistributionBar';
 import { DependencyInventoryPanel } from './DependencyInventoryPanel';
-import { CodebaseHotspotsPanel } from './CodebaseHotspotsPanel';
 import { useTheme } from '../../context/ThemeContext';
 import { useGitHub } from '../../context/GitHubContext';
 import { parseGitHubRemote } from '../../services/githubService';
+import { overviewBorderClass, overviewDivideClass, overviewPanelClass, overviewSeverityLabel } from './overviewUi';
 
 export type ProjectSection = CodebaseProjectSection;
 
@@ -85,11 +84,94 @@ const SUPPORTED_IDES: IDEOption[] = [
   },
 ];
 
+type CodeInspectorTab = 'packages' | 'scripts';
+
+interface CodeAnalysisVolumeStripProps {
+  analysis: CodebaseAnalysis;
+  isDark: boolean;
+  variant?: 'standalone' | 'footer';
+}
+
+const CodeAnalysisVolumeStrip: React.FC<CodeAnalysisVolumeStripProps> = React.memo(({
+  analysis,
+  isDark,
+  variant = 'standalone',
+}) => {
+  const muted = isDark ? 'text-slate-500' : 'text-slate-500';
+  const title = isDark ? 'text-slate-100' : 'text-slate-900';
+  const panel = overviewPanelClass(isDark);
+  const divide = overviewDivideClass(isDark);
+  const border = overviewBorderClass(isDark);
+
+  const metrics = (
+    <dl
+      className={`grid grid-cols-1 divide-y sm:grid-cols-3 sm:divide-x sm:divide-y-0 ${divide}`}
+      aria-label="Repository volume"
+    >
+      <div className="px-5 py-4 sm:px-6">
+        <dt className={`text-[13px] ${muted}`}>Files scanned</dt>
+        <dd className={`mt-2 text-xl font-medium tabular-nums tracking-tight ${title}`}>
+          {analysis.filesScanned.toLocaleString()}
+        </dd>
+      </div>
+      <div className="px-5 py-4 sm:px-6">
+        <dt className={`text-[13px] ${muted}`}>Source files</dt>
+        <dd className={`mt-2 text-xl font-medium tabular-nums tracking-tight ${title}`}>
+          {analysis.sourceFiles.toLocaleString()}
+        </dd>
+      </div>
+      <div className="px-5 py-4 sm:px-6">
+        <dt className={`text-[13px] ${muted}`}>Test files</dt>
+        <dd className={`mt-2 text-xl font-medium tabular-nums tracking-tight ${title}`}>
+          {(analysis.testFilesCount ?? 0).toLocaleString()}
+        </dd>
+      </div>
+    </dl>
+  );
+
+  if (variant === 'footer') {
+    return <div className={`border-t ${border}`}>{metrics}</div>;
+  }
+
+  return (
+    <section className={`overflow-hidden rounded-2xl border ${panel}`}>
+      <header className={`border-b px-5 py-4 sm:px-6 ${border}`}>
+        <h2 className={`text-[15px] font-medium ${title}`}>Repository</h2>
+        <p className={`mt-0.5 text-[13px] ${muted}`}>Scan coverage across the tree</p>
+      </header>
+      {metrics}
+    </section>
+  );
+});
+
+const CodeAnalysisTopSummary: React.FC<{ analysis: CodebaseAnalysis; isDark: boolean }> = React.memo(
+  ({ analysis, isDark }) => {
+    const panel = overviewPanelClass(isDark);
+    const languageFileTotal = (analysis.languages || []).reduce((acc, lang) => acc + lang.files, 0);
+
+    if (languageFileTotal === 0) {
+      return <CodeAnalysisVolumeStrip analysis={analysis} isDark={isDark} variant="standalone" />;
+    }
+
+    return (
+      <section className={`overflow-hidden rounded-2xl border ${panel}`}>
+        <LanguageDistributionBar languages={analysis.languages} variant="embedded" />
+        <CodeAnalysisVolumeStrip analysis={analysis} isDark={isDark} variant="footer" />
+      </section>
+    );
+  },
+);
+
 interface CodeAnalysisInspectorProps {
   analysis: CodebaseAnalysis;
   visibleScripts: NonNullable<CodebaseAnalysis['scripts']>;
   onOpenQualityTab?: () => void;
 }
+
+const INSPECTOR_TABS: { id: CodeInspectorTab; label: string }[] = [
+  { id: 'packages', label: 'Packages' },
+  { id: 'scripts', label: 'Scripts' },
+];
 
 const CodeAnalysisInspector: React.FC<CodeAnalysisInspectorProps> = React.memo(({
   analysis,
@@ -97,62 +179,85 @@ const CodeAnalysisInspector: React.FC<CodeAnalysisInspectorProps> = React.memo((
   onOpenQualityTab,
 }) => {
   const { isDark } = useTheme();
-  const [activeTab, setActiveTab] = useState<'packages' | 'hotspots' | 'startup' | 'scripts'>('packages');
+  const [activeTab, setActiveTab] = useState<CodeInspectorTab>('packages');
   const advisoryCount = analysis.dependencyRisk?.advisories?.length ?? 0;
   const packageCount = analysis.dependencyInventory?.packages.length || 0;
+  const hasPackages = packageCount > 0;
+
+  const muted = isDark ? 'text-slate-500' : 'text-slate-500';
+  const title = isDark ? 'text-slate-100' : 'text-slate-900';
+  const panel = overviewPanelClass(isDark);
+  const border = overviewBorderClass(isDark);
+
+  const tabCount = (id: CodeInspectorTab): number | null => {
+    if (id === 'packages') return packageCount || null;
+    if (id === 'scripts') return visibleScripts.length || null;
+    return null;
+  };
 
   return (
-    <div className="lg:col-span-7 space-y-4">
-      {/* Inspector Segmented Switcher */}
-      <div className={`flex items-center justify-between p-1 rounded-xl border ${
-        isDark ? 'border-white/[0.08] bg-black/25' : 'border-slate-200 bg-slate-100/70'
-      }`}>
-        {[
-          {
-            id: 'packages',
-            label: advisoryCount > 0
-              ? `Packages (${packageCount}) · ${advisoryCount} CVE`
-              : `Packages (${packageCount})`,
-          },
-          { id: 'hotspots', label: 'Hotspots' },
-          { id: 'startup', label: 'Run & test' },
-          { id: 'scripts', label: `Scripts (${analysis.scripts?.length || 0})` },
-        ].map(tab => (
-          <button
-            key={tab.id}
-            type="button"
-            onClick={() => setActiveTab(tab.id as typeof activeTab)}
-            className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-medium transition-colors ${
-              activeTab === tab.id
-                ? (isDark ? 'bg-[#1E2024] text-white shadow-xs border border-white/[0.08]' : 'bg-white text-slate-900 shadow-xs border border-slate-200/70')
-                : (isDark ? 'text-slate-400 hover:text-slate-200' : 'text-slate-600 hover:text-slate-900')
-            }`}
-          >
-            {tab.label}
-          </button>
-        ))}
+    <section className={`overflow-hidden rounded-2xl border lg:col-span-7 ${panel}`}>
+      <header className={`border-b px-5 py-4 sm:px-6 ${border}`}>
+        <h2 className={`text-[15px] font-medium ${title}`}>Dependencies & signals</h2>
+        <p className={`mt-0.5 text-[13px] ${muted}`}>
+          Lockfile inventory and npm scripts
+          {advisoryCount > 0 ? (
+            <>
+              {' · '}
+              <span className={overviewSeverityLabel(isDark, 'critical')}>{advisoryCount} CVE advisories</span>
+            </>
+          ) : null}
+        </p>
+      </header>
+
+      <div className={`overflow-x-auto border-b px-5 sm:px-6 ${border}`}>
+        <div className="flex min-w-max gap-0.5" role="tablist" aria-label="Code analysis views">
+          {INSPECTOR_TABS.map(tab => {
+            const selected = activeTab === tab.id;
+            const count = tabCount(tab.id);
+            return (
+              <button
+                key={tab.id}
+                type="button"
+                role="tab"
+                aria-selected={selected}
+                onClick={() => setActiveTab(tab.id)}
+                className={`-mb-px shrink-0 border-b-2 px-2.5 py-2.5 text-[13px] transition-colors sm:px-3 ${
+                  selected
+                    ? isDark
+                      ? 'border-blue-400 font-medium text-slate-100'
+                      : 'border-blue-600 font-medium text-slate-900'
+                    : isDark
+                      ? 'border-transparent text-slate-500 hover:text-slate-300'
+                      : 'border-transparent text-slate-500 hover:text-slate-800'
+                }`}
+              >
+                {tab.label}
+                {count != null ? (
+                  <span className={`ml-1 tabular-nums text-[11px] ${selected ? muted : 'opacity-60'}`}>{count}</span>
+                ) : null}
+              </button>
+            );
+          })}
+        </div>
       </div>
 
-      {/* Active Inspector Panel Content */}
-      <div>
-        <div className={activeTab === 'packages' ? 'block' : 'hidden'}>
+      <div className={activeTab === 'packages' ? 'block' : 'hidden'}>
+        {hasPackages ? (
           <DependencyInventoryPanel
+            embedded
             inventory={analysis.dependencyInventory}
             dependencyRisk={analysis.dependencyRisk}
             onViewSecurityDetails={onOpenQualityTab}
           />
-        </div>
-        <div className={activeTab === 'hotspots' ? 'block' : 'hidden'}>
-          <CodebaseHotspotsPanel analysis={analysis} />
-        </div>
-        <div className={activeTab === 'startup' ? 'block' : 'hidden'}>
-          <StartupAndTestsPanel analysis={analysis} />
-        </div>
-        <div className={activeTab === 'scripts' ? 'block' : 'hidden'}>
-          <UsefulCommandsPanel scripts={visibleScripts} />
-        </div>
+        ) : (
+          <p className={`px-5 py-8 text-center text-sm ${muted}`}>No lockfile inventory for this project.</p>
+        )}
       </div>
-    </div>
+      <div className={activeTab === 'scripts' ? 'block' : 'hidden'}>
+        <UsefulCommandsPanel embedded scripts={visibleScripts} />
+      </div>
+    </section>
   );
 });
 
@@ -487,26 +592,12 @@ export const CodebaseAnalysisView: React.FC<CodebaseAnalysisViewProps> = ({
           {/* ---------------------------------------------------- */}
           {/* TAB 2: CODE                                           */}
           {/* ---------------------------------------------------- */}
-          <div className={activeSection === 'analysis' ? 'space-y-5' : 'hidden'} role="tabpanel">
-            <LanguageDistributionBar languages={analysis.languages} />
+          <div className={activeSection === 'analysis' ? 'flex flex-col gap-4' : 'hidden'} role="tabpanel">
+            <CodeAnalysisTopSummary analysis={analysis} isDark={isDark} />
 
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
-              <div className="lg:col-span-5 space-y-4">
+            <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-12">
+              <div className="lg:col-span-5">
                 <ProjectStructureTree analysis={analysis} />
-
-                <div className={`p-4 rounded-xl border ${panel}`}>
-                  <p className={`text-[10px] font-semibold uppercase tracking-wider mb-2.5 ${muted}`}>Repository volume</p>
-                  <div className="grid grid-cols-2 gap-3 text-center">
-                    <div className={`p-3 rounded-lg border ${isDark ? 'bg-white/[0.02] border-white/[0.05]' : 'bg-slate-50 border-slate-200/70'}`}>
-                      <p className="text-xl font-bold">{analysis.filesScanned.toLocaleString()}</p>
-                      <p className={`text-[10px] mt-0.5 ${muted}`}>Files scanned</p>
-                    </div>
-                    <div className={`p-3 rounded-lg border ${isDark ? 'bg-white/[0.02] border-white/[0.05]' : 'bg-slate-50 border-slate-200/70'}`}>
-                      <p className="text-xl font-bold">{analysis.sourceFiles.toLocaleString()}</p>
-                      <p className={`text-[10px] mt-0.5 ${muted}`}>Source files</p>
-                    </div>
-                  </div>
-                </div>
               </div>
 
               <CodeAnalysisInspector

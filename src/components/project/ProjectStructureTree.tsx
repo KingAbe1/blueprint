@@ -18,6 +18,7 @@ import {
 import { CodebaseAnalysis } from '../../types/codebase';
 import { useTheme } from '../../context/ThemeContext';
 import { normalizeTreeFilePath, useCodebaseWorkspace } from '../../context/CodebaseWorkspaceContext';
+import { overviewBorderClass, overviewPanelClass } from './overviewUi';
 
 interface ProjectTreeNode {
   name: string;
@@ -129,8 +130,10 @@ interface ProjectStructureTreeProps {
 export const ProjectStructureTree: React.FC<ProjectStructureTreeProps> = React.memo(({ analysis }) => {
   const { isDark } = useTheme();
   const { pendingTreeFilePath, consumePendingTreeFilePath } = useCodebaseWorkspace();
-  const muted = isDark ? 'text-slate-400' : 'text-slate-500';
-  const panel = isDark ? 'border-white/[0.08] bg-[#141518]' : 'border-slate-200/90 bg-white shadow-2xs';
+  const muted = isDark ? 'text-slate-500' : 'text-slate-500';
+  const title = isDark ? 'text-slate-100' : 'text-slate-900';
+  const panel = overviewPanelClass(isDark);
+  const border = overviewBorderClass(isDark);
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(() => new Set(['.']));
   const [filterQuery, setFilterQuery] = useState('');
   const [selectedFile, setSelectedFile] = useState<string | null>(null);
@@ -292,17 +295,13 @@ export const ProjectStructureTree: React.FC<ProjectStructureTreeProps> = React.m
   };
 
   return (
-    <section className={`rounded-xl border p-4 sm:p-5 ${panel}`}>
-      <div className="flex items-center justify-between gap-2 mb-3">
-        <div className="flex items-center gap-2">
-          <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-amber-500/15 text-amber-400 border border-amber-500/20">
-            <Folder className="h-3.5 w-3.5" />
-          </div>
-          <h2 className={`text-xs font-semibold uppercase tracking-wider ${isDark ? 'text-slate-200' : 'text-slate-800'}`}>
-            Project files
-          </h2>
+    <section className={`overflow-hidden rounded-2xl border ${panel}`}>
+      <header className={`flex items-center justify-between gap-2 border-b px-5 py-4 sm:px-6 ${border}`}>
+        <div>
+          <h2 className={`text-[15px] font-medium ${title}`}>Project structure</h2>
+          <p className={`mt-0.5 text-[13px] ${muted}`}>{analysis.filesScanned.toLocaleString()} paths in tree</p>
         </div>
-        {projectTree.children.length > 0 && (
+        {projectTree.children.length > 0 ? (
           <button
             type="button"
             onClick={() =>
@@ -310,14 +309,18 @@ export const ProjectStructureTree: React.FC<ProjectStructureTreeProps> = React.m
                 current.size > 1 ? new Set(['.']) : new Set(getExpandableFolderPaths(projectTree))
               )
             }
-            className={`text-[10px] font-medium transition-colors ${
-              isDark ? 'text-blue-400 hover:text-blue-300' : 'text-blue-600 hover:text-blue-700'
-            }`}
+            className={
+              isDark
+                ? 'shrink-0 text-xs font-medium text-blue-400 hover:text-blue-300'
+                : 'shrink-0 text-xs font-medium text-blue-600 hover:text-blue-800'
+            }
           >
-            {expandedFolders.size > 1 ? 'Collapse all' : 'Expand folders'}
+            {expandedFolders.size > 1 ? 'Collapse all' : 'Expand all'}
           </button>
-        )}
-      </div>
+        ) : null}
+      </header>
+
+      <div className="px-5 py-4 sm:px-6">
 
       {/* Filter / Search file tree */}
       <div className="relative mb-3">
@@ -416,11 +419,10 @@ export const ProjectStructureTree: React.FC<ProjectStructureTreeProps> = React.m
         </div>
       )}
 
-      {!hasDetailedTree && projectTree.children.length > 0 && (
-        <p className={`mt-2 text-[10px] ${muted}`}>
-          Rescan this codebase to capture its full file structure.
-        </p>
-      )}
+      {!hasDetailedTree && projectTree.children.length > 0 ? (
+        <p className={`mt-2 text-xs ${muted}`}>Rescan to capture the full file structure.</p>
+      ) : null}
+      </div>
     </section>
   );
 });

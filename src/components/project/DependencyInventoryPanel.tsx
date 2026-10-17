@@ -21,6 +21,8 @@ interface DependencyInventoryPanelProps {
   inventory?: DependencyInventory;
   dependencyRisk?: DependencyRiskAssessment;
   onViewSecurityDetails?: () => void;
+  /** Omit outer panel chrome when nested in Code analysis inspector. */
+  embedded?: boolean;
 }
 
 const SEVERITY_RANK: Record<DependencySeverity, number> = {
@@ -57,6 +59,7 @@ export const DependencyInventoryPanel: React.FC<DependencyInventoryPanelProps> =
   inventory,
   dependencyRisk,
   onViewSecurityDetails,
+  embedded = false,
 }) => {
   const { isDark } = useTheme();
   const [searchQuery, setSearchQuery] = useState('');
@@ -162,26 +165,37 @@ export const DependencyInventoryPanel: React.FC<DependencyInventoryPanelProps> =
     return null;
   }
 
+  const shellClass = embedded ? 'px-5 py-4 sm:px-6' : `rounded-xl border p-4 sm:p-5 ${panel}`;
+  const Shell = embedded ? 'div' : 'section';
+
   return (
-    <section className={`rounded-xl border p-4 sm:p-5 ${panel}`}>
-      {/* Header */}
-      <div className="flex flex-wrap items-center justify-between gap-3 mb-3.5">
-        <div className="flex items-center gap-2">
-          <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-violet-500/15 text-violet-400 border border-violet-500/20">
-            <Package className="h-3.5 w-3.5" />
-          </div>
-          <h2 className={`text-xs font-semibold uppercase tracking-wider ${isDark ? 'text-slate-200' : 'text-slate-800'}`}>
-            Dependency & Package Inventory
-          </h2>
-          <span className={`rounded-full px-2 py-0.5 text-[9px] font-mono border ${
-            isDark ? 'border-violet-500/30 bg-violet-500/10 text-violet-300' : 'border-violet-200 bg-violet-50 text-violet-700'
-          }`}>
-            {inventory.ecosystem} ({inventory.lockfiles[0] ? inventory.lockfiles[0].split('/').pop() : 'locked'})
-          </span>
-        </div>
-        <span className={`text-[11px] font-mono ${muted}`}>
-          {packages.length.toLocaleString()} locked · {inventory.declaredDependencies} declared
-        </span>
+    <Shell className={shellClass}>
+      <div className={`flex flex-wrap items-center justify-between gap-2 ${embedded ? 'mb-3' : 'mb-3.5'}`}>
+        {embedded ? (
+          <p className={`text-[13px] ${muted}`}>
+            {inventory.ecosystem} · {packages.length.toLocaleString()} locked · {inventory.declaredDependencies}{' '}
+            declared
+          </p>
+        ) : (
+          <>
+            <div className="flex items-center gap-2">
+              <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-violet-500/15 text-violet-400 border border-violet-500/20">
+                <Package className="h-3.5 w-3.5" />
+              </div>
+              <h2 className={`text-xs font-semibold uppercase tracking-wider ${isDark ? 'text-slate-200' : 'text-slate-800'}`}>
+                Dependency & Package Inventory
+              </h2>
+              <span className={`rounded-full px-2 py-0.5 text-[9px] font-mono border ${
+                isDark ? 'border-violet-500/30 bg-violet-500/10 text-violet-300' : 'border-violet-200 bg-violet-50 text-violet-700'
+              }`}>
+                {inventory.ecosystem} ({inventory.lockfiles[0] ? inventory.lockfiles[0].split('/').pop() : 'locked'})
+              </span>
+            </div>
+            <span className={`text-[11px] font-mono ${muted}`}>
+              {packages.length.toLocaleString()} locked · {inventory.declaredDependencies} declared
+            </span>
+          </>
+        )}
       </div>
 
       {dependencyRisk ? (
@@ -470,6 +484,6 @@ export const DependencyInventoryPanel: React.FC<DependencyInventoryPanelProps> =
           </div>
         </div>
       )}
-    </section>
+    </Shell>
   );
 });

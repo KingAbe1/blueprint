@@ -2,14 +2,11 @@ import React from 'react';
 import { useTheme } from '../../context/ThemeContext';
 import {
   CodebaseProjectSection,
+  getCodebaseSectionLabel,
   useCodebaseWorkspace,
 } from '../../context/CodebaseWorkspaceContext';
 
-const SECTIONS: Array<{ id: CodebaseProjectSection; label: string }> = [
-  { id: 'overview', label: 'Overview' },
-  { id: 'analysis', label: 'Code' },
-  { id: 'quality', label: 'Quality' },
-];
+const SECTION_IDS: CodebaseProjectSection[] = ['overview', 'analysis', 'quality'];
 
 interface CodebaseSectionNavProps {
   qualityScore?: number | null;
@@ -34,13 +31,14 @@ export const CodebaseSectionNav: React.FC<CodebaseSectionNavProps> = ({
       aria-label="Codebase sections"
       className={`inline-flex max-w-full items-center gap-0.5 overflow-x-auto rounded-xl border p-1 ${track}`}
     >
-      {SECTIONS.map(section => {
-        const selected = current === section.id;
+      {SECTION_IDS.map(sectionId => {
+        const selected = current === sectionId;
+        const label = getCodebaseSectionLabel(sectionId);
         return (
           <button
-            key={section.id}
+            key={sectionId}
             type="button"
-            onClick={() => selectSection(section.id)}
+            onClick={() => selectSection(sectionId)}
             aria-current={selected ? 'page' : undefined}
             className={`flex shrink-0 items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[11px] font-semibold transition-colors sm:px-3 ${
               selected
@@ -50,8 +48,8 @@ export const CodebaseSectionNav: React.FC<CodebaseSectionNavProps> = ({
                   : 'text-slate-600 hover:bg-white hover:text-slate-900'
             }`}
           >
-            <span>{section.label}</span>
-            {section.id === 'quality' && typeof qualityScore === 'number' ? (
+            <span>{label}</span>
+            {sectionId === 'quality' && typeof qualityScore === 'number' ? (
               <span
                 className={`rounded-full px-1.5 py-0.5 font-mono text-[10px] font-semibold ${
                   qualityScore < 60
@@ -70,7 +68,7 @@ export const CodebaseSectionNav: React.FC<CodebaseSectionNavProps> = ({
                 {qualityScore}
               </span>
             ) : null}
-            {section.id === 'quality' && openIssueCount > 0 ? (
+            {sectionId === 'quality' && openIssueCount > 0 ? (
               <span
                 className={`rounded-full px-1.5 py-0.5 font-mono text-[10px] font-semibold ${
                   isDark ? 'bg-rose-500/15 text-rose-200' : 'bg-rose-100 text-rose-900'
