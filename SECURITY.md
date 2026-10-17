@@ -2,40 +2,40 @@
 
 ## Supported versions
 
-Security fixes are applied on the default branch (`main`). There are no long-term support releases yet - use the latest commit or release tag.
+Fixes land on the default branch (`main`). No LTS releases yet - use latest `main` or your release tag.
 
 ## Reporting a vulnerability
 
-**Please do not open a public GitHub issue for security vulnerabilities.**
+Do **not** post exploit details in a public issue.
 
-Instead, report them privately:
+### If the repo is private (current)
 
-1. Use [GitHub private vulnerability reporting](https://github.com/KingAbe1/blueprint/security/advisories/new) (recommended).
+GitHub’s **Security → Advisories** pages often return **404** for private repositories (and for people who are not collaborators). That is normal.
+
+**Reporters who have repo access:** open a [private security advisory](https://github.com/KingAbe1/blueprint/security/advisories) from the repo (must be logged in with access). If that tab is missing, use a private issue or contact the maintainer below.
+
+**Everyone else:** email the maintainer via the contact on [github.com/KingAbe1](https://github.com/KingAbe1) (profile email if listed) or an address you publish on [blueprint-web-chi.vercel.app](https://blueprint-web-chi.vercel.app/). Put “security - blueprint” in the subject.
 
 Include when you can:
 
-- Description of the issue and impact
+- What breaks and why it matters
 - Steps to reproduce
-- Affected version or commit SHA
-- Any suggested fix (optional)
+- Commit or version
+- Optional fix idea
 
-Maintainers will reply when they can and coordinate disclosure after a fix.
+### After the repo is public (recommended setup)
+
+1. On GitHub: **Settings → General → Security → Private vulnerability reporting** → enable **Private vulnerability reporting**.
+2. Then this link works for researchers: [Report a vulnerability](https://github.com/KingAbe1/blueprint/security/advisories/new) (they must be signed in; GitHub keeps the report private until you publish).
+
+Optional: **Settings → Code security** → enable Dependabot alerts for dependency CVEs.
 
 ## Scope
 
-In scope:
+In scope: blueprint studio app code (web + Tauri + Rust handoff paths), unsafe export paths, cross-project localStorage leaks.
 
-- blueprint studio application code (web UI, Tauri shell, Rust commands)
-- Path handling for handoff export (`safe_handoff_path`, folder write APIs)
-- Local storage handling that could leak data across origins or projects
-- Dependency vulnerabilities in this repo’s direct build chain (report via maintainers or Dependabot)
+Out of scope: user AI keys, malicious code inside scanned third-party repos, compromised developer machines.
 
-Out of scope (user responsibility):
+## Contributors
 
-- Misconfiguration of AI providers (users supply keys and choose models)
-- Malicious code inside **scanned third-party repositories**
-- OS-level compromises on the developer machine
-
-## Secure development expectations
-
-Contributors must not commit API keys, tokens, or `.env` files. PRs that add network calls must document data flows and keep user content **opt-in**, consistent with [CONTRIBUTING.md](./CONTRIBUTING.md).
+No secrets in git. New network calls must be opt-in and documented ([CONTRIBUTING.md](./CONTRIBUTING.md)).
