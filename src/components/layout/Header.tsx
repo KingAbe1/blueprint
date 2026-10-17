@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Check, Code2, FileText, LayoutGrid, Moon, Network, Settings2, Sun } from 'lucide-react';
+import { ArrowRight, Check, Code2, FileText, LayoutGrid, Moon, Network, Settings2, Sun } from 'lucide-react';
 import { useProjects } from '../../context/ProjectContext';
 import { useTheme } from '../../context/ThemeContext';
 import { useAI } from '../../context/AIContext';
@@ -130,10 +130,13 @@ export const Header: React.FC<HeaderProps> = ({
     (codebaseAnalysis?.quality?.findings?.length ?? 0)
     + (codebaseAnalysis?.dependencyRisk?.advisories?.length ?? 0);
 
-  const handoffReady = Boolean(
+  const architectureReady = Boolean(
     activeProject?.spec.interview?.status === 'completed'
-    && (activeProject.spec.frameworkRecommendation || activeProject.spec.frameworkRecommendations?.[0]),
+    && (activeProject?.spec.frameworkRecommendation || activeProject?.spec.frameworkRecommendations?.[0]),
   );
+  const handoffReady = architectureReady;
+  const showArchitectureReadyCta =
+    inGreenfieldProject && architectureReady && activeTab === 'domain-intent' && Boolean(onSelectTab);
 
   const desktop = isDesktopApp();
   const interactiveChrome = desktop ? 'no-drag' : '';
@@ -259,6 +262,20 @@ export const Header: React.FC<HeaderProps> = ({
         ) : null}
 
         <div className="flex min-w-0 shrink-0 items-center justify-end justify-self-end gap-1.5">
+          {showArchitectureReadyCta ? (
+            <button
+              type="button"
+              onClick={() => onSelectTab?.('architecture-map')}
+              className={`hidden items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-[11px] font-medium transition-colors sm:inline-flex ${
+                isDark
+                  ? 'border-emerald-500/25 bg-emerald-500/[0.08] text-emerald-300 hover:bg-emerald-500/[0.12]'
+                  : 'border-emerald-200 bg-emerald-50 text-emerald-800 hover:bg-emerald-100'
+              }`}
+            >
+              Architecture ready
+              <ArrowRight className="h-3.5 w-3.5 opacity-80" />
+            </button>
+          ) : null}
           {showCodebaseNav ? <CodebaseHeaderToolbar /> : null}
           {utilityActions}
         </div>

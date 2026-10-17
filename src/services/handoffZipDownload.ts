@@ -1,4 +1,5 @@
 import { HandoffFile } from '../types/project';
+import { triggerBrowserDownload } from '../utils/browserDownload';
 
 /** Builds a ZIP blob from handoff files (store-only, no compression). */
 export async function buildHandoffZipBlob(files: HandoffFile[]): Promise<Blob> {
@@ -31,7 +32,7 @@ export async function buildHandoffZipBlob(files: HandoffFile[]): Promise<Blob> {
       nameBytes,
       dataBytes,
     );
-    parts.push(localChunk);
+    parts.push(toBlobPart(localChunk));
 
     const cdHeader = new DataView(new ArrayBuffer(46 + nameBytes.length));
     cdHeader.setUint32(0, 0x02014b50, true);
@@ -68,19 +69,18 @@ export async function buildHandoffZipBlob(files: HandoffFile[]): Promise<Blob> {
   end.setUint32(16, offset, true);
   end.setUint16(20, 0, true);
 
-  parts.push(cdBlob, new Uint8Array(end.buffer));
+  parts.push(toBlobPart(cdBlob), toBlobPart(new Uint8Array(end.buffer)));
   return new Blob(parts, { type: 'application/zip' });
+}
+
+function toBlobPart(bytes: Uint8Array): BlobPart {
+  return bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer;
 }
 
 export function downloadHandoffZip(files: HandoffFile[], projectName: string) {
   void buildHandoffZipBlob(files).then(blob => {
     const slug = projectName.trim().replace(/\s+/g, '-').toLowerCase() || 'handoff';
-    const url = URL.createObjectURL(blob);
-    const anchor = document.createElement('a');
-    anchor.href = url;
-    anchor.download = `${slug}-handoff.zip`;
-    anchor.click();
-    URL.revokeObjectURL(url);
+    triggerBrowserDownload(blob, `${slug}-handoff.zip`);
   });
 }
 

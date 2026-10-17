@@ -408,6 +408,20 @@ fn export_handoff_files(
 }
 
 #[tauri::command]
+fn write_export_file(path: String, data: Vec<u8>) -> Result<(), String> {
+    let destination = PathBuf::from(&path);
+    if !destination.is_absolute() {
+        return Err("Export path must be absolute.".into());
+    }
+    if let Some(parent) = destination.parent() {
+        fs::create_dir_all(parent)
+            .map_err(|error| format!("Could not create {}: {error}", parent.display()))?;
+    }
+    fs::write(&destination, data)
+        .map_err(|error| format!("Could not write {}: {error}", destination.display()))
+}
+
+#[tauri::command]
 fn open_handoff_folder(target_dir: String) -> Result<(), String> {
     let root = PathBuf::from(target_dir);
     if !root.is_absolute() || !root.is_dir() {
@@ -464,7 +478,8 @@ pub fn run() {
             read_codebase_files,
             inspect_handoff_conflicts,
             export_handoff_files,
-            open_handoff_folder
+            open_handoff_folder,
+            write_export_file
         ])
         .setup(|_app| {
             Ok(())

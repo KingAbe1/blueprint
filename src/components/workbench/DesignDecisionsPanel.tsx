@@ -3,7 +3,7 @@ import { ChevronDown } from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
 import { ArchitecturalInterview } from '../../types/project';
 import { overviewDivideClass } from '../project/overviewUi';
-import { CATEGORY_LABELS, DECISION_GROUPS } from './architectureInterviewLabels';
+import { CATEGORY_LABELS, CATEGORY_MAP_NODE, DECISION_GROUPS } from './architectureInterviewLabels';
 import { workbenchTheme } from './workbenchUi';
 
 interface DesignDecisionsPanelProps {
@@ -11,12 +11,17 @@ interface DesignDecisionsPanelProps {
   /** When false, content starts collapsed behind the header row. */
   defaultExpanded?: boolean;
   className?: string;
+  /** When set, decision rows can focus the linked map node. */
+  onFocusMapNode?: (nodeId: string) => void;
+  focusedMapNodeId?: string | null;
 }
 
 export const DesignDecisionsPanel: React.FC<DesignDecisionsPanelProps> = ({
   interview,
   defaultExpanded = true,
   className = '',
+  onFocusMapNode,
+  focusedMapNodeId,
 }) => {
   const { isDark } = useTheme();
   const [expanded, setExpanded] = useState(defaultExpanded);
@@ -109,13 +114,44 @@ export const DesignDecisionsPanel: React.FC<DesignDecisionsPanelProps> = ({
                   <div className={`divide-y ${divide}`}>
                     {groupQuestions.map(question => {
                       const answer = interview.answers.find(item => item.questionId === question.id);
-                      return (
-                        <div key={question.id} className="px-4 py-3">
+                      const mapNodeId = CATEGORY_MAP_NODE[question.category];
+                      const isLinked = Boolean(mapNodeId && onFocusMapNode);
+                      const isFocused = mapNodeId && focusedMapNodeId === mapNodeId;
+                      const rowClass = `px-4 py-3 text-left w-full transition-colors ${
+                        isFocused ? (isDark ? 'bg-blue-500/[0.08]' : 'bg-blue-50/80') : ''
+                      } ${isLinked ? (isDark ? 'hover:bg-white/[0.03] cursor-pointer' : 'hover:bg-slate-50 cursor-pointer') : ''}`;
+
+                      const content = (
+                        <>
                           <p className={`text-[10px] uppercase tracking-wide ${muted}`}>
                             {CATEGORY_LABELS[question.category]}
+                            {isLinked ? (
+                              <span className={`ml-2 normal-case tracking-normal ${isDark ? 'text-blue-400/90' : 'text-blue-600'}`}>
+                                · Show on map
+                              </span>
+                            ) : null}
                           </p>
                           <p className={`mt-1 text-xs leading-relaxed ${muted}`}>{question.question}</p>
                           <p className={`mt-2 text-[13px] ${titleText}`}>{answer?.label || 'No preference'}</p>
+                        </>
+                      );
+
+                      if (isLinked && mapNodeId) {
+                        return (
+                          <button
+                            key={question.id}
+                            type="button"
+                            onClick={() => onFocusMapNode?.(mapNodeId)}
+                            className={rowClass}
+                          >
+                            {content}
+                          </button>
+                        );
+                      }
+
+                      return (
+                        <div key={question.id} className={rowClass}>
+                          {content}
                         </div>
                       );
                     })}

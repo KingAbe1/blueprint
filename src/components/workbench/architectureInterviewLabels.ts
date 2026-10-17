@@ -26,6 +26,33 @@ export const CATEGORY_LABELS: Record<ArchitectureQuestion['category'], string> =
   budget: 'Cost constraints',
 };
 
+/** Map build-question categories to architecture map node ids (for “show on map”). */
+export const CATEGORY_MAP_NODE: Partial<Record<ArchitectureQuestion['category'], string>> = {
+  product: 'people',
+  users: 'people',
+  platform: 'experience',
+  ui: 'experience',
+  frontend: 'experience',
+  access: 'access',
+  security: 'access',
+  topology: 'services',
+  backend: 'services',
+  api: 'services',
+  approach: 'services',
+  scale: 'services',
+  compliance: 'services',
+  data: 'data',
+  realtime: 'data',
+  integrations: 'integrations',
+  deployment: 'delivery',
+  delivery: 'delivery',
+  budget: 'delivery',
+  testing: 'operations',
+  observability: 'operations',
+  reliability: 'operations',
+  operations: 'operations',
+};
+
 export const DECISION_GROUPS: Array<{
   title: string;
   description: string;

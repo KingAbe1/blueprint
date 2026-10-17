@@ -3,17 +3,17 @@ import { IDETarget } from '../types/project';
 
 const STORAGE_KEY = 'blueprint_handoff_prefs_v1';
 
-type StoredTarget = {
+type StoredTauriTarget = {
   name: string;
   path: string;
-  kind: HandoffTarget['kind'];
+  kind: 'tauri';
 };
 
 type PrefsMap = Record<
   string,
   {
     ide?: IDETarget;
-    target?: StoredTarget;
+    target?: StoredTauriTarget;
   }
 >;
 
@@ -41,7 +41,7 @@ export function loadHandoffPrefs(projectId: string): { ide?: IDETarget; target?:
   return {
     ide: entry.ide,
     target: entry.target
-      ? { name: entry.target.name, path: entry.target.path, kind: entry.target.kind }
+      ? { name: entry.target.name, path: entry.target.path, kind: 'tauri' as const }
       : undefined,
   };
 }
@@ -52,11 +52,15 @@ export function saveHandoffPrefs(
 ) {
   const map = readMap();
   const prev = map[projectId] ?? {};
+  let nextTarget = prev.target;
+  if (patch.target === null) {
+    nextTarget = undefined;
+  } else if (patch.target?.kind === 'tauri') {
+    nextTarget = { name: patch.target.name, path: patch.target.path, kind: 'tauri' };
+  }
   map[projectId] = {
     ide: patch.ide ?? prev.ide,
-    target: patch.target === null ? undefined : patch.target
-      ? { name: patch.target.name, path: patch.target.path, kind: patch.target.kind }
-      : prev.target,
+    target: nextTarget,
   };
   writeMap(map);
 }

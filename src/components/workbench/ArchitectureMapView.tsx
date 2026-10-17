@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { ArrowLeft, ArrowRight, Check, Cloud, Database, Layers, Map, MonitorSmartphone, Server } from 'lucide-react';
 import { useProjects } from '../../context/ProjectContext';
 import { useTheme } from '../../context/ThemeContext';
@@ -30,6 +30,7 @@ export const ArchitectureMapView: React.FC<ArchitectureMapViewProps> = ({ onEdit
   const ready = interview?.status === 'completed' && Boolean(recommendation);
   const desktop = isDesktopApp();
   const { border, panel, muted, title: titleText, inner } = workbenchTheme(isDark);
+  const [focusedMapNodeId, setFocusedMapNodeId] = useState<string | null>(null);
 
   const decisions = useMemo(() => {
     if (interview?.status !== 'completed') return [];
@@ -153,12 +154,20 @@ export const ArchitectureMapView: React.FC<ArchitectureMapViewProps> = ({ onEdit
               recommendation={recommendation}
               decisions={decisions}
               isDark={isDark}
+              exportTitle={`${activeProject.name} architecture map`}
+              highlightedNodeId={focusedMapNodeId}
+              onHighlightNode={setFocusedMapNodeId}
               persistedLayout={activeProject.spec.architectureMapLayout}
               onPersistLayout={layout => updateProjectSpec(activeProject.id, { architectureMapLayout: layout })}
             />
 
             {interview?.status === 'completed' ? (
-              <DesignDecisionsPanel interview={interview} defaultExpanded />
+              <DesignDecisionsPanel
+                interview={interview}
+                defaultExpanded
+                focusedMapNodeId={focusedMapNodeId}
+                onFocusMapNode={nodeId => setFocusedMapNodeId(nodeId)}
+              />
             ) : null}
 
             {recommendation.whyReasons && recommendation.whyReasons.length > 0 && (

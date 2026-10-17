@@ -15,7 +15,11 @@ import {
   ServerCog,
   ShieldCheck,
   UserRound,
+  Download,
+  ImageDown,
 } from 'lucide-react';
+import { buildArchitectureMapSvg, exportArchitectureMapFile } from '../../services/architectureMapExport';
+import { useNotification } from '../../context/NotificationContext';
 import {
   ArchitectureMapLayout,
   ArchitectureQuestion,
@@ -34,6 +38,9 @@ interface ArchitectureMapProps {
   recommendation: FrameworkRecommendation;
   decisions: ArchitectureDecision[];
   isDark: boolean;
+  exportTitle?: string;
+  highlightedNodeId?: string | null;
+  onHighlightNode?: (nodeId: string | null) => void;
   persistedLayout?: ArchitectureMapLayout;
   onPersistLayout?: (layout: ArchitectureMapLayout) => void;
 }
@@ -283,9 +290,13 @@ export const ArchitectureMap: React.FC<ArchitectureMapProps> = ({
   recommendation,
   decisions,
   isDark,
+  exportTitle = 'Architecture map',
+  highlightedNodeId,
+  onHighlightNode,
   persistedLayout,
   onPersistLayout,
 }) => {
+  const { notify } = useNotification();
   const topology = recommendationTopology(recommendation);
   const selectedTopology = topologyMeta[topology];
   const systemModules = recommendation.systemModules?.length ? recommendation.systemModules : fallbackModules(decisions);
@@ -388,6 +399,7 @@ export const ArchitectureMap: React.FC<ArchitectureMapProps> = ({
   const [zoom, setZoom] = useState(() => seedLayoutState(persistedLayout).zoom);
   const [pan, setPan] = useState<Point>(() => seedLayoutState(persistedLayout).pan);
   const [isExpanded, setIsExpanded] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
   const viewportRef = useRef<HTMLDivElement | null>(null);
   const dragRef = useRef<{ id: string; pointerId: number; startX: number; startY: number; origin: Point } | null>(null);
   const panRef = useRef<{ pointerId: number; startX: number; startY: number; origin: Point } | null>(null);
@@ -439,6 +451,48 @@ export const ArchitectureMap: React.FC<ArchitectureMapProps> = ({
   // Restore saved map view when switching projects only.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectId]);
+
+  useEffect(() => {
+    if (!highlightedNodeId) return;
+    if (visibleNodeIds.has(highlightedNodeId)) {
+      setActiveNodeId(highlightedNodeId);
+    }
+  }, [highlightedNodeId, visibleNodeIds]);
+
+  const exportMap = async (format: 'svg' | 'png') => {
+    if (isExporting) return;
+    const safeName = exportTitle.replace(/[^\w\s-]/g, '').trim().replace(/\s+/g, '-').toLowerCase() || 'architecture-map';
+    const filename = `${safeName}.${format}`;
+    const svg = buildArchitectureMapSvg({
+      width: CANVAS_WIDTH,
+      height: CANVAS_HEIGHT,
+      title: exportTitle,
+      isDark,
+      nodes: visibleNodes.map(node => ({ id: node.id, eyebrow: node.eyebrow, label: node.label })),
+      positions,
+      edges: visibleEdges,
+    });
+
+    setIsExporting(true);
+    try {
+      const saved = await exportArchitectureMapFile({
+        format,
+        filename,
+        svg,
+        width: CANVAS_WIDTH,
+        height: CANVAS_HEIGHT,
+        isDark,
+      });
+      if (saved) {
+        notify.success(`${format.toUpperCase()} export ready`);
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Export failed';
+      notify.error(message);
+    } finally {
+      setIsExporting(false);
+    }
+  };
 
   /** Frame the full map (lane headers + nodes), not just node bounds. */
   const fitMapInView = (nextPositions = positions, fixedZoom?: number): { zoom: number; pan: Point } | null => {
@@ -623,6 +677,32 @@ export const ArchitectureMap: React.FC<ArchitectureMapProps> = ({
           <button type="button" onClick={() => setIsExpanded(value => !value)} className="btn-secondary-accent p-2" title={isExpanded ? 'Exit full screen' : 'Expand map'} aria-label={isExpanded ? 'Exit full screen' : 'Expand map'}>
             {isExpanded ? <Minimize2 className="h-3.5 w-3.5" /> : <Maximize2 className="h-3.5 w-3.5" />}
           </button>
+          <button
+            type="button"
+            disabled={isExporting}
+            onClick={event => {
+              event.stopPropagation();
+              void exportMap('svg');
+            }}
+            className="btn-secondary p-2 disabled:opacity-40"
+            title="Download SVG"
+            aria-label="Download SVG"
+          >
+            <Download className="h-3.5 w-3.5" />
+          </button>
+          <button
+            type="button"
+            disabled={isExporting}
+            onClick={event => {
+              event.stopPropagation();
+              void exportMap('png');
+            }}
+            className="btn-secondary p-2 disabled:opacity-40"
+            title="Download PNG"
+            aria-label="Download PNG"
+          >
+            <ImageDown className="h-3.5 w-3.5" />
+          </button>
         </div>
       </div>
 
@@ -744,19 +824,23 @@ export const ArchitectureMap: React.FC<ArchitectureMapProps> = ({
               const Icon = node.icon;
               const position = positions[node.id];
               const selected = node.id === activeNode.id;
+              const highlighted = node.id === highlightedNodeId;
               return (
                 <button
                   key={node.id}
                   type="button"
                   aria-pressed={selected}
-                  onClick={() => setActiveNodeId(node.id)}
+                  onClick={() => {
+                    setActiveNodeId(node.id);
+                    onHighlightNode?.(node.id);
+                  }}
                   onPointerDown={event => onPointerDown(event, node.id)}
                   onPointerMove={onPointerMove}
                   onPointerUp={stopDragging}
                   onPointerCancel={stopDragging}
                   className={`absolute flex h-24 w-48 touch-none cursor-grab flex-col rounded-xl border p-3 text-left shadow-sm backdrop-blur-sm transition-[border-color,box-shadow] active:cursor-grabbing ${nodeSurface} ${
-                    selected ? `${toneStyles[node.tone].border} ${toneStyles[node.tone].glow}` : ''
-                  }`}
+                    selected || highlighted ? `${toneStyles[node.tone].border} ${toneStyles[node.tone].glow}` : ''
+                  } ${highlighted && !selected ? 'ring-2 ring-blue-500/40' : ''}`}
                   style={{ left: position.x, top: position.y }}
                 >
                   <div className="flex min-w-0 items-start gap-2.5">

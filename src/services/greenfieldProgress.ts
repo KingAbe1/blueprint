@@ -17,7 +17,6 @@ export function getGreenfieldPhaseProgress(
 ): GreenfieldPhaseProgress[] {
   const interview = project?.spec.interview;
   const recommendation = project?.spec.frameworkRecommendation || project?.spec.frameworkRecommendations?.[0];
-  const briefReady = (project?.spec.description?.trim().split(/\s+/).filter(Boolean).length ?? 0) >= 5;
   const questionsComplete = interview?.status === 'completed';
   const mapReady = questionsComplete && Boolean(recommendation);
   const handoffReady = mapReady;
