@@ -353,7 +353,7 @@ export const CreateProjectView: React.FC = () => {
                     onClick={event => {
                       event.stopPropagation();
                       duplicateBlueprintProject(project.id);
-                      notify.success(`Duplicated “${project.name}”`);
+                      notify.success(`Duplicated “${project.name}” — includes brief, questions, and map`);
                     }}
                     aria-label={`Duplicate ${project.name}`}
                     title="Duplicate blueprint"

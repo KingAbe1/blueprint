@@ -201,6 +201,10 @@ export const DomainIntentView: React.FC<DomainIntentViewProps> = ({ onOpenArchit
     setSeedBannerDismissed(localStorage.getItem(`blueprint_brief_seed_ack_${activeProject.id}`) === '1');
     setReviewDraft(null);
     setPrePolishDescription(null);
+    setInterviewBeforeEdit(null);
+    setSelectedOptionId('');
+    setCustomAnswer('');
+    setIsGeneratingInterview(false);
   }, [activeProject?.id]);
 
   if (!activeProject) return null;
@@ -284,6 +288,11 @@ export const DomainIntentView: React.FC<DomainIntentViewProps> = ({ onOpenArchit
     notify.success('Standard build questions loaded.');
   };
 
+  const isStaticInterview = Boolean(
+    interview?.providerName === 'Blueprint template'
+    || interview?.questions.some(question => question.id.startsWith('static-')),
+  );
+
   const startInterview = async () => {
     if (!spec.description?.trim()) {
       notify.warning('Describe the product before designing its architecture.');
@@ -293,6 +302,17 @@ export const DomainIntentView: React.FC<DomainIntentViewProps> = ({ onOpenArchit
     if (!isAiConfigured) {
       setIsSettingsOpen(true);
       return;
+    }
+
+    if (interview?.status === 'in_progress' || interview?.status === 'completed') {
+      const replace = await confirm({
+        title: 'Generate new AI questions?',
+        description:
+          'This replaces the current build questions and clears answers. Your product brief stays the same.',
+        confirmLabel: 'Generate new set',
+        tone: 'danger',
+      });
+      if (!replace) return;
     }
 
     const completedInterview = interview?.status === 'completed' ? interview : null;
@@ -486,18 +506,18 @@ export const DomainIntentView: React.FC<DomainIntentViewProps> = ({ onOpenArchit
 
   const phaseDescription = useMemo(() => {
     if (!showArchitectureSection) {
-      return 'Start with a plain-language description of the product.';
+      return 'Describe the product in plain language.';
     }
     if (interview?.status === 'completed') {
-      return 'Your brief and build choices are saved. Edit below or open the architecture map when you’re ready.';
+      return 'Brief and answers saved—edit here or open the architecture map.';
     }
     if (interview?.status === 'in_progress') {
-      return 'Answer each build question—one choice per step. Blueprint uses these to recommend a stack.';
+      return 'One choice per question; Blueprint recommends a stack from your answers.';
     }
     if (pinBuildQuestionsBesideBrief) {
-      return 'Your brief is ready. Start build questions when you’re happy with it.';
+      return 'Brief ready—start build questions when you are.';
     }
-    return 'Add your brief, then work through build questions to shape the architecture.';
+    return 'Add a brief, then answer build questions.';
   }, [showArchitectureSection, interview?.status, pinBuildQuestionsBesideBrief]);
 
   const foundationSteps = useMemo((): WorkbenchStep[] => {
@@ -567,6 +587,9 @@ export const DomainIntentView: React.FC<DomainIntentViewProps> = ({ onOpenArchit
               <div>
                 <p className={`text-xs ${muted}`}>Captured from your idea</p>
                 <p className={`mt-0.5 text-[13px] ${titleText}`}>Product brief</p>
+                <p className={`mt-1 max-w-xl text-xs leading-5 ${muted}`}>
+                  Used for build questions and the architecture map.
+                </p>
               </div>
             ) : (
               <div className="flex gap-3">
@@ -579,11 +602,11 @@ export const DomainIntentView: React.FC<DomainIntentViewProps> = ({ onOpenArchit
                   <h2 className={`text-[13px] ${titleText}`}>
                     {showBriefPreview ? 'Product brief' : 'What are you building?'}
                   </h2>
-                  {showBriefPreview ? null : (
-                    <p className={`mt-1 text-xs leading-5 ${muted}`}>
-                      Who it is for, what they can do, and what success looks like.
-                    </p>
-                  )}
+                  <p className={`mt-1 max-w-xl text-xs leading-5 ${muted}`}>
+                    {showBriefPreview
+                      ? 'Review below before build questions.'
+                      : 'Who it’s for and what it should do.'}
+                  </p>
                 </div>
               </div>
             )}
@@ -750,13 +773,13 @@ export const DomainIntentView: React.FC<DomainIntentViewProps> = ({ onOpenArchit
                     </span>
                   )}
                 </div>
-                {!(pinBuildQuestionsBesideBrief && !interview) && (
-                  <p className={`mt-1 text-xs leading-5 ${muted}`}>
-                    {interview?.status === 'completed'
-                      ? 'Your question-and-answer choices, used to pick stack and structure.'
-                      : 'Pick one answer per question—Blueprint generates only what this project needs.'}
-                  </p>
-                )}
+                <p className={`mt-1 max-w-xl text-xs leading-5 ${muted}`}>
+                  {interview?.status === 'completed'
+                    ? 'Drives stack and structure choices.'
+                    : pinBuildQuestionsBesideBrief && !interview
+                      ? 'AI set from your brief, or the standard template.'
+                      : 'One answer per question for this project.'}
+                </p>
               </div>
             </div>
             {interview?.status === 'completed' && (
@@ -801,7 +824,6 @@ export const DomainIntentView: React.FC<DomainIntentViewProps> = ({ onOpenArchit
           {!reviewDraft && !interview && (
             pinBuildQuestionsBesideBrief ? (
               <div className="space-y-3">
-                <p className={`text-xs leading-5 ${muted}`}>One choice per question, tailored to this brief.</p>
                 <button
                   type="button"
                   onClick={() => startInterview()}
@@ -851,7 +873,16 @@ export const DomainIntentView: React.FC<DomainIntentViewProps> = ({ onOpenArchit
           {!reviewDraft && interview?.status === 'in_progress' && currentQuestion && (
             <div className="mt-5">
               <div className="mb-4 flex items-center justify-between gap-4">
-                <span className={`text-[11px] ${muted}`}>Questions from {interview.providerName || 'Blueprint'}</span>
+                <div className="min-w-0">
+                  <span className={`text-[11px] ${muted}`}>
+                    {isStaticInterview
+                      ? 'Standard template · same outline for every project'
+                      : `AI questions · tailored to “${activeProject.name}”`}
+                  </span>
+                  {!isStaticInterview && interview.providerName ? (
+                    <span className={`mt-0.5 block text-[10px] ${muted}`}>via {interview.providerName}</span>
+                  ) : null}
+                </div>
                 <button type="button" onClick={exitInterview} className={`text-[11px] font-medium transition-colors ${isDark ? 'text-slate-500 hover:text-white' : 'text-slate-400 hover:text-slate-700'}`}>
                   {interviewBeforeEdit ? 'Cancel editing' : 'Exit questions'}
                 </button>

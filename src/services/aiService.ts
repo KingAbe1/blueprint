@@ -554,10 +554,10 @@ Respond ONLY with a valid JSON object in this shape:
   ],
   "questions": [
     {
-      "id": "fleet_map_freshness",
+      "id": "live_data_freshness",
       "category": "realtime",
-      "question": "How fresh should vehicle locations be for dispatchers on the live map?",
-      "context": "Fresher GPS updates cost more to ingest and store for a large fleet.",
+      "question": "How up to date should live information on the main screen feel?",
+      "context": "Fresher updates usually mean more infrastructure work and cost.",
       "allowCustom": true,
       "options": [
         {
@@ -663,16 +663,16 @@ Respond ONLY with a valid JSON object in this shape:
 
   const platformSettled = inferredFacts.some(fact => fact.category === 'platform');
   if (!descriptionSpecifiesPlatform(description) && !platformSettled && !questions.some(q => q.category === 'platform')) {
-    questions = [buildPlatformClarificationQuestion(), ...questions];
+    questions = [buildPlatformClarificationQuestion(description), ...questions];
   }
 
   if (descriptionImpliesStoredOperationalData(description)) {
     const ensureTail: ArchitectureQuestion[] = [];
     if (!questions.some(q => q.category === 'deployment') && !inferredFacts.some(f => f.category === 'deployment')) {
-      ensureTail.push(buildDeploymentClarificationQuestion());
+      ensureTail.push(buildDeploymentClarificationQuestion(description));
     }
     if (!questions.some(q => q.category === 'data') && !inferredFacts.some(f => f.category === 'data')) {
-      ensureTail.push(buildDataRetentionClarificationQuestion());
+      ensureTail.push(buildDataRetentionClarificationQuestion(description));
     }
     questions = [...questions, ...ensureTail];
   }
@@ -722,7 +722,34 @@ function descriptionImpliesStoredOperationalData(description: string): boolean {
   );
 }
 
-function buildDeploymentClarificationQuestion(): ArchitectureQuestion {
+function platformRoleHints(description: string): {
+  webUsers: string;
+  mobileUsers: string;
+  hybridDetail: string;
+} {
+  const text = description.trim().toLowerCase();
+  if (/\b(fleet|vehicle|dispatch|driver|geo-?fenc|gps track)\b/.test(text)) {
+    return {
+      webUsers: 'managers and dispatch',
+      mobileUsers: 'drivers or field staff',
+      hybridDetail: 'Managers and dispatch on the web; drivers on phones—shared backend, two experiences.',
+    };
+  }
+  if (/\b(project|task|sprint|backlog|kanban|roadmap|milestone|issue tracker)\b/.test(text)) {
+    return {
+      webUsers: 'planners and team leads',
+      mobileUsers: 'contributors who need quick updates away from a desk',
+      hybridDetail: 'Planning and reporting on the web; lightweight mobile for check-ins and notifications.',
+    };
+  }
+  return {
+    webUsers: 'primary users on laptops or tablets',
+    mobileUsers: 'people who need an installed phone app through the day',
+    hybridDetail: 'Office or web-first workflows plus a phone experience for on-the-go use.',
+  };
+}
+
+function buildDeploymentClarificationQuestion(description: string): ArchitectureQuestion {
   return {
     id: 'where_system_runs',
     category: 'deployment',
@@ -745,7 +772,7 @@ function buildDeploymentClarificationQuestion(): ArchitectureQuestion {
       {
         id: 'region_locked',
         label: 'Specific country or region only',
-        description: 'User and vehicle data must stay in a chosen geography for policy or legal reasons.',
+        description: 'User and business data must stay in a chosen geography for policy or legal reasons.',
         recommended: false,
       },
       {
@@ -758,11 +785,11 @@ function buildDeploymentClarificationQuestion(): ArchitectureQuestion {
   };
 }
 
-function buildDataRetentionClarificationQuestion(): ArchitectureQuestion {
+function buildDataRetentionClarificationQuestion(_description: string): ArchitectureQuestion {
   return {
     id: 'data_history_importance',
     category: 'data',
-    question: 'How important is keeping historical records (locations, reports, attendance)?',
+    question: 'How important is keeping historical records (activity, reports, past versions)?',
     context: 'This drives database design, backups, and storage cost—not the name of a database product.',
     allowCustom: true,
     options: [
@@ -794,31 +821,32 @@ function buildDataRetentionClarificationQuestion(): ArchitectureQuestion {
   };
 }
 
-function buildPlatformClarificationQuestion(): ArchitectureQuestion {
+function buildPlatformClarificationQuestion(description: string): ArchitectureQuestion {
+  const roles = platformRoleHints(description);
   return {
     id: 'primary_experience_surface',
     category: 'platform',
     question: 'Where should people mainly open and use this product?',
     context:
-      'Live maps, drivers, and geo-fencing do not automatically mean phone apps—many fleet and ops products start with a browser dashboard for managers and dispatch.',
+      'Your brief does not spell out web, phone, or desktop yet. Pick where most day-to-day use should happen for this product.',
     allowCustom: true,
     options: [
       {
         id: 'web_primary',
-        label: 'Web browser (managers & dispatch)',
-        description: 'Control room and office users on laptops—maps, reports, admin, and dispatch in one hub.',
+        label: 'Web browser (primary experience)',
+        description: `Best for ${roles.webUsers}—dashboards, forms, admin, and reporting in one hub.`,
         recommended: true,
       },
       {
         id: 'mobile_native',
         label: 'Native phone apps (iPhone & Android)',
-        description: 'When drivers or field staff need an installed app on their phone most of the day.',
+        description: `When ${roles.mobileUsers} need an installed app on their phone most of the day.`,
         recommended: false,
       },
       {
         id: 'web_and_mobile',
-        label: 'Web hub plus driver phone apps',
-        description: 'Managers and dispatch on the web; drivers on phones—shared backend, two experiences.',
+        label: 'Web plus phone apps',
+        description: roles.hybridDetail,
         recommended: false,
       },
       {

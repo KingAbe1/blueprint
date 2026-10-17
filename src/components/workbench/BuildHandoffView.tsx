@@ -304,50 +304,55 @@ export const BuildHandoffView: React.FC = () => {
               </div>
             </div>
 
-            <div className={`grid gap-0 lg:grid-cols-3 lg:divide-x ${isDark ? 'lg:divide-white/[0.06]' : 'lg:divide-slate-200/90'}`}>
-              <div className="space-y-3 p-5 sm:p-6 lg:col-span-1">
-                <div>
+            <div className={`grid gap-0 lg:grid-cols-3 lg:items-start lg:divide-x ${isDark ? 'lg:divide-white/[0.06]' : 'lg:divide-slate-200/90'}`}>
+              <div className="flex flex-col p-5 sm:p-6 lg:col-span-1">
+                <div className="min-h-[3.75rem]">
                   <p className={`text-xs ${muted}`}>Step 1</p>
                   <p className={`mt-0.5 text-[13px] ${titleText}`}>Target IDE</p>
-                  <p className={`mt-1 text-[11px] leading-relaxed ${muted}`}>{selectedIDE.detail}</p>
+                  <p className={`mt-1 line-clamp-2 text-[11px] leading-relaxed ${muted}`}>
+                    {selectedIDE.detail} for this export.
+                  </p>
                 </div>
-                <Dropdown<IDETarget>
-                  label="Target IDE"
-                  options={IDE_OPTIONS.map(option => ({
-                    value: option.id,
-                    label: option.label,
-                    description: option.detail,
-                    icon: <Code2 className="h-3.5 w-3.5" />,
-                  }))}
-                  value={handoff.ide}
-                  onChange={chooseIDE}
-                  variant="subtle"
-                  size="md"
-                  icon={<Code2 className="h-3.5 w-3.5" />}
-                  triggerClassName="!rounded-lg !py-2.5"
-                  menuClassName="!rounded-xl"
-                />
+                <div className="mt-3">
+                  <Dropdown<IDETarget>
+                    options={IDE_OPTIONS.map(option => ({
+                      value: option.id,
+                      label: option.label,
+                      description: option.detail,
+                      icon: <Code2 className="h-3.5 w-3.5" />,
+                    }))}
+                    value={handoff.ide}
+                    onChange={chooseIDE}
+                    variant="subtle"
+                    size="md"
+                    triggerClassName="!rounded-lg !py-2.5"
+                    menuClassName="!rounded-xl"
+                  />
+                </div>
               </div>
 
-              <div className={`space-y-3 border-t p-5 sm:p-6 lg:border-t-0 ${border}`}>
-                <div>
+              <div className={`flex flex-col border-t p-5 sm:p-6 lg:border-t-0 ${border}`}>
+                <div className="min-h-[3.75rem]">
                   <p className={`text-xs ${muted}`}>Step 2</p>
                   <p className={`mt-0.5 text-[13px] ${titleText}`}>Project folder</p>
-                  <p className={`mt-1 text-[11px] leading-relaxed ${muted}`}>Choose the repo where files should be written.</p>
+                  <p className={`mt-1 line-clamp-2 text-[11px] leading-relaxed ${muted}`}>
+                    Choose the repo where files should be written.
+                  </p>
                 </div>
-                <button
-                  type="button"
-                  onClick={chooseFolder}
-                  disabled={isChoosingFolder}
-                  className={`flex w-full items-center gap-2.5 rounded-lg border px-3 py-2.5 text-left text-xs transition-colors disabled:opacity-50 ${ghostButton}`}
-                >
-                  {isChoosingFolder ? <Loader2 className="h-4 w-4 shrink-0 animate-spin" /> : <FolderOpen className="h-4 w-4 shrink-0 opacity-80" />}
-                  <span className={`min-w-0 flex-1 truncate ${target ? titleText : muted}`}>
-                    {target ? target.name : 'Choose folder…'}
-                  </span>
-                  {target ? <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-emerald-500" aria-hidden /> : null}
-                </button>
-                {target ? (
+                <div className="mt-3 space-y-3">
+                  <button
+                    type="button"
+                    onClick={chooseFolder}
+                    disabled={isChoosingFolder}
+                    className={`flex w-full items-center gap-2.5 rounded-lg border px-3 py-2.5 text-left text-xs transition-colors disabled:opacity-50 ${ghostButton}`}
+                  >
+                    {isChoosingFolder ? <Loader2 className="h-4 w-4 shrink-0 animate-spin" /> : <FolderOpen className="h-4 w-4 shrink-0 opacity-80" />}
+                    <span className={`min-w-0 flex-1 truncate ${target ? titleText : muted}`}>
+                      {target ? target.name : 'Choose folder…'}
+                    </span>
+                    {target ? <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-emerald-500" aria-hidden /> : null}
+                  </button>
+                  {target ? (
                   <div className="space-y-2">
                     <div className={`flex items-start gap-2 rounded-lg border px-3 py-2.5 ${border} ${inner}`}>
                       {conflicts.length > 0 ? (
@@ -371,15 +376,19 @@ export const BuildHandoffView: React.FC = () => {
                       </ul>
                     ) : null}
                   </div>
-                ) : null}
+                  ) : null}
+                </div>
               </div>
 
-              <div className={`flex flex-col space-y-3 border-t p-5 sm:p-6 lg:border-t-0 ${border}`}>
-                <div>
+              <div className={`flex flex-col border-t p-5 sm:p-6 lg:border-t-0 ${border}`}>
+                <div className="min-h-[3.75rem]">
                   <p className={`text-xs ${muted}`}>Step 3</p>
                   <p className={`mt-0.5 text-[13px] ${titleText}`}>Add to project</p>
-                  <p className={`mt-1 text-[11px] leading-relaxed ${muted}`}>Only files shown in the preview below are written to disk.</p>
+                  <p className={`mt-1 line-clamp-2 text-[11px] leading-relaxed ${muted}`}>
+                    Only files shown in the preview below are written to disk.
+                  </p>
                 </div>
+                <div className="mt-3 flex flex-col gap-3">
                 <button
                   type="button"
                   onClick={() => downloadHandoffZip(handoff.files, activeProject.name)}
@@ -427,6 +436,7 @@ export const BuildHandoffView: React.FC = () => {
                     </div>
                   </div>
                 ) : null}
+                </div>
               </div>
             </div>
           </section>

@@ -75,11 +75,31 @@ export type ProductBriefSection = {
   bullets: string[];
 };
 
-const BRIEF_SECTION_HEADERS: Array<{ id: string; title: string; pattern: RegExp }> = [
-  { id: 'summary', title: 'Summary', pattern: /^Summary\s*$/i },
-  { id: 'audience', title: "Who it's for", pattern: /^Who it's for\s*$/i },
-  { id: 'capabilities', title: 'First release', pattern: /^What it does(?:\s*\(first release\))?\s*$/i },
-  { id: 'out_of_scope', title: 'Out of scope', pattern: /^Out of scope(?:\s*\(for now\))?\s*$/i },
+const BRIEF_SECTION_HEADERS: Array<{ id: string; title: string; pattern: RegExp; inlinePattern: RegExp }> = [
+  {
+    id: 'summary',
+    title: 'Summary',
+    pattern: /^Summary\s*$/i,
+    inlinePattern: /^Summary\s*:\s*(.+)$/i,
+  },
+  {
+    id: 'audience',
+    title: "Who it's for",
+    pattern: /^Who it's for\s*$/i,
+    inlinePattern: /^Who it's for\s*:\s*(.+)$/i,
+  },
+  {
+    id: 'capabilities',
+    title: 'First release',
+    pattern: /^What it does(?:\s*\(first release\))?\s*$/i,
+    inlinePattern: /^What it does(?:\s*\(first release\))?\s*:\s*(.+)$/i,
+  },
+  {
+    id: 'out_of_scope',
+    title: 'Out of scope',
+    pattern: /^Out of scope(?:\s*\(for now\))?\s*$/i,
+    inlinePattern: /^Out of scope(?:\s*\(for now\))?\s*:\s*(.+)$/i,
+  },
 ];
 
 /** Parses polished brief text into labeled sections; falls back to one overview block. */
@@ -105,6 +125,29 @@ export function parseProductBriefSections(text: string): ProductBriefSection[] {
     if (header) {
       flush();
       current = { id: header.id, title: header.title, paragraphs: [], bullets: [] };
+      continue;
+    }
+
+    const inlineHeader = BRIEF_SECTION_HEADERS.map(item => {
+      const match = line.match(item.inlinePattern);
+      return match ? { item, remainder: match[1].trim() } : null;
+    }).find(Boolean);
+
+    if (inlineHeader) {
+      flush();
+      current = {
+        id: inlineHeader.item.id,
+        title: inlineHeader.item.title,
+        paragraphs: [],
+        bullets: [],
+      };
+      if (inlineHeader.remainder) {
+        if (/^[•\-*–—]\s+/.test(inlineHeader.remainder)) {
+          current.bullets.push(inlineHeader.remainder.replace(/^[•\-*–—]\s*/, '').trim());
+        } else {
+          current.paragraphs.push(inlineHeader.remainder);
+        }
+      }
       continue;
     }
 
