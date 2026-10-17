@@ -1,0 +1,39 @@
+name: Bug report
+description: Something broke or behaves wrong
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: Do not paste API keys or proprietary source code.
+  - type: input
+    id: version
+    attributes:
+      label: Version or commit
+      placeholder: e.g. 1.0.0 or abc1234
+  - type: dropdown
+    id: shell
+    attributes:
+      label: Environment
+      options:
+        - Tauri desktop
+        - Browser (which?)
+        - Both
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: 1. … 2. …
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+    validations:
+      required: true

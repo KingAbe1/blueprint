@@ -1,8 +1,16 @@
 {
   "name": "blueprint-studio",
-  "private": true,
   "version": "1.0.0",
   "description": "Architectural Rigor for the Generative Era - Desktop Pre-Flight Studio & Spec Generator",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/KingAbe1/blueprint.git"
+  },
+  "bugs": {
+    "url": "https://github.com/KingAbe1/blueprint/issues"
+  },
+  "homepage": "https://github.com/KingAbe1/blueprint#readme",
   "type": "module",
   "scripts": {
     "dev": "vite",

@@ -1,5 +1,7 @@
 # Blueprint Studio
 
+**Repository:** [github.com/KingAbe1/blueprint](https://github.com/KingAbe1/blueprint)
+
 Desktop and browser workstation for **spec-first greenfield planning** and **brownfield codebase analysis**, with exportable agent handoff packages for Cursor, Claude Code, VS Code, Codex, JetBrains, and other IDEs.
 
 Blueprint itself is a **Tauri 2 + Vite + React 19** app. Projects you create in greenfield mode can target **any stack** the interview selects (Next.js, Tauri, Expo, FastAPI, and others). Brownfield scanning works on any local folder; **deep code-quality profiles are implemented for Next.js (TypeScript/JavaScript) today**.
@@ -182,6 +184,21 @@ npm run build        # Web build (tsc + vite)
 
 ---
 
+## Open source
+
+| Document | Purpose |
+| --- | --- |
+| [LICENSE](./LICENSE) | **MIT** — use, modify, and distribute with attribution |
+| [CONTRIBUTING.md](./CONTRIBUTING.md) | Setup, PR process, **project rules** (privacy, scope, no secrets) |
+| [CODE_OF_CONDUCT.md](./CODE_OF_CONDUCT.md) | Community behavior standards |
+| [SECURITY.md](./SECURITY.md) | How to report vulnerabilities privately |
+
+**Trademark:** The name *Blueprint Studio* identifies this project. The MIT license does not grant permission to use the name or branding to imply endorsement or ship a confusingly similar product. Forks should use their own name and logo unless maintainers agree otherwise.
+
+Optional maintainer setup: enable [Dependabot](https://github.com/KingAbe1/blueprint/settings/security_analysis), [private vulnerability reporting](https://github.com/KingAbe1/blueprint/security/advisories), and a security contact on the repo profile. You may replace `Copyright (c) 2026 Blueprint Studio contributors` in [LICENSE](./LICENSE) with your legal name or organization.
+
+---
+
 ## Contributing
 
-Fork, branch, commit with clear rationale, open a PR.
+See [CONTRIBUTING.md](./CONTRIBUTING.md). In short: fork, branch, `npm run build`, open a PR with a test plan.
