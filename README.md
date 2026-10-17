@@ -5,6 +5,7 @@ Plan a new product or scan a repo you already have. Output is either a **handoff
 Runs in the browser or as a Tauri desktop app. Projects live in `localStorage`; there is no hosted backend for your specs or source.
 
 Site: [blueprint-web-chi.vercel.app](https://blueprint-web-chi.vercel.app/)  
+Source: [github.com/KingAbe1/blueprint](https://github.com/KingAbe1/blueprint)  
 More detail for contributors: [docs/overview.md](./docs/overview.md)
 
 ## New project
