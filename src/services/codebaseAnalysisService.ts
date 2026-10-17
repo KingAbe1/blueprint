@@ -5,7 +5,7 @@ import { BrowserDirectoryHandle, isDirectoryHandle, loadDirectoryHandle, saveDir
 export { getQualityReviewCandidatePaths, readQualityReviewSources } from './qualityReviewSourceService';
 export type { QualityReviewSourceFile } from './qualityReviewSourceService';
 import { LANGUAGE_SOURCE_RULES, NEXT_SOURCE_RULES, TOOLCHAIN_QUALITY_RULES } from './codeQualityRules';
-import { extractNpmDependencyInventory } from './dependencyRiskService';
+import { extractNpmDependencyInventory, scanNpmDependencyRisks } from './dependencyRiskService';
 import { detectAndAnalyzeFramework } from './frameworks/frameworkRegistry';
 
 const EXTENSION_LANGUAGES: Record<string, string> = {
@@ -740,6 +740,16 @@ export async function analyzeCodebaseSource(source: CodebaseSource): Promise<Cod
   const nextProject = hasNextJsProjectSignal(paths, source.manifests);
   const dependencyInventory = extractNpmDependencyInventory(paths, source.manifests, nextProject);
 
+  let dependencyRisk: DependencyRiskAssessment | undefined;
+  const npmInventory = dependencyInventory;
+  if (npmInventory !== undefined && npmInventory.packages.length > 0) {
+    try {
+      dependencyRisk = await scanNpmDependencyRisks(npmInventory);
+    } catch {
+      // OSV.dev unavailable — score excludes CVEs until a later audit succeeds.
+    }
+  }
+
   return {
     rootName: source.rootName,
     rootPath: source.rootPath,
@@ -753,6 +763,7 @@ export async function analyzeCodebaseSource(source: CodebaseSource): Promise<Cod
     nextjs: assessNextJsOverview(source, paths),
     frameworkProfile: detectAndAnalyzeFramework(source),
     dependencyInventory,
+    dependencyRisk,
     entryPoints: [...entryPoints].sort(),
     testSignals: [...testSignals].sort(),
     structurePaths: paths,
@@ -770,7 +781,7 @@ export async function analyzeCodebaseSource(source: CodebaseSource): Promise<Cod
       .sort((a, b) => a.parent.localeCompare(b.parent) || b.files - a.files || a.name.localeCompare(b.name))
       .slice(0, 24),
     testFilesCount,
-    quality: assessCodeQuality(paths, source.directories || [], scripts, testFiles.length, sourceMetrics, source.manifests, deepAnalysis, (source as any).dependencyRisk),
+    quality: assessCodeQuality(paths, source.directories || [], scripts, testFiles.length, sourceMetrics, source.manifests, deepAnalysis, dependencyRisk),
     architecture: assessArchitecture(source, paths),
     suggestions: suggestImprovements(paths, scripts, testFiles.length, hasNextJsProjectSignal(paths, source.manifests)),
     git: source.git,

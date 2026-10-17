@@ -15,13 +15,22 @@ import { BuildHandoffView } from './components/workbench/BuildHandoffView';
 import { RenameModal } from './components/modals/RenameModal';
 import { DeleteModal } from './components/modals/DeleteModal';
 import { AISettingsModal } from './components/modals/AISettingsModal';
+import { SafeErrorBoundary } from './components/common/SafeErrorBoundary';
 import { PhaseTab } from './types/project';
+import { Loader2 } from 'lucide-react';
 
 const ACTIVE_TAB_STORAGE_KEY = 'blueprint_active_tab_v1';
 const AVAILABLE_TABS: PhaseTab[] = ['domain-intent', 'architecture-map', 'in-flight'];
 
 const AppContent: React.FC = () => {
-  const { activeProject, isCreatingNew, setIsCreatingNew, updateCodebaseAnalysis, setProjectToDelete } = useProjects();
+  const {
+    activeProject,
+    isCreatingNew,
+    isLoaded,
+    setIsCreatingNew,
+    updateCodebaseAnalysis,
+    setProjectToDelete,
+  } = useProjects();
   const { isDark } = useTheme();
   const [activeTab, setActiveTab] = useState<PhaseTab>(() => {
     const savedTab = localStorage.getItem(ACTIVE_TAB_STORAGE_KEY) as PhaseTab | null;
@@ -52,7 +61,19 @@ const AppContent: React.FC = () => {
           />
 
           <main className="flex-1 flex overflow-hidden min-h-0">
-            {!activeProject || isCreatingNew ? (
+            {!isLoaded ? (
+              <div
+                className={`flex flex-1 flex-col items-center justify-center gap-3 ${
+                  isDark ? 'text-slate-400' : 'text-slate-500'
+                }`}
+                role="status"
+                aria-live="polite"
+                aria-busy="true"
+              >
+                <Loader2 className={`h-8 w-8 animate-spin ${isDark ? 'text-blue-400' : 'text-blue-600'}`} />
+                <p className="text-sm font-medium">Loading workspace…</p>
+              </div>
+            ) : !activeProject || isCreatingNew ? (
               <CreateProjectView />
             ) : activeProject.codebaseAnalysis ? (
               <CodebaseAnalysisView
@@ -99,7 +120,9 @@ export const App: React.FC = () => {
         <ProjectProvider>
           <GitHubProvider>
             <AIProvider>
-              <AppContent />
+              <SafeErrorBoundary fallbackTitle="Something went wrong loading Blueprint">
+                <AppContent />
+              </SafeErrorBoundary>
             </AIProvider>
           </GitHubProvider>
         </ProjectProvider>

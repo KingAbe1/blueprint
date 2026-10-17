@@ -5,8 +5,20 @@
     <link rel="icon" type="image/svg+xml" href="/blueprint-icon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Blueprint | Architectural Rigor for the Generative Era</title>
+    <script>
+      (function () {
+        try {
+          var theme = localStorage.getItem('blueprint_theme');
+          var isDark = theme !== 'light';
+          var root = document.documentElement;
+          root.classList.add(isDark ? 'dark' : 'light');
+          root.style.backgroundColor = isDark ? '#101113' : '#f8fafc';
+          document.body.style.backgroundColor = isDark ? '#101113' : '#f8fafc';
+        } catch (e) {}
+      })();
+    </script>
   </head>
-  <body class="antialiased">
+  <body class="antialiased min-h-screen">
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

@@ -11,12 +11,10 @@ import { UsefulCommandsPanel } from './UsefulCommandsPanel';
 import { CodebaseQualityView } from './CodebaseQualityView';
 import { ProjectStructureTree } from './ProjectStructureTree';
 import { CodebaseHeroPulse } from './CodebaseHeroPulse';
-import { OverviewOpenIssuesStrip } from './OverviewOpenIssuesStrip';
 import {
   CodebaseProjectSection,
   useCodebaseWorkspace,
 } from '../../context/CodebaseWorkspaceContext';
-import { ArchitectureTopologyDiagram } from './ArchitectureTopologyDiagram';
 import { FrameworkSpecializationPanel } from './FrameworkSpecializationPanel';
 import { LanguageDistributionBar } from './LanguageDistributionBar';
 import { DependencyInventoryPanel } from './DependencyInventoryPanel';
@@ -241,6 +239,12 @@ export const CodebaseAnalysisView: React.FC<CodebaseAnalysisViewProps> = ({
     };
   }, [analysis.quality?.score, analysis.quality?.findings, analysis.dependencyRisk?.advisories]);
 
+  const hasNextJsDeepReview = Boolean(
+    analysis.nextjs || analysis.frameworkProfile?.id === 'nextjs',
+  );
+  const scanSuggestions = analysis.suggestions ?? [];
+  const showScanSuggestions = scanSuggestions.length > 0 && !hasNextJsDeepReview;
+
   const remote = analysis.git?.remote;
   const githubConnected = github.isConnectedFor(remote, projectId);
   const supportsGitHub = Boolean(remote && parseGitHubRemote(remote));
@@ -339,10 +343,22 @@ export const CodebaseAnalysisView: React.FC<CodebaseAnalysisViewProps> = ({
     launchIDE(selectedIde);
   }, [launchIDE, selectedIde]);
 
+  const lastScannedLabel = useMemo(() => {
+    try {
+      return new Date(analysis.scannedAt).toLocaleString(undefined, {
+        dateStyle: 'medium',
+        timeStyle: 'short',
+      });
+    } catch {
+      return undefined;
+    }
+  }, [analysis.scannedAt]);
+
   useEffect(() => {
     registerToolbar({
       rescan: onRescan ? rescan : undefined,
       isRescanning,
+      lastScannedLabel,
       openPreferredIde,
       preferredIdeShortName: selectedIde.shortName,
       exportReport: exportSummaryMarkdown,
@@ -353,33 +369,69 @@ export const CodebaseAnalysisView: React.FC<CodebaseAnalysisViewProps> = ({
     onRescan,
     rescan,
     isRescanning,
+    lastScannedLabel,
     openPreferredIde,
     selectedIde.shortName,
     exportSummaryMarkdown,
     onDelete,
   ]);
 
-  const lastScanned = useMemo(() => {
-    try {
-      return new Date(analysis.scannedAt).toLocaleString();
-    } catch {
-      return null;
-    }
-  }, [analysis.scannedAt]);
-
   return (
     <div className={`relative flex flex-col flex-1 h-full min-h-0 overflow-hidden ${
       isDark ? 'bg-[#0E0F12] text-[#F4F4F6]' : 'bg-[#F6F7F9] text-slate-900'
     }`}>
+      {isRescanning ? (
+        <div
+          className="absolute inset-0 z-30 flex items-center justify-center px-6"
+          role="status"
+          aria-live="polite"
+          aria-busy="true"
+        >
+          <div
+            className={`absolute inset-0 backdrop-blur-[2px] ${
+              isDark ? 'bg-[#0E0F12]/80' : 'bg-[#F6F7F9]/85'
+            }`}
+          />
+          <div
+            className={`relative flex max-w-sm flex-col items-center gap-3 rounded-2xl border px-8 py-7 text-center shadow-lg ${
+              isDark
+                ? 'border-white/[0.1] bg-[#16171B]'
+                : 'border-slate-200 bg-white'
+            }`}
+          >
+            <Loader2 className={`h-9 w-9 animate-spin ${isDark ? 'text-blue-400' : 'text-blue-600'}`} />
+            <div>
+              <p className={`text-sm font-semibold ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                Rescanning project
+              </p>
+              <p className={`mt-1.5 text-xs leading-relaxed ${muted}`}>
+                Reading files and checking dependency advisories. This can take a moment on large repos.
+              </p>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
       {/* Scrollable content canvas */}
       <div className="flex-1 min-h-0 overflow-y-auto px-6 py-5 lg:px-8">
         <div className="flex min-h-full w-full flex-col">
-          <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-            <p className={`text-xs ${muted}`}>
-              {lastScanned ? `Last scanned ${lastScanned}` : 'Codebase overview'}
-              {analysis.truncated ? ' · large repo, some files skipped' : ''}
-            </p>
-          </div>
+          {(analysis.truncated || (supportsGitHub && !githubConnected)) && (
+            <div className="mb-3 flex flex-wrap items-center justify-end gap-2">
+              {analysis.truncated ? (
+                <p className={`mr-auto text-xs ${muted}`}>Large repo — some files were skipped in the scan.</p>
+              ) : null}
+              {supportsGitHub && !githubConnected ? (
+                <button
+                  type="button"
+                  onClick={openGitHubDialog}
+                  className="inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-medium transition-colors border-blue-500/25 bg-blue-500/10 text-blue-600 hover:bg-blue-500/15 dark:text-blue-300"
+                >
+                  <ExternalLink className="h-3.5 w-3.5" />
+                  Connect GitHub
+                </button>
+              ) : null}
+            </div>
+          )}
 
           {scanError && (
             <p role="alert" className="mb-4 rounded-xl border border-rose-500/20 bg-rose-500/10 px-3.5 py-2 text-xs text-rose-500">
@@ -393,31 +445,14 @@ export const CodebaseAnalysisView: React.FC<CodebaseAnalysisViewProps> = ({
           <div className={activeSection === 'overview' ? 'flex flex-1 flex-col gap-5' : 'hidden'} role="tabpanel">
             <CodebaseHeroPulse analysis={analysis} onOpenQuality={openQualitySection} />
 
-            <OverviewOpenIssuesStrip
-              openItems={qualityTabBadges.openItems}
-              onOpenQuality={openQualitySection}
-            />
-
-            <div className="grid flex-1 grid-cols-1 items-stretch gap-5 xl:grid-cols-12">
-              {analysis.suggestions && analysis.suggestions.length > 0 && (
-                <section className={`flex flex-col rounded-xl border p-5 xl:col-span-5 ${panel}`}>
-                  <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-                    <h3 className={`text-sm font-semibold ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                      Suggested next steps
-                    </h3>
-                    {supportsGitHub && !githubConnected && (
-                      <button
-                        type="button"
-                        onClick={openGitHubDialog}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-blue-500/10 text-blue-500 border border-blue-500/20 hover:bg-blue-500/20 transition-colors"
-                      >
-                        <ExternalLink className="h-3.5 w-3.5" />
-                        Connect GitHub
-                      </button>
-                    )}
-                  </div>
-                  <ul className="flex flex-1 flex-col gap-2.5">
-                    {analysis.suggestions.map((sug, i) => (
+            <div className="flex flex-1 flex-col gap-5">
+              {showScanSuggestions && (
+                <section className={`rounded-xl border p-5 ${panel}`}>
+                  <h3 className={`mb-3 text-sm font-semibold ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                    Suggested next steps
+                  </h3>
+                  <ul className="grid grid-cols-1 gap-2.5 lg:grid-cols-2 xl:grid-cols-3">
+                    {scanSuggestions.map((sug, i) => (
                       <li
                         key={i}
                         className={`flex items-start gap-3 rounded-lg border px-3.5 py-3 ${
@@ -431,7 +466,7 @@ export const CodebaseAnalysisView: React.FC<CodebaseAnalysisViewProps> = ({
                         }`}>
                           {i + 1}
                         </span>
-                        <div>
+                        <div className="min-w-0">
                           <p className={`text-sm font-medium ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>
                             {sug.title}
                           </p>
@@ -445,14 +480,7 @@ export const CodebaseAnalysisView: React.FC<CodebaseAnalysisViewProps> = ({
                 </section>
               )}
 
-              <section className={`flex min-h-0 flex-col gap-5 ${
-                analysis.suggestions && analysis.suggestions.length > 0 ? 'xl:col-span-7' : 'xl:col-span-12'
-              }`}>
-                <FrameworkSpecializationPanel analysis={analysis} />
-                <div className="flex min-h-[22rem] flex-1 flex-col [&>*]:h-full [&>*]:flex-1">
-                  <ArchitectureTopologyDiagram analysis={analysis} />
-                </div>
-              </section>
+              <FrameworkSpecializationPanel analysis={analysis} />
             </div>
           </div>
 

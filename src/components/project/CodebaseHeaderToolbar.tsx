@@ -13,6 +13,7 @@ export const CodebaseHeaderToolbar: React.FC = () => {
   const {
     rescan,
     isRescanning,
+    lastScannedLabel,
     openPreferredIde,
     preferredIdeShortName = 'IDE',
     exportReport,
@@ -42,7 +43,11 @@ export const CodebaseHeaderToolbar: React.FC = () => {
           onClick={() => void rescan()}
           disabled={isRescanning}
           className={`inline-flex items-center gap-1 rounded-lg border px-2 py-1.5 text-xs font-medium disabled:opacity-50 ${iconButton}`}
-          title="Rescan folder"
+          title={
+            lastScannedLabel
+              ? `Last scan: ${lastScannedLabel}. Click to rescan.`
+              : 'Rescan folder'
+          }
         >
           <RefreshCw className={`h-3.5 w-3.5 ${isRescanning ? 'animate-spin' : ''}`} />
           <span className="hidden sm:inline">{isRescanning ? 'Scanning…' : 'Rescan'}</span>

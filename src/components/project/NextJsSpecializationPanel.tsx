@@ -1,94 +1,178 @@
-import React, { useState, useMemo, useCallback } from 'react';
-import {
-  Server,
-  Zap,
-  Boxes,
-  Sparkles,
-  AlertTriangle,
-  CheckCircle2,
-  Copy,
-  Check,
-  FileCode,
-  ShieldAlert,
-  ArrowRight,
-  TrendingDown,
-  Layers,
-  Terminal,
-  ExternalLink,
-  ChevronDown,
-  Info,
-} from 'lucide-react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
+import { Check, CheckCircle2 } from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
 import {
   NextJsSpecialization,
   NextJsArchitecturalImprovement,
   NextJsImprovementCategory,
 } from '../../types/framework';
+import {
+  overviewBorderClass,
+  overviewDivideClass,
+  overviewMetricValueAccent,
+  overviewPanelClass,
+  overviewRowEmphasis,
+  overviewSeverityLabel,
+  type OverviewEmphasis,
+} from './overviewUi';
 
 interface NextJsSpecializationPanelProps {
   specialization: NextJsSpecialization;
   rootName: string;
 }
 
+const CATEGORY_LABELS: Record<'all' | NextJsImprovementCategory, string> = {
+  all: 'All',
+  'action-hygiene': 'Actions',
+  'bundle-optimization': 'Bundle',
+  'route-resilience': 'Routes',
+  modernization: 'Modern',
+};
+
+const CATEGORY_KEYS = [
+  'all',
+  'action-hygiene',
+  'bundle-optimization',
+  'route-resilience',
+  'modernization',
+] as const;
+
+const SEVERITY_KEYS = ['all', 'critical', 'warning', 'optimization'] as const;
+
+const SEVERITY_LABELS: Record<(typeof SEVERITY_KEYS)[number], string> = {
+  all: 'All',
+  critical: 'Critical',
+  warning: 'Warning',
+  optimization: 'Optimization',
+};
+
+const SEVERITY_RANK: Record<NextJsArchitecturalImprovement['severity'], number> = {
+  critical: 0,
+  warning: 1,
+  optimization: 2,
+};
+
+function rowEmphasisForSeverity(severity: NextJsArchitecturalImprovement['severity']): OverviewEmphasis {
+  if (severity === 'critical') return 'critical';
+  if (severity === 'warning') return 'warning';
+  if (severity === 'optimization') return 'info';
+  return 'neutral';
+}
+
+function severityDotClass(isDark: boolean, sev: 'critical' | 'warning' | 'optimization'): string {
+  if (sev === 'critical') return isDark ? 'bg-rose-400' : 'bg-rose-600';
+  if (sev === 'warning') return isDark ? 'bg-amber-400' : 'bg-amber-500';
+  return isDark ? 'bg-blue-400' : 'bg-blue-500';
+}
+
+function categoryChipClass(isDark: boolean, selected: boolean): string {
+  const focus =
+    'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/35 focus-visible:ring-offset-2 focus-visible:ring-offset-transparent';
+  const base = `inline-flex shrink-0 items-center gap-1 rounded-full border px-2.5 py-1 text-[12px] transition-colors ${focus}`;
+  return selected
+    ? isDark
+      ? `${base} border-blue-500/45 bg-blue-500/10 font-medium text-slate-100`
+      : `${base} border-blue-300 bg-blue-50 font-medium text-slate-900`
+    : isDark
+      ? `${base} border-white/[0.06] text-slate-500 hover:border-white/12 hover:text-slate-300`
+      : `${base} border-slate-200/80 text-slate-600 hover:border-slate-300 hover:text-slate-900`;
+}
+
+function severityChipClass(
+  isDark: boolean,
+  sev: (typeof SEVERITY_KEYS)[number],
+  selected: boolean,
+): string {
+  const focus =
+    'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/35 focus-visible:ring-offset-2 focus-visible:ring-offset-transparent';
+  const base = `inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[13px] transition-colors ${focus}`;
+
+  if (sev === 'all') {
+    return selected
+      ? isDark
+        ? `${base} border-white/20 bg-white/[0.08] font-medium text-slate-100`
+        : `${base} border-slate-300 bg-white font-medium text-slate-900 shadow-xs`
+      : isDark
+        ? `${base} border-white/[0.06] text-slate-400 hover:border-white/14 hover:text-slate-200`
+        : `${base} border-slate-200 text-slate-600 hover:border-slate-300 hover:text-slate-900`;
+  }
+
+  if (sev === 'critical') {
+    return selected
+      ? isDark
+        ? `${base} border-rose-500/45 bg-rose-500/12 font-medium text-rose-300`
+        : `${base} border-rose-300 bg-rose-50 font-medium text-rose-800`
+      : isDark
+        ? `${base} border-white/[0.06] text-slate-400 hover:border-rose-500/35 hover:text-rose-200/90`
+        : `${base} border-slate-200 text-slate-600 hover:border-rose-200 hover:text-rose-800`;
+  }
+
+  if (sev === 'warning') {
+    return selected
+      ? isDark
+        ? `${base} border-amber-500/45 bg-amber-500/10 font-medium text-amber-200`
+        : `${base} border-amber-300 bg-amber-50 font-medium text-amber-900`
+      : isDark
+        ? `${base} border-white/[0.06] text-slate-400 hover:border-amber-500/35 hover:text-amber-200/90`
+        : `${base} border-slate-200 text-slate-600 hover:border-amber-200 hover:text-amber-900`;
+  }
+
+  return selected
+    ? isDark
+      ? `${base} border-blue-500/40 bg-blue-500/10 font-medium text-blue-200`
+      : `${base} border-blue-300 bg-blue-50 font-medium text-blue-800`
+    : isDark
+      ? `${base} border-white/[0.06] text-slate-400 hover:border-blue-500/30 hover:text-blue-200/90`
+      : `${base} border-slate-200 text-slate-600 hover:border-blue-200 hover:text-blue-800`;
+}
+
 export const NextJsSpecializationPanel: React.FC<NextJsSpecializationPanelProps> = ({
   specialization,
-  rootName,
 }) => {
   const { isDark } = useTheme();
-  const muted = isDark ? 'text-slate-400' : 'text-slate-500';
+  const muted = isDark ? 'text-slate-500' : 'text-slate-500';
+  const body = isDark ? 'text-slate-300' : 'text-slate-700';
+  const title = isDark ? 'text-slate-100' : 'text-slate-900';
 
   const [categoryFilter, setCategoryFilter] = useState<'all' | NextJsImprovementCategory>('all');
   const [severityFilter, setSeverityFilter] = useState<'all' | 'critical' | 'warning' | 'optimization'>('all');
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [showAllImprovements, setShowAllImprovements] = useState(false);
 
-  const {
-    router = 'App Router',
-    version,
-  } = specialization || {};
+  const IMPROVEMENTS_PREVIEW_COUNT = 8;
 
+  const { router = 'App Router', version } = specialization || {};
   const improvements = specialization?.improvements || [];
 
   const actionAudit = useMemo(() => {
     if (specialization?.actionAudit) {
       return {
         totalActionsCount: specialization.actionAudit.totalActionsCount ?? 0,
-        actionFilesCount: specialization.actionAudit.actionFilesCount ?? 0,
         unvalidatedFilesCount: specialization.actionAudit.unvalidatedFilesCount ?? 0,
         unprotectedFilesCount: specialization.actionAudit.unprotectedFilesCount ?? 0,
-        complexActionsCount: specialization.actionAudit.complexActionsCount ?? 0,
-        actionFiles: specialization.actionAudit.actionFiles || [],
       };
     }
-    const legacyActions = (specialization as any)?.serverActions;
+    const legacyActions = (specialization as { serverActions?: { actionFilesCount?: number; actionFiles?: unknown[]; totalActionsCount?: number } })
+      .serverActions;
     const legacyCount = legacyActions?.actionFilesCount || legacyActions?.actionFiles?.length || 0;
     return {
       totalActionsCount: legacyActions?.totalActionsCount ?? legacyCount * 3,
-      actionFilesCount: legacyCount,
       unvalidatedFilesCount: Math.max(0, Math.round(legacyCount * 0.7)),
       unprotectedFilesCount: Math.max(0, Math.round(legacyCount * 0.5)),
-      complexActionsCount: Math.max(0, Math.round(legacyCount * 0.2)),
-      actionFiles: legacyActions?.actionFiles || [],
     };
   }, [specialization]);
 
   const bundleAudit = useMemo(() => {
     if (specialization?.bundleAudit) {
       return {
-        serverComponentsCount: specialization.bundleAudit.serverComponentsCount ?? 0,
-        clientComponentsCount: specialization.bundleAudit.clientComponentsCount ?? 0,
-        totalComponents: specialization.bundleAudit.totalComponents ?? 0,
         serverRatio: specialization.bundleAudit.serverRatio ?? 70,
-        clientRatio: specialization.bundleAudit.clientRatio ?? 30,
         unnecessaryClientFiles: specialization.bundleAudit.unnecessaryClientFiles || [],
       };
     }
-    const legacyDist = (specialization as any)?.componentDistribution;
+    const legacyDist = (specialization as { componentDistribution?: { serverRatio?: number; clientComponentFiles?: string[] } })
+      .componentDistribution;
     return {
-      serverComponentsCount: legacyDist?.serverComponentsCount ?? 0,
-      clientComponentsCount: legacyDist?.clientComponentsCount ?? 0,
-      totalComponents: legacyDist?.totalComponents ?? 0,
       serverRatio: legacyDist?.serverRatio ?? 70,
-      clientRatio: legacyDist?.clientRatio ?? 30,
       unnecessaryClientFiles: (legacyDist?.clientComponentFiles || []).slice(0, 5),
     };
   }, [specialization]);
@@ -96,47 +180,73 @@ export const NextJsSpecializationPanel: React.FC<NextJsSpecializationPanelProps>
   const resilienceAudit = useMemo(() => {
     if (specialization?.resilienceAudit) {
       return {
-        hasRootLayout: specialization.resilienceAudit.hasRootLayout ?? true,
-        hasRootLoading: specialization.resilienceAudit.hasRootLoading ?? false,
-        hasRootError: specialization.resilienceAudit.hasRootError ?? false,
-        hasRootNotFound: specialization.resilienceAudit.hasRootNotFound ?? false,
-        layoutCount: specialization.resilienceAudit.layoutCount ?? 0,
-        loadingCount: specialization.resilienceAudit.loadingCount ?? 0,
-        errorCount: specialization.resilienceAudit.errorCount ?? 0,
-        notFoundCount: specialization.resilienceAudit.notFoundCount ?? 0,
-        missingLoadingSegments: specialization.resilienceAudit.missingLoadingSegments || [],
+        boundaryFiles:
+          (specialization.resilienceAudit.layoutCount ?? 0) +
+          (specialization.resilienceAudit.loadingCount ?? 0) +
+          (specialization.resilienceAudit.errorCount ?? 0),
         missingErrorSegments: specialization.resilienceAudit.missingErrorSegments || [],
+        hasRootError: specialization.resilienceAudit.hasRootError ?? false,
       };
     }
-    const legacyHealth = (specialization as any)?.boundaryHealth;
+    const legacyHealth = (specialization as { boundaryHealth?: { layoutCount?: number; loadingCount?: number; errorCount?: number; hasRootError?: boolean } })
+      .boundaryHealth;
     const hasRootError = legacyHealth?.hasRootError ?? false;
-    const hasRootLoading = legacyHealth?.hasRootLoading ?? false;
     return {
-      hasRootLayout: legacyHealth?.hasRootLayout ?? true,
-      hasRootLoading,
-      hasRootError,
-      hasRootNotFound: legacyHealth?.hasRootNotFound ?? false,
-      layoutCount: legacyHealth?.layoutCount ?? 0,
-      loadingCount: legacyHealth?.loadingCount ?? 0,
-      errorCount: legacyHealth?.errorCount ?? 0,
-      notFoundCount: legacyHealth?.notFoundCount ?? 0,
-      missingLoadingSegments: !hasRootLoading ? ['app/loading.tsx'] : [],
+      boundaryFiles: (legacyHealth?.layoutCount ?? 0) + (legacyHealth?.loadingCount ?? 0) + (legacyHealth?.errorCount ?? 0),
       missingErrorSegments: !hasRootError ? ['app/error.tsx'] : [],
+      hasRootError,
     };
   }, [specialization]);
 
-  // Filtered improvements list
   const filteredImprovements = useMemo(() => {
-    return improvements.filter(item => {
-      if (categoryFilter !== 'all' && item.category !== categoryFilter) return false;
-      if (severityFilter !== 'all' && item.severity !== severityFilter) return false;
-      return true;
-    });
+    return improvements
+      .filter(item => {
+        if (categoryFilter !== 'all' && item.category !== categoryFilter) return false;
+        if (severityFilter !== 'all' && item.severity !== severityFilter) return false;
+        return true;
+      })
+      .sort((a, b) => SEVERITY_RANK[a.severity] - SEVERITY_RANK[b.severity]);
   }, [improvements, categoryFilter, severityFilter]);
+
+  const visibleImprovements = useMemo(() => {
+    if (showAllImprovements) return filteredImprovements;
+    return filteredImprovements.slice(0, IMPROVEMENTS_PREVIEW_COUNT);
+  }, [filteredImprovements, showAllImprovements]);
+
+  const hiddenImprovementCount = Math.max(0, filteredImprovements.length - visibleImprovements.length);
+
+  useEffect(() => {
+    setShowAllImprovements(false);
+  }, [categoryFilter, severityFilter]);
 
   const criticalCount = improvements.filter(i => i.severity === 'critical').length;
   const warningCount = improvements.filter(i => i.severity === 'warning').length;
   const optimizationCount = improvements.filter(i => i.severity === 'optimization').length;
+
+  const hasActiveFilters = categoryFilter !== 'all' || severityFilter !== 'all';
+
+  const categoryCounts = useMemo(() => {
+    const counts: Record<'all' | NextJsImprovementCategory, number> = {
+      all: improvements.length,
+      'action-hygiene': 0,
+      'bundle-optimization': 0,
+      'route-resilience': 0,
+      modernization: 0,
+    };
+    for (const item of improvements) {
+      counts[item.category] += 1;
+    }
+    return counts;
+  }, [improvements]);
+
+  const panel = overviewPanelClass(isDark);
+  const divide = overviewDivideClass(isDark);
+  const border = overviewBorderClass(isDark);
+
+  const actionsMetricEmphasis: OverviewEmphasis =
+    actionAudit.unvalidatedFilesCount > 0 || actionAudit.unprotectedFilesCount > 0 ? 'warning' : 'neutral';
+  const bundleMetricEmphasis: OverviewEmphasis = bundleAudit.unnecessaryClientFiles.length > 0 ? 'warning' : 'neutral';
+  const boundaryMetricEmphasis: OverviewEmphasis = resilienceAudit.hasRootError ? 'neutral' : 'critical';
 
   const copyFixPrompt = useCallback(async (item: NextJsArchitecturalImprovement) => {
     const prompt = `### Next.js Architectural Improvement Request
@@ -162,377 +272,298 @@ Refactor the code to implement this recommendation. Ensure clean TypeScript typi
     }
   }, []);
 
+  const severityCount = (sev: 'all' | 'critical' | 'warning' | 'optimization') => {
+    if (sev === 'all') return improvements.length;
+    if (sev === 'critical') return criticalCount;
+    if (sev === 'warning') return warningCount;
+    return optimizationCount;
+  };
+
+  const clearFilters = () => {
+    setCategoryFilter('all');
+    setSeverityFilter('all');
+  };
+
+  const headerMeta = [version ? `Next.js ${version}` : 'Next.js', router].join(' · ');
+
   return (
-    <section className={`rounded-2xl border transition-all overflow-hidden ${
-      isDark
-        ? 'border-white/[0.08] bg-gradient-to-b from-[#141619] to-[#0F1013] shadow-xl'
-        : 'border-slate-200/90 bg-white shadow-xs'
-    }`}>
-      {/* ---------------------------------------------------- */}
-      {/* 1. TOP HEADER: Framework Identity & Health Synopsis  */}
-      {/* ---------------------------------------------------- */}
-      <div className={`px-5 py-4 border-b flex flex-wrap items-center justify-between gap-3 ${
-        isDark ? 'border-white/[0.06] bg-white/[0.01]' : 'border-slate-100 bg-slate-50/60'
-      }`}>
-        <div className="flex items-center gap-3">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-black text-white border border-white/20 shadow-md">
-            {/* Next.js Monogram */}
-            <svg className="h-5 w-5" viewBox="0 0 180 180" fill="none">
-              <mask id="mask0_next" maskUnits="userSpaceOnUse" x="0" y="0" width="180" height="180" style={{ maskType: 'alpha' }}>
-                <circle cx="90" cy="90" r="90" fill="black" />
-              </mask>
-              <g mask="url(#mask0_next)">
-                <circle cx="90" cy="90" r="90" fill="black" />
-                <path
-                  d="M149.508 157.52L69.142 54H54V125.97H66.1136V69.3836L139.999 164.845C143.333 162.614 146.509 160.165 149.508 157.52Z"
-                  fill="url(#paint0_linear_next)"
-                />
-                <rect x="115" y="54" width="12" height="72" fill="url(#paint1_linear_next)" />
-              </g>
-              <defs>
-                <linearGradient id="paint0_linear_next" x1="109" y1="116.5" x2="144.5" y2="160.5" gradientUnits="userSpaceOnUse">
-                  <stop stopColor="white" />
-                  <stop offset="1" stopColor="white" stopOpacity="0" />
-                </linearGradient>
-                <linearGradient id="paint1_linear_next" x1="121" y1="54" x2="120.799" y2="106.875" gradientUnits="userSpaceOnUse">
-                  <stop stopColor="white" />
-                  <stop offset="1" stopColor="white" stopOpacity="0" />
-                </linearGradient>
-              </defs>
-            </svg>
-          </div>
-
+    <section className={`overflow-hidden rounded-2xl border ${panel}`}>
+      <header className={`border-b px-5 py-5 sm:px-6 ${border}`}>
+        <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <div className="flex items-center gap-2 flex-wrap">
-              <h3 className={`text-xs font-semibold uppercase tracking-wider ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                Next.js Architectural Critique & Opportunities
-              </h3>
-              <span className={`rounded-full px-2 py-0.5 text-[10px] font-mono border ${
-                isDark ? 'border-white/[0.08] bg-white/[0.04] text-slate-300' : 'border-slate-200 bg-slate-100 text-slate-700'
-              }`}>
-                {version ? `Next.js ${version}` : 'Next.js App Router'}
-              </span>
-              <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold border ${
-                router === 'App Router'
-                  ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-400'
-                  : 'border-amber-500/30 bg-amber-500/10 text-amber-400'
-              }`}>
-                {router}
-              </span>
-            </div>
-            <p className={`mt-0.5 text-xs ${muted}`}>
-              Actionable structural critique detecting mutation risks, bundle dead weight, and resilience gaps.
-            </p>
+            <h2 className={`text-[15px] font-medium leading-snug ${title}`}>Next.js review</h2>
+            <p className={`mt-1 text-[13px] ${muted}`}>{headerMeta}</p>
           </div>
+          {improvements.length > 0 ? (
+            <p className={`text-[13px] tabular-nums ${muted}`}>
+              {criticalCount > 0 ? (
+                <span className={overviewSeverityLabel(isDark, 'critical')}>{criticalCount} critical</span>
+              ) : null}
+              {criticalCount > 0 && warningCount > 0 ? <span> · </span> : null}
+              {warningCount > 0 ? (
+                <span className={overviewSeverityLabel(isDark, 'warning')}>
+                  {warningCount} warning{warningCount === 1 ? '' : 's'}
+                </span>
+              ) : null}
+              {criticalCount === 0 && warningCount === 0 ? (
+                <span>
+                  {improvements.length} optimization{improvements.length === 1 ? '' : 's'}
+                </span>
+              ) : null}
+            </p>
+          ) : null}
+        </div>
+      </header>
+
+      <dl className={`grid grid-cols-1 divide-y md:grid-cols-3 md:divide-x md:divide-y-0 ${divide}`}>
+        <div className="px-5 py-5 sm:px-6">
+          <dt className={`text-[13px] ${muted}`}>Server actions</dt>
+          <dd
+            className={`mt-2 text-xl font-medium tabular-nums tracking-tight ${overviewMetricValueAccent(isDark, actionsMetricEmphasis)}`}
+          >
+            {actionAudit.totalActionsCount}
+          </dd>
+          <dd className={`mt-1.5 text-xs leading-relaxed ${muted}`}>
+            {actionAudit.unvalidatedFilesCount > 0 ? (
+              <>
+                <span className={overviewSeverityLabel(isDark, 'warning')}>
+                  {actionAudit.unvalidatedFilesCount} without validation
+                </span>
+                {actionAudit.unprotectedFilesCount > 0 ? (
+                  <>
+                    <span> · </span>
+                    <span className={overviewSeverityLabel(isDark, 'warning')}>
+                      {actionAudit.unprotectedFilesCount} without auth
+                    </span>
+                  </>
+                ) : null}
+              </>
+            ) : (
+              'Validation and auth look consistent in scanned modules'
+            )}
+          </dd>
         </div>
 
-        {/* Aggregate Improvements Pill */}
-        <div className="flex items-center gap-2">
-          <span className={`px-2.5 py-1 rounded-lg border text-xs font-mono font-medium ${
-            criticalCount > 0
-              ? 'border-rose-500/30 bg-rose-500/10 text-rose-300'
-              : warningCount > 0
-              ? 'border-amber-500/30 bg-amber-500/10 text-amber-300'
-              : 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300'
-          }`}>
-            {improvements.length} Improvement Opportunities
-          </span>
+        <div className="px-5 py-5 sm:px-6">
+          <dt className={`text-[13px] ${muted}`}>Client bundle</dt>
+          <dd
+            className={`mt-2 text-xl font-medium tabular-nums tracking-tight ${overviewMetricValueAccent(isDark, bundleMetricEmphasis)}`}
+          >
+            {bundleAudit.unnecessaryClientFiles.length}
+            <span className={`ml-1.5 text-sm font-normal ${muted}`}>convertible</span>
+          </dd>
+          <dd className={`mt-1.5 text-xs leading-relaxed ${muted}`}>
+            {bundleAudit.serverRatio}% server components in sampled tree
+          </dd>
         </div>
-      </div>
 
-      {/* ---------------------------------------------------- */}
-      {/* 2. 3 HIGH-LEVERAGE CRITIQUE PILLARS                  */}
-      {/* ---------------------------------------------------- */}
-      <div className="p-5 grid grid-cols-1 md:grid-cols-3 gap-4">
-        {/* Pillar A: Server Action Hygiene & Validation */}
-        <div className={`p-4 rounded-xl border flex flex-col justify-between ${
-          isDark ? 'border-white/[0.06] bg-black/25' : 'border-slate-200 bg-slate-50/70'
-        }`}>
-          <div>
-            <div className="flex items-center justify-between text-xs mb-2">
-              <span className={`flex items-center gap-1.5 font-semibold ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                <Zap className="h-3.5 w-3.5 text-amber-400" />
-                <span>Action Mutation Hygiene</span>
-              </span>
-              <span className={`font-mono text-[10px] font-bold ${
-                actionAudit.unvalidatedFilesCount > 0 ? 'text-rose-400' : 'text-emerald-400'
-              }`}>
-                {actionAudit.unvalidatedFilesCount > 0 ? `${actionAudit.unvalidatedFilesCount} Action Risks` : 'Validated'}
-              </span>
-            </div>
+        <div className="px-5 py-5 sm:px-6">
+          <dt className={`text-[13px] ${muted}`}>Route boundaries</dt>
+          <dd
+            className={`mt-2 text-xl font-medium tabular-nums tracking-tight ${overviewMetricValueAccent(isDark, boundaryMetricEmphasis)}`}
+          >
+            {resilienceAudit.boundaryFiles}
+          </dd>
+          <dd className={`mt-1.5 text-xs leading-relaxed ${muted}`}>
+            {resilienceAudit.hasRootError ? (
+              'Root error boundary present'
+            ) : (
+              <span className={overviewSeverityLabel(isDark, 'critical')}>Missing root error boundary</span>
+            )}
+            {resilienceAudit.missingErrorSegments.length > 0 ? (
+              <>
+                <span> · </span>
+                <span className={overviewSeverityLabel(isDark, 'warning')}>
+                  {resilienceAudit.missingErrorSegments.length} segments without error.tsx
+                </span>
+              </>
+            ) : null}
+          </dd>
+        </div>
+      </dl>
 
-            <div className="flex items-baseline gap-2 mt-1">
-              <span className={`text-2xl font-bold font-mono ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                {actionAudit.totalActionsCount}
-              </span>
-              <span className={`text-xs ${muted}`}>server actions evaluated</span>
-            </div>
-
-            <p className={`mt-2 text-[11px] leading-relaxed ${muted}`}>
-              {actionAudit.unvalidatedFilesCount > 0
-                ? `${actionAudit.unvalidatedFilesCount} action modules process incoming mutations without schema validation (Zod). Malformed payloads can cause runtime crashes.`
-                : 'All detected action modules implement runtime schema validation before executing mutations.'}
-            </p>
-          </div>
-
-          <div className={`mt-3 pt-2 border-t flex items-center justify-between text-[10px] font-mono ${
-            isDark ? 'border-white/[0.06] text-slate-400' : 'border-slate-200 text-slate-500'
-          }`}>
-            <span>Auth Guards:</span>
-            <span className={actionAudit.unprotectedFilesCount > 0 ? 'text-amber-400 font-semibold' : 'text-emerald-400'}>
-              {actionAudit.unprotectedFilesCount > 0 ? `${actionAudit.unprotectedFilesCount} modules unverified` : 'Verified'}
+      {improvements.length > 0 ? (
+        <div className={`border-t px-5 py-3 sm:px-6 ${border}`}>
+          <div className="mb-2.5 flex flex-wrap items-center gap-x-2 gap-y-1.5">
+            <h3 className={`text-sm font-medium ${title}`}>Findings</h3>
+            <span className={`text-xs tabular-nums ${muted}`}>
+              {hasActiveFilters ? (
+                <>
+                  <span className={`font-medium ${title}`}>{filteredImprovements.length}</span>
+                  <span className="opacity-70"> / {improvements.length}</span>
+                </>
+              ) : (
+                <span className={`font-medium ${title}`}>{improvements.length}</span>
+              )}
             </span>
-          </div>
-        </div>
-
-        {/* Pillar B: Client Boundary & Bundle Optimization */}
-        <div className={`p-4 rounded-xl border flex flex-col justify-between ${
-          isDark ? 'border-white/[0.06] bg-black/25' : 'border-slate-200 bg-slate-50/70'
-        }`}>
-          <div>
-            <div className="flex items-center justify-between text-xs mb-2">
-              <span className={`flex items-center gap-1.5 font-semibold ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                <TrendingDown className="h-3.5 w-3.5 text-cyan-400" />
-                <span>Bundle Optimization</span>
-              </span>
-              <span className="font-mono text-[10px] font-bold text-cyan-400">
-                {bundleAudit.serverRatio}% Server First
-              </span>
-            </div>
-
-            <div className="flex items-baseline gap-2 mt-1">
-              <span className="text-2xl font-bold font-mono text-cyan-400">
-                {bundleAudit.unnecessaryClientFiles.length}
-              </span>
-              <span className={`text-xs ${muted}`}>convertible components</span>
-            </div>
-
-            <p className={`mt-2 text-[11px] leading-relaxed ${muted}`}>
-              {bundleAudit.unnecessaryClientFiles.length > 0
-                ? `${bundleAudit.unnecessaryClientFiles.length} files use 'use client' without interactive hooks or DOM events. Converting to Server Components eliminates client JS bundle weight.`
-                : 'Optimal client boundaries. All files marked with "use client" genuinely utilize React state or event listeners.'}
-            </p>
-          </div>
-
-          <div className={`mt-3 pt-2 border-t flex items-center justify-between text-[10px] font-mono ${
-            isDark ? 'border-white/[0.06] text-slate-400' : 'border-slate-200 text-slate-500'
-          }`}>
-            <span>Client Ratio:</span>
-            <span className={`font-semibold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
-              {bundleAudit.clientRatio}% ({bundleAudit.clientComponentsCount} files)
-            </span>
-          </div>
-        </div>
-
-        {/* Pillar C: Route Resilience & Error Isolation */}
-        <div className={`p-4 rounded-xl border flex flex-col justify-between ${
-          isDark ? 'border-white/[0.06] bg-black/25' : 'border-slate-200 bg-slate-50/70'
-        }`}>
-          <div>
-            <div className="flex items-center justify-between text-xs mb-2">
-              <span className={`flex items-center gap-1.5 font-semibold ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                <Boxes className="h-3.5 w-3.5 text-blue-400" />
-                <span>Resilience Boundaries</span>
-              </span>
-              <span className={`font-mono text-[10px] font-bold ${
-                resilienceAudit.missingErrorSegments.length > 0 ? 'text-rose-400' : 'text-emerald-400'
-              }`}>
-                {resilienceAudit.missingErrorSegments.length > 0 ? 'Gaps Detected' : 'Isolated'}
-              </span>
-            </div>
-
-            <div className="flex items-baseline gap-2 mt-1">
-              <span className={`text-2xl font-bold font-mono ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                {resilienceAudit.layoutCount + resilienceAudit.loadingCount + resilienceAudit.errorCount}
-              </span>
-              <span className={`text-xs ${muted}`}>resilience files configured</span>
-            </div>
-
-            <p className={`mt-2 text-[11px] leading-relaxed ${muted}`}>
-              {resilienceAudit.missingErrorSegments.length > 0
-                ? `${resilienceAudit.missingErrorSegments.length} route segments lack error.tsx. If an async fetch throws, the entire page layout unmounts without an isolated recovery UI.`
-                : 'Robust boundary coverage. App routes implement isolated error boundaries and Suspense streaming skeletons.'}
-            </p>
-          </div>
-
-          <div className={`mt-3 pt-2 border-t flex items-center justify-between text-[10px] font-mono ${
-            isDark ? 'border-white/[0.06] text-slate-400' : 'border-slate-200 text-slate-500'
-          }`}>
-            <span>Root Error Handler:</span>
-            <span className={resilienceAudit.hasRootError ? 'text-emerald-400 font-semibold' : 'text-rose-400 font-semibold'}>
-              {resilienceAudit.hasRootError ? 'Configured' : 'Missing app/error.tsx'}
-            </span>
-          </div>
-        </div>
-      </div>
-
-      {/* ---------------------------------------------------- */}
-      {/* 3. INTERACTIVE IMPROVEMENT EXPLORER TOOLBAR          */}
-      {/* ---------------------------------------------------- */}
-      <div className={`px-5 py-3 border-t border-b flex flex-wrap items-center justify-between gap-3 ${
-        isDark ? 'border-white/[0.06] bg-white/[0.015]' : 'border-slate-100 bg-slate-50/50'
-      }`}>
-        <div className="flex flex-wrap items-center gap-1.5">
-          <span className={`text-xs font-semibold mr-2 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
-            Filter Opportunities:
-          </span>
-
-          {(['all', 'action-hygiene', 'bundle-optimization', 'route-resilience', 'modernization'] as const).map(cat => {
-            const isSelected = categoryFilter === cat;
-            const count = cat === 'all' ? improvements.length : improvements.filter(i => i.category === cat).length;
-            const labels: Record<string, string> = {
-              all: 'All',
-              'action-hygiene': 'Action Security',
-              'bundle-optimization': 'Bundle Optimization',
-              'route-resilience': 'Route Resilience',
-              modernization: 'Modernization',
-            };
-
-            return (
+            {hasActiveFilters ? (
               <button
-                key={cat}
                 type="button"
-                onClick={() => setCategoryFilter(cat)}
-                className={`rounded-lg px-2.5 py-1 text-xs font-medium transition-all ${
-                  isSelected
-                    ? isDark
-                      ? 'bg-[#1E2025] text-white shadow-xs border border-white/[0.08]'
-                      : 'bg-white text-slate-900 shadow-xs border border-slate-200'
-                    : isDark
-                    ? 'text-slate-400 hover:text-slate-200'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                {labels[cat]} <span className="opacity-70 font-mono text-[10px]">({count})</span>
-              </button>
-            );
-          })}
-        </div>
-
-        {/* Severity Chips */}
-        <div className="flex items-center gap-1 text-[11px] font-mono">
-          {(['all', 'critical', 'warning', 'optimization'] as const).map(sev => {
-            const isSelected = severityFilter === sev;
-            return (
-              <button
-                key={sev}
-                type="button"
-                onClick={() => setSeverityFilter(sev)}
-                className={`rounded px-2 py-0.5 capitalize transition-all ${
-                  isSelected
-                    ? 'bg-blue-500/20 text-blue-400 font-semibold border border-blue-500/30'
-                    : isDark
-                    ? 'text-slate-400 hover:text-white'
-                    : 'text-slate-500 hover:text-slate-900'
-                }`}
-              >
-                {sev}
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* ---------------------------------------------------- */}
-      {/* 4. ACTIONABLE IMPROVEMENT CARDS LIST                 */}
-      {/* ---------------------------------------------------- */}
-      <div className="p-5 space-y-3">
-        {filteredImprovements.length > 0 ? (
-          filteredImprovements.map(item => {
-            const isCritical = item.severity === 'critical';
-            const isWarning = item.severity === 'warning';
-            const isCopied = copiedId === item.id;
-
-            return (
-              <div
-                key={item.id}
-                className={`p-4 rounded-xl border transition-all ${
+                onClick={clearFilters}
+                className={
                   isDark
-                    ? 'border-white/[0.06] bg-black/25 hover:border-white/[0.12]'
-                    : 'border-slate-200 bg-white hover:border-slate-300'
-                }`}
+                    ? 'ml-auto text-[11px] font-medium text-slate-400 hover:text-slate-200'
+                    : 'ml-auto text-[11px] font-medium text-slate-600 hover:text-slate-900'
+                }
               >
+                Reset filters
+              </button>
+            ) : null}
+          </div>
+
+          <div
+            className={
+              isDark
+                ? 'overflow-x-auto rounded-xl border border-white/[0.06] bg-white/[0.02] px-2.5 py-2'
+                : 'overflow-x-auto rounded-xl border border-slate-200/80 bg-slate-50/80 px-2.5 py-2'
+            }
+          >
+            <div className="flex min-w-max flex-wrap items-center gap-x-2 gap-y-2 sm:min-w-0 sm:flex-nowrap">
+              <span className={`shrink-0 text-[11px] font-medium ${muted}`}>Category</span>
+              <div className="flex flex-wrap items-center gap-1" role="tablist" aria-label="Filter by category">
+                {CATEGORY_KEYS.map(cat => {
+                  const selected = categoryFilter === cat;
+                  const count = categoryCounts[cat];
+                  return (
+                    <button
+                      key={cat}
+                      type="button"
+                      role="tab"
+                      aria-selected={selected}
+                      onClick={() => setCategoryFilter(cat)}
+                      className={categoryChipClass(isDark, selected)}
+                    >
+                      <span>{CATEGORY_LABELS[cat]}</span>
+                      <span className={`tabular-nums text-[11px] ${selected ? 'opacity-85' : 'opacity-55'}`}>
+                        {count}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              <span
+                className={`mx-0.5 hidden h-4 w-px shrink-0 sm:block ${isDark ? 'bg-white/10' : 'bg-slate-300/70'}`}
+                aria-hidden
+              />
+
+              <span className={`shrink-0 text-[11px] font-medium ${muted}`}>Severity</span>
+              <div className="flex flex-wrap items-center gap-1" aria-label="Filter by severity">
+                {SEVERITY_KEYS.map(sev => {
+                  const selected = severityFilter === sev;
+                  const count = severityCount(sev);
+                  const showDot = sev !== 'all' && count > 0;
+                  return (
+                    <button
+                      key={sev}
+                      type="button"
+                      aria-pressed={selected}
+                      onClick={() => setSeverityFilter(sev)}
+                      className={`${severityChipClass(isDark, sev, selected)} !px-2.5 !py-1 text-[12px]`}
+                    >
+                      {showDot ? (
+                        <span
+                          className={`h-1.5 w-1.5 shrink-0 rounded-full ${severityDotClass(isDark, sev)}`}
+                          aria-hidden
+                        />
+                      ) : null}
+                      <span>{SEVERITY_LABELS[sev]}</span>
+                      <span className={`tabular-nums text-[11px] ${selected ? 'opacity-90' : 'opacity-55'}`}>
+                        {count}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {filteredImprovements.length > 0 ? (
+        <ul className={`divide-y ${divide}`}>
+          {visibleImprovements.map(item => {
+            const isCopied = copiedId === item.id;
+            const emphasis = rowEmphasisForSeverity(item.severity);
+            const rowClass = overviewRowEmphasis(isDark, emphasis);
+
+            return (
+              <li key={item.id} className={`py-5 pr-5 sm:pr-6 ${rowClass || 'px-5 sm:px-6'}`}>
                 <div className="flex flex-wrap items-start justify-between gap-3">
-                  <div className="space-y-1.5 flex-1 min-w-[280px]">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className={`rounded-md px-2 py-0.5 text-[9px] font-mono font-bold uppercase tracking-wider ${
-                        isCritical
-                          ? 'bg-rose-500/15 text-rose-400 border border-rose-500/30'
-                          : isWarning
-                          ? 'bg-amber-500/15 text-amber-400 border border-amber-500/30'
-                          : 'bg-cyan-500/15 text-cyan-400 border border-cyan-500/30'
-                      }`}>
-                        {item.severity}
-                      </span>
-
-                      <span className={`rounded-md px-2 py-0.5 text-[9px] font-mono uppercase ${
-                        isDark ? 'bg-white/[0.04] text-slate-400' : 'bg-slate-100 text-slate-600'
-                      }`}>
-                        {item.category.replace('-', ' ')}
-                      </span>
-
-                      {item.file && (
-                        <span className="flex items-center gap-1 font-mono text-[10px] text-slate-400">
-                          <FileCode className="h-3 w-3 shrink-0" />
-                          <span className="truncate max-w-[260px]">{item.file}</span>
-                        </span>
-                      )}
-                    </div>
-
-                    <h4 className={`text-sm font-semibold ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                      {item.title}
-                    </h4>
+                  <div className="min-w-0 flex-1">
+                    <p className={`text-sm font-medium leading-snug ${title}`}>{item.title}</p>
+                    <p className={`mt-1 text-xs ${muted}`}>
+                      <span className={overviewSeverityLabel(isDark, item.severity)}>{item.severity}</span>
+                      <span> · {item.category.replace(/-/g, ' ')}</span>
+                      {item.file ? (
+                        <>
+                          <span> · </span>
+                          <span className="font-mono text-[11px]">{item.file}</span>
+                        </>
+                      ) : null}
+                    </p>
                   </div>
-
-                  {/* Copy Fix Prompt Action Button */}
                   <button
                     type="button"
-                    onClick={() => copyFixPrompt(item)}
-                    className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-semibold transition-all shrink-0 ${
+                    onClick={() => void copyFixPrompt(item)}
+                    className={`shrink-0 text-xs font-medium transition-colors ${
                       isCopied
-                        ? 'border-emerald-500/50 bg-emerald-500/20 text-emerald-300'
+                        ? isDark
+                          ? 'text-emerald-400'
+                          : 'text-emerald-700'
                         : isDark
-                        ? 'border-blue-500/30 bg-blue-500/10 text-blue-300 hover:bg-blue-500/20 hover:border-blue-500/50'
-                        : 'border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100'
+                          ? 'text-blue-400 hover:text-blue-300'
+                          : 'text-blue-600 hover:text-blue-800'
                     }`}
-                    title="Copy full context and instructions to fix this issue with an AI assistant"
                   >
-                    {isCopied ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : <Sparkles className="h-3.5 w-3.5" />}
-                    <span>{isCopied ? 'Copied Prompt' : 'Copy Fix Prompt'}</span>
+                    {isCopied ? (
+                      <span className="inline-flex items-center gap-1">
+                        <Check className="h-3.5 w-3.5" />
+                        Copied
+                      </span>
+                    ) : (
+                      'Copy prompt'
+                    )}
                   </button>
                 </div>
-
-                {/* Architectural Impact & Engineering Solution */}
-                <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3 text-xs leading-relaxed">
-                  <div className={`p-3 rounded-lg border ${
-                    isDark ? 'border-white/[0.04] bg-white/[0.015] text-slate-300' : 'border-slate-100 bg-slate-50 text-slate-700'
-                  }`}>
-                    <span className="font-semibold text-rose-400 block mb-1">Architectural Risk:</span>
-                    <p>{item.impact}</p>
-                  </div>
-
-                  <div className={`p-3 rounded-lg border ${
-                    isDark ? 'border-emerald-500/20 bg-emerald-500/[0.02] text-slate-200' : 'border-emerald-200 bg-emerald-50/50 text-slate-800'
-                  }`}>
-                    <span className="font-semibold text-emerald-400 block mb-1">Recommended Solution:</span>
-                    <p>{item.remediation}</p>
-                  </div>
-                </div>
-              </div>
+                <p className={`mt-3 text-xs leading-relaxed ${body}`}>{item.impact}</p>
+                <p className={`mt-2 text-xs leading-relaxed ${muted}`}>{item.remediation}</p>
+              </li>
             );
-          })
-        ) : (
-          <div className={`p-8 text-center border rounded-xl border-dashed ${
-            isDark ? 'border-white/[0.08]' : 'border-slate-200'
-          }`}>
-            <CheckCircle2 className="mx-auto h-7 w-7 text-emerald-400 mb-2" />
-            <h4 className={`text-xs font-semibold ${isDark ? 'text-white' : 'text-slate-900'}`}>No Issues in Selected Category</h4>
-            <p className={`text-[11px] mt-0.5 ${muted}`}>
-              No architectural violations found for this filter.
-            </p>
-          </div>
-        )}
-      </div>
+          })}
+        </ul>
+      ) : (
+        <div className="px-5 py-10 text-center sm:px-6">
+          <CheckCircle2 className={`mx-auto h-6 w-6 ${isDark ? 'text-slate-500' : 'text-slate-400'}`} />
+          <p className={`mt-2 text-sm font-medium ${title}`}>Nothing in this filter</p>
+          <p className={`mt-1 text-xs ${muted}`}>Try another category or severity.</p>
+        </div>
+      )}
+
+      {(hiddenImprovementCount > 0 || showAllImprovements) && (
+        <div className={`border-t px-5 py-3 sm:px-6 ${border}`}>
+          {hiddenImprovementCount > 0 ? (
+            <button
+              type="button"
+              onClick={() => setShowAllImprovements(true)}
+              className={`text-[13px] font-medium ${isDark ? 'text-blue-400 hover:text-blue-300' : 'text-blue-600 hover:text-blue-800'}`}
+            >
+              Show {hiddenImprovementCount} more
+            </button>
+          ) : null}
+          {showAllImprovements && filteredImprovements.length > IMPROVEMENTS_PREVIEW_COUNT ? (
+            <button
+              type="button"
+              onClick={() => setShowAllImprovements(false)}
+              className={
+                isDark ? 'text-[13px] text-slate-500 hover:text-slate-300' : 'text-[13px] text-slate-500 hover:text-slate-700'
+              }
+            >
+              Show fewer
+            </button>
+          ) : null}
+        </div>
+      )}
     </section>
   );
 };

@@ -36,6 +36,7 @@ export function normalizeTreeFilePath(path: string): string {
 export interface CodebaseToolbarHandlers {
   rescan?: () => Promise<void>;
   isRescanning?: boolean;
+  lastScannedLabel?: string;
   openPreferredIde?: () => void;
   preferredIdeShortName?: string;
   exportReport?: () => void;

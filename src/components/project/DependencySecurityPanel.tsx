@@ -131,7 +131,7 @@ export const DependencySecurityPanel: React.FC<DependencySecurityPanelProps> = R
 
   // Automatically run the dependency audit as soon as inventory is available
   useEffect(() => {
-    const auditKey = `${analysis.rootPath}:${inventory?.packages.length || 0}`;
+    const auditKey = `${analysis.rootPath}:${analysis.scannedAt}:${inventory?.packages.length || 0}`;
     if (!assessment && inventory && inventory.packages.length > 0 && lastAuditedKeyRef.current !== auditKey && !isAuditing) {
       lastAuditedKeyRef.current = auditKey;
       void runVulnerabilityAudit();
