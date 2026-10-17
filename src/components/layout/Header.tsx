@@ -10,6 +10,7 @@ import { DesktopTitlebarStrip } from './DesktopTitlebarStrip';
 import { CodebaseSectionNav } from '../project/CodebaseSectionNav';
 import { CodebaseHeaderToolbar } from '../project/CodebaseHeaderToolbar';
 import { getGreenfieldPhaseProgress } from '../../services/greenfieldProgress';
+import { BRAND_NAME } from '../../constants/brand';
 
 interface HeaderProps {
   activeTab?: PhaseTab;
@@ -22,7 +23,7 @@ const PHASE_NAV: Array<{
   shortLabel: string;
   icon: typeof FileText;
 }> = [
-  { id: 'domain-intent', label: 'Product blueprint', shortLabel: 'Blueprint', icon: FileText },
+  { id: 'domain-intent', label: 'Product blueprint', shortLabel: 'brief', icon: FileText },
   { id: 'architecture-map', label: 'Architecture map', shortLabel: 'Map', icon: Network },
   { id: 'in-flight', label: 'Build handoff', shortLabel: 'Handoff', icon: Code2 },
 ];
@@ -207,7 +208,7 @@ export const Header: React.FC<HeaderProps> = ({
       onClick={() => setIsCreatingNew(true)}
       className={`text-sm font-semibold transition-colors ${isDark ? 'text-[#C4C6CC] hover:text-white' : 'text-slate-700 hover:text-slate-950'}`}
     >
-      Blueprint Studio
+      {BRAND_NAME}
     </button>
   ) : null;
 

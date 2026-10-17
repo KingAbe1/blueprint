@@ -367,7 +367,7 @@ ${selectedFinding.detail}${snippetText}${evidenceText}
     if (!analysis.quality) return;
     const lines = [
       `# ${analysis.rootName} · Architectural & Security Audit Report`,
-      `*Generated on ${new Date().toLocaleString()} by Blueprint Studio*`,
+      `*Generated on ${new Date().toLocaleString()} by blueprint studio*`,
       ``,
       `## Executive Summary`,
       `- **Health Index:** ${analysis.quality.score}/100 (${grade.status})`,

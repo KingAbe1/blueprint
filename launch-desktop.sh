@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 
-# Blueprint Studio - open the Vite dev server in a standalone app window (macOS)
+# blueprint studio - open the Vite dev server in a standalone app window (macOS)
 PORT=5173
 URL="http://localhost:$PORT"
 
-echo "Starting Blueprint Studio..."
+echo "Starting blueprint studio..."
 
 if ! curl -s --connect-timeout 1 "$URL" > /dev/null; then
   echo "Starting dev server on port $PORT..."
@@ -17,7 +17,7 @@ if ! curl -s --connect-timeout 1 "$URL" > /dev/null; then
   done
 fi
 
-echo "Opening Blueprint Studio..."
+echo "Opening blueprint studio..."
 
 if [ -d "/Applications/Google Chrome.app" ]; then
   open -na "/Applications/Google Chrome.app" --args \
@@ -41,4 +41,4 @@ else
   open "$URL"
 fi
 
-echo "Blueprint Studio is open at $URL"
+echo "blueprint studio is open at $URL"

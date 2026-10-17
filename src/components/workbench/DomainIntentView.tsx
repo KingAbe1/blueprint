@@ -328,7 +328,7 @@ export const DomainIntentView: React.FC<DomainIntentViewProps> = ({ onOpenArchit
     try {
       const answerBrief = buildAnswerBrief(completedInterview);
       let nextRecommendations: FrameworkRecommendation[];
-      let providerName = 'Blueprint guidance';
+      let providerName = 'blueprint studio guidance';
 
       if (isAiConfigured) {
         const result = await analyzeFrameworksWithAI(activeProject.name, spec.description, settings, {
@@ -341,7 +341,7 @@ export const DomainIntentView: React.FC<DomainIntentViewProps> = ({ onOpenArchit
       }
 
       const recommendation = nextRecommendations[0];
-      if (!recommendation) throw new Error('Blueprint could not create a final architecture from these answers.');
+      if (!recommendation) throw new Error('blueprint studio could not create a final architecture from these answers.');
       const first = applyInterviewTopology(recommendation, completedInterview, spec.description);
       updateSpec({
         frameworkRecommendations: [first],
@@ -497,7 +497,7 @@ export const DomainIntentView: React.FC<DomainIntentViewProps> = ({ onOpenArchit
       return 'Brief and answers saved - edit here or open the architecture map.';
     }
     if (interview?.status === 'in_progress') {
-      return 'One choice per question; Blueprint recommends a stack from your answers.';
+      return 'One choice per question; blueprint studio recommends a stack from your answers.';
     }
     if (pinBuildQuestionsBesideBrief) {
       return 'Brief ready - start build questions when you are.';
@@ -823,7 +823,7 @@ export const DomainIntentView: React.FC<DomainIntentViewProps> = ({ onOpenArchit
             ) : (
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <p className={`max-w-lg text-sm leading-6 ${muted}`}>
-                  Blueprint turns your answers into stack choices and constraints for the coding agent.
+                  blueprint studio turns your answers into stack choices and constraints for the coding agent.
                 </p>
                 <button
                   type="button"

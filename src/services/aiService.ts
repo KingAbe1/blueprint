@@ -207,7 +207,7 @@ export async function callAIModel(
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${apiKey.trim()}`,
-          ...(provider === 'openrouter' ? { 'HTTP-Referer': 'https://blueprint.studio', 'X-Title': 'Blueprint' } : {})
+          ...(provider === 'openrouter' ? { 'HTTP-Referer': 'https://blueprint.studio', 'X-Title': 'product' } : {})
         },
         body: JSON.stringify(bodyPayload)
       }).finally(() => clearTimeout(timeoutId));
@@ -519,7 +519,7 @@ Requirements:
 - Do not infer a hard decision from weak clues. When a choice is genuinely ambiguous, ask a clarifying question.
 - Each question must have a unique "id" (snake_case, descriptive, e.g. "fleet_map_freshness").
 - "category" is a UI grouping tag only - pick the closest: product, users, platform, approach, ui, access, frontend, topology, backend, api, data, realtime, integrations, security, compliance, scale, reliability, deployment, delivery, testing, observability, operations, budget. Multiple questions may share a category.
-- The category MUST match the question topic. Geo-fencing, map accuracy, and location refresh belong in product or realtime - not "approach". Maintenance alert lead time belongs in product or observability - not "operations" unless the question is literally about who owns the system. Reserve "approach" for how strict vs flexible Blueprint should be when choosing defaults. Reserve "operations" for who runs and maintains the system day to day.
+- The category MUST match the question topic. Geo-fencing, map accuracy, and location refresh belong in product or realtime - not "approach". Maintenance alert lead time belongs in product or observability - not "operations" unless the question is literally about who owns the system. Reserve "approach" for how strict vs flexible blueprint studio should be when choosing defaults. Reserve "operations" for who runs and maintains the system day to day.
 - Tailoring is mandatory: every question and option must reference this project (roles, features, data, workflows from the description) - never generic checklist wording.
 - Ask one decision per question. Questions must yield actionable constraints for an AI coding agent (scope, access, data accuracy, integrations, recovery, release process, monitoring, ownership, cost).
 - Set "allowMultiple": true when several options can legitimately apply together (e.g. multiple user roles, integrations, regions, or compliance needs). Keep "allowMultiple": false (default) for mutually exclusive choices (primary platform, deployment model, monolith vs services, budget tier).
@@ -537,7 +537,7 @@ Requirements:
 - Wrong (too technical): "Monolith or microservices?" / "Which database?" / "Do you need horizontal scaling?"
 - Right (same intent): "If this grows from hundreds to thousands of vehicles, should tracking and reports still feel instant?" / "Will one team maintain everything, or will different departments own separate pieces and release on their own schedule?"
 - Assume the user may be a non-technical "vibe coder". Use everyday language, short sentences, and concrete examples. Never use an acronym such as SSO, API, CI/CD, RTO, RPO, SLO, PCI, or SOC 2 without immediately explaining it in plain language.
-- When a technical choice does not require user knowledge, make "Let Blueprint decide" the recommended option and derive the technology later from the user's outcome-based answers.
+- When a technical choice does not require user knowledge, make "Let blueprint studio decide" the recommended option and derive the technology later from the user's outcome-based answers.
 - Each question must have 3 to 5 concise answer options.
 - Include a short description for every option explaining its practical tradeoff.
 - Mark exactly one option per question as recommended when there is a clear default.
@@ -653,7 +653,7 @@ Respond ONLY with a valid JSON object in this shape:
     return {
       id: String(item.id || `${category}_${questionIndex}`).toLowerCase().replace(/[^a-z0-9_-]/g, '_'),
       category: category as ArchitectureQuestion['category'],
-      question: String(item.question || 'Which approach should Blueprint use?').trim(),
+      question: String(item.question || 'Which approach should blueprint studio use?').trim(),
       context: item.context ? String(item.context).trim() : undefined,
       allowCustom: item.allowCustom !== false,
       allowMultiple,
@@ -766,7 +766,7 @@ function buildDeploymentClarificationQuestion(description: string): Architecture
       {
         id: 'managed_cloud',
         label: 'Managed cloud (simplest to start)',
-        description: 'Blueprint picks a mainstream hosted setup; you focus on the product, not servers.',
+        description: 'blueprint studio picks a mainstream hosted setup; you focus on the product, not servers.',
         recommended: true,
       },
       {
@@ -783,7 +783,7 @@ function buildDeploymentClarificationQuestion(description: string): Architecture
       },
       {
         id: 'blueprint_decide',
-        label: 'Let Blueprint decide',
+        label: 'Let blueprint studio decide',
         description: 'Use the safest default for a team your size.',
         recommended: false,
       },
@@ -819,7 +819,7 @@ function buildDataRetentionClarificationQuestion(_description: string): Architec
       },
       {
         id: 'blueprint_decide',
-        label: 'Let Blueprint decide',
+        label: 'Let blueprint studio decide',
         description: 'Match retention to the features in the brief.',
         recommended: false,
       },
@@ -863,7 +863,7 @@ function buildPlatformClarificationQuestion(description: string): ArchitectureQu
       },
       {
         id: 'blueprint_decide',
-        label: 'Let Blueprint decide',
+        label: 'Let blueprint studio decide',
         description: 'Choose the most sensible mix from the roles listed in the brief.',
         recommended: false,
       },
@@ -1027,7 +1027,7 @@ Architectural Guidelines:
 - Produce exactly ONE final, production-ready architecture that honors the interview decisions. The interview is the selection process; do not present alternatives or reopen choices the user already made.
 - Honor the system-shape answer. Default to a modular monolith for one small product team unless the interview explicitly justifies independently deployed services, serverless functions, an event-driven system, or a hybrid.
 - A modular monolith must still have clear product-domain modules. Microservices must be justified by independent ownership, release, scaling, or failure-isolation needs - not by the desire to appear scalable.
-- Treat "No preference" and "Let Blueprint decide" as permission to make the safest evidence-based choice, not as an architectural constraint.
+- Treat "No preference" and "Let blueprint studio decide" as permission to make the safest evidence-based choice, not as an architectural constraint.
 - For commerce systems with products, inventory, orders, and payments, prefer a transactional relational system of record unless the interview explicitly requires another model. Do not choose a document database merely because realtime updates are needed.
 - Never claim that a framework, cloud provider, or database makes the application compliant. Technology can support controls or reduce compliance scope, but compliance still requires correct implementation, policies, evidence, and review.
 - When payments use Stripe, Apple Pay, or a similar provider, keep raw card data out of the application and describe this as reducing payment-compliance scope - not guaranteeing compliance.

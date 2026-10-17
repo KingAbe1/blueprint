@@ -85,7 +85,7 @@ export const DeleteModal: React.FC = () => {
                 </span>
               </div>
               <p id="delete-project-description" className={`mt-1 text-[13px] leading-relaxed ${muted}`}>
-                Blueprint data for this workspace is removed from this device. Folders on disk are not deleted.
+                blueprint studio data for this workspace is removed from this device. Folders on disk are not deleted.
               </p>
             </div>
             <button
@@ -119,7 +119,7 @@ export const DeleteModal: React.FC = () => {
               <div className="min-w-0 flex-1">
                 <p className={`truncate text-[13px] ${titleText}`}>{projectToDelete.name}</p>
                 <p className={`mt-0.5 text-[11px] ${muted}`}>
-                  {isCodebase ? 'Codebase' : 'Blueprint'}
+                  {isCodebase ? 'Codebase' : 'product'}
                   {' · '}
                   {formatRelativeTime(touchedAt)}
                 </p>

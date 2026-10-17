@@ -71,7 +71,7 @@ interface ToolchainQualityRule {
 
 // Keep toolchain checks declarative so new languages and ecosystem tools can be
 // added without changing the assessment flow. These checks detect configuration;
-// Blueprint does not execute the commands it finds.
+// blueprint studio does not execute the commands it finds.
 export const TOOLCHAIN_QUALITY_RULES: ToolchainQualityRule[] = [
   { id: 'js-tests', languages: ['JavaScript', 'TypeScript', 'Vue', 'Svelte'], name: 'Jest / Vitest / Playwright / Cypress tests', category: 'testing', pathPatterns: [/(^|\/)(vitest|jest|playwright|cypress)\.config\./, /(^|\/)\.mocharc/], manifestPatterns: [/\b(?:vitest|jest|playwright|@playwright\/test|cypress|mocha|@testing-library\/react)\b/], scriptPatterns: [/^(?:test|test:.*|e2e|cypress)$/], testFilePatterns: [/\.(?:test|spec|cy)\.[^/]+$/, /(^|\/)(__tests__|tests?|e2e|cypress\/e2e)\//] },
   { id: 'python-tests', languages: ['Python'], name: 'Pytest / unittest', category: 'testing', pathPatterns: [/(^|\/)(pytest\.ini|tox\.ini|conftest\.py)$/], manifestPatterns: [/\bpytest\b|\[tool\.pytest/,], scriptPatterns: [/^(?:test|tests)$/], testFilePatterns: [/(^|\/)test_[^/]+\.py$/, /(^|\/)[^/]+_test\.py$/, /(^|\/)tests?\//] },

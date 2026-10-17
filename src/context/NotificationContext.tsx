@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useCallback, useEffect, ReactNode } from 'react';
 import { CheckCircle2, AlertCircle, AlertTriangle, Info, X, ExternalLink } from 'lucide-react';
 import { useTheme } from './ThemeContext';
+import { BRAND_NAME } from '../constants/brand';
 
 export type NotificationType = 'success' | 'error' | 'warning' | 'info';
 
@@ -160,7 +161,7 @@ export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ childr
     // Dispatch to native Desktop Notification API if permitted
     if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
       try {
-        const titleText = item.title || (item.type === 'error' ? 'Blueprint Error' : item.type === 'success' ? 'Blueprint Success' : 'Blueprint Notification');
+        const titleText = item.title || (item.type === 'error' ? 'blueprint studio' : item.type === 'success' ? 'blueprint studio' : 'blueprint studio');
         new Notification(titleText, {
           body: item.message,
           silent: false
@@ -226,14 +227,14 @@ export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ childr
             {/* Desktop Notification Header (App Icon + Name + Timestamp + Close) */}
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-2">
-                {/* Blueprint App Icon */}
+                {/* App icon */}
                 <div className="w-4 h-4 rounded bg-blue-600 flex items-center justify-center shadow-xs">
                   <div className="w-1.5 h-1.5 border-[1.2px] border-white rounded-[0.5px] rotate-45" />
                 </div>
-                <span className={`text-[10px] font-bold tracking-wider uppercase font-mono ${
+                <span className={`text-[10px] font-semibold tracking-tight ${
                   isDark ? 'text-slate-400' : 'text-slate-500'
                 }`}>
-                  Blueprint
+                  {BRAND_NAME}
                 </span>
                 <span className={`text-[10px] ${isDark ? 'text-slate-600' : 'text-slate-400'}`}>•</span>
                 <span className={`text-[10px] font-medium ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>

@@ -25,7 +25,7 @@ export function getGreenfieldPhaseProgress(
   const mapDone = mapReady;
 
   const phases: Array<{ id: PhaseTab; label: string; shortLabel: string; done: boolean; locked?: boolean }> = [
-    { id: 'domain-intent', label: 'Product blueprint', shortLabel: 'Blueprint', done: blueprintDone },
+    { id: 'domain-intent', label: 'Product blueprint', shortLabel: 'brief', done: blueprintDone },
     {
       id: 'architecture-map',
       label: 'Architecture map',

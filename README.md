@@ -1,12 +1,8 @@
-# Blueprint Studio
-
-**Website:** [blueprint-web-chi.vercel.app](https://blueprint-web-chi.vercel.app/) · **Source:** [github.com/KingAbe1/blueprint](https://github.com/KingAbe1/blueprint)
+# blueprint studio
 
 *Architectural rigor for the generative era* - a desktop and browser workstation for **spec-first greenfield planning** and **brownfield codebase analysis**, with exportable agent handoff packages for Cursor, Claude Code, VS Code, Codex, JetBrains, and other IDEs.
 
-The [marketing site](https://blueprint-web-chi.vercel.app/) explains the product story and workflow; **this repository** is the open-source Blueprint Studio app (run locally or build the Tauri desktop shell).
-
-Blueprint itself is a **Tauri 2 + Vite + React 19** app. Projects you create in greenfield mode can target **any stack** the interview selects (Next.js, Tauri, Expo, FastAPI, and others). Brownfield scanning works on any local folder; **deep code-quality profiles are implemented for Next.js (TypeScript/JavaScript) today**.
+blueprint studio itself is a **Tauri 2 + Vite + React 19** app. Projects you create in greenfield mode can target **any stack** the interview selects (Next.js, Tauri, Expo, FastAPI, and others). Brownfield scanning works on any local folder; **deep code-quality profiles are implemented for Next.js (TypeScript/JavaScript) today**.
 
 ---
 
@@ -89,7 +85,7 @@ Handoff folder and IDE preferences are remembered per project in `greenfieldHand
 
 ## Brownfield workflow
 
-Pick a local directory (Tauri native dialog or browser File System Access API). Blueprint walks the tree, reads manifests and selected sources, and stores a `CodebaseAnalysis` snapshot on the project.
+Pick a local directory (Tauri native dialog or browser File System Access API). blueprint studio walks the tree, reads manifests and selected sources, and stores a `CodebaseAnalysis` snapshot on the project.
 
 ### Sections
 
@@ -124,7 +120,7 @@ One **global** AI setup (all projects), stored in `localStorage`:
 
 - Providers: **OpenAI**, **Anthropic**, **Google Gemini**, **Ollama** (local), **OpenRouter**, **Custom** (OpenAI-compatible base URL).
 - Used for: product polish, architecture interview, final stack JSON, optional brownfield file review.
-- Prompts go **directly to the provider you configure** - not through Blueprint servers.
+- Prompts go **directly to the provider you configure** - not through blueprint studio servers.
 - Greenfield shows a dismissible banner until AI is connected or dismissed.
 
 Without API keys, greenfield still works for brief editing, heuristic stack choice, map, and handoff; interview generation requires configuration (or fails with a clear error).
@@ -134,7 +130,7 @@ Without API keys, greenfield still works for brief editing, heuristic stack choi
 ## Data and privacy
 
 - **Projects and specs** - `localStorage` (`blueprint_projects_list`, active project id, tab preference, AI settings). Use **Export JSON** from the project menu for backup; import restores projects.
-- **Codebase scans** - analysis results live on the project in localStorage; source files are read locally for scanning only and are not uploaded to Blueprint.
+- **Codebase scans** - analysis results live on the project in localStorage; source files are read locally for scanning only and are not uploaded to blueprint studio.
 - **Optional GitHub** - token you supply; requests go to GitHub for repo metadata/status.
 - **Dependency advisories** - may call public npm/OSV APIs using **package names and versions** from the lockfile, not your full source tree.
 - No account or login.
@@ -195,9 +191,9 @@ npm run build        # Web build (tsc + vite)
 | [CODE_OF_CONDUCT.md](./CODE_OF_CONDUCT.md) | Community behavior standards |
 | [SECURITY.md](./SECURITY.md) | How to report vulnerabilities privately |
 
-**Trademark:** The name *Blueprint Studio* identifies this project. The MIT license does not grant permission to use the name or branding to imply endorsement or ship a confusingly similar product. Forks should use their own name and logo unless maintainers agree otherwise.
+**Trademark:** The name *blueprint studio* identifies this project. The MIT license does not grant permission to use the name or branding to imply endorsement or ship a confusingly similar product. Forks should use their own name and logo unless maintainers agree otherwise.
 
-Optional maintainer setup: enable [Dependabot](https://github.com/KingAbe1/blueprint/settings/security_analysis), [private vulnerability reporting](https://github.com/KingAbe1/blueprint/security/advisories), and a security contact on the repo profile. You may replace `Copyright (c) 2026 Blueprint Studio contributors` in [LICENSE](./LICENSE) with your legal name or organization.
+Optional maintainer setup: enable [Dependabot](https://github.com/KingAbe1/blueprint/settings/security_analysis), [private vulnerability reporting](https://github.com/KingAbe1/blueprint/security/advisories), and a security contact on the repo profile. You may replace `Copyright (c) 2026 blueprint studio contributors` in [LICENSE](./LICENSE) with your legal name or organization.
 
 ---
 

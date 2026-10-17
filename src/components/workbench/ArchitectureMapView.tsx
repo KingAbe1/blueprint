@@ -73,7 +73,7 @@ export const ArchitectureMapView: React.FC<ArchitectureMapViewProps> = ({ onEdit
           description={
             ready
               ? 'See how users, apps, data, and delivery connect - then open build handoff when you’re ready to implement.'
-              : 'Blueprint turns your product brief and answers into an interactive system map.'
+              : 'blueprint studio turns your product brief and answers into an interactive system map.'
           }
           actions={
             ready ? (

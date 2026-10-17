@@ -3,7 +3,7 @@ import { Project } from '../types/project';
 const LOCAL_STORAGE_KEY = 'blueprint_projects_list';
 
 export const storageService = {
-  /** Load projects from browser localStorage only (never sent to a Blueprint cloud). */
+  /** Load projects from browser localStorage only (never sent to a blueprint studio cloud). */
   async loadProjects(): Promise<{ projects: Project[] }> {
     try {
       const saved = localStorage.getItem(LOCAL_STORAGE_KEY);

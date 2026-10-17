@@ -1,6 +1,6 @@
-# Contributing to Blueprint Studio
+# Contributing to blueprint studio
 
-Thank you for helping improve Blueprint Studio. This project is **local-first**: specs and scans stay on the user’s machine unless they explicitly configure AI or other integrations.
+Thank you for helping improve blueprint studio. This project is **local-first**: specs and scans stay on the user’s machine unless they explicitly configure AI or other integrations.
 
 ## Before you start
 
@@ -36,7 +36,7 @@ Open a PR only after `npm run build` succeeds locally.
 
 ### Privacy and trust
 
-- **Do not** add analytics, crash reporting, or cloud sync that sends project specs, scan results, or file contents to Blueprint-operated servers. There are no such servers today; keep it that way unless the maintainers publish an explicit, opt-in design.
+- **Do not** add analytics, crash reporting, or cloud sync that sends project specs, scan results, or file contents to blueprint studio-operated servers. There are no such servers today; keep it that way unless the maintainers publish an explicit, opt-in design.
 - **Do not** send user data to third parties silently. AI and GitHub already require user configuration; new integrations must be **opt-in**, documented, and off by default.
 - **Do not** commit secrets, API keys, `.env` files, or real paths from your machine.
 
@@ -67,7 +67,7 @@ We may squash-merge to keep history readable.
 
 Use GitHub Issues and include:
 
-- Blueprint version or commit, OS, web vs Tauri
+- blueprint studio version or commit, OS, web vs Tauri
 - Steps to reproduce
 - Expected vs actual behavior
 - Redacted screenshots or logs (no API keys, no customer code)

@@ -72,7 +72,7 @@ export class SafeErrorBoundary extends Component<Props, State> {
             }
           >
             <RefreshCw className="h-3.5 w-3.5" />
-            {this.props.variant === 'page' ? 'Reload Blueprint' : 'Try again'}
+            {this.props.variant === 'page' ? 'Reload blueprint studio' : 'Try again'}
           </button>
         </div>
       </div>

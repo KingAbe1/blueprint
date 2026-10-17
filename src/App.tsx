@@ -160,7 +160,7 @@ export const App: React.FC = () => {
           <GitHubProvider>
             <AIProvider>
               <ConfirmProvider>
-                <SafeErrorBoundary fallbackTitle="Blueprint couldn't load" variant="page">
+                <SafeErrorBoundary fallbackTitle="blueprint studio couldn't load" variant="page">
                   <AppContent />
                 </SafeErrorBoundary>
               </ConfirmProvider>

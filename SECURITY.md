@@ -25,7 +25,7 @@ We aim to acknowledge reports within a few business days and will coordinate dis
 
 In scope:
 
-- Blueprint Studio application code (web UI, Tauri shell, Rust commands)
+- blueprint studio application code (web UI, Tauri shell, Rust commands)
 - Path handling for handoff export (`safe_handoff_path`, folder write APIs)
 - Local storage handling that could leak data across origins or projects
 - Dependency vulnerabilities in this repo’s direct build chain (report via maintainers or Dependabot)

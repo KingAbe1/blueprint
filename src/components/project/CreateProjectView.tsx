@@ -17,6 +17,7 @@ import { useProjects } from '../../context/ProjectContext';
 import { useTheme } from '../../context/ThemeContext';
 import { useNotification } from '../../context/NotificationContext';
 import { getBlueprintHubStatus } from '../../services/greenfieldProgress';
+import { BRAND_NAME } from '../../constants/brand';
 import { CodebaseAnalysis } from '../../types/codebase';
 import { Project } from '../../types/project';
 import { chooseAndAnalyzeCodebase } from '../../services/codebaseAnalysisLoader';
@@ -427,10 +428,10 @@ export const CreateProjectView: React.FC = () => {
               <Layers className="h-5 w-5" strokeWidth={1.75} />
             </div>
             <div className="min-w-0">
-              <p className={`text-xs ${muted}`}>Blueprint Studio</p>
+              <p className={`text-xs ${muted}`}>{BRAND_NAME}</p>
               <h1 className={`mt-0.5 text-[22px] font-medium leading-snug tracking-tight sm:text-2xl ${titleText}`}>
                 {isFirstVisit
-                  ? 'Welcome to Blueprint Studio'
+                  ? `Welcome to ${BRAND_NAME}`
                   : openedFromActiveProject
                     ? 'Start something new'
                     : 'Welcome back'}

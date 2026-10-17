@@ -74,7 +74,7 @@ export async function chooseHandoffTarget(): Promise<HandoffTarget | null> {
     }
   }
 
-  throw new Error('Folder export is not supported in this browser. Use the Blueprint desktop app to select a project folder.');
+  throw new Error('Folder export is not supported in this browser. Use the blueprint studio desktop app to select a project folder.');
 }
 
 export async function inspectHandoffConflicts(target: HandoffTarget, files: HandoffFile[]): Promise<string[]> {

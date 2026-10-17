@@ -411,7 +411,7 @@ function assessQualityChecks(
   checks.push(
     check('source-patterns', 'Next.js source risk patterns', 'security', !isNextProject || deepAnalysis.parsedFiles === 0 ? 'unsupported' : codeFindings('security') > 0 ? 'issues' : deepAnalysis.skippedFiles > 0 || nextProfileFilesNotInspected > 0 ? 'incomplete' : 'passed', !isNextProject || deepAnalysis.parsedFiles === 0 ? 'Risk-pattern review is currently enabled for the Next.js JavaScript/TypeScript profile only.' : codeFindings('security') > 0 ? 'Review the flagged patterns in Next.js JavaScript/TypeScript files; findings are signals, not proof of a vulnerability.' : 'No configured risk patterns matched the inspected Next.js JavaScript/TypeScript files; this is not a complete security audit.'),
     check('maintainability', 'Maintainability signals', 'maintainability', sourceMetrics.analyzedFiles === 0 ? 'unsupported' : codeFindings('maintainability') > 0 ? 'issues' : sourceMetrics.skippedFiles > 0 ? 'incomplete' : 'passed', sourceMetrics.analyzedFiles === 0 ? 'Source contents were not available to inspect.' : codeFindings('maintainability') > 0 ? 'Large files, TODO markers, or complex/repeated functions need review.' : 'No configured maintainability thresholds were crossed in inspected files.'),
-    check('ci-workflows', 'CI workflows', 'delivery', workflows.length === 0 ? 'not-configured' : !workflowHasTests || !workflowHasBuild ? 'issues' : 'not-run', workflows.length === 0 ? 'No GitHub Actions workflow was found in the scan.' : !workflowHasTests || !workflowHasBuild ? `Workflow found; test step ${workflowHasTests ? 'detected' : 'not detected'}, build step ${workflowHasBuild ? 'detected' : 'not detected'}.` : 'Test and build signals detected in workflow files; Blueprint did not execute the workflow.'),
+    check('ci-workflows', 'CI workflows', 'delivery', workflows.length === 0 ? 'not-configured' : !workflowHasTests || !workflowHasBuild ? 'issues' : 'not-run', workflows.length === 0 ? 'No GitHub Actions workflow was found in the scan.' : !workflowHasTests || !workflowHasBuild ? `Workflow found; test step ${workflowHasTests ? 'detected' : 'not detected'}, build step ${workflowHasBuild ? 'detected' : 'not detected'}.` : 'Test and build signals detected in workflow files; blueprint studio did not execute the workflow.'),
     check('folder-structure', 'Folder structure', 'structure', sourceMetrics.analyzedFiles === 0 ? 'unsupported' : codeFindings('structure') > 0 ? 'issues' : 'passed', sourceMetrics.analyzedFiles === 0 ? 'No source files were available to assess.' : codeFindings('structure') > 0 ? 'Review the reported folder or module-boundary signals.' : 'No configured folder-structure concerns were detected.'),
     check('documentation', 'Project documentation', 'documentation', codeFindings('documentation') > 0 ? 'issues' : lowerPaths.some(path => /(^|\/)readme(?:\.[^/]*)?$/.test(path)) ? 'passed' : 'not-configured', lowerPaths.some(path => /(^|\/)readme(?:\.[^/]*)?$/.test(path)) ? 'README detected; documentation content was not evaluated.' : 'No README file was detected.'),
   );
@@ -429,7 +429,7 @@ function assessQualityChecks(
       name: `${rule.name} (${rule.languages.filter(language => detectedLanguages.has(language)).join(', ')})`,
       category: rule.category || 'tooling',
       status: configured ? 'not-run' : testFiles ? 'incomplete' : 'not-configured',
-      summary: configured ? `${rule.name} configuration or command detected; Blueprint did not run it${rule.category === 'testing' ? (testFiles ? ' Test files were also found.' : '') : ''}` : testFiles ? `Test files were found, but no recognized ${rule.name} runner or configuration was detected.` : `No recognized ${rule.name} configuration or command was detected for this language.`,
+      summary: configured ? `${rule.name} configuration or command detected; blueprint studio did not run it${rule.category === 'testing' ? (testFiles ? ' Test files were also found.' : '') : ''}` : testFiles ? `Test files were found, but no recognized ${rule.name} runner or configuration was detected.` : `No recognized ${rule.name} configuration or command was detected for this language.`,
       findingCount: 0,
     });
   });
@@ -917,7 +917,7 @@ export async function chooseAndAnalyzeCodebase(): Promise<CodebaseAnalysis | nul
   }
 
   if (!window.showDirectoryPicker) {
-    throw new Error('Folder scanning is not supported in this browser. Use Blueprint Studio desktop or a Chromium browser.');
+    throw new Error('Folder scanning is not supported in this browser. Use blueprint studio desktop or a Chromium browser.');
   }
 
   let root: BrowserDirectoryHandle;

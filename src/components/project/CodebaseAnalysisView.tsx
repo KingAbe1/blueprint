@@ -453,9 +453,9 @@ export const CodebaseAnalysisView: React.FC<CodebaseAnalysisViewProps> = ({
 
   const exportSummaryMarkdown = useCallback(() => {
     const lines = [
-      `# ${analysis.rootName} · Architectural Blueprint Summary`,
+      `# ${analysis.rootName} · Architectural summary`,
       ``,
-      `*Scanned on ${new Date(analysis.scannedAt).toLocaleString()} via Blueprint Studio*`,
+      `*Scanned on ${new Date(analysis.scannedAt).toLocaleString()} via blueprint studio*`,
       ``,
       `## Project Overview`,
       `- **Root Path:** \`${analysis.rootPath}\``,
@@ -480,7 +480,7 @@ export const CodebaseAnalysisView: React.FC<CodebaseAnalysisViewProps> = ({
       analysis.quality?.findings ? `- **Findings Count:** ${analysis.quality.findings.length} findings` : '',
       ``,
       `---`,
-      `*Generated with Blueprint Desktop Studio*`,
+      `*Generated with blueprint studio*`,
     ].filter(Boolean).join('\n');
 
     const blob = new Blob([lines], { type: 'text/markdown;charset=utf-8' });

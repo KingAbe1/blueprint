@@ -29,7 +29,7 @@ export const InterviewReviewPanel: React.FC<InterviewReviewPanelProps> = ({
         <p className={`text-xs ${muted}`}>Before architecture</p>
         <h3 className={`mt-0.5 text-[15px] font-medium ${titleText}`}>Review your answers</h3>
         <p className={`mt-1 text-[13px] leading-relaxed ${muted}`}>
-          Confirm everything looks right. Blueprint will pick a stack and build your architecture map from these choices.
+          Confirm everything looks right. blueprint studio will pick a stack and build your architecture map from these choices.
         </p>
       </div>
       <ul className={`max-h-[min(50vh,420px)] divide-y overflow-y-auto ${divide}`}>

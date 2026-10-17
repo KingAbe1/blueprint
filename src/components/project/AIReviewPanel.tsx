@@ -1136,7 +1136,7 @@ function ResultDetailPane({
 
         {note.blueprintEvidence && note.blueprintEvidence.length > 0 ? (
           <div>
-            <h4 className={`text-[13px] font-medium ${titleText}`}>Blueprint evidence</h4>
+            <h4 className={`text-[13px] font-medium ${titleText}`}>blueprint studio evidence</h4>
             <ul className={`mt-2 space-y-1 font-mono text-[11px] leading-relaxed ${muted}`}>
               {note.blueprintEvidence.map((line, index) => (
                 <li key={index} className="break-all">

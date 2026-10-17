@@ -129,10 +129,10 @@ export async function readQualityReviewSources(analysis: CodebaseAnalysis, selec
 
   if (!analysis.directoryHandleId) throw new Error('This saved scan has no reusable folder permission. Re-analyze the codebase to enable local file selection.');
   const root = await loadDirectoryHandle(analysis.directoryHandleId);
-  if (!root) throw new Error('Blueprint can no longer access this folder. Re-analyze the codebase to restore local folder access.');
+  if (!root) throw new Error('blueprint studio can no longer access this folder. Re-analyze the codebase to restore local folder access.');
   let permission = await root.queryPermission?.({ mode: 'read' });
   if (!permission || permission === 'prompt') permission = await root.requestPermission?.({ mode: 'read' });
-  if (permission !== 'granted' && (root.queryPermission || root.requestPermission)) throw new Error('Folder access was not granted. Blueprint has not sent any code.');
+  if (permission !== 'granted' && (root.queryPermission || root.requestPermission)) throw new Error('Folder access was not granted. blueprint studio has not sent any code.');
 
   const files: QualityReviewSourceFile[] = [];
   for (const path of safePaths) {
