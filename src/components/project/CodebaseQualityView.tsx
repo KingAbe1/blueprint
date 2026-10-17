@@ -39,6 +39,7 @@ import { useTheme } from '../../context/ThemeContext';
 import { CodebaseAnalysis, QualityFinding, QualityDimension } from '../../types/codebase';
 import { AIReviewPanel } from './AIReviewPanel';
 import { DependencySecurityPanel } from './DependencySecurityPanel';
+import { useCodebaseWorkspace } from '../../context/CodebaseWorkspaceContext';
 
 interface CodebaseQualityViewProps {
   analysis: CodebaseAnalysis;
@@ -157,7 +158,13 @@ export const CodebaseQualityView: React.FC<CodebaseQualityViewProps> = React.mem
   onUpdateAnalysis,
 }) => {
   const { isDark } = useTheme();
+  const { openFileInAnalysis } = useCodebaseWorkspace();
   const muted = isDark ? 'text-slate-400' : 'text-slate-500';
+  const strongText = isDark ? 'text-white' : 'text-slate-900';
+  const bodyText = isDark ? 'text-slate-200' : 'text-slate-800';
+  const subtleText = isDark ? 'text-slate-300' : 'text-slate-600';
+  const sectionDivider = isDark ? 'border-white/[0.06]' : 'border-slate-200';
+  const progressTrack = isDark ? 'bg-white/[0.06]' : 'bg-slate-200';
 
   const [qualityPriorityFilter, setQualityPriorityFilter] = useState<'all' | 'high' | 'medium' | 'low'>('all');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
@@ -166,6 +173,7 @@ export const CodebaseQualityView: React.FC<CodebaseQualityViewProps> = React.mem
   const [copiedRemediation, setCopiedRemediation] = useState(false);
   const [copiedPath, setCopiedPath] = useState(false);
   const [copiedReport, setCopiedReport] = useState(false);
+  const [showScoreBreakdown, setShowScoreBreakdown] = useState(false);
 
   // Pure static code findings only (preventing duplicate CVE entries since they have their dedicated panel)
   const qualityFindings = useMemo(() => {
@@ -204,13 +212,33 @@ export const CodebaseQualityView: React.FC<CodebaseQualityViewProps> = React.mem
   // Health Score & Grade
   const score = analysis.quality?.score ?? 0;
   const grade = useMemo(() => {
-    if (score >= 90) return { letter: 'A', status: 'Optimal Rigor', color: 'text-emerald-400', border: 'border-emerald-500/30', bg: 'bg-emerald-500/10' };
-    if (score >= 80) return { letter: 'B+', status: 'Production Grade', color: 'text-emerald-400', border: 'border-emerald-500/30', bg: 'bg-emerald-500/10' };
-    if (score >= 70) return { letter: 'B', status: 'Solid Posture', color: 'text-blue-400', border: 'border-blue-500/30', bg: 'bg-blue-500/10' };
-    if (score >= 60) return { letter: 'C', status: 'Moderate Health', color: 'text-amber-400', border: 'border-amber-500/30', bg: 'bg-amber-500/10' };
-    if (score >= 45) return { letter: 'D', status: 'Action Required', color: 'text-amber-400', border: 'border-amber-500/30', bg: 'bg-amber-500/10' };
-    return { letter: 'F', status: 'Critical Deficits', color: 'text-rose-400', border: 'border-rose-500/30', bg: 'bg-rose-500/10' };
-  }, [score]);
+    const emerald = isDark ? 'text-emerald-400' : 'text-emerald-700';
+    const blue = isDark ? 'text-blue-400' : 'text-blue-700';
+    const amber = isDark ? 'text-amber-400' : 'text-amber-700';
+    const rose = isDark ? 'text-rose-400' : 'text-rose-700';
+    if (score >= 90) return { letter: 'A', status: 'Optimal Rigor', color: emerald, border: 'border-emerald-500/30', bg: 'bg-emerald-500/10' };
+    if (score >= 80) return { letter: 'B+', status: 'Production Grade', color: emerald, border: 'border-emerald-500/30', bg: 'bg-emerald-500/10' };
+    if (score >= 70) return { letter: 'B', status: 'Solid Posture', color: blue, border: 'border-blue-500/30', bg: 'bg-blue-500/10' };
+    if (score >= 60) return { letter: 'C', status: 'Moderate Health', color: amber, border: 'border-amber-500/30', bg: 'bg-amber-500/10' };
+    if (score >= 45) return { letter: 'D', status: 'Action Required', color: amber, border: 'border-amber-500/30', bg: 'bg-amber-500/10' };
+    return { letter: 'F', status: 'Critical Deficits', color: rose, border: 'border-rose-500/30', bg: 'bg-rose-500/10' };
+  }, [score, isDark]);
+
+  const priorityBadgeClass = (priority: string) => {
+    if (priority === 'high') {
+      return isDark
+        ? 'bg-rose-500/15 text-rose-400 border border-rose-500/30'
+        : 'bg-rose-100 text-rose-800 border border-rose-200';
+    }
+    if (priority === 'medium') {
+      return isDark
+        ? 'bg-amber-500/15 text-amber-400 border border-amber-500/30'
+        : 'bg-amber-100 text-amber-800 border border-amber-200';
+    }
+    return isDark
+      ? 'bg-blue-500/15 text-blue-400 border border-blue-500/30'
+      : 'bg-blue-100 text-blue-800 border border-blue-200';
+  };
 
   // Executive Architecture Diagnostic Sentence
   const executiveDiagnosis = useMemo(() => {
@@ -390,11 +418,14 @@ ${selectedFinding.detail}${snippetText}${evidenceText}
           {/* ========================================================================= */}
           {/* 1. BESPOKE ARCHITECTURAL HEALTH & POSTURE ENGINE (Executive Dashboard)   */}
           {/* ========================================================================= */}
-          <section className={`rounded-2xl border transition-all relative overflow-hidden ${
+          <section
+            id="quality-score-panel"
+            className={`scroll-mt-4 rounded-2xl border transition-all relative overflow-hidden ${
             isDark
-              ? 'border-white/[0.08] bg-gradient-to-b from-[#141619] via-[#111215] to-[#0E0F12] shadow-xl'
+              ? 'border-white/[0.08] bg-[#141518] shadow-xs'
               : 'border-slate-200/90 bg-white shadow-xs'
-          }`}>
+          }`}
+          >
             {/* Top Bar with System Identity & Actions */}
             <div className={`px-5 py-3.5 border-b flex flex-wrap items-center justify-between gap-3 ${
               isDark ? 'border-white/[0.06] bg-white/[0.01]' : 'border-slate-100 bg-slate-50/50'
@@ -406,14 +437,9 @@ ${selectedFinding.detail}${snippetText}${evidenceText}
                   <Activity className="h-3.5 w-3.5" />
                 </div>
                 <div className="flex items-center gap-2">
-                  <h2 className={`text-xs font-semibold uppercase tracking-wider ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                    Architectural Posture & Rigor Engine
+                  <h2 className={`text-sm font-semibold ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                    Health summary
                   </h2>
-                  <span className={`text-[10px] font-mono px-2 py-0.5 rounded-full border ${
-                    isDark ? 'border-white/[0.07] bg-white/[0.03] text-slate-300' : 'border-slate-200 bg-slate-100 text-slate-700'
-                  }`}>
-                    {analysis.rootName}
-                  </span>
                 </div>
               </div>
 
@@ -429,21 +455,7 @@ ${selectedFinding.detail}${snippetText}${evidenceText}
                   title="Export complete architectural audit to markdown"
                 >
                   {copiedReport ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : <Download className="h-3.5 w-3.5 text-blue-400" />}
-                  <span>{copiedReport ? 'Audit Exported' : 'Export Audit (.md)'}</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={onRescan}
-                  disabled={isRescanning}
-                  className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-semibold transition-all disabled:opacity-60 ${
-                    isDark
-                      ? 'border-blue-500/30 bg-blue-500/10 text-blue-300 hover:bg-blue-500/20'
-                      : 'border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100'
-                  }`}
-                >
-                  {isRescanning ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
-                  <span>{isRescanning ? 'Evaluating…' : 'Re-scan Engine'}</span>
+                  <span>{copiedReport ? 'Exported' : 'Export report'}</span>
                 </button>
               </div>
             </div>
@@ -482,18 +494,50 @@ ${selectedFinding.detail}${snippetText}${evidenceText}
                       <p className={`mt-0.5 text-[11px] ${muted}`}>
                         {analysis.quality.confidence.toUpperCase()} confidence evaluation
                       </p>
+                      <button
+                        type="button"
+                        onClick={() => setShowScoreBreakdown(open => !open)}
+                        className={`mt-2 text-[11px] font-semibold underline-offset-2 hover:underline ${
+                          isDark ? 'text-blue-300' : 'text-blue-700'
+                        }`}
+                      >
+                        {showScoreBreakdown ? 'Hide score breakdown' : 'How is this score calculated?'}
+                      </button>
                     </div>
                   </div>
 
+                  {showScoreBreakdown ? (
+                    <div
+                      className={`mt-3 rounded-lg border px-3 py-2.5 text-[11px] leading-relaxed ${
+                        isDark ? 'border-white/[0.08] bg-black/30 text-slate-300' : 'border-slate-200 bg-white text-slate-700'
+                      }`}
+                    >
+                      <p className={`mb-2 ${muted}`}>
+                        The health index sums dimension scores from the local static scan (structure, maintainability, tests, tooling, etc.). CVE advisories are tracked separately under supply-chain risk.
+                      </p>
+                      <ul className="space-y-1.5">
+                        {(analysis.quality.dimensions || []).map(dim => (
+                          <li key={dim.name} className="flex flex-wrap items-baseline justify-between gap-x-2 gap-y-0.5">
+                            <span className="font-medium">{dim.name}</span>
+                            <span className="font-mono text-[10px]">
+                              {dim.score}/{dim.maxScore} pts
+                            </span>
+                            <span className={`w-full text-[10px] ${muted}`}>{dim.summary}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ) : null}
+
                   {/* Horizontal Segmented Distribution Bar */}
-                  <div className="mt-4 pt-3.5 border-t border-white/[0.06]">
+                  <div className={`mt-4 pt-3.5 border-t ${sectionDivider}`}>
                     <div className="flex items-center justify-between text-[10px] font-mono mb-1.5">
                       <span className={muted}>System Balance</span>
                       <span className={isDark ? 'text-slate-300' : 'text-slate-700'}>
                         {codeRigorPillar.earned + securityVerificationPillar.earned} / {codeRigorPillar.max + securityVerificationPillar.max} pts
                       </span>
                     </div>
-                    <div className="h-2 w-full rounded-full bg-slate-800/40 overflow-hidden flex">
+                    <div className={`h-2 w-full rounded-full overflow-hidden flex ${isDark ? 'bg-slate-800/40' : 'bg-slate-200'}`}>
                       <div
                         className="h-full bg-emerald-500 transition-all duration-500"
                         style={{ width: `${codeRigorPillar.pct * 0.5}%` }}
@@ -521,7 +565,7 @@ ${selectedFinding.detail}${snippetText}${evidenceText}
                   isDark ? 'border-white/[0.05] bg-white/[0.015] text-slate-300' : 'border-slate-200 bg-white text-slate-700'
                 }`}>
                   <p className="font-sans">
-                    <span className="font-semibold text-white mr-1.5">Executive Diagnosis:</span>
+                    <span className={`font-semibold mr-1.5 ${strongText}`}>Executive Diagnosis:</span>
                     {executiveDiagnosis}
                   </p>
                 </div>
@@ -534,7 +578,7 @@ ${selectedFinding.detail}${snippetText}${evidenceText}
                     <span className={`block text-[9px] uppercase tracking-wider font-semibold ${muted}`}>
                       Files Scanned
                     </span>
-                    <span className="font-mono text-xs font-bold text-white mt-0.5 block">
+                    <span className={`font-mono text-xs font-bold mt-0.5 block ${strongText}`}>
                       {analysis.quality.analyzedSourceFiles}
                     </span>
                   </div>
@@ -545,7 +589,7 @@ ${selectedFinding.detail}${snippetText}${evidenceText}
                     <span className={`block text-[9px] uppercase tracking-wider font-semibold ${muted}`}>
                       Static Issues
                     </span>
-                    <span className="font-mono text-xs font-bold text-amber-400 mt-0.5 block">
+                    <span className={`font-mono text-xs font-bold mt-0.5 block ${isDark ? 'text-amber-400' : 'text-amber-700'}`}>
                       {totalQualityFindings}
                     </span>
                   </div>
@@ -556,7 +600,7 @@ ${selectedFinding.detail}${snippetText}${evidenceText}
                     <span className={`block text-[9px] uppercase tracking-wider font-semibold ${muted}`}>
                       Supply CVEs
                     </span>
-                    <span className="font-mono text-xs font-bold text-rose-400 mt-0.5 block">
+                    <span className={`font-mono text-xs font-bold mt-0.5 block ${isDark ? 'text-rose-400' : 'text-rose-700'}`}>
                       {analysis.dependencyRisk?.advisories?.length || 0}
                     </span>
                   </div>
@@ -567,7 +611,7 @@ ${selectedFinding.detail}${snippetText}${evidenceText}
                     <span className={`block text-[9px] uppercase tracking-wider font-semibold ${muted}`}>
                       Codebase LOC
                     </span>
-                    <span className="font-mono text-xs font-bold text-white mt-0.5 block">
+                    <span className={`font-mono text-xs font-bold mt-0.5 block ${strongText}`}>
                       {analysis.quality.linesOfCode ? `${Math.round(analysis.quality.linesOfCode / 1000)}k` : '—'}
                     </span>
                   </div>
@@ -581,11 +625,11 @@ ${selectedFinding.detail}${snippetText}${evidenceText}
                   isDark ? 'border-white/[0.07] bg-black/20' : 'border-slate-200 bg-white'
                 }`}>
                   <div>
-                    <div className="flex items-center justify-between pb-2.5 border-b border-white/[0.06] mb-3">
+                    <div className={`flex items-center justify-between pb-2.5 border-b mb-3 ${sectionDivider}`}>
                       <div className="flex items-center gap-2">
                         <FolderTree className="h-4 w-4 text-emerald-400" />
-                        <h4 className="text-xs font-semibold tracking-wide text-white">
-                          Code Rigor & Modularity
+                        <h4 className={`text-xs font-semibold tracking-wide ${strongText}`}>
+                          Code quality
                         </h4>
                       </div>
                       <span className={`text-[10px] font-mono font-semibold px-2 py-0.5 rounded-md ${
@@ -606,15 +650,15 @@ ${selectedFinding.detail}${snippetText}${evidenceText}
                         return (
                           <div key={dim.name} className="group">
                             <div className="flex items-center justify-between text-xs mb-1">
-                              <span className="flex items-center gap-1.5 font-medium text-slate-200">
+                              <span className={`flex items-center gap-1.5 font-medium ${bodyText}`}>
                                 {getDimensionIcon(dim.name)}
                                 <span>{dim.name}</span>
                               </span>
-                              <span className="font-mono text-[11px] font-semibold text-slate-300">
+                              <span className={`font-mono text-[11px] font-semibold ${subtleText}`}>
                                 {dim.score}/{dim.maxScore}
                               </span>
                             </div>
-                            <div className="h-1.5 w-full rounded-full bg-white/[0.06] overflow-hidden">
+                            <div className={`h-1.5 w-full rounded-full overflow-hidden ${progressTrack}`}>
                               <div
                                 className={`h-full rounded-full transition-all duration-300 ${
                                   isPerfect ? 'bg-emerald-500' : isWarn ? 'bg-amber-500' : 'bg-blue-500'
@@ -622,7 +666,7 @@ ${selectedFinding.detail}${snippetText}${evidenceText}
                                 style={{ width: `${Math.min(pct, 100)}%` }}
                               />
                             </div>
-                            <p className="mt-1 text-[10px] text-slate-400 truncate leading-tight font-sans">
+                            <p className={`mt-1 text-[10px] truncate leading-tight font-sans ${muted}`}>
                               {dim.summary}
                             </p>
                           </div>
@@ -637,11 +681,11 @@ ${selectedFinding.detail}${snippetText}${evidenceText}
                   isDark ? 'border-white/[0.07] bg-black/20' : 'border-slate-200 bg-white'
                 }`}>
                   <div>
-                    <div className="flex items-center justify-between pb-2.5 border-b border-white/[0.06] mb-3">
+                    <div className={`flex items-center justify-between pb-2.5 border-b mb-3 ${sectionDivider}`}>
                       <div className="flex items-center gap-2">
                         <Shield className="h-4 w-4 text-blue-400" />
-                        <h4 className="text-xs font-semibold tracking-wide text-white">
-                          Security & Verification
+                        <h4 className={`text-xs font-semibold tracking-wide ${strongText}`}>
+                          Security & tests
                         </h4>
                       </div>
                       <span className={`text-[10px] font-mono font-semibold px-2 py-0.5 rounded-md ${
@@ -664,17 +708,17 @@ ${selectedFinding.detail}${snippetText}${evidenceText}
                         return (
                           <div key={dim.name} className="group">
                             <div className="flex items-center justify-between text-xs mb-1">
-                              <span className="flex items-center gap-1.5 font-medium text-slate-200">
+                              <span className={`flex items-center gap-1.5 font-medium ${bodyText}`}>
                                 {getDimensionIcon(dim.name)}
                                 <span>{dim.name}</span>
                               </span>
                               <span className={`font-mono text-[11px] font-semibold ${
-                                isCritical ? 'text-rose-400 font-bold' : 'text-slate-300'
+                                isCritical ? 'text-rose-500 font-bold' : subtleText
                               }`}>
                                 {dim.score}/{dim.maxScore}
                               </span>
                             </div>
-                            <div className="h-1.5 w-full rounded-full bg-white/[0.06] overflow-hidden">
+                            <div className={`h-1.5 w-full rounded-full overflow-hidden ${progressTrack}`}>
                               <div
                                 className={`h-full rounded-full transition-all duration-300 ${
                                   isCritical ? 'bg-rose-500' : isHigh ? 'bg-emerald-500' : 'bg-amber-500'
@@ -682,7 +726,7 @@ ${selectedFinding.detail}${snippetText}${evidenceText}
                                 style={{ width: `${Math.min(pct, 100)}%` }}
                               />
                             </div>
-                            <p className="mt-1 text-[10px] text-slate-400 truncate leading-tight font-sans">
+                            <p className={`mt-1 text-[10px] truncate leading-tight font-sans ${muted}`}>
                               {dim.summary}
                             </p>
                           </div>
@@ -698,16 +742,21 @@ ${selectedFinding.detail}${snippetText}${evidenceText}
           {/* ========================================================================= */}
           {/* 2. SUPPLY CHAIN VULNERABILITY ADVISORIES (Dedicated OSV.dev Panel)        */}
           {/* ========================================================================= */}
-          <DependencySecurityPanel analysis={analysis} onUpdateAnalysis={onUpdateAnalysis} />
+          <div id="quality-supply-chain-panel" className="scroll-mt-4">
+            <DependencySecurityPanel analysis={analysis} onUpdateAnalysis={onUpdateAnalysis} />
+          </div>
 
           {/* ========================================================================= */}
           {/* 3. CODE ARCHITECTURE & STATIC FINDINGS (Linear-Style Issue Workbench)     */}
           {/* ========================================================================= */}
-          <section className={`rounded-2xl border transition-all overflow-hidden ${
+          <section
+            id="quality-findings-panel"
+            className={`scroll-mt-4 rounded-2xl border transition-all overflow-hidden ${
             isDark
-              ? 'border-white/[0.08] bg-gradient-to-b from-[#141619] to-[#101114] shadow-xl'
+              ? 'border-white/[0.08] bg-[#141518] shadow-xs'
               : 'border-slate-200/90 bg-white shadow-xs'
-          }`}>
+          }`}
+          >
             {/* Header & Filter Toolbar */}
             <div className={`p-4 sm:p-5 border-b ${
               isDark ? 'border-white/[0.06] bg-white/[0.01]' : 'border-slate-100 bg-slate-50/50'
@@ -715,8 +764,8 @@ ${selectedFinding.detail}${snippetText}${evidenceText}
               <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
                 <div>
                   <div className="flex items-center gap-2">
-                    <h3 className={`text-xs font-semibold uppercase tracking-wider ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                      Code Architecture & Static Findings
+                    <h3 className={`text-sm font-semibold ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                      Findings
                     </h3>
                     <span className={`rounded-full px-2 py-0.5 text-[10px] font-mono border ${
                       isDark ? 'border-white/[0.08] bg-white/[0.03] text-slate-300' : 'border-slate-200 bg-slate-100 text-slate-700'
@@ -783,7 +832,7 @@ ${selectedFinding.detail}${snippetText}${evidenceText}
                     <button
                       type="button"
                       onClick={() => setFindingSearchQuery('')}
-                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-slate-400 hover:text-white"
+                      className={`absolute right-2.5 top-1/2 -translate-y-1/2 text-xs ${muted} ${isDark ? 'hover:text-white' : 'hover:text-slate-900'}`}
                     >
                       ✕
                     </button>
@@ -850,13 +899,7 @@ ${selectedFinding.detail}${snippetText}${evidenceText}
                             </h4>
                           </div>
 
-                          <span className={`shrink-0 rounded px-1.5 py-0.5 text-[9px] font-mono font-semibold uppercase ${
-                            isHigh
-                              ? 'bg-rose-500/15 text-rose-400 border border-rose-500/30'
-                              : isMedium
-                              ? 'bg-amber-500/15 text-amber-400 border border-amber-500/30'
-                              : 'bg-blue-500/15 text-blue-400 border border-blue-500/30'
-                          }`}>
+                          <span className={`shrink-0 rounded px-1.5 py-0.5 text-[9px] font-mono font-semibold uppercase ${priorityBadgeClass(finding.priority)}`}>
                             {finding.priority}
                           </span>
                         </div>
@@ -879,7 +922,7 @@ ${selectedFinding.detail}${snippetText}${evidenceText}
                                     : 'border-slate-200 bg-slate-100 text-slate-700'
                                 }`}
                               >
-                                {m.label}: <strong className="text-white">{m.value}</strong>
+                                {m.label}: <strong className={isDark ? 'text-white' : 'text-slate-900'}>{m.value}</strong>
                               </span>
                             ))}
                           </div>
@@ -914,7 +957,7 @@ ${selectedFinding.detail}${snippetText}${evidenceText}
                         <div className="flex items-center gap-1.5 text-[11px] font-mono text-slate-400 mb-1">
                           <span>{analysis.rootName}</span>
                           <span>/</span>
-                          <span className="text-blue-400 truncate max-w-[240px]">
+                          <span className={`truncate max-w-[240px] ${isDark ? 'text-blue-400' : 'text-blue-700'}`}>
                             {selectedFinding.location?.path || selectedFinding.category}
                           </span>
                           {selectedFinding.location?.line && (
@@ -928,19 +971,34 @@ ${selectedFinding.detail}${snippetText}${evidenceText}
 
                       <div className="flex items-center gap-2">
                         {selectedFinding.location?.path && (
-                          <button
-                            type="button"
-                            onClick={copyFilePath}
-                            className={`inline-flex items-center gap-1 rounded-md border px-2.5 py-1 text-[11px] font-medium transition-colors ${
-                              isDark
-                                ? 'border-white/[0.08] bg-white/[0.03] text-slate-300 hover:bg-white/[0.08]'
-                                : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-100'
-                            }`}
-                            title="Copy file path"
-                          >
-                            {copiedPath ? <Check className="h-3 w-3 text-emerald-400" /> : <Copy className="h-3 w-3" />}
-                            <span>{copiedPath ? 'Copied Path' : 'Copy Path'}</span>
-                          </button>
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => openFileInAnalysis(selectedFinding.location!.path!)}
+                              className={`inline-flex items-center gap-1 rounded-md border px-2.5 py-1 text-[11px] font-medium transition-colors ${
+                                isDark
+                                  ? 'border-blue-500/30 bg-blue-500/10 text-blue-300 hover:bg-blue-500/20'
+                                  : 'border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100'
+                              }`}
+                              title="Open this file in the Code Analysis project tree"
+                            >
+                              <FolderTree className="h-3 w-3" />
+                              <span>Open in tree</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={copyFilePath}
+                              className={`inline-flex items-center gap-1 rounded-md border px-2.5 py-1 text-[11px] font-medium transition-colors ${
+                                isDark
+                                  ? 'border-white/[0.08] bg-white/[0.03] text-slate-300 hover:bg-white/[0.08]'
+                                  : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-100'
+                              }`}
+                              title="Copy file path"
+                            >
+                              {copiedPath ? <Check className="h-3 w-3 text-emerald-400" /> : <Copy className="h-3 w-3" />}
+                              <span>{copiedPath ? 'Copied Path' : 'Copy Path'}</span>
+                            </button>
+                          </>
                         )}
 
                         <button
@@ -948,7 +1006,9 @@ ${selectedFinding.detail}${snippetText}${evidenceText}
                           onClick={copyRemediation}
                           className={`inline-flex items-center gap-1.5 rounded-md border px-3 py-1 text-xs font-semibold transition-all ${
                             copiedRemediation
-                              ? 'border-emerald-500/50 bg-emerald-500/20 text-emerald-300'
+                              ? isDark
+                                ? 'border-emerald-500/50 bg-emerald-500/20 text-emerald-300'
+                                : 'border-emerald-300 bg-emerald-50 text-emerald-800'
                               : isDark
                               ? 'border-blue-500/35 bg-blue-500/10 text-blue-300 hover:bg-blue-500/20'
                               : 'border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100'
@@ -963,13 +1023,7 @@ ${selectedFinding.detail}${snippetText}${evidenceText}
 
                     {/* Metadata Badges */}
                     <div className="flex flex-wrap items-center gap-2">
-                      <span className={`rounded-md px-2 py-0.5 text-[10px] font-mono font-semibold uppercase ${
-                        selectedFinding.priority === 'high'
-                          ? 'bg-rose-500/15 text-rose-400 border border-rose-500/30'
-                          : selectedFinding.priority === 'medium'
-                          ? 'bg-amber-500/15 text-amber-400 border border-amber-500/30'
-                          : 'bg-blue-500/15 text-blue-400 border border-blue-500/30'
-                      }`}>
+                      <span className={`rounded-md px-2 py-0.5 text-[10px] font-mono font-semibold uppercase ${priorityBadgeClass(selectedFinding.priority)}`}>
                         {selectedFinding.priority} Priority
                       </span>
                       <span className={`rounded-md px-2 py-0.5 text-[10px] font-mono border ${
@@ -1052,14 +1106,14 @@ ${selectedFinding.detail}${snippetText}${evidenceText}
                       <div className={`p-3.5 rounded-xl border ${
                         isDark ? 'border-blue-500/20 bg-blue-500/[0.03]' : 'border-blue-200 bg-blue-50/50'
                       }`}>
-                        <div className="flex items-center gap-1.5 text-xs font-semibold text-blue-400 mb-2">
+                        <div className={`flex items-center gap-1.5 text-xs font-semibold mb-2 ${isDark ? 'text-blue-400' : 'text-blue-800'}`}>
                           <Wrench className="h-3.5 w-3.5" />
                           <span>Recommended Architectural Strategy</span>
                         </div>
-                        <ul className="space-y-1.5 text-xs text-slate-300">
+                        <ul className={`space-y-1.5 text-xs ${subtleText}`}>
                           {parsedSelected.remediationAdvice.map((step, sIdx) => (
                             <li key={sIdx} className="flex items-start gap-2">
-                              <span className="text-blue-400 shrink-0 font-bold">•</span>
+                              <span className={`shrink-0 font-bold ${isDark ? 'text-blue-400' : 'text-blue-700'}`}>•</span>
                               <span className="leading-snug">{step}</span>
                             </li>
                           ))}
@@ -1076,7 +1130,7 @@ ${selectedFinding.detail}${snippetText}${evidenceText}
                           <Activity className="h-3 w-3" />
                           <span>AST Signal Metrics ({selectedFinding.evidence.length})</span>
                         </div>
-                        <div className="space-y-1 font-mono text-[11px] text-slate-300">
+                        <div className={`space-y-1 font-mono text-[11px] ${subtleText}`}>
                           {selectedFinding.evidence.map((ev, eIdx) => (
                             <div key={eIdx} className="flex items-start gap-1.5">
                               <span className="text-slate-500">›</span>
@@ -1088,9 +1142,9 @@ ${selectedFinding.detail}${snippetText}${evidenceText}
                     )}
                   </div>
                 ) : (
-                  <div className="h-full flex flex-col items-center justify-center text-center p-8 text-slate-400">
+                  <div className={`h-full flex flex-col items-center justify-center text-center p-8 ${muted}`}>
                     <FileCode className="h-8 w-8 mb-2 opacity-50" />
-                    <p className="text-xs font-semibold text-white">Select a Finding to Inspect</p>
+                    <p className={`text-xs font-semibold ${strongText}`}>Select a Finding to Inspect</p>
                     <p className="text-[11px] mt-0.5">Click any issue on the left to inspect AST signals, source code, and remediation advice.</p>
                   </div>
                 )}

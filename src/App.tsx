@@ -5,6 +5,7 @@ import { AIProvider } from './context/AIContext';
 import { NotificationProvider } from './context/NotificationContext';
 import { GitHubProvider } from './context/GitHubContext';
 import { Header } from './components/layout/Header';
+import { CodebaseWorkspaceProvider } from './context/CodebaseWorkspaceContext';
 import { CreateProjectView } from './components/project/CreateProjectView';
 import { CodebaseAnalysisView } from './components/project/CodebaseAnalysisView';
 import { reanalyzeCodebase } from './services/codebaseAnalysisService';
@@ -31,33 +32,40 @@ const AppContent: React.FC = () => {
     localStorage.setItem(ACTIVE_TAB_STORAGE_KEY, activeTab);
   }, [activeTab]);
 
-  return (
-    <div className={`h-screen w-screen flex font-display transition-colors duration-200 select-none overflow-hidden ${
-      isDark 
-        ? 'text-[#F4F4F6] selection:bg-blue-500/30 selection:text-blue-200 bg-[#101113]'
-        : 'text-slate-900 selection:bg-blue-500/20 selection:text-blue-900 bg-slate-50'
-    }`}>
-      <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-        <Header
-          activeTab={activeTab}
-          onSelectTab={setActiveTab}
-        />
+  const inBrownfield = Boolean(activeProject?.codebaseAnalysis && !isCreatingNew);
 
-        <main className="flex-1 flex overflow-hidden min-h-0">
-          {!activeProject || isCreatingNew ? (
-            <CreateProjectView />
-          ) : activeProject.codebaseAnalysis ? (
-            <CodebaseAnalysisView
-              analysis={activeProject.codebaseAnalysis}
-              projectId={activeProject.id}
-              onDelete={() => setProjectToDelete(activeProject)}
-              onUpdateAnalysis={analysis => updateCodebaseAnalysis(activeProject.id, analysis)}
-              onRescan={async () => {
-                const analysis = await reanalyzeCodebase(activeProject.codebaseAnalysis!);
-                if (analysis) updateCodebaseAnalysis(activeProject.id, analysis);
-              }}
-            />
-          ) : (
+  return (
+    <CodebaseWorkspaceProvider
+      enabled={inBrownfield}
+      projectId={activeProject?.id}
+      rootPath={activeProject?.codebaseAnalysis?.rootPath}
+    >
+      <div className={`h-screen w-screen flex font-display transition-colors duration-200 select-none overflow-hidden ${
+        isDark 
+          ? 'text-[#F4F4F6] selection:bg-blue-500/30 selection:text-blue-200 bg-[#101113]'
+          : 'text-slate-900 selection:bg-blue-500/20 selection:text-blue-900 bg-slate-50'
+      }`}>
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+          <Header
+            activeTab={activeTab}
+            onSelectTab={setActiveTab}
+          />
+
+          <main className="flex-1 flex overflow-hidden min-h-0">
+            {!activeProject || isCreatingNew ? (
+              <CreateProjectView />
+            ) : activeProject.codebaseAnalysis ? (
+              <CodebaseAnalysisView
+                analysis={activeProject.codebaseAnalysis}
+                projectId={activeProject.id}
+                onDelete={() => setProjectToDelete(activeProject)}
+                onUpdateAnalysis={analysis => updateCodebaseAnalysis(activeProject.id, analysis)}
+                onRescan={async () => {
+                  const analysis = await reanalyzeCodebase(activeProject.codebaseAnalysis!);
+                  if (analysis) updateCodebaseAnalysis(activeProject.id, analysis);
+                }}
+              />
+            ) : (
             <div className="flex-1 flex overflow-hidden min-h-0">
               {activeTab === 'in-flight' ? (
                 <BuildHandoffView />
@@ -73,13 +81,14 @@ const AppContent: React.FC = () => {
               )}
             </div>
           )}
-        </main>
-      </div>
+          </main>
+        </div>
 
-      <RenameModal />
-      <DeleteModal />
-      <AISettingsModal />
-    </div>
+        <RenameModal />
+        <DeleteModal />
+        <AISettingsModal />
+      </div>
+    </CodebaseWorkspaceProvider>
   );
 };
 

@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import {
   ChevronDown,
   ChevronRight,
@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { CodebaseAnalysis } from '../../types/codebase';
 import { useTheme } from '../../context/ThemeContext';
+import { normalizeTreeFilePath, useCodebaseWorkspace } from '../../context/CodebaseWorkspaceContext';
 
 interface ProjectTreeNode {
   name: string;
@@ -110,21 +111,51 @@ function getExpandableFolderPaths(node: ProjectTreeNode): string[] {
   return [node.path, ...node.children.flatMap(getExpandableFolderPaths)];
 }
 
+function folderPathsForFile(filePath: string): string[] {
+  const normalized = normalizeTreeFilePath(filePath);
+  const segments = normalized.split('/').filter(Boolean);
+  if (segments.length <= 1) return ['.'];
+  const folders = new Set<string>(['.']);
+  for (let i = 0; i < segments.length - 1; i++) {
+    folders.add(segments.slice(0, i + 1).join('/'));
+  }
+  return [...folders];
+}
+
 interface ProjectStructureTreeProps {
   analysis: CodebaseAnalysis;
 }
 
 export const ProjectStructureTree: React.FC<ProjectStructureTreeProps> = React.memo(({ analysis }) => {
   const { isDark } = useTheme();
+  const { pendingTreeFilePath, consumePendingTreeFilePath } = useCodebaseWorkspace();
   const muted = isDark ? 'text-slate-400' : 'text-slate-500';
   const panel = isDark ? 'border-white/[0.08] bg-[#141518]' : 'border-slate-200/90 bg-white shadow-2xs';
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(() => new Set(['.']));
   const [filterQuery, setFilterQuery] = useState('');
   const [selectedFile, setSelectedFile] = useState<string | null>(null);
   const [copiedFile, setCopiedFile] = useState(false);
+  const selectedRowRef = useRef<HTMLDivElement | null>(null);
 
   const projectTree = useMemo(() => createProjectTree(analysis), [analysis]);
   const hasDetailedTree = Boolean(analysis.structurePaths);
+
+  useEffect(() => {
+    if (!pendingTreeFilePath) return;
+    const normalized = normalizeTreeFilePath(pendingTreeFilePath);
+    setFilterQuery('');
+    setExpandedFolders(current => {
+      const next = new Set(current);
+      folderPathsForFile(normalized).forEach(path => next.add(path));
+      return next;
+    });
+    setSelectedFile(normalized);
+    consumePendingTreeFilePath();
+    const timer = window.setTimeout(() => {
+      selectedRowRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }, 120);
+    return () => window.clearTimeout(timer);
+  }, [pendingTreeFilePath, consumePendingTreeFilePath]);
 
   // Filter matching paths when searching
   const matchingPaths = useMemo(() => {
@@ -247,6 +278,7 @@ export const ProjectStructureTree: React.FC<ProjectStructureTreeProps> = React.m
           </button>
         ) : (
           <div
+            ref={isSelected ? selectedRowRef : undefined}
             onClick={() => setSelectedFile(node.path)}
             className={rowClass}
             style={{ paddingLeft: `${depth * 14 + 4}px` }}
@@ -267,7 +299,7 @@ export const ProjectStructureTree: React.FC<ProjectStructureTreeProps> = React.m
             <Folder className="h-3.5 w-3.5" />
           </div>
           <h2 className={`text-xs font-semibold uppercase tracking-wider ${isDark ? 'text-slate-200' : 'text-slate-800'}`}>
-            Project Structure Tree
+            Project files
           </h2>
         </div>
         {projectTree.children.length > 0 && (
@@ -315,7 +347,7 @@ export const ProjectStructureTree: React.FC<ProjectStructureTreeProps> = React.m
       {/* Tree scroll canvas */}
       {projectTree.children.length > 0 ? (
         <div
-          className={`max-h-[460px] overflow-y-auto rounded-lg border p-1.5 ${
+          className={`max-h-[calc(100vh-16rem)] min-h-[28rem] overflow-y-auto rounded-lg border p-1.5 ${
             isDark ? 'border-white/[0.06] bg-black/15' : 'border-slate-100 bg-slate-50/50'
           }`}
         >
@@ -335,7 +367,10 @@ export const ProjectStructureTree: React.FC<ProjectStructureTreeProps> = React.m
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-2 min-w-0">
               <FileCode className="h-3.5 w-3.5 text-blue-500 shrink-0" />
-              <span className="font-mono text-xs font-semibold truncate" title={selectedFile}>
+              <span
+                className={`font-mono text-xs font-semibold truncate ${isDark ? 'text-slate-100' : 'text-slate-900'}`}
+                title={selectedFile}
+              >
                 {selectedFile}
               </span>
             </div>
@@ -354,7 +389,7 @@ export const ProjectStructureTree: React.FC<ProjectStructureTreeProps> = React.m
               <button
                 type="button"
                 onClick={() => setSelectedFile(null)}
-                className={`p-1 rounded ${muted} hover:text-slate-200`}
+                className={`p-1 rounded ${muted} ${isDark ? 'hover:text-slate-200' : 'hover:text-slate-900'}`}
                 title="Dismiss"
               >
                 <X className="h-3.5 w-3.5" />
@@ -368,7 +403,10 @@ export const ProjectStructureTree: React.FC<ProjectStructureTreeProps> = React.m
                 Quality Signals Flagged ({matchingFindings.length}):
               </p>
               {matchingFindings.map((f, i) => (
-                <div key={i} className="text-[11px] text-slate-300 flex items-center gap-1.5">
+                <div
+                  key={i}
+                  className={`text-[11px] flex items-center gap-1.5 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}
+                >
                   <span className="h-1.5 w-1.5 rounded-full bg-rose-500 shrink-0" />
                   <span className="truncate">{f.title}</span>
                 </div>

@@ -145,7 +145,7 @@ export const ArchitectureTopologyDiagram: React.FC<ArchitectureTopologyDiagramPr
   ] as const;
 
   return (
-    <div className={`rounded-xl border p-4 sm:p-5 ${panel}`}>
+    <div className={`flex h-full flex-col rounded-xl border p-4 sm:p-5 ${panel}`}>
       {/* Title & Assessment Badge */}
       <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
         <div className="flex items-center gap-2">
@@ -169,7 +169,7 @@ export const ArchitectureTopologyDiagram: React.FC<ArchitectureTopologyDiagramPr
       </div>
 
       {/* Connected 4-Tier Interactive Pipeline */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 relative">
+      <div className="relative grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-4">
         {tiers.map((tier, index) => {
           const isSelected = selectedNode === tier.id;
           const Icon = tier.icon;
@@ -178,7 +178,7 @@ export const ArchitectureTopologyDiagram: React.FC<ArchitectureTopologyDiagramPr
               <button
                 type="button"
                 onClick={() => setSelectedNode(tier.id)}
-                className={`w-full flex flex-col justify-between p-3.5 rounded-xl border text-left transition-all duration-150 ${
+                className={`flex w-full flex-col justify-between rounded-xl border p-3.5 text-left transition-all duration-150 ${
                   isSelected
                     ? (isDark
                         ? 'border-blue-500/80 bg-blue-500/10 ring-1 ring-blue-500/40 shadow-[0_0_20px_rgba(59,130,246,0.15)]'
@@ -225,7 +225,7 @@ export const ArchitectureTopologyDiagram: React.FC<ArchitectureTopologyDiagramPr
       </div>
 
       {/* Selected Node Detailed Inspector - Balanced 3-Column Glass Panel */}
-      <div className={`mt-3.5 rounded-xl border p-4 ${
+      <div className={`mt-3.5 flex-1 rounded-xl border p-4 ${
         isDark ? 'border-white/[0.07] bg-black/25' : 'border-slate-200/90 bg-slate-50/60'
       }`}>
         <div className={`flex flex-wrap items-center justify-between gap-2 border-b pb-3 mb-3.5 ${

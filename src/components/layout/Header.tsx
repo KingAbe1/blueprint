@@ -7,6 +7,8 @@ import { PhaseTab } from '../../types/project';
 import { ProjectDropdown } from '../project/ProjectDropdown';
 import { isDesktopApp } from '../../utils/platform';
 import { DesktopTitlebarStrip } from './DesktopTitlebarStrip';
+import { CodebaseSectionNav } from '../project/CodebaseSectionNav';
+import { CodebaseHeaderToolbar } from '../project/CodebaseHeaderToolbar';
 
 interface HeaderProps {
   activeTab?: PhaseTab;
@@ -101,7 +103,16 @@ export const Header: React.FC<HeaderProps> = ({
   const inGreenfieldProject = Boolean(activeProject && !activeProject.codebaseAnalysis && !isCreatingNew);
   const isHub = !activeProject || isCreatingNew;
   const showHeaderProjectMenu = Boolean(activeProject?.codebaseAnalysis && !isCreatingNew);
+  const showCodebaseNav = showHeaderProjectMenu;
   const showPhaseNav = inGreenfieldProject && Boolean(onSelectTab);
+  const showCenterNav = showPhaseNav || showCodebaseNav;
+
+  const codebaseAnalysis = activeProject?.codebaseAnalysis;
+  const qualityScore =
+    typeof codebaseAnalysis?.quality?.score === 'number' ? codebaseAnalysis.quality.score : null;
+  const openIssueCount =
+    (codebaseAnalysis?.quality?.findings?.length ?? 0)
+    + (codebaseAnalysis?.dependencyRisk?.advisories?.length ?? 0);
 
   const handoffReady = Boolean(
     activeProject?.spec.interview?.status === 'completed'
@@ -153,19 +164,13 @@ export const Header: React.FC<HeaderProps> = ({
       />
     </div>
   ) : showHeaderProjectMenu && activeProject ? (
-    <div className="flex min-w-0 w-max max-w-md items-center gap-2 text-sm">
-      <div className="min-w-0 max-w-[14rem] sm:max-w-xs">
-        <ProjectDropdown
-          compact
-          isOpen={isProjectMenuOpen}
-          onClose={() => setIsProjectMenuOpen(false)}
-          onToggle={() => setIsProjectMenuOpen(open => !open)}
-        />
-      </div>
-      <span className={`hidden shrink-0 sm:inline ${isDark ? 'text-[#4F5157]' : 'text-slate-300'}`}>/</span>
-      <span className={`hidden truncate sm:inline ${isDark ? 'text-[#8E9098]' : 'text-slate-500'}`}>
-        Codebase overview
-      </span>
+    <div className="min-w-0 w-max max-w-[14rem] sm:max-w-xs">
+      <ProjectDropdown
+        compact
+        isOpen={isProjectMenuOpen}
+        onClose={() => setIsProjectMenuOpen(false)}
+        onToggle={() => setIsProjectMenuOpen(open => !open)}
+      />
     </div>
   ) : isHub ? (
     <button
@@ -184,7 +189,7 @@ export const Header: React.FC<HeaderProps> = ({
       <DesktopTitlebarStrip />
       <div
         className={`desktop-app-toolbar border-b ${isDark ? 'border-white/[0.07]' : 'border-slate-200'} ${
-          showPhaseNav
+          showCenterNav
             ? `grid w-full grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 ${desktop ? 'h-12 px-3 sm:px-4' : 'h-14 px-3 sm:px-4'}`
             : `flex w-full items-center justify-between gap-3 ${desktop ? 'h-12 px-3 sm:px-4' : 'h-14 px-3 sm:px-4'}`
         }`}
@@ -215,7 +220,14 @@ export const Header: React.FC<HeaderProps> = ({
           </div>
         ) : null}
 
+        {showCodebaseNav ? (
+          <div className="justify-self-center px-1">
+            <CodebaseSectionNav qualityScore={qualityScore} openIssueCount={openIssueCount} />
+          </div>
+        ) : null}
+
         <div className="flex shrink-0 items-center justify-end justify-self-end gap-0.5">
+          {showCodebaseNav ? <CodebaseHeaderToolbar /> : null}
           {utilityActions}
         </div>
       </div>

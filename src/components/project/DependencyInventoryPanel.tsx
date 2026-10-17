@@ -10,12 +10,30 @@ import {
   Sparkles,
   Layers,
   ArrowUpRight,
+  ShieldAlert,
+  ShieldCheck,
+  ArrowRight,
 } from 'lucide-react';
-import { DependencyInventory, LockedDependency } from '../../types/codebase';
+import { DependencyInventory, DependencyRiskAssessment, DependencySeverity, LockedDependency } from '../../types/codebase';
 import { useTheme } from '../../context/ThemeContext';
 
 interface DependencyInventoryPanelProps {
   inventory?: DependencyInventory;
+  dependencyRisk?: DependencyRiskAssessment;
+  onViewSecurityDetails?: () => void;
+}
+
+const SEVERITY_RANK: Record<DependencySeverity, number> = {
+  critical: 0,
+  high: 1,
+  medium: 2,
+  low: 3,
+  unknown: 4,
+};
+
+function highestSeverity(current: DependencySeverity | undefined, next: DependencySeverity): DependencySeverity {
+  if (!current) return next;
+  return SEVERITY_RANK[next] < SEVERITY_RANK[current] ? next : current;
 }
 
 const PAGE_SIZE = 50;
@@ -35,7 +53,11 @@ const NOTABLE_PACKAGES = new Set([
   '@tanstack/react-query',
 ]);
 
-export const DependencyInventoryPanel: React.FC<DependencyInventoryPanelProps> = React.memo(({ inventory }) => {
+export const DependencyInventoryPanel: React.FC<DependencyInventoryPanelProps> = React.memo(({
+  inventory,
+  dependencyRisk,
+  onViewSecurityDetails,
+}) => {
   const { isDark } = useTheme();
   const [searchQuery, setSearchQuery] = useState('');
   const [typeFilter, setTypeFilter] = useState<'all' | 'direct' | 'dev' | 'transitive'>('all');
@@ -46,6 +68,34 @@ export const DependencyInventoryPanel: React.FC<DependencyInventoryPanelProps> =
   const panel = isDark ? 'border-white/[0.08] bg-[#141518]' : 'border-slate-200/90 bg-white shadow-2xs';
 
   const packages = inventory?.packages || [];
+
+  const advisoryByPackage = useMemo(() => {
+    const map = new Map<string, { severity: DependencySeverity; count: number }>();
+    for (const advisory of dependencyRisk?.advisories || []) {
+      const prev = map.get(advisory.packageName);
+      map.set(advisory.packageName, {
+        severity: highestSeverity(prev?.severity, advisory.severity),
+        count: (prev?.count ?? 0) + 1,
+      });
+    }
+    return map;
+  }, [dependencyRisk?.advisories]);
+
+  const advisorySummary = useMemo(() => {
+    const advisories = dependencyRisk?.advisories || [];
+    const counts = { critical: 0, high: 0, medium: 0, low: 0, unknown: 0 };
+    for (const a of advisories) {
+      counts[a.severity] += 1;
+    }
+    return {
+      total: advisories.length,
+      affectedPackages: advisoryByPackage.size,
+      counts,
+      scannedAt: dependencyRisk?.scannedAt,
+      packagesChecked: dependencyRisk?.packagesChecked,
+      incomplete: dependencyRisk?.incomplete,
+    };
+  }, [dependencyRisk, advisoryByPackage.size]);
 
   // Determine prod count: if explicit direct exists, use pkg.direct && !pkg.development, else fallback to !pkg.development
   const hasExplicitDirect = useMemo(() => packages.some(p => p.direct), [packages]);
@@ -134,6 +184,78 @@ export const DependencyInventoryPanel: React.FC<DependencyInventoryPanelProps> =
         </span>
       </div>
 
+      {dependencyRisk ? (
+        advisorySummary.total > 0 ? (
+          <div
+            className={`mb-3.5 flex flex-col gap-2.5 rounded-xl border px-3.5 py-3 sm:flex-row sm:items-center sm:justify-between ${
+              isDark ? 'border-rose-500/25 bg-rose-500/[0.06]' : 'border-rose-200 bg-rose-50/80'
+            }`}
+          >
+            <div className="flex gap-2.5 min-w-0">
+              <ShieldAlert className={`h-4 w-4 shrink-0 mt-0.5 ${isDark ? 'text-rose-300' : 'text-rose-600'}`} />
+              <div className="min-w-0">
+                <p className={`text-xs font-semibold ${isDark ? 'text-rose-100' : 'text-rose-900'}`}>
+                  {advisorySummary.total} CVE advisories across {advisorySummary.affectedPackages} locked packages
+                </p>
+                <p className={`mt-0.5 text-[11px] leading-relaxed ${isDark ? 'text-rose-200/80' : 'text-rose-800/90'}`}>
+                  {[
+                    advisorySummary.counts.critical ? `${advisorySummary.counts.critical} critical` : null,
+                    advisorySummary.counts.high ? `${advisorySummary.counts.high} high` : null,
+                    advisorySummary.counts.medium ? `${advisorySummary.counts.medium} medium` : null,
+                  ].filter(Boolean).join(' · ') || 'Review OSV matches below'}
+                  {advisorySummary.packagesChecked
+                    ? ` · Checked ${advisorySummary.packagesChecked} packages (OSV.dev)`
+                    : ''}
+                </p>
+              </div>
+            </div>
+            {onViewSecurityDetails ? (
+              <button
+                type="button"
+                onClick={onViewSecurityDetails}
+                className={`inline-flex shrink-0 items-center gap-1.5 rounded-lg border px-3 py-1.5 text-[11px] font-semibold transition-colors ${
+                  isDark
+                    ? 'border-rose-400/30 bg-rose-500/10 text-rose-100 hover:bg-rose-500/20'
+                    : 'border-rose-300 bg-white text-rose-800 hover:bg-rose-100'
+                }`}
+              >
+                Full report in Quality & Risks
+                <ArrowRight className="h-3.5 w-3.5" />
+              </button>
+            ) : null}
+          </div>
+        ) : (
+          <div
+            className={`mb-3.5 flex items-center gap-2 rounded-xl border px-3.5 py-2.5 text-[11px] ${
+              isDark ? 'border-emerald-500/20 bg-emerald-500/[0.06] text-emerald-200' : 'border-emerald-200 bg-emerald-50 text-emerald-800'
+            }`}
+          >
+            <ShieldCheck className="h-3.5 w-3.5 shrink-0" />
+            No known CVE advisories from OSV for locked packages in this scan.
+          </div>
+        )
+      ) : (
+        <div
+          className={`mb-3.5 flex flex-col gap-2 rounded-xl border px-3.5 py-2.5 sm:flex-row sm:items-center sm:justify-between ${
+            isDark ? 'border-white/[0.08] bg-white/[0.02]' : 'border-slate-200 bg-slate-50/80'
+          }`}
+        >
+          <p className={`text-[11px] leading-relaxed ${muted}`}>
+            Supply-chain CVE scan has not run yet for this project. Rescan or open Quality & Risks to fetch OSV advisories.
+          </p>
+          {onViewSecurityDetails ? (
+            <button
+              type="button"
+              onClick={onViewSecurityDetails}
+              className="btn-secondary-accent inline-flex shrink-0 items-center gap-1.5 px-2.5 py-1.5 text-[11px] font-semibold"
+            >
+              Open Quality & Risks
+              <ArrowRight className="h-3.5 w-3.5" />
+            </button>
+          ) : null}
+        </div>
+      )}
+
       {/* Filter and Search Bar */}
       <div className="flex flex-col sm:flex-row gap-2.5 items-stretch sm:items-center justify-between mb-3.5">
         {/* Segmented Filter Buttons */}
@@ -201,12 +323,15 @@ export const DependencyInventoryPanel: React.FC<DependencyInventoryPanelProps> =
               const isNotable = NOTABLE_PACKAGES.has(pkg.name);
               const isProd = hasExplicitDirect ? (pkg.direct && !pkg.development) : !pkg.development;
               const isDev = pkg.development;
+              const pkgAdvisory = advisoryByPackage.get(pkg.name);
 
               return (
                 <div
                   key={`${pkg.name}@${pkg.version}`}
                   className={`group grid grid-cols-12 gap-3 items-center px-3.5 py-2 text-xs transition-colors ${
-                    isDark ? 'hover:bg-white/[0.03]' : 'hover:bg-slate-50'
+                    pkgAdvisory
+                      ? isDark ? 'bg-rose-500/[0.04] hover:bg-rose-500/[0.07]' : 'bg-rose-50/50 hover:bg-rose-50'
+                      : isDark ? 'hover:bg-white/[0.03]' : 'hover:bg-slate-50'
                   }`}
                 >
                   {/* Col 1: Package Name */}
@@ -223,6 +348,19 @@ export const DependencyInventoryPanel: React.FC<DependencyInventoryPanelProps> =
                     >
                       {pkg.name}
                     </span>
+                    {pkgAdvisory ? (
+                      <span
+                        className={`inline-flex items-center gap-0.5 text-[8px] font-semibold px-1 py-0.5 rounded border ${
+                          pkgAdvisory.severity === 'critical' || pkgAdvisory.severity === 'high'
+                            ? isDark ? 'border-rose-500/40 bg-rose-500/15 text-rose-200' : 'border-rose-300 bg-rose-100 text-rose-800'
+                            : isDark ? 'border-amber-500/30 bg-amber-500/10 text-amber-200' : 'border-amber-200 bg-amber-50 text-amber-800'
+                        }`}
+                        title={`${pkgAdvisory.count} OSV advisories`}
+                      >
+                        <ShieldAlert className="h-2.5 w-2.5" />
+                        CVE
+                      </span>
+                    ) : null}
                     {isNotable && (
                       <span className={`text-[8px] font-semibold px-1 py-0.2 rounded ${
                         isDark ? 'bg-blue-500/20 text-blue-300' : 'bg-blue-50 text-blue-700'
