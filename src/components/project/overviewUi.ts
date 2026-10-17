@@ -57,6 +57,16 @@ export function overviewSeverityLabel(isDark: boolean, severity: string): string
   }
 }
 
+export function overviewHealthScoreColor(score: number | undefined, isDark: boolean): string {
+  if (typeof score !== 'number') {
+    return isDark ? 'text-slate-100' : 'text-slate-900';
+  }
+  if (score >= 80) return isDark ? 'text-emerald-400' : 'text-emerald-700';
+  if (score >= 60) return isDark ? 'text-slate-100' : 'text-slate-900';
+  if (score >= 40) return isDark ? 'text-amber-400/90' : 'text-amber-800';
+  return isDark ? 'text-rose-400/95' : 'text-rose-700';
+}
+
 export function overviewMetricValueAccent(isDark: boolean, level: OverviewEmphasis): string {
   switch (level) {
     case 'critical':

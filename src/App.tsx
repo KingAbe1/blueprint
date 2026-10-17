@@ -120,7 +120,7 @@ export const App: React.FC = () => {
         <ProjectProvider>
           <GitHubProvider>
             <AIProvider>
-              <SafeErrorBoundary fallbackTitle="Something went wrong loading Blueprint">
+              <SafeErrorBoundary fallbackTitle="Blueprint couldn't load" variant="page">
                 <AppContent />
               </SafeErrorBoundary>
             </AIProvider>
