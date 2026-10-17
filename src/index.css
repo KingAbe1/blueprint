@@ -103,6 +103,11 @@
   padding-left: 4.75rem;
 }
 
+/* Overlay title bar: when the drag strip is hidden (maximized), inset the toolbar for traffic lights */
+.desktop-app.desktop-app-macos.window-maximized .desktop-app-toolbar--macos {
+  padding-left: 4.75rem;
+}
+
 .desktop-app .desktop-panel {
   border-radius: 0.5rem;
   box-shadow: none;

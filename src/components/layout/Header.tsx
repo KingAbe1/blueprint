@@ -5,7 +5,7 @@ import { useTheme } from '../../context/ThemeContext';
 import { useAI } from '../../context/AIContext';
 import { PhaseTab } from '../../types/project';
 import { ProjectDropdown } from '../project/ProjectDropdown';
-import { isDesktopApp } from '../../utils/platform';
+import { isDesktopApp, isMacOS } from '../../utils/platform';
 import { DesktopTitlebarStrip } from './DesktopTitlebarStrip';
 import { CodebaseSectionNav } from '../project/CodebaseSectionNav';
 import { CodebaseHeaderToolbar } from '../project/CodebaseHeaderToolbar';
@@ -117,13 +117,20 @@ export const Header: React.FC<HeaderProps> = ({
   );
 
   const desktop = isDesktopApp();
+  const interactiveChrome = desktop ? 'no-drag' : '';
+  const aiStatusLabelClass = isHub ? 'inline' : 'hidden lg:inline';
+  const hubUtilityRail = isDark
+    ? 'border-white/[0.08] bg-white/[0.03]'
+    : 'border-slate-200/90 bg-slate-50/90';
 
   const utilityActions = (
-    <>
+    <div
+      className={`flex shrink-0 items-center gap-0.5 ${isHub ? `rounded-lg border px-0.5 py-0.5 ${hubUtilityRail}` : ''}`}
+    >
       <button
         type="button"
         onClick={() => setIsSettingsOpen(true)}
-        className={`flex items-center gap-2 rounded-md px-2.5 py-2 text-xs transition-colors ${iconButton}`}
+        className={`flex items-center gap-2 rounded-md px-2.5 py-2 text-xs transition-colors ${interactiveChrome} ${iconButton}`}
         title={isAiConfigured ? 'AI provider connected — open settings' : 'No AI provider — connect in settings'}
         aria-label={isAiConfigured ? 'AI connected, open settings' : 'Connect AI in settings'}
       >
@@ -139,19 +146,19 @@ export const Header: React.FC<HeaderProps> = ({
           }`}
           aria-hidden
         />
-        <Settings2 className="h-4 w-4" />
-        <span className="hidden lg:inline">{isAiConfigured ? 'AI connected' : 'Connect AI'}</span>
+        <Settings2 className="h-4 w-4 shrink-0" />
+        <span className={aiStatusLabelClass}>{isAiConfigured ? 'AI connected' : 'Connect AI'}</span>
       </button>
 
       <button
         type="button"
         onClick={toggleTheme}
-        className={`rounded-md p-2 transition-colors ${iconButton}`}
+        className={`rounded-md p-2 transition-colors ${interactiveChrome} ${iconButton}`}
         title={`Switch to ${isDark ? 'light' : 'dark'} mode`}
       >
         {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
       </button>
-    </>
+    </div>
   );
 
   const leftSlot = inGreenfieldProject && activeProject ? (
@@ -182,16 +189,21 @@ export const Header: React.FC<HeaderProps> = ({
     </button>
   ) : null;
 
+  const toolbarHeight = desktop ? 'h-12 px-3 sm:px-4' : 'h-14 px-3 sm:px-4';
+  const toolbarLayout = showCenterNav
+    ? `grid w-full grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 ${toolbarHeight}`
+    : isHub
+      ? `grid w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-3 ${toolbarHeight}`
+      : `flex w-full items-center justify-between gap-3 ${toolbarHeight}`;
+
   return (
     <header
-      className={`flex shrink-0 flex-col ${isDark ? 'bg-[#0C0D0F]' : 'bg-white'}`}
+      className={`relative z-20 flex shrink-0 flex-col ${isDark ? 'bg-[#0C0D0F]' : 'bg-white'}`}
     >
       <DesktopTitlebarStrip />
       <div
-        className={`desktop-app-toolbar border-b ${isDark ? 'border-white/[0.07]' : 'border-slate-200'} ${
-          showCenterNav
-            ? `grid w-full grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 ${desktop ? 'h-12 px-3 sm:px-4' : 'h-14 px-3 sm:px-4'}`
-            : `flex w-full items-center justify-between gap-3 ${desktop ? 'h-12 px-3 sm:px-4' : 'h-14 px-3 sm:px-4'}`
+        className={`desktop-app-toolbar border-b ${isDark ? 'border-white/[0.07]' : 'border-slate-200'} ${toolbarLayout} ${
+          desktop && isMacOS() ? 'desktop-app-toolbar--macos' : ''
         }`}
       >
         <div className="flex min-w-0 items-center gap-1.5 justify-self-start">
@@ -226,7 +238,7 @@ export const Header: React.FC<HeaderProps> = ({
           </div>
         ) : null}
 
-        <div className="flex shrink-0 items-center justify-end justify-self-end gap-0.5">
+        <div className="flex min-w-0 shrink-0 items-center justify-end justify-self-end gap-1.5">
           {showCodebaseNav ? <CodebaseHeaderToolbar /> : null}
           {utilityActions}
         </div>
