@@ -4,7 +4,7 @@ Thank you for helping improve blueprint studio. This project is **local-first**:
 
 ## Before you start
 
-1. Read [README.md](./README.md) for product scope (greenfield vs brownfield, Next.js-deep brownfield today).
+1. Read [README.md](./README.md) for the essentials and [docs/overview.md](./docs/overview.md) for product/implementation depth.
 2. Read [SECURITY.md](./SECURITY.md) if you find a vulnerability.
 3. Agree to the [Code of Conduct](./CODE_OF_CONDUCT.md).
 
