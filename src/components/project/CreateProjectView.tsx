@@ -245,7 +245,6 @@ export const CreateProjectView: React.FC = () => {
   const border = overviewBorderClass(isDark);
   const divide = overviewDivideClass(isDark);
   const panel = overviewPanelClass(isDark);
-  const inner = isDark ? 'bg-white/[0.02]' : 'bg-slate-50/80';
 
   const inputClass = isDark
     ? 'border-white/[0.08] bg-black/20 text-slate-100 placeholder:text-slate-500 focus:border-blue-500/50'
@@ -397,27 +396,30 @@ export const CreateProjectView: React.FC = () => {
   ) : null;
 
   const greenfieldStepsPanel = (
-    <div className={`mt-5 space-y-2 rounded-xl border p-3.5 ${border} ${inner}`}>
+    <div className={`mt-6 max-w-xl rounded-xl border px-4 py-4 sm:px-5 sm:py-5 ${border} ${isDark ? 'bg-white/[0.02]' : 'bg-white/60'}`}>
       <p className={`text-[10px] font-medium uppercase tracking-wide ${muted}`}>What you&apos;ll do next</p>
-      <ol className="space-y-2.5">
+      <ol className="mt-3 flex flex-col gap-4 sm:flex-row sm:gap-6 lg:gap-8">
         {GREENFIELD_STEPS.map((step, index) => {
           const Icon = step.icon;
           return (
-            <li key={step.label} className="flex items-start gap-2.5">
-              <span
-                className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-md border text-[10px] font-semibold tabular-nums ${border} ${
-                  isDark ? 'bg-white/[0.04] text-slate-300' : 'bg-white text-slate-600'
-                }`}
-              >
-                {index + 1}
-              </span>
-              <span className="min-w-0 flex-1">
-                <span className={`flex items-center gap-1.5 text-xs font-medium ${titleText}`}>
-                  <Icon className="h-3.5 w-3.5 opacity-70" strokeWidth={1.75} />
-                  {step.label}
+            <li
+              key={step.label}
+              className={`flex min-w-0 flex-1 flex-col gap-1.5 sm:max-w-[11rem] ${
+                index > 0 ? `sm:border-l sm:pl-6 lg:pl-8 ${border}` : ''
+              }`}
+            >
+              <span className={`flex items-center gap-2 text-xs font-medium ${titleText}`}>
+                <span
+                  className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md text-[10px] font-semibold tabular-nums ${
+                    isDark ? 'bg-blue-500/15 text-blue-200' : 'bg-blue-100 text-blue-800'
+                  }`}
+                >
+                  {index + 1}
                 </span>
-                <span className={`mt-0.5 block text-[11px] leading-relaxed ${muted}`}>{step.detail}</span>
+                <Icon className="h-3.5 w-3.5 shrink-0 opacity-70" strokeWidth={1.75} />
+                <span>{step.label}</span>
               </span>
+              <span className={`text-[11px] leading-relaxed ${muted}`}>{step.detail}</span>
             </li>
           );
         })}
@@ -444,9 +446,9 @@ export const CreateProjectView: React.FC = () => {
           </p>
         </div>
       ) : null}
-      <div className="flex min-h-full flex-1 items-center justify-center px-5 py-8 sm:px-8 lg:py-12">
-        <div className="mx-auto flex w-full max-w-5xl flex-col items-stretch gap-8 lg:flex-row lg:items-center lg:justify-center lg:gap-16 xl:gap-20">
-        <section className="min-w-0 flex-1 lg:max-w-md">
+      <div className="flex min-h-full flex-1 items-center justify-center px-5 py-10 sm:px-8 lg:py-14">
+        <div className="mx-auto flex w-full max-w-6xl flex-col items-stretch gap-10 lg:flex-row lg:items-start lg:justify-center lg:gap-24 xl:gap-32">
+        <section className="min-w-0 flex-1 lg:max-w-xl lg:pr-4">
           {openedFromActiveProject && (
             <button
               type="button"
@@ -495,7 +497,7 @@ export const CreateProjectView: React.FC = () => {
                 Your first workspace
               </p>
               <p className={`mt-1.5 ${isDark ? 'text-emerald-100/80' : 'text-emerald-800/90'}`}>
-                Name a blueprint on the right, add a one-line idea if you like, then shape the brief and architecture in three guided steps.
+                Add a name on the right to get started—everything stays on this device.
               </p>
             </div>
           ) : null}
@@ -553,6 +555,8 @@ export const CreateProjectView: React.FC = () => {
             })}
           </div>
 
+          {entryMode === 'greenfield' ? <div className="mb-2">{greenfieldStepsPanel}</div> : null}
+
           {codebaseError && (
             <p role="alert" className="mt-3 max-w-lg rounded-lg border border-rose-500/20 bg-rose-500/10 px-3 py-2 text-xs text-rose-500">
               {codebaseError}
@@ -560,38 +564,21 @@ export const CreateProjectView: React.FC = () => {
           )}
 
           {recentProjectsSection ? (
-            <div className="mt-7 hidden lg:block">{recentProjectsSection}</div>
+            <div className={`hidden lg:block ${entryMode === 'greenfield' ? 'mt-10' : 'mt-8'}`}>{recentProjectsSection}</div>
           ) : null}
         </section>
 
         <section
-          className={`desktop-panel w-full shrink-0 overflow-hidden rounded-2xl border lg:w-[min(100%,380px)] lg:max-w-[380px] lg:self-center ${panel}`}
+          className={`desktop-panel w-full shrink-0 overflow-hidden rounded-2xl border lg:sticky lg:top-8 lg:w-[min(100%,360px)] lg:max-w-[360px] lg:self-start ${panel}`}
         >
-          <div className={`border-b px-5 py-4 sm:px-6 ${border}`}>
-            {entryMode === 'greenfield' ? (
-              <>
-                <p className={`text-xs ${muted}`}>New blueprint</p>
-                <h2 className={`mt-0.5 text-[15px] font-medium ${titleText}`}>Name your workspace</h2>
-                <p className={`mt-1 text-[13px] leading-relaxed ${muted}`}>
-                  You&apos;ll shape the product brief on the next screen.
-                </p>
-                {greenfieldStepsPanel}
-              </>
-            ) : (
-              <>
-                <p className={`text-xs ${muted}`}>Existing code</p>
-                <h2 className={`mt-0.5 text-[15px] font-medium ${titleText}`}>Scan a folder</h2>
-                <p className={`mt-1 text-[13px] leading-relaxed ${muted}`}>
-                  Read-only on this device. Structure and manifests only.
-                </p>
-              </>
-            )}
-          </div>
-
-          <div className="px-5 py-5 sm:px-6 sm:py-6">
+          <div className="px-5 py-6 sm:px-7 sm:py-7">
           {entryMode === 'greenfield' ? (
             <>
               <form onSubmit={handleSubmit} className="space-y-5">
+                <div>
+                  <p className={`text-[10px] font-medium uppercase tracking-wide ${muted}`}>New blueprint</p>
+                  <h2 className={`mt-1 text-[15px] font-medium ${titleText}`}>Name & idea</h2>
+                </div>
                 <div className="space-y-1.5">
                   <label htmlFor="new-project-name" className={`text-xs font-medium ${titleText}`}>
                     Project name
@@ -659,18 +646,6 @@ export const CreateProjectView: React.FC = () => {
                   </div>
                 ) : null}
 
-                {inputIdea.trim() ? (
-                  <p
-                    className={`rounded-lg border px-3 py-2 text-xs leading-5 ${
-                      isDark
-                        ? 'border-blue-500/25 bg-blue-500/10 text-blue-100'
-                        : 'border-blue-200 bg-blue-50 text-blue-900'
-                    }`}
-                  >
-                    Your one-line idea will seed the product brief on the next screen. You can edit or expand it there.
-                  </p>
-                ) : null}
-
                 {duplicateNameProject ? (
                   <p className={`text-xs leading-5 ${isDark ? 'text-amber-200/90' : 'text-amber-800'}`}>
                     You already have &ldquo;{duplicateNameProject.name}&rdquo;.{' '}
@@ -708,6 +683,11 @@ export const CreateProjectView: React.FC = () => {
             </>
           ) : (
             <>
+              <div className="mb-5">
+                <p className={`text-[10px] font-medium uppercase tracking-wide ${muted}`}>Existing code</p>
+                <h2 className={`mt-1 text-[15px] font-medium ${titleText}`}>Scan a folder</h2>
+                <p className={`mt-1 text-xs leading-relaxed ${muted}`}>Read-only on this device.</p>
+              </div>
               <ul className={`space-y-2.5 text-[13px] leading-relaxed ${muted}`}>
                 {SCAN_DELIVERABLES.map(item => (
                   <li key={item} className="flex gap-2.5">
