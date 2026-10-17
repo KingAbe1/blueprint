@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { ThemeProvider, useTheme } from './context/ThemeContext';
 import { ProjectProvider, useProjects } from './context/ProjectContext';
 import { AIProvider } from './context/AIContext';
+import { ConfirmProvider } from './context/ConfirmContext';
+import { GreenfieldAiBanner } from './components/workbench/GreenfieldAiBanner';
 import { NotificationProvider } from './context/NotificationContext';
 import { GitHubProvider } from './context/GitHubContext';
 import { Header } from './components/layout/Header';
@@ -42,6 +44,7 @@ const AppContent: React.FC = () => {
   }, [activeTab]);
 
   const inBrownfield = Boolean(activeProject?.codebaseAnalysis && !isCreatingNew);
+  const inGreenfield = Boolean(activeProject && !activeProject.codebaseAnalysis && !isCreatingNew);
 
   return (
     <CodebaseWorkspaceProvider
@@ -59,6 +62,8 @@ const AppContent: React.FC = () => {
             activeTab={activeTab}
             onSelectTab={setActiveTab}
           />
+
+          {inGreenfield ? <GreenfieldAiBanner /> : null}
 
           <main className="flex-1 flex overflow-hidden min-h-0">
             {!isLoaded ? (
@@ -117,9 +122,11 @@ export const App: React.FC = () => {
         <ProjectProvider>
           <GitHubProvider>
             <AIProvider>
-              <SafeErrorBoundary fallbackTitle="Blueprint couldn't load" variant="page">
-                <AppContent />
-              </SafeErrorBoundary>
+              <ConfirmProvider>
+                <SafeErrorBoundary fallbackTitle="Blueprint couldn't load" variant="page">
+                  <AppContent />
+                </SafeErrorBoundary>
+              </ConfirmProvider>
             </AIProvider>
           </GitHubProvider>
         </ProjectProvider>

@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowLeft, ArrowRight, CornerDownLeft, FolderCode, Layers, Loader2, SearchCode, Trash2 } from 'lucide-react';
 import { useProjects } from '../../context/ProjectContext';
 import { useTheme } from '../../context/ThemeContext';
+import { useNotification } from '../../context/NotificationContext';
 import { CodebaseAnalysis } from '../../types/codebase';
 import { Project } from '../../types/project';
 import { chooseAndAnalyzeCodebase } from '../../services/codebaseAnalysisService';
@@ -80,6 +81,7 @@ export const CreateProjectView: React.FC = () => {
     isLoaded,
   } = useProjects();
   const { isDark } = useTheme();
+  const { notify } = useNotification();
   const [entryMode, setEntryMode] = useState<EntryMode>('greenfield');
   const [inputName, setInputName] = useState('');
   const [inputIdea, setInputIdea] = useState('');
@@ -105,8 +107,12 @@ export const CreateProjectView: React.FC = () => {
 
   const handleSubmit = (event: React.FormEvent) => {
     event.preventDefault();
-    if (!inputName.trim()) return;
-    createProject(inputName, inputIdea);
+    if (!inputName.trim() || duplicateNameProject) return;
+    const created = createProject(inputName, inputIdea);
+    if (!created) {
+      notify.warning('A project with this name already exists. Open it or pick another name.');
+      return;
+    }
     setInputName('');
     setInputIdea('');
   };
@@ -188,10 +194,12 @@ export const CreateProjectView: React.FC = () => {
     if (event.key !== 'Enter' || event.shiftKey) return;
     if (event.metaKey || event.ctrlKey) {
       event.preventDefault();
-      if (inputName.trim()) {
-        createProject(inputName, inputIdea);
-        setInputName('');
-        setInputIdea('');
+      if (inputName.trim() && !duplicateNameProject) {
+        const created = createProject(inputName, inputIdea);
+        if (created) {
+          setInputName('');
+          setInputIdea('');
+        }
       }
       return;
     }
@@ -479,7 +487,7 @@ export const CreateProjectView: React.FC = () => {
                       Cancel
                     </button>
                   ) : null}
-                  <button type="submit" disabled={!inputName.trim()} className={`group ${primaryActionClass}`}>
+                  <button type="submit" disabled={!inputName.trim() || Boolean(duplicateNameProject)} className={`group ${primaryActionClass}`}>
                     Continue
                     <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
                   </button>

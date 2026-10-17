@@ -25,6 +25,9 @@ import { WorkbenchPhaseHeader, WorkbenchStep } from './WorkbenchPhaseHeader';
 import { workbenchCanvasClass, workbenchPagePadding, workbenchTheme } from './workbenchUi';
 import { CATEGORY_LABELS } from './architectureInterviewLabels';
 import { DesignDecisionsPanel } from './DesignDecisionsPanel';
+import { InterviewReviewPanel } from './InterviewReviewPanel';
+import { useConfirm } from '../../context/ConfirmContext';
+import { createStaticArchitectureInterview } from '../../services/staticArchitectureInterview';
 import { recommendFrameworkFromText } from '../../services/frameworkRecommender';
 import {
   ArchitectureAnswer,
@@ -144,8 +147,12 @@ export const DomainIntentView: React.FC<DomainIntentViewProps> = ({ onOpenArchit
   const { isDark } = useTheme();
   const { settings, isAiConfigured, setIsSettingsOpen } = useAI();
   const { notify } = useNotification();
+  const { confirm } = useConfirm();
 
   const [isPolishing, setIsPolishing] = useState(false);
+  const [prePolishDescription, setPrePolishDescription] = useState<string | null>(null);
+  const [reviewDraft, setReviewDraft] = useState<ArchitecturalInterview | null>(null);
+  const [seedBannerDismissed, setSeedBannerDismissed] = useState(false);
   const [isGeneratingInterview, setIsGeneratingInterview] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [selectedOptionId, setSelectedOptionId] = useState('');
@@ -189,6 +196,13 @@ export const DomainIntentView: React.FC<DomainIntentViewProps> = ({ onOpenArchit
     return () => window.removeEventListener('resize', onResize);
   }, [showDescriptionTextarea, descriptionDraft, isPolishing]);
 
+  useEffect(() => {
+    if (!activeProject?.id) return;
+    setSeedBannerDismissed(localStorage.getItem(`blueprint_brief_seed_ack_${activeProject.id}`) === '1');
+    setReviewDraft(null);
+    setPrePolishDescription(null);
+  }, [activeProject?.id]);
+
   if (!activeProject) return null;
 
   const { spec } = activeProject;
@@ -227,6 +241,7 @@ export const DomainIntentView: React.FC<DomainIntentViewProps> = ({ onOpenArchit
       return;
     }
 
+    setPrePolishDescription(spec.description);
     setIsPolishing(true);
     try {
       const result = await expandAndPolishDescription(activeProject.name, spec.description, settings);
@@ -240,8 +255,14 @@ export const DomainIntentView: React.FC<DomainIntentViewProps> = ({ onOpenArchit
     }
   };
 
-  const handleEditProduct = () => {
-    const shouldReset = window.confirm('Editing the product description will reset your build questions and answers so the blueprint stays consistent. Continue?');
+  const handleEditProduct = async () => {
+    const shouldReset = await confirm({
+      title: 'Edit product brief?',
+      description:
+        'Editing the description will reset build questions, answers, and architecture so the blueprint stays consistent.',
+      confirmLabel: 'Edit brief',
+      tone: 'danger',
+    });
     if (!shouldReset) return;
     setInterviewBeforeEdit(null);
     updateSpec({
@@ -251,6 +272,16 @@ export const DomainIntentView: React.FC<DomainIntentViewProps> = ({ onOpenArchit
       frameworkRecommendation: undefined,
       customRequirements: undefined,
     });
+  };
+
+  const startStaticInterview = () => {
+    if (!spec.description?.trim()) {
+      notify.warning('Describe the product before designing its architecture.');
+      return;
+    }
+    setInterviewBeforeEdit(interview?.status === 'completed' ? interview : null);
+    updateSpec({ interview: createStaticArchitectureInterview() });
+    notify.success('Standard build questions loaded.');
   };
 
   const startInterview = async () => {
@@ -359,23 +390,10 @@ export const DomainIntentView: React.FC<DomainIntentViewProps> = ({ onOpenArchit
     const isLastQuestion = interview.currentQuestionIndex >= interview.questions.length - 1;
 
     if (isLastQuestion) {
-      const completedInterview: ArchitecturalInterview = {
+      setReviewDraft({
         ...interview,
-        status: 'completed',
         answers,
-        summaryInsights: interview.questions.map(question => {
-          const savedAnswer = answers.find(item => item.questionId === question.id);
-          return `${CATEGORY_LABELS[question.category]}: ${savedAnswer?.label || 'No preference'}`;
-        }),
-      };
-      updateSpec({
-        interview: completedInterview,
-        frameworkRecommendations: [],
-        targetFramework: undefined,
-        frameworkRecommendation: undefined,
       });
-      setInterviewBeforeEdit(null);
-      await generateStackRecommendations(completedInterview);
       return;
     }
 
@@ -386,6 +404,27 @@ export const DomainIntentView: React.FC<DomainIntentViewProps> = ({ onOpenArchit
         currentQuestionIndex: interview.currentQuestionIndex + 1,
       },
     });
+  };
+
+  const confirmReviewAndBuild = async () => {
+    if (!reviewDraft) return;
+    const completedInterview: ArchitecturalInterview = {
+      ...reviewDraft,
+      status: 'completed',
+      summaryInsights: reviewDraft.questions.map(question => {
+        const savedAnswer = reviewDraft.answers.find(item => item.questionId === question.id);
+        return `${CATEGORY_LABELS[question.category]}: ${savedAnswer?.label || 'No preference'}`;
+      }),
+    };
+    updateSpec({
+      interview: completedInterview,
+      frameworkRecommendations: [],
+      targetFramework: undefined,
+      frameworkRecommendation: undefined,
+    });
+    setInterviewBeforeEdit(null);
+    setReviewDraft(null);
+    await generateStackRecommendations(completedInterview);
   };
 
   const goBack = () => {
@@ -424,6 +463,12 @@ export const DomainIntentView: React.FC<DomainIntentViewProps> = ({ onOpenArchit
   };
 
   const descriptionReady = wordCount >= 5;
+  const showSeedBanner = Boolean(
+    spec.initialOneLineIdea?.trim()
+    && !seedBannerDismissed
+    && descriptionReady
+    && !interviewCompleted,
+  );
 
   const interviewStatus = !interview
     ? descriptionReady
@@ -597,6 +642,40 @@ export const DomainIntentView: React.FC<DomainIntentViewProps> = ({ onOpenArchit
           </div>
 
           <div className="px-5 py-5 sm:px-6 sm:py-6">
+          {showSeedBanner ? (
+            <div className={`mb-5 rounded-xl border px-4 py-3 ${border} ${inner}`}>
+              <p className={`text-xs ${titleText}`}>Seeded from your one-line idea</p>
+              <p className={`mt-1 text-[13px] leading-relaxed ${muted}`}>
+                &ldquo;{spec.initialOneLineIdea}&rdquo; — expand it below or polish with AI when you&apos;re ready.
+              </p>
+              <button
+                type="button"
+                onClick={() => {
+                  localStorage.setItem(`blueprint_brief_seed_ack_${activeProject.id}`, '1');
+                  setSeedBannerDismissed(true);
+                }}
+                className={`mt-2 text-[11px] font-medium ${isDark ? 'text-blue-300 hover:text-blue-200' : 'text-blue-600 hover:text-blue-800'}`}
+              >
+                Got it
+              </button>
+            </div>
+          ) : null}
+          {prePolishDescription ? (
+            <div className={`mb-4 flex flex-wrap items-center justify-between gap-2 rounded-lg border px-3 py-2 ${border} ${inner}`}>
+              <p className={`text-[11px] ${muted}`}>You can restore the brief from before AI polish.</p>
+              <button
+                type="button"
+                onClick={() => {
+                  updateSpec({ description: prePolishDescription });
+                  setPrePolishDescription(null);
+                  notify.success('Previous brief restored.');
+                }}
+                className="btn-secondary-accent px-2.5 py-1.5 text-[10px] font-medium"
+              >
+                Undo polish
+              </button>
+            </div>
+          ) : null}
           {interview?.status === 'completed' || showBriefPreview ? (
             <ProductBriefDisplay text={spec.description || ''} wordCount={wordCount} />
           ) : (
@@ -701,41 +780,75 @@ export const DomainIntentView: React.FC<DomainIntentViewProps> = ({ onOpenArchit
           </div>
 
           <div className="px-5 py-5 sm:px-6 sm:py-6">
-          {!interview && (
+          {reviewDraft ? (
+            <InterviewReviewPanel
+              interview={reviewDraft}
+              onBack={() => {
+                updateSpec({
+                  interview: {
+                    ...reviewDraft,
+                    status: 'in_progress',
+                    currentQuestionIndex: reviewDraft.questions.length - 1,
+                  },
+                });
+                setReviewDraft(null);
+              }}
+              onConfirm={() => void confirmReviewAndBuild()}
+              isSubmitting={isAnalyzing}
+            />
+          ) : null}
+
+          {!reviewDraft && !interview && (
             pinBuildQuestionsBesideBrief ? (
-              <div className="mt-5 space-y-4">
+              <div className="space-y-3">
                 <p className={`text-xs leading-5 ${muted}`}>One choice per question, tailored to this brief.</p>
                 <button
                   type="button"
                   onClick={() => startInterview()}
                   disabled={isGeneratingInterview || !descriptionReady}
-                  className="flex w-full items-center justify-center gap-2 rounded-lg btn-primary-blue px-4 py-3 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-40"
+                  className="flex w-full items-center justify-center gap-2 rounded-lg btn-primary-blue px-4 py-3 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-40"
                 >
                   {isGeneratingInterview ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowRight className="h-4 w-4" />}
-                  {isGeneratingInterview ? 'Preparing…' : isAiConfigured ? 'Start questions' : 'Connect AI to start'}
+                  {isGeneratingInterview ? 'Preparing…' : isAiConfigured ? 'Start AI questions' : 'Connect AI for tailored questions'}
+                </button>
+                <button
+                  type="button"
+                  onClick={startStaticInterview}
+                  disabled={!descriptionReady}
+                  className="btn-secondary flex w-full items-center justify-center gap-2 px-4 py-2.5 text-xs disabled:opacity-40"
+                >
+                  Use standard question set
                 </button>
               </div>
             ) : (
-              <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <p className={`max-w-lg text-sm leading-6 ${muted}`}>
                   Blueprint turns your answers into stack choices and constraints for the coding agent.
                 </p>
                 <div className="flex flex-wrap gap-2">
                   <button
                     type="button"
+                    onClick={startStaticInterview}
+                    disabled={!descriptionReady}
+                    className="btn-secondary px-4 py-2.5 text-xs disabled:opacity-40"
+                  >
+                    Standard questions
+                  </button>
+                  <button
+                    type="button"
                     onClick={() => startInterview()}
                     disabled={isGeneratingInterview || !descriptionReady}
-                    className="flex items-center justify-center gap-2 rounded-lg btn-primary-blue px-4 py-2.5 text-xs font-semibold text-white disabled:cursor-not-allowed disabled:opacity-40"
+                    className="flex items-center justify-center gap-2 rounded-lg btn-primary-blue px-4 py-2.5 text-xs font-medium text-white disabled:cursor-not-allowed disabled:opacity-40"
                   >
                     {isGeneratingInterview ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ArrowRight className="h-3.5 w-3.5" />}
-                    {isGeneratingInterview ? 'Preparing…' : isAiConfigured ? 'Start questions' : 'Connect AI to start'}
+                    {isGeneratingInterview ? 'Preparing…' : isAiConfigured ? 'Start AI questions' : 'Connect AI'}
                   </button>
                 </div>
               </div>
             )
           )}
 
-          {interview?.status === 'in_progress' && currentQuestion && (
+          {!reviewDraft && interview?.status === 'in_progress' && currentQuestion && (
             <div className="mt-5">
               <div className="mb-4 flex items-center justify-between gap-4">
                 <span className={`text-[11px] ${muted}`}>Questions from {interview.providerName || 'Blueprint'}</span>
@@ -841,7 +954,7 @@ export const DomainIntentView: React.FC<DomainIntentViewProps> = ({ onOpenArchit
                   disabled={!selectedOptionId && !customAnswer.trim()}
                   className="btn-primary-blue flex items-center gap-2 px-4 py-2.5 text-xs font-medium text-white disabled:cursor-not-allowed disabled:opacity-40"
                 >
-                  {interview.currentQuestionIndex === interview.questions.length - 1 ? 'Build final architecture' : 'Continue'}
+                  {interview.currentQuestionIndex === interview.questions.length - 1 ? 'Review answers' : 'Continue'}
                   <ArrowRight className="h-3.5 w-3.5" />
                 </button>
               </div>

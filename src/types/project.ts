@@ -114,6 +114,8 @@ export interface ArchitecturalInterview {
 
 export interface ProjectSpec {
   description: string;
+  /** One-line idea from home screen, used for first-run brief highlight. */
+  initialOneLineIdea?: string;
   architecturePreference?: ArchitecturePreference;
   stylingPreference?: StylingPreference;
   backendPreference?: BackendPreference;

@@ -1,14 +1,15 @@
 import React, { useState } from 'react';
-import { Code2, FileText, LayoutGrid, Moon, Network, Settings2, Sun } from 'lucide-react';
+import { Check, Code2, FileText, LayoutGrid, Moon, Network, Settings2, Sun } from 'lucide-react';
 import { useProjects } from '../../context/ProjectContext';
 import { useTheme } from '../../context/ThemeContext';
 import { useAI } from '../../context/AIContext';
-import { PhaseTab } from '../../types/project';
+import { PhaseTab, Project } from '../../types/project';
 import { ProjectDropdown } from '../project/ProjectDropdown';
 import { isDesktopApp, isMacOS } from '../../utils/platform';
 import { DesktopTitlebarStrip } from './DesktopTitlebarStrip';
 import { CodebaseSectionNav } from '../project/CodebaseSectionNav';
 import { CodebaseHeaderToolbar } from '../project/CodebaseHeaderToolbar';
+import { getGreenfieldPhaseProgress } from '../../services/greenfieldProgress';
 
 interface HeaderProps {
   activeTab?: PhaseTab;
@@ -31,45 +32,63 @@ function PhaseNav({
   onSelectTab,
   handoffReady,
   isDark,
+  activeProject,
 }: {
   activeTab: PhaseTab;
   onSelectTab: (tab: PhaseTab) => void;
   handoffReady: boolean;
   isDark: boolean;
+  activeProject: Project | undefined;
 }) {
-  const track = isDark
-    ? 'border-white/[0.1] bg-white/[0.03]'
-    : 'border-slate-200 bg-slate-100/90';
+  const track = isDark ? 'border-white/[0.06] bg-[#131417]' : 'border-slate-200/90 bg-white';
+  const phases = getGreenfieldPhaseProgress(activeProject, activeTab);
 
   return (
     <nav
-      className={`inline-flex max-w-full items-center gap-0.5 overflow-x-auto rounded-xl border p-1 ${track}`}
+      className={`inline-flex max-w-full items-center gap-1 overflow-x-auto rounded-xl border p-1 ${track}`}
       aria-label="Project phases"
     >
       {PHASE_NAV.map(item => {
         const Icon = item.icon;
         const isActive = activeTab === item.id;
-        const isAvailable = item.id === 'in-flight' ? handoffReady : true;
+        const progress = phases.find(p => p.id === item.id);
+        const isLocked = progress?.state === 'locked';
+        const isComplete = progress?.state === 'complete';
+        const isAvailable = item.id === 'in-flight' ? handoffReady : !isLocked;
         return (
           <button
             key={item.id}
             type="button"
             disabled={!isAvailable}
             onClick={() => isAvailable && onSelectTab(item.id)}
-            title={isAvailable ? item.label : `${item.label} · Complete architecture first`}
-            className={`flex shrink-0 items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[11px] font-semibold transition-colors sm:px-3 ${
+            title={isAvailable ? item.label : `${item.label} · Finish earlier steps first`}
+            className={`flex shrink-0 items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-[11px] font-medium transition-colors sm:px-3 ${
               isActive
-                ? 'btn-secondary-accent shadow-sm'
+                ? isDark
+                  ? 'border-blue-500/30 bg-blue-500/[0.1] text-slate-100'
+                  : 'border-blue-200/90 bg-blue-50/70 text-slate-900'
                 : isAvailable
-                  ? isDark
-                    ? 'text-slate-300 hover:bg-white/[0.06] hover:text-white'
-                    : 'text-slate-600 hover:bg-white hover:text-slate-900'
-                  : isDark
-                    ? 'cursor-not-allowed text-[#494B51]'
-                    : 'cursor-not-allowed text-slate-300'
+                  ? `border-transparent ${isDark ? 'text-slate-400 hover:bg-white/[0.04] hover:text-white' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'}`
+                  : `cursor-not-allowed border-transparent ${isDark ? 'text-slate-600' : 'text-slate-300'}`
             }`}
           >
-            <Icon className={`h-3.5 w-3.5 shrink-0 ${isActive ? '' : 'opacity-80'}`} />
+            <span
+              className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full text-[9px] ${
+                isComplete
+                  ? 'bg-blue-500 text-white'
+                  : isActive
+                    ? isDark
+                      ? 'bg-blue-400/90 text-[#0C0D0F]'
+                      : 'bg-blue-600 text-white'
+                    : isDark
+                      ? 'bg-white/[0.08] text-slate-500'
+                      : 'bg-slate-200 text-slate-600'
+              }`}
+              aria-hidden
+            >
+              {isComplete ? <Check className="h-2.5 w-2.5 stroke-[3]" /> : PHASE_NAV.findIndex(p => p.id === item.id) + 1}
+            </span>
+            <Icon className={`h-3.5 w-3.5 shrink-0 opacity-80`} />
             <span className="hidden whitespace-nowrap md:inline">{item.label}</span>
             <span className="whitespace-nowrap md:hidden">{item.shortLabel}</span>
           </button>
@@ -228,6 +247,7 @@ export const Header: React.FC<HeaderProps> = ({
               onSelectTab={onSelectTab}
               handoffReady={handoffReady}
               isDark={isDark}
+              activeProject={activeProject}
             />
           </div>
         ) : null}

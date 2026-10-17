@@ -7,8 +7,10 @@ import {
   FolderOpen,
   Loader2,
   Package,
+  Download,
   RefreshCw,
 } from 'lucide-react';
+import { useConfirm } from '../../context/ConfirmContext';
 import { useNotification } from '../../context/NotificationContext';
 import { useProjects } from '../../context/ProjectContext';
 import { useTheme } from '../../context/ThemeContext';
@@ -28,6 +30,8 @@ import {
   openHandoffFolder,
 } from '../../services/handoffExportService';
 import { HandoffPackage, IDETarget } from '../../types/project';
+import { loadHandoffPrefs, saveHandoffPrefs } from '../../services/greenfieldHandoffPrefsStorage';
+import { downloadHandoffZip } from '../../services/handoffZipDownload';
 
 const IDE_OPTIONS: Array<{ id: IDETarget; label: string; detail: string }> = [
   { id: 'cursor', label: 'Cursor', detail: 'Adds a project rule' },
@@ -59,6 +63,7 @@ export const BuildHandoffView: React.FC = () => {
   const { activeProject, updateProjectSpec } = useProjects();
   const { isDark } = useTheme();
   const { notify } = useNotification();
+  const { confirm } = useConfirm();
   const architecture = activeProject?.spec.frameworkRecommendation || activeProject?.spec.frameworkRecommendations?.[0];
   const canGenerate = Boolean(activeProject && architecture && activeProject.spec.interview?.status === 'completed');
 
@@ -99,6 +104,15 @@ export const BuildHandoffView: React.FC = () => {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeProject?.id]);
 
+  useEffect(() => {
+    if (!activeProject?.id || !handoff) return;
+    const prefs = loadHandoffPrefs(activeProject.id);
+    if (prefs.target?.kind === 'tauri') {
+      setTarget(prefs.target);
+      void inspectHandoffConflicts(prefs.target, handoff.files).then(setConflicts);
+    }
+  }, [activeProject?.id, handoff]);
+
   const selectedFile = handoff?.files.find(file => file.path === selectedPath) || handoff?.files[0];
   const selectedIDE = IDE_OPTIONS.find(option => option.id === handoff?.ide) || IDE_OPTIONS[0];
   const groupedFiles = useMemo(() => FILE_GROUPS.map(group => ({
@@ -115,9 +129,19 @@ export const BuildHandoffView: React.FC = () => {
 
   if (!activeProject) return null;
 
-  const regenerate = (ide: IDETarget = handoff?.ide || 'cursor', skipEditCheck = false) => {
+  const regenerate = async (ide: IDETarget = handoff?.ide || 'cursor', skipEditCheck = false) => {
     if (!canGenerate) return;
-    if (!skipEditCheck && hasManualEdits && !window.confirm('Regenerating will replace your edits in the handoff preview. Continue?')) return;
+    if (
+      !skipEditCheck
+      && hasManualEdits
+      && !(await confirm({
+        title: 'Regenerate handoff?',
+        description: 'This replaces your preview edits with a fresh package from the current blueprint.',
+        confirmLabel: 'Regenerate',
+      }))
+    ) {
+      return;
+    }
     const next = generateHandoffPackage(activeProject, ide);
     setHandoff(next);
     setSelectedPath(next.files[0]?.path || '');
@@ -128,10 +152,20 @@ export const BuildHandoffView: React.FC = () => {
     notify.success('Build handoff regenerated from the current blueprint.');
   };
 
-  const chooseIDE = (ide: IDETarget) => {
+  const chooseIDE = async (ide: IDETarget) => {
     if (handoff?.ide === ide) return;
-    if (hasManualEdits && !window.confirm('Changing IDE regenerates the package and replaces your preview edits. Continue?')) return;
-    regenerate(ide, true);
+    if (
+      hasManualEdits
+      && !(await confirm({
+        title: 'Change target IDE?',
+        description: 'The handoff package will be regenerated and preview edits will be replaced.',
+        confirmLabel: 'Change IDE',
+      }))
+    ) {
+      return;
+    }
+    saveHandoffPrefs(activeProject.id, { ide });
+    void regenerate(ide, true);
   };
 
   const chooseFolder = async () => {
@@ -144,6 +178,7 @@ export const BuildHandoffView: React.FC = () => {
       const existing = await inspectHandoffConflicts(nextTarget, handoff.files);
       setTarget(nextTarget);
       setConflicts(existing);
+      saveHandoffPrefs(activeProject.id, { target: nextTarget });
     } catch (error: any) {
       notify.error(error?.message || 'Could not access that project folder.');
     } finally {
@@ -154,9 +189,12 @@ export const BuildHandoffView: React.FC = () => {
   const exportPackage = async () => {
     if (!handoff || !target) return;
     if (conflicts.length > 0) {
-      const confirmed = window.confirm(
-        `${conflicts.length} generated file${conflicts.length === 1 ? '' : 's'} already exist in ${target.name}. Exporting will replace only those listed files. Continue?`,
-      );
+      const confirmed = await confirm({
+        title: 'Replace existing files?',
+        description: `${conflicts.length} file${conflicts.length === 1 ? '' : 's'} already exist in ${target.name}. Only generated paths will be written; conflicting files will be replaced.`,
+        confirmLabel: 'Export anyway',
+        tone: 'danger',
+      });
       if (!confirmed) return;
     }
 
@@ -164,6 +202,7 @@ export const BuildHandoffView: React.FC = () => {
     try {
       const result = await exportHandoffFiles(target, handoff.files, conflicts.length > 0);
       setExportResult(result);
+      saveHandoffPrefs(activeProject.id, { ide: handoff.ide, target });
       notify.success(`Handoff exported to ${target.name}.`);
     } catch (error: any) {
       notify.error(error?.message || 'Could not export the handoff package.');
@@ -222,7 +261,7 @@ export const BuildHandoffView: React.FC = () => {
           actions={
             <button
               type="button"
-              onClick={() => regenerate()}
+              onClick={() => void regenerate()}
               className="btn-secondary-accent flex shrink-0 items-center justify-center gap-2 px-3.5 py-2.5 text-xs font-medium"
             >
               <RefreshCw className="h-3.5 w-3.5" />
@@ -309,17 +348,28 @@ export const BuildHandoffView: React.FC = () => {
                   {target ? <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-emerald-500" aria-hidden /> : null}
                 </button>
                 {target ? (
-                  <div className={`flex items-start gap-2 rounded-lg border px-3 py-2.5 ${border} ${inner}`}>
+                  <div className="space-y-2">
+                    <div className={`flex items-start gap-2 rounded-lg border px-3 py-2.5 ${border} ${inner}`}>
+                      {conflicts.length > 0 ? (
+                        <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-500" />
+                      ) : (
+                        <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-500" />
+                      )}
+                      <p className={`text-[11px] leading-relaxed ${muted}`}>
+                        {conflicts.length > 0
+                          ? `${conflicts.length} file${conflicts.length === 1 ? '' : 's'} already exist — you’ll confirm before replacing.`
+                          : `Ready to add ${handoff.files.length} files without overwriting.`}
+                      </p>
+                    </div>
                     {conflicts.length > 0 ? (
-                      <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-500" />
-                    ) : (
-                      <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-500" />
-                    )}
-                    <p className={`text-[11px] leading-relaxed ${muted}`}>
-                      {conflicts.length > 0
-                        ? `${conflicts.length} file${conflicts.length === 1 ? '' : 's'} already exist — you’ll confirm before replacing.`
-                        : `Ready to add ${handoff.files.length} files without overwriting.`}
-                    </p>
+                      <ul className={`max-h-28 overflow-y-auto rounded-lg border px-3 py-2 ${border} ${inner}`}>
+                        {conflicts.map(path => (
+                          <li key={path} className={`truncate font-mono text-[10px] ${muted}`}>
+                            {path}
+                          </li>
+                        ))}
+                      </ul>
+                    ) : null}
                   </div>
                 ) : null}
               </div>
@@ -332,7 +382,15 @@ export const BuildHandoffView: React.FC = () => {
                 </div>
                 <button
                   type="button"
-                  onClick={exportPackage}
+                  onClick={() => downloadHandoffZip(handoff.files, activeProject.name)}
+                  className={`flex w-full items-center justify-center gap-2 rounded-lg border px-4 py-2.5 text-xs font-medium transition-colors ${ghostButton}`}
+                >
+                  <Download className="h-3.5 w-3.5" />
+                  Download ZIP
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void exportPackage()}
                   disabled={!target || isExporting}
                   className="btn-primary-blue flex w-full items-center justify-center gap-2 px-4 py-3 text-xs font-medium text-white disabled:cursor-not-allowed disabled:opacity-40"
                 >

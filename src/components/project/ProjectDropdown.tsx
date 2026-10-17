@@ -8,6 +8,7 @@ import {
   Trash2,
   Plus,
   Layers,
+  Copy,
 } from 'lucide-react';
 import { useProjects } from '../../context/ProjectContext';
 import { useTheme } from '../../context/ThemeContext';
@@ -34,7 +35,8 @@ export const ProjectDropdown: React.FC<ProjectDropdownProps> = ({
     setEditingProjectId, 
     setProjectToDelete,
     exportProjects,
-    importProjectsFromFile
+    importProjectsFromFile,
+    duplicateBlueprintProject,
   } = useProjects();
   const { isDark } = useTheme();
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -179,6 +181,26 @@ export const ProjectDropdown: React.FC<ProjectDropdownProps> = ({
               <span>All projects (home)</span>
             </button>
           </div>
+
+          {activeProject && !activeProject.codebaseAnalysis ? (
+            <div className={`pt-1.5 mt-1 border-t space-y-0.5 ${isDark ? 'border-[#23242A]' : 'border-slate-100'}`}>
+              <button
+                type="button"
+                onClick={() => {
+                  duplicateBlueprintProject(activeProject.id);
+                  onClose();
+                }}
+                className={`w-full flex items-center space-x-2 px-2.5 py-1.5 rounded-xl text-xs font-medium transition-colors cursor-pointer ${
+                  isDark
+                    ? 'text-slate-300 hover:bg-white/[0.06] hover:text-white'
+                    : 'text-slate-700 hover:bg-slate-100 hover:text-slate-900'
+                }`}
+              >
+                <Copy className="w-3.5 h-3.5 shrink-0 opacity-80" />
+                <span>Duplicate blueprint</span>
+              </button>
+            </div>
+          ) : null}
 
           <div className={`pt-1.5 mt-1 border-t space-y-0.5 ${isDark ? 'border-[#23242A]' : 'border-slate-100'}`}>
             <button

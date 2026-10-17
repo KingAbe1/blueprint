@@ -16,6 +16,7 @@ interface ProjectContextType {
   setProjectToDelete: (project: Project | null) => void;
   setActiveProjectId: (id: string | null) => void;
   createProject: (name: string, description?: string) => Project | null;
+  duplicateBlueprintProject: (id: string) => Project | null;
   createCodebaseProject: (analysis: CodebaseAnalysis) => Project;
   updateCodebaseAnalysis: (id: string, analysis: CodebaseAnalysis) => void;
   renameProject: (id: string, newName: string) => void;
@@ -119,16 +120,33 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({ children })
 
   const activeProject = projects.find(p => p.id === activeProjectId);
 
+  const uniqueProjectName = (base: string, excludeId?: string): string => {
+    const lower = base.trim().toLowerCase();
+    const exists = (name: string) =>
+      projects.some(p => p.id !== excludeId && p.name.trim().toLowerCase() === name.trim().toLowerCase());
+    if (!exists(lower)) return base.trim();
+    for (let i = 2; i < 100; i += 1) {
+      const candidate = `${base.trim()} ${i}`;
+      if (!exists(candidate)) return candidate;
+    }
+    return `${base.trim()} ${Date.now()}`;
+  };
+
   const createProject = (name: string, description: string = ''): Project | null => {
     const trimmed = name.trim();
     if (!trimmed) return null;
+    if (projects.some(p => p.name.trim().toLowerCase() === trimmed.toLowerCase())) {
+      return null;
+    }
 
+    const idea = description.trim();
     const newProject: Project = {
       id: 'proj_' + Date.now(),
       name: trimmed,
       spec: {
         ...defaultSpec,
-        description: description.trim(),
+        description: idea,
+        initialOneLineIdea: idea || undefined,
       },
       createdAt: Date.now(),
       updatedAt: Date.now(),
@@ -138,6 +156,26 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({ children })
     setActiveProjectId(newProject.id);
     setIsCreatingNew(false);
     return newProject;
+  };
+
+  const duplicateBlueprintProject = (id: string): Project | null => {
+    const source = projects.find(p => p.id === id);
+    if (!source || source.codebaseAnalysis) return null;
+    const copy: Project = {
+      ...source,
+      id: `proj_${Date.now()}`,
+      name: uniqueProjectName(`${source.name} copy`),
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+      spec: {
+        ...source.spec,
+        handoff: undefined,
+      },
+    };
+    setProjects(prev => [copy, ...prev]);
+    setActiveProjectId(copy.id);
+    setIsCreatingNew(false);
+    return copy;
   };
 
   const createCodebaseProject = (analysis: CodebaseAnalysis): Project => {
@@ -267,6 +305,7 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({ children })
         setProjectToDelete,
         setActiveProjectId,
         createProject,
+        duplicateBlueprintProject,
         createCodebaseProject,
         updateCodebaseAnalysis,
         renameProject,
