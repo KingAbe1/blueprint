@@ -7,6 +7,12 @@ import { Project } from '../../types/project';
 import { chooseAndAnalyzeCodebase } from '../../services/codebaseAnalysisService';
 import { isDesktopApp } from '../../utils/platform';
 import { formatRelativeTime } from '../../utils/formatRelativeTime';
+import {
+  overviewBorderClass,
+  overviewDivideClass,
+  overviewPanelClass,
+  overviewRowEmphasis,
+} from './overviewUi';
 
 type EntryMode = 'greenfield' | 'brownfield';
 
@@ -138,19 +144,24 @@ export const CreateProjectView: React.FC = () => {
   };
 
   const muted = isDark ? 'text-slate-400' : 'text-slate-500';
-  const divider = isDark ? 'border-white/[0.08]' : 'border-slate-200';
-  const panelClass = isDark
-    ? 'border-white/[0.09] bg-[#141518]'
-    : 'border-slate-200/80 bg-white/95 shadow-[0_20px_60px_-36px_rgba(15,23,42,0.26)]';
+  const titleText = isDark ? 'text-slate-100' : 'text-slate-900';
+  const border = overviewBorderClass(isDark);
+  const divide = overviewDivideClass(isDark);
+  const panel = overviewPanelClass(isDark);
 
-  const modeCardClass = (selected: boolean) => {
-    if (selected) {
-      return isDark ? 'border-blue-400/30 bg-blue-500/[0.08]' : 'border-blue-200 bg-blue-50/70';
-    }
-    return isDark
-      ? 'border-white/[0.08] bg-white/[0.02] hover:border-white/[0.14] hover:bg-white/[0.04]'
-      : 'border-slate-200 bg-white/60 hover:border-slate-300 hover:bg-white';
-  };
+  const inputClass = isDark
+    ? 'border-white/[0.08] bg-black/20 text-slate-100 placeholder:text-slate-500 focus:border-blue-500/50'
+    : 'border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:border-blue-400';
+
+  const primaryActionClass = `inline-flex items-center justify-center gap-1.5 rounded-lg border px-3.5 py-2.5 text-[13px] font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-45 ${
+    isDark
+      ? 'border-blue-500/35 bg-blue-500/[0.12] text-blue-100 hover:border-blue-500/45 hover:bg-blue-500/20'
+      : 'border-blue-600/15 bg-blue-600 text-white hover:bg-blue-700 shadow-[0_1px_2px_rgba(37,99,235,0.2)]'
+  }`;
+
+  const secondaryActionClass = isDark
+    ? 'text-xs font-medium text-slate-400 hover:text-slate-200'
+    : 'text-xs font-medium text-slate-500 hover:text-slate-900';
 
   const desktop = isDesktopApp();
   const openedFromActiveProject = isCreatingNew && Boolean(activeProjectId && activeProject);
@@ -189,59 +200,74 @@ export const CreateProjectView: React.FC = () => {
   };
 
   const recentProjectsSection = projects.length > 0 ? (
-    <div className={`max-w-lg pt-1 lg:border-t lg:pt-6 ${divider}`}>
-      <h2 className={`text-sm font-semibold ${isDark ? 'text-slate-200' : 'text-slate-800'}`}>Open a recent project</h2>
-      <div className={`mt-2 divide-y ${isDark ? 'divide-white/[0.07]' : 'divide-slate-200/60'}`}>
-        {recentProjects.map(project => {
-          const kind = projectKind(project);
-          const KindIcon = kind === 'codebase' ? SearchCode : FolderCode;
-          const touchedAt = project.updatedAt ?? project.createdAt;
-          return (
-            <div key={project.id} className="group flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => {
-                  setActiveProjectId(project.id);
-                  setIsCreatingNew(false);
-                }}
-                className={`flex min-w-0 flex-1 items-center justify-between gap-3 py-3 text-left transition-colors ${isDark ? 'text-slate-300 hover:text-white' : 'text-slate-700 hover:text-slate-950'}`}
-              >
-                <span className="flex min-w-0 items-center gap-2.5">
-                  <KindIcon className="h-4 w-4 shrink-0 text-blue-500" />
-                  <span className="min-w-0">
-                    <span className="block truncate text-sm font-medium">{project.name}</span>
-                    <span className={`text-[10px] ${muted}`}>
-                      {kind === 'codebase' ? 'Codebase scan' : 'Product blueprint'}
-                      {' · '}
-                      Updated {formatRelativeTime(touchedAt)}
+    <div className={`max-w-lg pt-1 lg:border-t lg:pt-6 ${border}`}>
+      <p className={`text-xs ${muted}`}>Recent</p>
+      <h2 className={`mt-0.5 text-[15px] font-medium ${titleText}`}>Open a project</h2>
+      <div className={`mt-3 overflow-hidden rounded-2xl border ${panel}`}>
+        <ul className={`divide-y ${divide}`}>
+          {recentProjects.map(project => {
+            const kind = projectKind(project);
+            const KindIcon = kind === 'codebase' ? SearchCode : FolderCode;
+            const touchedAt = project.updatedAt ?? project.createdAt;
+            return (
+              <li key={project.id} className="group flex items-stretch">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setActiveProjectId(project.id);
+                    setIsCreatingNew(false);
+                  }}
+                  className={`flex min-w-0 flex-1 items-center justify-between gap-3 px-4 py-3.5 text-left transition-colors ${
+                    isDark ? 'hover:bg-white/[0.03]' : 'hover:bg-slate-50/80'
+                  } ${overviewRowEmphasis(isDark, 'neutral')}`}
+                >
+                  <span className="flex min-w-0 items-center gap-3">
+                    <span
+                      className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border ${border} ${
+                        isDark ? 'bg-white/[0.03] text-slate-400' : 'bg-slate-50 text-slate-500'
+                      }`}
+                    >
+                      <KindIcon className="h-4 w-4" />
+                    </span>
+                    <span className="min-w-0">
+                      <span className={`block truncate text-[13px] font-medium ${titleText}`}>{project.name}</span>
+                      <span className={`mt-0.5 block text-[11px] ${muted}`}>
+                        {kind === 'codebase' ? 'Codebase' : 'Blueprint'}
+                        {' · '}
+                        {formatRelativeTime(touchedAt)}
+                      </span>
                     </span>
                   </span>
-                </span>
-                <ArrowRight className={`h-4 w-4 shrink-0 opacity-40 transition-all group-hover:translate-x-0.5 group-hover:opacity-100 ${isDark ? 'text-blue-300' : 'text-blue-600'}`} />
-              </button>
-              <button
-                type="button"
-                onClick={() => setProjectToDelete(project)}
-                aria-label={`Delete ${project.name}`}
-                title="Delete project"
-                className={`shrink-0 rounded-md p-1.5 opacity-60 transition-colors hover:opacity-100 ${isDark ? 'text-slate-500 hover:bg-red-500/10 hover:text-red-300' : 'text-slate-400 hover:bg-red-50 hover:text-red-600'}`}
-              >
-                <Trash2 className="h-3.5 w-3.5" />
-              </button>
-            </div>
-          );
-        })}
+                  <ArrowRight className={`h-4 w-4 shrink-0 opacity-30 transition-all group-hover:translate-x-0.5 group-hover:opacity-80 ${muted}`} />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setProjectToDelete(project)}
+                  aria-label={`Delete ${project.name}`}
+                  title="Delete project"
+                  className={`shrink-0 border-l px-3 ${border} ${
+                    isDark ? 'text-slate-500 hover:bg-rose-500/10 hover:text-rose-300' : 'text-slate-400 hover:bg-rose-50 hover:text-rose-600'
+                  }`}
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </button>
+              </li>
+            );
+          })}
+        </ul>
       </div>
-      <p className={`mt-4 text-[11px] leading-4 ${muted}`}>
-        Stored in this browser&apos;s localStorage. Use{' '}
-        <span className={isDark ? 'text-slate-300' : 'text-slate-600'}>Export JSON</span>{' '}
-        in the project menu to back up.
+      <p className={`mt-3 text-[11px] leading-relaxed ${muted}`}>
+        Projects stay on this device. Export JSON from the project menu to back up.
       </p>
     </div>
   ) : null;
 
   return (
-    <div className={`desktop-hub-shell relative flex h-full min-h-0 w-full flex-1 flex-col overflow-y-auto ${isDark ? 'bg-[#101113]' : desktop ? 'bg-[#F5F7FA]' : 'bg-[radial-gradient(ellipse_at_40%_38%,#ffffff_0%,#f7f9fd_48%,#eef3fa_100%)]'}`}>
+    <div
+      className={`desktop-hub-shell relative flex h-full min-h-0 w-full flex-1 flex-col overflow-y-auto ${
+        isDark ? 'bg-[#0E0F12]' : desktop ? 'bg-[#F6F7F9]' : 'bg-slate-50'
+      }`}
+    >
       {isRestoringLastScan ? (
         <div
           className={`absolute inset-0 z-20 flex flex-col items-center justify-center gap-3 px-6 ${isDark ? 'bg-[#101113]/90' : 'bg-white/85'} backdrop-blur-[2px]`}
@@ -255,45 +281,46 @@ export const CreateProjectView: React.FC = () => {
           </p>
         </div>
       ) : null}
-      <div className="flex min-h-full items-center justify-center px-5 py-10 sm:px-8 min-[500px]:px-10">
-        <div className="mx-auto flex w-full max-w-6xl flex-col items-stretch gap-8 lg:flex-row lg:items-start lg:gap-12 xl:max-w-[68rem]">
-        <section className="min-w-0 flex-1 lg:max-w-xl">
+      <div className="flex min-h-full items-start justify-center px-5 py-8 sm:px-8 lg:py-12">
+        <div className="mx-auto flex w-full max-w-5xl flex-col items-stretch gap-8 lg:flex-row lg:items-start lg:gap-10">
+        <section className="min-w-0 flex-1 lg:max-w-md">
           {openedFromActiveProject && (
             <button
               type="button"
               onClick={exitNewProjectFlow}
-              className={`btn-secondary-accent mb-4 inline-flex items-center gap-2 px-3 py-2 text-xs font-semibold`}
+              className={`mb-5 inline-flex items-center gap-1.5 text-xs font-medium ${isDark ? 'text-blue-400 hover:text-blue-300' : 'text-blue-600 hover:text-blue-800'}`}
             >
               <ArrowLeft className="h-3.5 w-3.5" />
               Back to {activeProject?.name}
             </button>
           )}
-          {!desktop && (
-            <div className={`mb-5 flex h-11 w-11 items-center justify-center rounded-xl ${isDark ? 'bg-blue-500/10 text-blue-300' : 'bg-blue-50 text-blue-700'}`}>
-              <Layers className="h-5 w-5" />
+          <div className="flex items-start gap-3">
+            <div
+              className={`hidden h-10 w-10 shrink-0 items-center justify-center rounded-xl border sm:flex ${border} ${
+                isDark ? 'bg-white/[0.03] text-slate-400' : 'bg-white text-slate-600 shadow-sm'
+              }`}
+            >
+              <Layers className="h-5 w-5" strokeWidth={1.75} />
             </div>
-          )}
-          <p className={`text-xs font-medium ${isDark ? 'text-[#8E9098]' : 'text-slate-500'}`}>
-            Local workspace
-          </p>
-          <h1 className={`max-w-xl font-semibold tracking-tight ${desktop ? `mt-1 text-xl ${isDark ? 'text-white' : 'text-slate-950'}` : `mt-3 text-3xl sm:text-[2.65rem] sm:leading-[1.1] ${isDark ? 'text-white' : 'text-slate-950'}`}`}>
-            {openedFromActiveProject && projects.length > 0
-              ? 'Your projects'
-              : 'Where are we starting?'}
-          </h1>
-          <p className={`mt-2 max-w-lg text-sm leading-6 ${muted}`}>
-            {openedFromActiveProject
-              ? 'Open a recent project, start a new blueprint, or scan a codebase. Everything stays on this device.'
-              : desktop
-                ? 'Plan a product or scan a folder on this machine. Nothing is uploaded to Blueprint cloud.'
-                : 'Bring an idea to life or get oriented in a codebase you already have. Projects stay on this device only.'}
-          </p>
+            <div className="min-w-0">
+              <p className={`text-xs ${muted}`}>Blueprint Studio</p>
+              <h1 className={`mt-0.5 text-[22px] font-medium leading-snug tracking-tight sm:text-2xl ${titleText}`}>
+                {openedFromActiveProject && projects.length > 0 ? 'Start something new' : 'Welcome back'}
+              </h1>
+              <p className={`mt-2 max-w-md text-[13px] leading-relaxed ${muted}`}>
+                {openedFromActiveProject
+                  ? 'Pick a path below or reopen a recent project. Everything stays on this device.'
+                  : 'Plan a new product blueprint or scan an existing codebase—local only, no cloud upload.'}
+              </p>
+            </div>
+          </div>
 
           {recentProjectsSection ? (
             <div className="mt-7 lg:hidden">{recentProjectsSection}</div>
           ) : null}
 
-          <div className="mt-7 grid max-w-lg gap-3" role="listbox" aria-label="Project entry mode">
+          <p className={`mt-8 text-xs font-medium ${muted}`}>Choose a starting point</p>
+          <div className="mt-2 grid max-w-lg gap-2" role="listbox" aria-label="Project entry mode">
             {STARTING_POINTS.map(({ mode, title, description, icon: Icon, idleBadge }) => {
               const selected = entryMode === mode;
               return (
@@ -304,25 +331,35 @@ export const CreateProjectView: React.FC = () => {
                   aria-selected={selected}
                   onClick={() => selectMode(mode)}
                   disabled={isAnalyzingCodebase}
-                  className={`flex w-full items-start gap-3 rounded-xl border p-4 text-left transition-colors disabled:opacity-60 ${modeCardClass(selected)}`}
+                  className={`flex w-full items-start gap-3 rounded-xl border p-4 text-left transition-colors disabled:opacity-60 ${border} ${
+                    selected
+                      ? overviewRowEmphasis(isDark, 'info')
+                      : isDark
+                        ? 'bg-white/[0.02] hover:bg-white/[0.04]'
+                        : 'bg-white/80 hover:bg-white'
+                  }`}
                 >
-                  <div className={`mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${selected
-                    ? isDark ? 'bg-blue-400/10 text-blue-300' : 'bg-white text-blue-700'
-                    : isDark ? 'bg-white/[0.05] text-slate-400' : 'bg-slate-100 text-slate-500'
-                  }`}>
-                    <Icon className="h-4 w-4" />
+                  <div
+                    className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border ${border} ${
+                      selected
+                        ? isDark
+                          ? 'bg-blue-500/10 text-blue-300'
+                          : 'bg-blue-50 text-blue-700'
+                        : isDark
+                          ? 'bg-white/[0.03] text-slate-500'
+                          : 'bg-slate-50 text-slate-500'
+                    }`}
+                  >
+                    <Icon className="h-4 w-4" strokeWidth={1.75} />
                   </div>
                   <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <p className={`text-sm font-semibold ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>{title}</p>
-                      <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${selected
-                        ? isDark ? 'bg-blue-400/10 text-blue-300' : 'bg-blue-100 text-blue-700'
-                        : isDark ? 'bg-white/[0.06] text-slate-400' : 'bg-slate-100 text-slate-600'
-                      }`}>
-                        {selected ? 'Selected' : mode === 'brownfield' && isAnalyzingCodebase ? 'Scanning…' : idleBadge}
+                    <div className="flex items-center justify-between gap-2">
+                      <p className={`text-[13px] font-medium ${titleText}`}>{title}</p>
+                      <span className={`shrink-0 text-[10px] tabular-nums ${muted}`}>
+                        {mode === 'brownfield' && isAnalyzingCodebase ? 'Scanning…' : idleBadge}
                       </span>
                     </div>
-                    <p className={`mt-1 text-xs leading-5 ${muted}`}>{description}</p>
+                    <p className={`mt-1 text-xs leading-relaxed ${muted}`}>{description}</p>
                   </div>
                 </button>
               );
@@ -341,53 +378,63 @@ export const CreateProjectView: React.FC = () => {
         </section>
 
         <section
-          className={`desktop-panel w-full shrink-0 border p-5 sm:p-6 lg:sticky lg:top-6 lg:w-[min(100%,400px)] lg:max-w-[400px] lg:self-start ${desktop ? 'rounded-lg' : 'rounded-2xl p-6 shadow-sm sm:p-7'} ${panelClass}`}
+          className={`desktop-panel w-full shrink-0 overflow-hidden rounded-2xl border lg:sticky lg:top-8 lg:w-[min(100%,380px)] lg:max-w-[380px] lg:self-start ${panel}`}
         >
+          <div className={`border-b px-5 py-4 sm:px-6 ${border}`}>
+            {entryMode === 'greenfield' ? (
+              <>
+                <p className={`text-xs ${muted}`}>New blueprint</p>
+                <h2 className={`mt-0.5 text-[15px] font-medium ${titleText}`}>Name your workspace</h2>
+                <p className={`mt-1 text-[13px] leading-relaxed ${muted}`}>
+                  You&apos;ll shape the product brief on the next screen.
+                </p>
+              </>
+            ) : (
+              <>
+                <p className={`text-xs ${muted}`}>Existing code</p>
+                <h2 className={`mt-0.5 text-[15px] font-medium ${titleText}`}>Scan a folder</h2>
+                <p className={`mt-1 text-[13px] leading-relaxed ${muted}`}>
+                  Read-only on this device. Structure and manifests only.
+                </p>
+              </>
+            )}
+          </div>
+
+          <div className="px-5 py-5 sm:px-6 sm:py-6">
           {entryMode === 'greenfield' ? (
             <>
-              <h2 className={`text-xl font-semibold tracking-tight ${isDark ? 'text-white' : 'text-slate-950'}`}>Name your workspace</h2>
-              <p className={`mt-1.5 text-sm leading-5 ${muted}`}>
-                Pick a name you will recognize in the project list. You will shape the product brief on the next screen.
-              </p>
-
-              <form onSubmit={handleSubmit} className="mt-7 space-y-6">
-                <div className="space-y-2">
-                  <label htmlFor="new-project-name" className={`text-xs font-medium ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+              <form onSubmit={handleSubmit} className="space-y-5">
+                <div className="space-y-1.5">
+                  <label htmlFor="new-project-name" className={`text-xs font-medium ${titleText}`}>
                     Project name
                   </label>
-                  <div className={`rounded-xl transition-shadow ${isFocused ? 'ring-2 ring-blue-500/20' : ''}`}>
-                    <input
-                      id="new-project-name"
-                      type="text"
-                      className={`w-full rounded-xl border px-4 py-3.5 text-sm font-medium outline-none transition-colors ${isDark
-                        ? 'border-white/[0.1] bg-[#0F1012] text-white placeholder:text-slate-600 focus:border-blue-500/70'
-                        : 'border-slate-300 bg-white text-slate-900 placeholder:text-slate-400 focus:border-blue-500'
-                      }`}
-                      placeholder="e.g. online-store"
-                      value={inputName}
-                      onChange={event => setInputName(event.target.value)}
-                      onFocus={() => setIsFocused(true)}
-                      onBlur={() => setIsFocused(false)}
-                      autoFocus
-                    />
-                  </div>
+                  <input
+                    id="new-project-name"
+                    type="text"
+                    className={`w-full rounded-lg border px-3 py-2.5 text-sm outline-none transition-colors ${inputClass} ${
+                      isFocused ? 'ring-2 ring-blue-500/15' : ''
+                    }`}
+                    placeholder="e.g. online-store"
+                    value={inputName}
+                    onChange={event => setInputName(event.target.value)}
+                    onFocus={() => setIsFocused(true)}
+                    onBlur={() => setIsFocused(false)}
+                    autoFocus
+                  />
                 </div>
 
-                <div className="space-y-2">
-                  <label htmlFor="new-project-idea" className={`text-xs font-medium ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+                <div className="space-y-1.5">
+                  <label htmlFor="new-project-idea" className={`text-xs font-medium ${titleText}`}>
                     One-line idea <span className={`font-normal ${muted}`}>(optional)</span>
                   </label>
                   <textarea
                     id="new-project-idea"
-                    rows={2}
+                    rows={3}
                     value={inputIdea}
                     onChange={event => setInputIdea(event.target.value)}
                     onKeyDown={handleIdeaKeyDown}
                     placeholder="Who is it for and what should they be able to do?"
-                    className={`w-full resize-none rounded-xl border px-4 py-3 text-sm leading-5 outline-none transition-colors ${isDark
-                      ? 'border-white/[0.1] bg-[#0F1012] text-white placeholder:text-slate-600 focus:border-blue-500/70'
-                      : 'border-slate-300 bg-white text-slate-900 placeholder:text-slate-400 focus:border-blue-500'
-                    }`}
+                    className={`w-full resize-none rounded-lg border px-3 py-2.5 text-sm leading-relaxed outline-none transition-colors ${inputClass}`}
                   />
                 </div>
 
@@ -420,67 +467,46 @@ export const CreateProjectView: React.FC = () => {
                   </p>
                 ) : null}
 
-                <div className={`flex flex-wrap items-center justify-between gap-3 border-t pt-5 ${divider}`}>
-                  <span className={`flex flex-col gap-0.5 text-xs ${muted} sm:flex-row sm:items-center sm:gap-1.5`}>
-                    <span className="inline-flex items-center gap-1.5">
-                      <CornerDownLeft className="h-3.5 w-3.5 shrink-0" />
-                      Enter in name field to continue
-                    </span>
-                    <span className="hidden sm:inline">·</span>
-                    <span className="text-[11px]">{desktop ? 'Ctrl' : '⌘'}+Enter in idea field</span>
-                  </span>
-                  <div className="flex items-center gap-2">
-                    {showPanelDismiss ? (
-                      <button
-                        type="button"
-                        onClick={exitNewProjectFlow}
-                        className={`rounded-lg px-2.5 py-2 text-xs font-medium transition-colors ${isDark ? 'text-slate-400 hover:bg-white/[0.05] hover:text-white' : 'text-slate-500 hover:bg-slate-100 hover:text-slate-900'}`}
-                      >
-                        Cancel
-                      </button>
-                    ) : null}
-                    <button
-                      type="submit"
-                      disabled={!inputName.trim()}
-                      className={`group inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold transition-colors disabled:pointer-events-none ${inputName.trim()
-                        ? 'btn-primary-blue text-white'
-                        : isDark ? 'bg-white/[0.07] text-slate-500' : 'bg-slate-200 text-slate-500'
-                      }`}
-                    >
-                      Continue to blueprint
-                      <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+                <p className={`flex items-center gap-1.5 text-[11px] ${muted}`}>
+                  <CornerDownLeft className="h-3 w-3 shrink-0 opacity-70" />
+                  Enter to continue · {desktop ? 'Ctrl' : '⌘'}+Enter in idea field
+                </p>
+
+                <div className={`flex flex-wrap items-center justify-end gap-3 border-t pt-4 ${border}`}>
+                  {showPanelDismiss ? (
+                    <button type="button" onClick={exitNewProjectFlow} className={secondaryActionClass}>
+                      Cancel
                     </button>
-                  </div>
+                  ) : null}
+                  <button type="submit" disabled={!inputName.trim()} className={`group ${primaryActionClass}`}>
+                    Continue
+                    <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+                  </button>
                 </div>
               </form>
             </>
           ) : (
             <>
-              <h2 className={`text-xl font-semibold tracking-tight ${isDark ? 'text-white' : 'text-slate-950'}`}>Choose a folder</h2>
-              <p className={`mt-1.5 text-sm leading-5 ${muted}`}>
-                Scan a codebase on this device. Blueprint reads structure and manifests only—read-only, nothing uploaded to Blueprint.
-              </p>
-
-              <ul className={`mt-5 space-y-2 text-xs leading-5 ${muted}`}>
+              <ul className={`space-y-2.5 text-[13px] leading-relaxed ${muted}`}>
                 {SCAN_DELIVERABLES.map(item => (
-                  <li key={item} className="flex gap-2">
-                    <span className={`mt-1.5 h-1 w-1 shrink-0 rounded-full ${isDark ? 'bg-blue-400' : 'bg-blue-500'}`} aria-hidden />
+                  <li key={item} className="flex gap-2.5">
+                    <span className={`mt-2 h-1 w-1 shrink-0 rounded-full ${isDark ? 'bg-slate-500' : 'bg-slate-400'}`} aria-hidden />
                     {item}
                   </li>
                 ))}
               </ul>
 
-              <div className={`mt-7 flex flex-wrap items-center justify-between gap-3 border-t pt-5 ${divider}`}>
-                <span className={`text-xs ${muted}`}>
-                  {isAnalyzingCodebase ? 'Scanning…' : 'Opens the system folder picker'}
-                </span>
-                <div className="flex items-center gap-2">
+              <div className={`mt-6 flex flex-col gap-3 border-t pt-4 ${border}`}>
+                <p className={`text-[11px] ${muted}`}>
+                  {isAnalyzingCodebase ? 'Scanning folder…' : 'Opens your system folder picker'}
+                </p>
+                <div className="flex flex-wrap items-center justify-end gap-3">
                   {showPanelDismiss ? (
                     <button
                       type="button"
                       onClick={exitNewProjectFlow}
                       disabled={isAnalyzingCodebase}
-                      className={`rounded-lg px-2.5 py-2 text-xs font-medium transition-colors disabled:opacity-50 ${isDark ? 'text-slate-400 hover:bg-white/[0.05] hover:text-white' : 'text-slate-500 hover:bg-slate-100 hover:text-slate-900'}`}
+                      className={secondaryActionClass}
                     >
                       Cancel
                     </button>
@@ -489,7 +515,7 @@ export const CreateProjectView: React.FC = () => {
                     type="button"
                     onClick={() => void handleAnalyzeCodebase()}
                     disabled={isAnalyzingCodebase}
-                    className="group inline-flex items-center gap-1.5 rounded-lg btn-primary-blue px-3 py-2 text-xs font-semibold text-white transition-colors disabled:opacity-60"
+                    className={`group ${primaryActionClass}`}
                   >
                     {isAnalyzingCodebase ? (
                       <>
@@ -507,6 +533,7 @@ export const CreateProjectView: React.FC = () => {
               </div>
             </>
           )}
+          </div>
         </section>
         </div>
       </div>

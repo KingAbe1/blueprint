@@ -233,30 +233,47 @@ export const AIReviewPanel: React.FC<AIReviewPanelProps> = ({
 
   return (
     <section ref={panelRef} id="quality-ai-review-panel" className={`scroll-mt-4 overflow-hidden rounded-2xl border ${panel}`}>
-      <header className={`border-b px-5 py-4 sm:px-6 ${border}`}>
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <h2 className={`text-[15px] font-medium ${titleText}`}>AI code review</h2>
-            <p className={`mt-0.5 max-w-2xl text-[13px] ${muted}`}>
-              Optional second opinion on files you choose. Builds on the static scan already in this project — does not
-              change your score.
-            </p>
-          </div>
-          {isAiConfigured ? (
-            <p className={`text-[11px] tabular-nums ${muted}`}>
-              {activeConfig.name} · {activeConfig.model}
-            </p>
-          ) : null}
-        </div>
-
-      </header>
+      <AIReviewPanelHeader
+        isDark={isDark}
+        titleText={titleText}
+        muted={muted}
+        border={border}
+        textAction={textAction}
+        isAiConfigured={isAiConfigured}
+        providerName={isAiConfigured ? activeConfig.name : undefined}
+        modelName={isAiConfigured ? activeConfig.model : undefined}
+        onOpenSettings={() => setIsSettingsOpen(true)}
+        showToolbar={isAiConfigured && aiReviewCandidates.length > 0}
+        showResults={showResults}
+        hasReviewResult={Boolean(aiReviewResult)}
+        aiReviewSearch={aiReviewSearch}
+        onSearchChange={value => {
+          setAIReviewSearch(value);
+          setFileListLimit(AI_REVIEW_FILE_LIST_PAGE);
+        }}
+        onClearSearch={() => {
+          setAIReviewSearch('');
+          setFileListLimit(AI_REVIEW_FILE_LIST_PAGE);
+        }}
+        aiSelectedPathsCount={aiSelectedPaths.length}
+        onClearSelection={() => setAISelectedPaths([])}
+        onApplySuggested={applySuggestedPaths}
+        suggestedButtonLabel={suggestedButtonLabel}
+        suggestedDisabled={suggestedPaths.length === 0}
+        suggestedTitle={
+          suggestedPaths.length === 0
+            ? 'No file paths in static findings'
+            : allFindingLinkedPaths.length > suggestedPaths.length
+              ? `Select up to ${suggestedPaths.length} files for AI review (highest-priority finding paths first). ${allFindingLinkedPaths.length - suggestedPaths.length} more finding-linked files are not included due to the review size limit.`
+              : 'Select files linked to static findings (highest priority first)'
+        }
+        busy={busy}
+        onChangeFiles={() => setShowResults(false)}
+      />
 
       {!isAiConfigured ? (
         <div className="px-5 py-8 sm:px-6">
-          <p className={`text-[13px] ${muted}`}>Connect an AI provider to run a review. Static analysis works without one.</p>
-          <button type="button" onClick={() => setIsSettingsOpen(true)} className={`mt-3 ${textAction}`}>
-            Open AI settings
-          </button>
+          <p className={`text-[13px] ${muted}`}>Static analysis works without AI. Use Connect AI above to enable reviews.</p>
         </div>
       ) : !aiReviewCandidates.length ? (
         <div className="px-5 py-8 text-center sm:px-6">
@@ -264,79 +281,6 @@ export const AIReviewPanel: React.FC<AIReviewPanelProps> = ({
         </div>
       ) : (
         <>
-          <div className={`border-b px-5 py-3 sm:px-6 ${border}`}>
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
-              <div className="relative min-w-0 w-full flex-1 sm:max-w-lg">
-                <Search className={`pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 ${muted}`} />
-                <input
-                  type="search"
-                  value={aiReviewSearch}
-                  onChange={e => {
-                    setAIReviewSearch(e.target.value);
-                    setFileListLimit(AI_REVIEW_FILE_LIST_PAGE);
-                  }}
-                  placeholder={
-                    showResults && aiReviewResult
-                      ? 'Filter disabled while viewing results'
-                      : 'Filter paths…'
-                  }
-                  disabled={showResults && Boolean(aiReviewResult)}
-                  className={`w-full rounded-lg border py-1.5 pl-8 pr-8 text-xs outline-none disabled:opacity-50 ${
-                    isDark
-                      ? 'border-white/[0.08] bg-black/20 text-slate-100 placeholder:text-slate-500 focus:border-blue-500/50'
-                      : 'border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:border-blue-400'
-                  }`}
-                />
-                {aiReviewSearch && !(showResults && aiReviewResult) ? (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setAIReviewSearch('');
-                      setFileListLimit(AI_REVIEW_FILE_LIST_PAGE);
-                    }}
-                    className={`absolute right-2 top-1/2 -translate-y-1/2 text-xs ${muted}`}
-                    aria-label="Clear filter"
-                  >
-                    ✕
-                  </button>
-                ) : null}
-              </div>
-              {showResults && aiReviewResult ? (
-                <button type="button" onClick={() => setShowResults(false)} className={`shrink-0 ${textAction}`}>
-                  Change files
-                </button>
-              ) : (
-                <div className="flex shrink-0 flex-wrap items-center justify-end gap-2 sm:ml-auto">
-                  {aiSelectedPaths.length > 0 ? (
-                    <>
-                      <span className={`text-[11px] tabular-nums ${muted}`}>
-                        {aiSelectedPaths.length}/6 selected
-                      </span>
-                      <button type="button" onClick={() => setAISelectedPaths([])} disabled={busy} className={`text-xs ${muted}`}>
-                        Clear selection
-                      </button>
-                    </>
-                  ) : null}
-                  <button
-                    type="button"
-                    onClick={applySuggestedPaths}
-                    disabled={busy || suggestedPaths.length === 0}
-                    className={textAction}
-                    title={
-                      suggestedPaths.length === 0
-                        ? 'No file paths in static findings'
-                        : allFindingLinkedPaths.length > suggestedPaths.length
-                          ? `Select up to ${suggestedPaths.length} files for AI review (highest-priority finding paths first). ${allFindingLinkedPaths.length - suggestedPaths.length} more finding-linked files are not included due to the review size limit.`
-                          : 'Select files linked to static findings (highest priority first)'
-                    }
-                  >
-                    {suggestedButtonLabel}
-                  </button>
-                </div>
-              )}
-            </div>
-          </div>
-
           <div className={`grid grid-cols-1 lg:grid-cols-12 lg:divide-x ${divide}`}>
             <div className="lg:col-span-5 min-h-[280px] max-h-[min(560px,55vh)] overflow-y-auto overscroll-contain">
               {showResults && aiReviewResult ? (
@@ -561,6 +505,188 @@ function SentPayloadDetails({
         </ul>
       ) : null}
     </div>
+  );
+}
+
+function aiReviewToolbarButtonClass(isDark: boolean): string {
+  return `rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
+    isDark
+      ? 'border-white/[0.08] bg-white/[0.03] text-slate-200 hover:border-white/[0.12] hover:bg-white/[0.06]'
+      : 'border-slate-200/90 bg-white text-slate-800 shadow-[0_1px_2px_rgba(15,23,42,0.04)] hover:border-slate-300 hover:bg-slate-50'
+  }`;
+}
+
+function AIReviewPanelHeader({
+  isDark,
+  titleText,
+  muted,
+  border,
+  textAction,
+  isAiConfigured,
+  providerName,
+  modelName,
+  onOpenSettings,
+  showToolbar,
+  showResults,
+  hasReviewResult,
+  aiReviewSearch,
+  onSearchChange,
+  onClearSearch,
+  aiSelectedPathsCount,
+  onClearSelection,
+  onApplySuggested,
+  suggestedButtonLabel,
+  suggestedDisabled,
+  suggestedTitle,
+  busy,
+  onChangeFiles,
+}: {
+  isDark: boolean;
+  titleText: string;
+  muted: string;
+  border: string;
+  textAction: string;
+  isAiConfigured: boolean;
+  providerName?: string;
+  modelName?: string;
+  onOpenSettings: () => void;
+  showToolbar: boolean;
+  showResults: boolean;
+  hasReviewResult: boolean;
+  aiReviewSearch: string;
+  onSearchChange: (value: string) => void;
+  onClearSearch: () => void;
+  aiSelectedPathsCount: number;
+  onClearSelection: () => void;
+  onApplySuggested: () => void;
+  suggestedButtonLabel: string;
+  suggestedDisabled: boolean;
+  suggestedTitle?: string;
+  busy: boolean;
+  onChangeFiles: () => void;
+}) {
+  const inResultsMode = showResults && hasReviewResult;
+  const statusLabel = inResultsMode ? 'Results' : aiSelectedPathsCount > 0 ? `${aiSelectedPathsCount}/6 selected` : null;
+
+  const subtitle = !isAiConfigured
+    ? 'Connect a provider to send selected source files for an optional second opinion.'
+    : inResultsMode
+      ? 'Browse AI notes and new findings for the files you reviewed.'
+      : 'Pick source files to review. Uses your scan and static findings — does not change your score.';
+
+  return (
+    <header className={`border-b ${border}`}>
+      <div className="px-5 py-4 sm:px-6">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+              <h2 className={`text-[15px] font-medium ${titleText}`}>AI code review</h2>
+              {statusLabel ? (
+                <span
+                  className={`rounded-full px-2 py-0.5 text-[10px] font-medium tabular-nums tracking-wide ${
+                    inResultsMode
+                      ? isDark
+                        ? 'bg-blue-500/15 text-blue-300'
+                        : 'bg-blue-50 text-blue-700'
+                      : isDark
+                        ? 'bg-white/[0.06] text-slate-400'
+                        : 'bg-slate-100 text-slate-600'
+                  }`}
+                >
+                  {statusLabel}
+                </span>
+              ) : null}
+            </div>
+            <p className={`mt-1 max-w-2xl text-[13px] leading-relaxed ${muted}`}>{subtitle}</p>
+          </div>
+
+          {isAiConfigured && providerName ? (
+            <div
+              className={`flex shrink-0 items-center gap-2 rounded-lg border px-3 py-2 ${border} ${
+                isDark ? 'border-white/[0.08] bg-white/[0.02]' : 'bg-slate-50/80'
+              }`}
+              title="Connected AI provider"
+            >
+              <span className={`h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-500 ${isDark ? 'shadow-[0_0_6px_rgba(16,185,129,0.45)]' : ''}`} />
+              <p className={`text-[11px] leading-snug ${titleText}`}>
+                <span className="font-medium">{providerName}</span>
+                {modelName ? (
+                  <>
+                    <span className={muted}> · </span>
+                    <span className={muted}>{modelName}</span>
+                  </>
+                ) : null}
+              </p>
+            </div>
+          ) : (
+            <button type="button" onClick={onOpenSettings} className={`inline-flex shrink-0 items-center gap-1.5 ${textAction}`}>
+              <span
+                className={`h-1.5 w-1.5 rounded-full ${isDark ? 'bg-rose-500 shadow-[0_0_6px_rgba(244,63,94,0.35)]' : 'bg-rose-500'}`}
+                aria-hidden
+              />
+              Connect AI
+            </button>
+          )}
+        </div>
+      </div>
+
+      {showToolbar ? (
+        <div className={`border-t px-5 py-3 sm:px-6 ${border}`}>
+          <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between lg:gap-3">
+            <div className="relative min-w-0 flex-1 lg:max-w-md">
+              <Search className={`pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 ${muted}`} />
+              <input
+                type="search"
+                value={aiReviewSearch}
+                onChange={e => onSearchChange(e.target.value)}
+                placeholder={inResultsMode ? 'Path filter unavailable in results view' : 'Filter paths…'}
+                disabled={inResultsMode}
+                className={`w-full rounded-lg border py-1.5 pl-8 pr-8 text-xs outline-none disabled:cursor-not-allowed disabled:opacity-50 ${
+                  isDark
+                    ? 'border-white/[0.08] bg-black/20 text-slate-100 placeholder:text-slate-500 focus:border-blue-500/50'
+                    : 'border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:border-blue-400'
+                }`}
+              />
+              {aiReviewSearch && !inResultsMode ? (
+                <button
+                  type="button"
+                  onClick={onClearSearch}
+                  className={`absolute right-2 top-1/2 -translate-y-1/2 text-xs ${muted}`}
+                  aria-label="Clear filter"
+                >
+                  ✕
+                </button>
+              ) : null}
+            </div>
+
+            <div className="flex flex-wrap items-center justify-end gap-2 lg:shrink-0">
+              {inResultsMode ? (
+                <button type="button" onClick={onChangeFiles} className={aiReviewToolbarButtonClass(isDark)}>
+                  Change files
+                </button>
+              ) : (
+                <>
+                  {aiSelectedPathsCount > 0 ? (
+                    <button type="button" onClick={onClearSelection} disabled={busy} className={`text-xs ${muted}`}>
+                      Clear selection
+                    </button>
+                  ) : null}
+                  <button
+                    type="button"
+                    onClick={onApplySuggested}
+                    disabled={busy || suggestedDisabled}
+                    title={suggestedTitle}
+                    className={aiReviewToolbarButtonClass(isDark)}
+                  >
+                    {suggestedButtonLabel}
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      ) : null}
+    </header>
   );
 }
 

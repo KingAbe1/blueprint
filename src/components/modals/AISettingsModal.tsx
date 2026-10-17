@@ -23,6 +23,8 @@ import { useAI } from '../../context/AIContext';
 import { useTheme } from '../../context/ThemeContext';
 import { AIProviderId } from '../../types/ai';
 import { fetchProviderModels, testAIConnection, TestResult } from '../../services/aiService';
+import { overviewBorderClass, overviewPanelClass } from '../project/overviewUi';
+import { providerIsConfigured } from '../../services/aiSettingsStorage';
 
 interface ProviderMeta {
   id: AIProviderId;
@@ -100,6 +102,7 @@ const PROVIDERS: ProviderMeta[] = [
 export const AISettingsModal: React.FC = () => {
   const {
     settings,
+    isAiConfigured,
     isSettingsOpen,
     setIsSettingsOpen,
     setActiveProvider,
@@ -141,14 +144,21 @@ export const AISettingsModal: React.FC = () => {
   const isLocal = selectedProvider === 'ollama';
   const isConfigured = isLocal ? Boolean(config.baseUrl?.trim()) : Boolean(config.apiKey?.trim());
 
-  const border = isDark ? 'border-white/[0.08]' : 'border-slate-200';
-  const muted = isDark ? 'text-[#8F9199]' : 'text-slate-500';
+  const border = overviewBorderClass(isDark);
+  const panel = overviewPanelClass(isDark);
+  const muted = isDark ? 'text-slate-400' : 'text-slate-500';
+  const titleText = isDark ? 'text-slate-100' : 'text-slate-900';
   const input = isDark
-    ? 'border-white/[0.09] bg-[#0E0F11] text-white placeholder:text-[#55575E] focus:border-blue-500/70'
-    : 'border-slate-200 bg-slate-50 text-slate-900 placeholder:text-slate-400 focus:border-blue-500 focus:bg-white';
+    ? 'border-white/[0.08] bg-black/20 text-slate-100 placeholder:text-slate-500 focus:border-blue-500/50'
+    : 'border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:border-blue-400';
   const secondaryButton = isDark
-    ? 'border-white/[0.09] bg-white/[0.03] text-slate-300 hover:bg-white/[0.06] hover:text-white'
-    : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:text-slate-900';
+    ? 'border-white/[0.08] bg-white/[0.03] text-slate-200 hover:border-white/[0.12] hover:bg-white/[0.06]'
+    : 'border-slate-200/90 bg-white text-slate-800 shadow-[0_1px_2px_rgba(15,23,42,0.04)] hover:border-slate-300 hover:bg-slate-50';
+  const primaryButton = isDark
+    ? 'border border-blue-500/35 bg-blue-500/[0.12] text-blue-100 hover:border-blue-500/45 hover:bg-blue-500/20'
+    : 'border border-blue-600/15 bg-blue-600 text-white hover:bg-blue-700 shadow-[0_1px_2px_rgba(37,99,235,0.2)]';
+
+  const isProviderConfigured = (providerId: AIProviderId) => providerIsConfigured(settings.providers[providerId]);
 
   const selectProvider = (providerId: AIProviderId) => {
     setSelectedProvider(providerId);
@@ -201,7 +211,7 @@ export const AISettingsModal: React.FC = () => {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/65 p-4 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/55 p-4 backdrop-blur-sm sm:p-6"
       onMouseDown={event => {
         if (event.target === event.currentTarget) setIsSettingsOpen(false);
       }}
@@ -210,104 +220,130 @@ export const AISettingsModal: React.FC = () => {
         role="dialog"
         aria-modal="true"
         aria-labelledby="ai-settings-title"
-        className={`flex max-h-[calc(100vh-32px)] min-h-[620px] w-full max-w-4xl flex-col overflow-hidden rounded-2xl border shadow-2xl ${
-          isDark ? 'border-white/[0.1] bg-[#121315] text-white shadow-black/70' : 'border-slate-200 bg-white text-slate-900 shadow-slate-900/15'
-        }`}
+        className={`flex max-h-[min(720px,calc(100vh-2rem))] w-full max-w-3xl flex-col overflow-hidden rounded-2xl border shadow-2xl ${panel}`}
       >
-        <header className={`flex h-[72px] shrink-0 items-center justify-between border-b px-6 ${border}`}>
-          <div>
-            <h2 id="ai-settings-title" className="text-base font-semibold tracking-tight">AI connections</h2>
-            <p className={`mt-1 text-xs ${muted}`}>Choose the provider Blueprint uses for analysis and generation.</p>
+        <header className={`shrink-0 border-b px-5 py-4 sm:px-6 ${border}`}>
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <h2 id="ai-settings-title" className={`text-[15px] font-medium ${titleText}`}>
+                  AI connection
+                </h2>
+                <span
+                  className={`inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[10px] font-medium ${
+                    isAiConfigured
+                      ? isDark
+                        ? 'bg-emerald-500/10 text-emerald-300'
+                        : 'bg-emerald-50 text-emerald-800'
+                      : isDark
+                        ? 'bg-rose-500/10 text-rose-300'
+                        : 'bg-rose-50 text-rose-700'
+                  }`}
+                >
+                  <span
+                    className={`h-1.5 w-1.5 rounded-full ${isAiConfigured ? 'bg-emerald-500' : 'bg-rose-500'}`}
+                    aria-hidden
+                  />
+                  {isAiConfigured ? 'Connected' : 'Not connected'}
+                </span>
+              </div>
+              <p className={`mt-1 max-w-xl text-[13px] leading-relaxed ${muted}`}>
+                Pick a provider and model for AI review and generation. Keys stay on this device; only prompts you send leave
+                for the provider you choose.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setIsSettingsOpen(false)}
+              className={`shrink-0 rounded-lg p-2 transition-colors ${isDark ? 'text-slate-500 hover:bg-white/[0.06] hover:text-white' : 'text-slate-400 hover:bg-slate-100 hover:text-slate-700'}`}
+              title="Close (Esc)"
+            >
+              <X className="h-4 w-4" />
+            </button>
           </div>
-          <button
-            type="button"
-            onClick={() => setIsSettingsOpen(false)}
-            className={`rounded-lg p-2 transition-colors ${isDark ? 'text-slate-500 hover:bg-white/[0.06] hover:text-white' : 'text-slate-400 hover:bg-slate-100 hover:text-slate-700'}`}
-            title="Close (Esc)"
-          >
-            <X className="h-4 w-4" />
-          </button>
         </header>
 
-        <div className={`shrink-0 border-b px-6 py-3 text-xs leading-5 ${border} ${isDark ? 'bg-emerald-500/[0.06] text-slate-300' : 'bg-emerald-50/90 text-slate-600'}`}>
-          <p>
-            <span className="font-semibold text-emerald-600 dark:text-emerald-400">No Blueprint cloud for your code.</span>
-            {' '}
-            One connection for every project in Blueprint Studio. Scans and project data stay on this device. If you use AI features, only the text you send goes to the provider you configure here—or to Ollama on your machine. API keys are stored locally on this device.
-          </p>
-        </div>
-
-        <div className="flex min-h-0 flex-1">
-          <aside className={`w-56 shrink-0 overflow-y-auto border-r p-3 ${border} ${isDark ? 'bg-[#0E0F11]' : 'bg-slate-50/70'}`}>
-            <div className={`mb-2 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] ${muted}`}>Providers</div>
-            <div className="space-y-1">
+        <div className="flex min-h-0 flex-1 flex-col sm:flex-row">
+          <aside className={`shrink-0 border-b sm:w-52 sm:border-b-0 sm:border-r ${border} ${isDark ? 'bg-black/15' : 'bg-slate-50/80'}`}>
+            <p className={`px-4 pb-1 pt-3 text-[11px] font-medium uppercase tracking-wide ${muted}`}>Providers</p>
+            <div className="flex gap-1 overflow-x-auto px-3 pb-3 sm:block sm:space-y-0.5 sm:overflow-visible sm:px-2 sm:pb-3">
               {PROVIDERS.map(item => {
                 const ItemIcon = item.icon;
-                const itemConfig = settings.providers[item.id];
-                const itemConfigured = item.id === 'ollama' ? Boolean(itemConfig.baseUrl?.trim()) : Boolean(itemConfig.apiKey?.trim());
+                const itemConfigured = isProviderConfigured(item.id);
                 const itemActive = settings.activeProvider === item.id;
                 const selected = selectedProvider === item.id;
+                const statusDot = !itemConfigured
+                  ? 'bg-rose-500'
+                  : itemActive
+                    ? 'bg-emerald-500'
+                    : isDark
+                      ? 'bg-emerald-500/50'
+                      : 'bg-emerald-400';
 
                 return (
                   <button
                     key={item.id}
                     type="button"
                     onClick={() => selectProvider(item.id)}
-                    className={`flex w-full items-center gap-3 rounded-lg px-2.5 py-2.5 text-left transition-colors ${
+                    className={`flex min-w-[9.5rem] shrink-0 items-center gap-2.5 rounded-lg px-2.5 py-2.5 text-left transition-colors sm:min-w-0 sm:w-full ${
                       selected
-                        ? isDark ? 'bg-white/[0.07] text-white' : 'bg-white text-slate-950 shadow-sm ring-1 ring-slate-200'
-                        : isDark ? 'text-[#92949C] hover:bg-white/[0.04] hover:text-white' : 'text-slate-600 hover:bg-white hover:text-slate-900'
+                        ? isDark
+                          ? 'bg-white/[0.06] text-slate-100 ring-1 ring-inset ring-white/[0.08]'
+                          : 'bg-white text-slate-900 shadow-sm ring-1 ring-slate-200/90'
+                        : isDark
+                          ? 'text-slate-400 hover:bg-white/[0.03] hover:text-slate-200'
+                          : 'text-slate-600 hover:bg-white/80 hover:text-slate-900'
                     }`}
                   >
-                    <ItemIcon className={`h-4 w-4 shrink-0 ${selected ? 'text-blue-500' : ''}`} />
+                    <ItemIcon className={`h-4 w-4 shrink-0 ${selected ? (isDark ? 'text-blue-400' : 'text-blue-600') : ''}`} />
                     <div className="min-w-0 flex-1">
                       <div className="truncate text-xs font-medium">{item.shortName}</div>
-                      <div className={`mt-0.5 text-[10px] ${itemActive ? 'text-emerald-500' : muted}`}>
-                        {itemActive ? 'Active' : itemConfigured ? 'Configured' : item.id === 'ollama' ? 'Local' : 'Not connected'}
+                      <div className={`mt-0.5 text-[10px] ${muted}`}>
+                        {itemActive ? 'In use' : itemConfigured ? 'Ready' : 'Setup needed'}
                       </div>
                     </div>
-                    {itemActive ? (
-                      <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-500" />
-                    ) : itemConfigured ? (
-                      <Check className="h-3.5 w-3.5 shrink-0 text-emerald-500" />
-                    ) : null}
+                    <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${statusDot}`} aria-hidden />
                   </button>
                 );
               })}
             </div>
           </aside>
 
-          <section className="flex min-w-0 flex-1 flex-col">
-            <div className={`flex items-start justify-between gap-4 border-b px-6 py-5 ${border}`}>
-              <div>
-                <div className="flex items-center gap-2">
-                  <h3 className="text-sm font-semibold">{provider.name}</h3>
-                  {isActive && (
-                    <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${
-                      isDark ? 'bg-emerald-500/10 text-emerald-300' : 'bg-emerald-50 text-emerald-700'
-                    }`}>Active</span>
-                  )}
+          <section className="flex min-h-0 min-w-0 flex-1 flex-col">
+            <div className={`border-b px-5 py-4 sm:px-6 ${border}`}>
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div className="min-w-0">
+                  <h3 className={`text-[13px] font-medium ${titleText}`}>{provider.name}</h3>
+                  <p className={`mt-1 text-xs leading-relaxed ${muted}`}>{provider.description}</p>
                 </div>
-                <p className={`mt-1 text-xs ${muted}`}>{provider.description}</p>
+                {!isActive && isConfigured ? (
+                  <button
+                    type="button"
+                    onClick={() => setActiveProvider(selectedProvider)}
+                    className={`shrink-0 rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors ${secondaryButton}`}
+                  >
+                    Use {provider.shortName}
+                  </button>
+                ) : isActive ? (
+                  <span
+                    className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-medium ${
+                      isDark ? 'bg-emerald-500/10 text-emerald-300' : 'bg-emerald-50 text-emerald-800'
+                    }`}
+                  >
+                    <Check className="h-3 w-3" />
+                    In use
+                  </span>
+                ) : null}
               </div>
-              {!isActive && (
-                <button
-                  type="button"
-                  onClick={() => setActiveProvider(selectedProvider)}
-                  className="shrink-0 rounded-lg bg-blue-600 px-3.5 py-2 text-xs font-semibold text-white transition-colors hover:bg-blue-500"
-                >
-                  Use this provider
-                </button>
-              )}
             </div>
 
-            <div className="min-h-0 flex-1 overflow-y-auto px-6 py-6">
-              <div className="mx-auto max-w-xl space-y-5">
+            <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5 sm:px-6">
+              <div className="mx-auto max-w-lg space-y-5">
                 {!isLocal && (
                   <div>
                     <div className="mb-2 flex items-center justify-between gap-4">
-                      <label htmlFor="provider-api-key" className={`flex items-center gap-2 text-xs font-medium ${isDark ? 'text-slate-200' : 'text-slate-700'}`}>
-                        <KeyRound className="h-3.5 w-3.5 text-blue-500" />
+                      <label htmlFor="provider-api-key" className={`flex items-center gap-2 text-xs font-medium ${titleText}`}>
+                        <KeyRound className={`h-3.5 w-3.5 ${isDark ? 'text-slate-400' : 'text-slate-500'}`} />
                         API key
                       </label>
                       {provider.link && (
@@ -331,7 +367,7 @@ export const AISettingsModal: React.FC = () => {
                         placeholder={provider.placeholder}
                         autoComplete="off"
                         spellCheck={false}
-                        className={`w-full rounded-lg border px-3 py-3 pr-10 font-mono text-xs outline-none transition-colors ${input}`}
+                        className={`w-full rounded-lg border px-3 py-2.5 pr-10 font-mono text-xs outline-none transition-colors ${input}`}
                       />
                       <button
                         type="button"
@@ -342,23 +378,21 @@ export const AISettingsModal: React.FC = () => {
                         {showKey ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
                       </button>
                     </div>
-                    <p className={`mt-2 text-[11px] leading-5 ${muted}`}>Stored in Blueprint on this device and used only for requests to this provider.</p>
+                    <p className={`mt-2 text-[11px] leading-relaxed ${muted}`}>Saved locally on this device only.</p>
                   </div>
                 )}
 
                 <div>
                   <div className="mb-2 flex items-center justify-between gap-4">
-                    <label htmlFor="provider-model" className={`flex items-center gap-2 text-xs font-medium ${isDark ? 'text-slate-200' : 'text-slate-700'}`}>
-                      <Cpu className="h-3.5 w-3.5 text-blue-500" />
+                    <label htmlFor="provider-model" className={`flex items-center gap-2 text-xs font-medium ${titleText}`}>
+                      <Cpu className={`h-3.5 w-3.5 ${isDark ? 'text-slate-400' : 'text-slate-500'}`} />
                       Model
                     </label>
                     <button
                       type="button"
                       onClick={handleFetchModels}
                       disabled={isFetchingModels || !isConfigured}
-                      className={`flex items-center gap-1.5 rounded-md px-2 py-1 text-[11px] font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
-                        isDark ? 'text-blue-400 hover:bg-blue-500/10' : 'text-blue-600 hover:bg-blue-50'
-                      }`}
+                      className={`flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-[11px] font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${secondaryButton}`}
                     >
                       {isFetchingModels ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
                       {isFetchingModels ? 'Loading…' : 'Find available models'}
@@ -372,19 +406,29 @@ export const AISettingsModal: React.FC = () => {
                     onChange={event => updateProviderConfig(selectedProvider, { model: event.target.value })}
                     placeholder="Enter a model ID"
                     spellCheck={false}
-                    className={`w-full rounded-lg border px-3 py-3 font-mono text-xs outline-none transition-colors ${input}`}
+                    className={`w-full rounded-lg border px-3 py-2.5 font-mono text-xs outline-none transition-colors ${input}`}
                   />
                   <datalist id="provider-model-options">
                     {(config.availableModels || []).map(model => <option key={model} value={model} />)}
                   </datalist>
-                  <div className={`mt-2 flex min-h-5 items-center text-[11px] ${muted}`}>
+                  <div className={`mt-2 min-h-5 text-[11px] ${muted}`}>
                     {fetchResult ? (
-                      <span className={`flex items-center gap-1.5 ${fetchResult.type === 'success' ? 'text-emerald-500' : 'text-rose-500'}`}>
+                      <span
+                        className={`inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 ${
+                          fetchResult.type === 'success'
+                            ? isDark
+                              ? 'bg-emerald-500/10 text-emerald-300'
+                              : 'bg-emerald-50 text-emerald-800'
+                            : isDark
+                              ? 'bg-rose-500/10 text-rose-300'
+                              : 'bg-rose-50 text-rose-800'
+                        }`}
+                      >
                         {fetchResult.type === 'success' ? <CheckCircle2 className="h-3.5 w-3.5" /> : <AlertCircle className="h-3.5 w-3.5" />}
                         {fetchResult.text}
                       </span>
                     ) : (
-                      <span>{(config.availableModels || []).length} saved model options</span>
+                      <span>{(config.availableModels || []).length} saved model{(config.availableModels || []).length === 1 ? '' : 's'}</span>
                     )}
                   </div>
                 </div>
@@ -393,18 +437,18 @@ export const AISettingsModal: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => setShowAdvanced(value => !value)}
-                    className={`flex w-full items-center justify-between px-4 py-3 text-left text-xs font-medium transition-colors ${
+                    className={`flex w-full items-center justify-between px-4 py-2.5 text-left text-xs font-medium transition-colors ${titleText} ${
                       isDark ? 'hover:bg-white/[0.03]' : 'hover:bg-slate-50'
                     }`}
                   >
-                    <span>Advanced settings</span>
+                    <span>Endpoint (advanced)</span>
                     {showAdvanced ? <ChevronUp className={`h-3.5 w-3.5 ${muted}`} /> : <ChevronDown className={`h-3.5 w-3.5 ${muted}`} />}
                   </button>
                   {showAdvanced && (
                     <div className={`border-t px-4 py-4 ${border} ${isDark ? 'bg-black/10' : 'bg-slate-50/60'}`}>
                       <div className="mb-2 flex items-center justify-between gap-4">
-                        <label htmlFor="provider-base-url" className={`flex items-center gap-2 text-xs font-medium ${isDark ? 'text-slate-200' : 'text-slate-700'}`}>
-                          <Server className="h-3.5 w-3.5 text-blue-500" />
+                        <label htmlFor="provider-base-url" className={`flex items-center gap-2 text-xs font-medium ${titleText}`}>
+                          <Server className={`h-3.5 w-3.5 ${isDark ? 'text-slate-400' : 'text-slate-500'}`} />
                           Base URL
                         </label>
                         {isLocal && provider.link && (
@@ -421,44 +465,57 @@ export const AISettingsModal: React.FC = () => {
                         onChange={event => updateProviderConfig(selectedProvider, { baseUrl: event.target.value })}
                         placeholder={provider.defaultBaseUrl}
                         spellCheck={false}
-                        className={`w-full rounded-lg border px-3 py-3 font-mono text-xs outline-none transition-colors ${input}`}
+                        className={`w-full rounded-lg border px-3 py-2.5 font-mono text-xs outline-none transition-colors ${input}`}
                       />
-                      <p className={`mt-2 text-[11px] leading-5 ${muted}`}>Change this only when using a proxy, local server, or compatible custom endpoint.</p>
+                      <p className={`mt-2 text-[11px] leading-relaxed ${muted}`}>For proxies, Ollama, or other OpenAI-compatible hosts.</p>
                     </div>
                   )}
                 </div>
               </div>
             </div>
 
-            <footer className={`flex min-h-[68px] shrink-0 flex-wrap items-center justify-between gap-3 border-t px-6 py-3 ${border}`}>
-              <div className="flex min-w-0 items-center gap-3">
-                <button
-                  type="button"
-                  onClick={handleTestConnection}
-                  disabled={isTesting || !isConfigured}
-                  className={`flex shrink-0 items-center gap-2 rounded-lg border px-3 py-2 text-xs font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${secondaryButton}`}
-                >
-                  {isTesting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <PlugZap className="h-3.5 w-3.5" />}
-                  {isTesting ? 'Testing…' : 'Test connection'}
-                </button>
-                {testResult && (
-                  <span className={`flex min-w-0 items-center gap-1.5 truncate text-xs ${testResult.success ? 'text-emerald-500' : 'text-rose-500'}`}>
-                    {testResult.success ? <CheckCircle2 className="h-3.5 w-3.5 shrink-0" /> : <AlertCircle className="h-3.5 w-3.5 shrink-0" />}
-                    <span className="truncate">{testResult.success ? `Connected in ${testResult.latencyMs}ms` : testResult.message}</span>
-                  </span>
-                )}
-              </div>
-              <div className="flex items-center gap-3">
-                <span className={`hidden items-center gap-1.5 text-[11px] sm:flex ${muted}`}>
-                  <ShieldCheck className="h-3.5 w-3.5 text-emerald-500" />
-                  Keys stored on this device
-                </span>
+            <footer className={`shrink-0 border-t px-5 py-4 sm:px-6 ${border} ${isDark ? 'bg-black/10' : 'bg-slate-50/50'}`}>
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center">
+                  <button
+                    type="button"
+                    onClick={handleTestConnection}
+                    disabled={isTesting || !isConfigured}
+                    className={`inline-flex shrink-0 items-center justify-center gap-2 rounded-lg border px-3 py-2 text-xs font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${secondaryButton}`}
+                  >
+                    {isTesting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <PlugZap className="h-3.5 w-3.5" />}
+                    {isTesting ? 'Testing…' : 'Test connection'}
+                  </button>
+                  {testResult ? (
+                    <span
+                      className={`inline-flex min-w-0 items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-[11px] ${
+                        testResult.success
+                          ? isDark
+                            ? 'border-emerald-500/20 bg-emerald-500/10 text-emerald-300'
+                            : 'border-emerald-200 bg-emerald-50 text-emerald-800'
+                          : isDark
+                            ? 'border-rose-500/20 bg-rose-500/10 text-rose-300'
+                            : 'border-rose-200 bg-rose-50 text-rose-800'
+                      }`}
+                    >
+                      {testResult.success ? <CheckCircle2 className="h-3.5 w-3.5 shrink-0" /> : <AlertCircle className="h-3.5 w-3.5 shrink-0" />}
+                      <span className="truncate">
+                        {testResult.success ? `OK · ${testResult.latencyMs}ms` : testResult.message}
+                      </span>
+                    </span>
+                  ) : (
+                    <span className={`inline-flex items-center gap-1.5 text-[11px] ${muted}`}>
+                      <ShieldCheck className="h-3.5 w-3.5 shrink-0" />
+                      Local storage only
+                    </span>
+                  )}
+                </div>
                 <button
                   type="button"
                   onClick={handleDone}
-                  className="rounded-lg bg-blue-600 px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-blue-500"
+                  className={`inline-flex w-full items-center justify-center rounded-lg px-4 py-2.5 text-[13px] font-medium transition-colors sm:w-auto ${primaryButton}`}
                 >
-                  {isConfigured && !isActive ? `Use ${provider.shortName}` : 'Done'}
+                  {isConfigured && !isActive ? `Save & use ${provider.shortName}` : 'Done'}
                 </button>
               </div>
             </footer>

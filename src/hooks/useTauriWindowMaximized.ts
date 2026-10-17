@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { isDesktopApp } from '../utils/platform';
 
-/** Tracks whether the Tauri window is maximized (desktop only). */
+/** Tracks whether the Tauri window is maximized or fullscreen (desktop only). */
 export function useTauriWindowMaximized(): boolean {
   const [maximized, setMaximized] = useState(false);
 
@@ -15,7 +15,8 @@ export function useTauriWindowMaximized(): boolean {
       try {
         const { getCurrentWindow } = await import('@tauri-apps/api/window');
         const win = getCurrentWindow();
-        const next = await win.isMaximized();
+        const [isMaximized, isFullscreen] = await Promise.all([win.isMaximized(), win.isFullscreen()]);
+        const next = isMaximized || isFullscreen;
         if (!cancelled) {
           setMaximized(next);
           document.documentElement.classList.toggle('window-maximized', next);

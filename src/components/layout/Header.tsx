@@ -26,9 +26,6 @@ const PHASE_NAV: Array<{
   { id: 'in-flight', label: 'Build handoff', shortLabel: 'Handoff', icon: Code2 },
 ];
 
-const LOCAL_STORAGE_TOOLTIP =
-  'Stored on this device only. Blueprint does not upload your projects or code to our cloud.';
-
 function PhaseNav({
   activeTab,
   onSelectTab,
@@ -119,26 +116,29 @@ export const Header: React.FC<HeaderProps> = ({
     && (activeProject.spec.frameworkRecommendation || activeProject.spec.frameworkRecommendations?.[0]),
   );
 
-  const storageTooltip = `${LOCAL_STORAGE_TOOLTIP} Projects live in this browser’s localStorage.`;
-
   const desktop = isDesktopApp();
 
   const utilityActions = (
     <>
-      <div
-        className="flex items-center p-2"
-        title={storageTooltip}
-        aria-label={storageTooltip}
-      >
-        <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-      </div>
-
       <button
         type="button"
         onClick={() => setIsSettingsOpen(true)}
         className={`flex items-center gap-2 rounded-md px-2.5 py-2 text-xs transition-colors ${iconButton}`}
-        title="AI settings"
+        title={isAiConfigured ? 'AI provider connected — open settings' : 'No AI provider — connect in settings'}
+        aria-label={isAiConfigured ? 'AI connected, open settings' : 'Connect AI in settings'}
       >
+        <span
+          className={`h-1.5 w-1.5 shrink-0 rounded-full ${
+            isAiConfigured
+              ? isDark
+                ? 'bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.45)]'
+                : 'bg-emerald-500'
+              : isDark
+                ? 'bg-rose-500 shadow-[0_0_6px_rgba(244,63,94,0.35)]'
+                : 'bg-rose-500'
+          }`}
+          aria-hidden
+        />
         <Settings2 className="h-4 w-4" />
         <span className="hidden lg:inline">{isAiConfigured ? 'AI connected' : 'Connect AI'}</span>
       </button>

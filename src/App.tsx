@@ -49,7 +49,7 @@ const AppContent: React.FC = () => {
       projectId={activeProject?.id}
       rootPath={activeProject?.codebaseAnalysis?.rootPath}
     >
-      <div className={`h-screen w-screen flex font-display transition-colors duration-200 select-none overflow-hidden ${
+      <div className={`h-screen w-screen flex font-sans transition-colors duration-200 select-none overflow-hidden ${
         isDark 
           ? 'text-[#F4F4F6] selection:bg-blue-500/30 selection:text-blue-200 bg-[#101113]'
           : 'text-slate-900 selection:bg-blue-500/20 selection:text-blue-900 bg-slate-50'
