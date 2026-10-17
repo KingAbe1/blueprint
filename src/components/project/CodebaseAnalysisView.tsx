@@ -189,6 +189,9 @@ const CodeAnalysisInspector: React.FC<CodeAnalysisInspectorProps> = React.memo((
   const panel = overviewPanelClass(isDark);
   const border = overviewBorderClass(isDark);
 
+  const lockfileName = analysis.dependencyInventory?.lockfiles[0]?.split('/').pop();
+  const ecosystem = analysis.dependencyInventory?.ecosystem;
+
   const tabCount = (id: CodeInspectorTab): number | null => {
     if (id === 'packages') return packageCount || null;
     if (id === 'scripts') return visibleScripts.length || null;
@@ -200,18 +203,26 @@ const CodeAnalysisInspector: React.FC<CodeAnalysisInspectorProps> = React.memo((
       <header className={`border-b px-5 py-4 sm:px-6 ${border}`}>
         <h2 className={`text-[15px] font-medium ${title}`}>Dependencies & signals</h2>
         <p className={`mt-0.5 text-[13px] ${muted}`}>
-          Lockfile inventory and npm scripts
+          {ecosystem && lockfileName ? (
+            <>
+              {ecosystem} lockfile · <span className="font-mono text-[12px]">{lockfileName}</span>
+            </>
+          ) : (
+            'Lockfile inventory and npm scripts'
+          )}
           {advisoryCount > 0 ? (
             <>
               {' · '}
-              <span className={overviewSeverityLabel(isDark, 'critical')}>{advisoryCount} CVE advisories</span>
+              <span className={overviewSeverityLabel(isDark, 'critical')}>
+                {advisoryCount} CVE{advisoryCount === 1 ? '' : 's'}
+              </span>
             </>
           ) : null}
         </p>
       </header>
 
       <div className={`overflow-x-auto border-b px-5 sm:px-6 ${border}`}>
-        <div className="flex min-w-max gap-0.5" role="tablist" aria-label="Code analysis views">
+        <div className="flex min-w-max gap-1" role="tablist" aria-label="Code analysis views">
           {INSPECTOR_TABS.map(tab => {
             const selected = activeTab === tab.id;
             const count = tabCount(tab.id);
@@ -251,10 +262,10 @@ const CodeAnalysisInspector: React.FC<CodeAnalysisInspectorProps> = React.memo((
             onViewSecurityDetails={onOpenQualityTab}
           />
         ) : (
-          <p className={`px-5 py-8 text-center text-sm ${muted}`}>No lockfile inventory for this project.</p>
+          <p className={`px-5 py-12 text-center text-sm sm:px-6 ${muted}`}>No lockfile inventory for this project.</p>
         )}
       </div>
-      <div className={activeTab === 'scripts' ? 'block' : 'hidden'}>
+      <div className={activeTab === 'scripts' ? 'block' : 'hidden'} role="tabpanel">
         <UsefulCommandsPanel embedded scripts={visibleScripts} />
       </div>
     </section>
