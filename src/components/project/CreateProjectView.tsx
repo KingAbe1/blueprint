@@ -2,7 +2,6 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowLeft, ArrowRight, CornerDownLeft, FolderCode, Layers, Loader2, SearchCode, Trash2 } from 'lucide-react';
 import { useProjects } from '../../context/ProjectContext';
 import { useTheme } from '../../context/ThemeContext';
-import { useAuth } from '../../context/AuthContext';
 import { CodebaseAnalysis } from '../../types/codebase';
 import { Project } from '../../types/project';
 import { chooseAndAnalyzeCodebase } from '../../services/codebaseAnalysisService';
@@ -63,7 +62,6 @@ function projectKind(project: Project): 'codebase' | 'blueprint' {
 }
 
 export const CreateProjectView: React.FC = () => {
-  const { user } = useAuth();
   const {
     projects,
     activeProjectId,
@@ -276,7 +274,7 @@ export const CreateProjectView: React.FC = () => {
             </div>
           )}
           <p className={`text-xs font-medium ${isDark ? 'text-[#8E9098]' : 'text-slate-500'}`}>
-            {user ? user.name : 'Local workspace'}
+            Local workspace
           </p>
           <h1 className={`max-w-xl font-semibold tracking-tight ${desktop ? `mt-1 text-xl ${isDark ? 'text-white' : 'text-slate-950'}` : `mt-3 text-3xl sm:text-[2.65rem] sm:leading-[1.1] ${isDark ? 'text-white' : 'text-slate-950'}`}`}>
             {openedFromActiveProject && projects.length > 0

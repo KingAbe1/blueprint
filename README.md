@@ -27,7 +27,7 @@ Projects are persisted **on your machine only** in the browser’s **localStorag
 - **Optional GitHub status** uses a token you supply; requests go to GitHub, not Blueprint.
 - **Dependency advisories** may query public npm/OSV APIs using package names and versions from your lockfile—not your source tree.
 
-When you add real login later, treat it as **identity and access** to the app—not as permission to sync source code to Blueprint servers.
+There is no account or login—open the app and use it. Everything stays local.
 
 ## Run locally
 

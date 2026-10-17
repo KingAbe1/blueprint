@@ -78,6 +78,18 @@
 }
 
 /* Tauri / native window chrome (overlay title bar on macOS) */
+.desktop-app .desktop-titlebar-strip {
+  height: 2.25rem;
+  min-height: 36px;
+  width: 100%;
+  -webkit-app-region: drag;
+}
+
+.desktop-app .desktop-titlebar-strip--compact {
+  height: 1.75rem;
+  min-height: 28px;
+}
+
 .desktop-app .desktop-titlebar-inset {
   padding-left: 4.75rem;
 }

@@ -5,9 +5,17 @@ export function isDesktopApp(): boolean {
   return '__TAURI_INTERNALS__' in window || '__TAURI__' in window;
 }
 
+export function isMacOS(): boolean {
+  if (typeof navigator === 'undefined') return false;
+  return /Mac/i.test(navigator.platform) || /Mac OS X/i.test(navigator.userAgent);
+}
+
 export function markDesktopAppShell(): void {
   if (typeof document === 'undefined') return;
   if ('__TAURI_INTERNALS__' in window || '__TAURI__' in window) {
     document.documentElement.classList.add('desktop-app');
+    if (isMacOS()) {
+      document.documentElement.classList.add('desktop-app-macos');
+    }
   }
 }

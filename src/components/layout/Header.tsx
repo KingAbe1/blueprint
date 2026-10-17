@@ -4,9 +4,9 @@ import { useProjects } from '../../context/ProjectContext';
 import { useTheme } from '../../context/ThemeContext';
 import { useAI } from '../../context/AIContext';
 import { PhaseTab } from '../../types/project';
-import { UserProfileDropdown } from '../auth/UserProfileDropdown';
 import { ProjectDropdown } from '../project/ProjectDropdown';
 import { isDesktopApp } from '../../utils/platform';
+import { DesktopTitlebarStrip } from './DesktopTitlebarStrip';
 
 interface HeaderProps {
   activeTab?: PhaseTab;
@@ -140,16 +140,8 @@ export const Header: React.FC<HeaderProps> = ({
       >
         {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
       </button>
-
-      <div className={`mx-0.5 h-4 w-px ${isDark ? 'bg-white/[0.1]' : 'bg-slate-200'}`} />
-
-      <UserProfileDropdown />
     </>
   );
-
-  const titlebarSpacer = desktop ? (
-    <div className="drag-window h-12 w-[3.25rem] shrink-0 sm:w-[3.5rem]" aria-hidden="true" />
-  ) : null;
 
   const leftSlot = inGreenfieldProject && activeProject ? (
     <div className="min-w-0 w-max max-w-[10rem] sm:max-w-xs">
@@ -187,18 +179,17 @@ export const Header: React.FC<HeaderProps> = ({
 
   return (
     <header
-      {...(desktop ? { 'data-tauri-drag-region': true } : {})}
-      className={`flex shrink-0 flex-col border-b ${isDark ? 'border-white/[0.07] bg-[#0C0D0F]' : 'border-slate-200 bg-white'}`}
+      className={`flex shrink-0 flex-col ${isDark ? 'bg-[#0C0D0F]' : 'bg-white'}`}
     >
+      <DesktopTitlebarStrip />
       <div
-        className={
+        className={`desktop-app-toolbar border-b ${isDark ? 'border-white/[0.07]' : 'border-slate-200'} ${
           showPhaseNav
-            ? `drag-window grid w-full grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 ${desktop ? 'h-12 pl-0 pr-3 sm:pr-4' : 'h-14 px-3 sm:px-4'}`
-            : `drag-window flex w-full items-center justify-between gap-3 ${desktop ? 'h-12 pl-0 pr-3 sm:pr-4' : 'h-14 px-3 sm:px-4'}`
-        }
+            ? `grid w-full grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 ${desktop ? 'h-12 px-3 sm:px-4' : 'h-14 px-3 sm:px-4'}`
+            : `flex w-full items-center justify-between gap-3 ${desktop ? 'h-12 px-3 sm:px-4' : 'h-14 px-3 sm:px-4'}`
+        }`}
       >
-        <div className={`flex min-w-0 items-center gap-1.5 justify-self-start ${desktop ? 'no-drag' : ''}`}>
-          {titlebarSpacer}
+        <div className="flex min-w-0 items-center gap-1.5 justify-self-start">
           {activeProject && !isCreatingNew && (
             <button
               type="button"
@@ -214,7 +205,7 @@ export const Header: React.FC<HeaderProps> = ({
         </div>
 
         {showPhaseNav && onSelectTab ? (
-          <div className={`justify-self-center px-1 ${desktop ? 'no-drag' : ''}`}>
+          <div className="justify-self-center px-1">
             <PhaseNav
               activeTab={activeTab}
               onSelectTab={onSelectTab}
@@ -224,7 +215,7 @@ export const Header: React.FC<HeaderProps> = ({
           </div>
         ) : null}
 
-        <div className={`flex shrink-0 items-center justify-end justify-self-end gap-0.5 ${desktop ? 'no-drag' : ''}`}>
+        <div className="flex shrink-0 items-center justify-end justify-self-end gap-0.5">
           {utilityActions}
         </div>
       </div>
