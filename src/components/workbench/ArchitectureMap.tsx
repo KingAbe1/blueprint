@@ -18,7 +18,7 @@ import {
   Download,
   ImageDown,
 } from 'lucide-react';
-import { buildArchitectureMapSvg, exportArchitectureMapFile } from '../../services/architectureMapExport';
+import { exportArchitectureMapFile } from '../../services/architectureMapExport';
 import { useNotification } from '../../context/NotificationContext';
 import {
   ArchitectureMapLayout,
@@ -463,7 +463,7 @@ export const ArchitectureMap: React.FC<ArchitectureMapProps> = ({
     if (isExporting) return;
     const safeName = exportTitle.replace(/[^\w\s-]/g, '').trim().replace(/\s+/g, '-').toLowerCase() || 'architecture-map';
     const filename = `${safeName}.${format}`;
-    const svg = buildArchitectureMapSvg({
+    const scene = {
       width: CANVAS_WIDTH,
       height: CANVAS_HEIGHT,
       title: exportTitle,
@@ -471,17 +471,14 @@ export const ArchitectureMap: React.FC<ArchitectureMapProps> = ({
       nodes: visibleNodes.map(node => ({ id: node.id, eyebrow: node.eyebrow, label: node.label })),
       positions,
       edges: visibleEdges,
-    });
+    };
 
     setIsExporting(true);
     try {
       const saved = await exportArchitectureMapFile({
         format,
         filename,
-        svg,
-        width: CANVAS_WIDTH,
-        height: CANVAS_HEIGHT,
-        isDark,
+        scene,
       });
       if (saved) {
         notify.success(`${format.toUpperCase()} export ready`);

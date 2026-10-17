@@ -1,8 +1,25 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowLeft, ArrowRight, CornerDownLeft, FolderCode, Layers, Loader2, SearchCode, Trash2 } from 'lucide-react';
+import {
+  ArrowLeft,
+  ArrowRight,
+  Check,
+  Code2,
+  Copy,
+  CornerDownLeft,
+  FileText,
+  FolderCode,
+  Layers,
+  Loader2,
+  Network,
+  SearchCode,
+  Settings2,
+  Trash2,
+} from 'lucide-react';
+import { useAI } from '../../context/AIContext';
 import { useProjects } from '../../context/ProjectContext';
 import { useTheme } from '../../context/ThemeContext';
 import { useNotification } from '../../context/NotificationContext';
+import { getBlueprintHubStatus } from '../../services/greenfieldProgress';
 import { CodebaseAnalysis } from '../../types/codebase';
 import { Project } from '../../types/project';
 import { chooseAndAnalyzeCodebase } from '../../services/codebaseAnalysisService';
@@ -17,11 +34,26 @@ import {
 type EntryMode = 'greenfield' | 'brownfield';
 
 const PENDING_CODEBASE_ANALYSIS_KEY = 'blueprint_pending_codebase_analysis_v1';
+const HUB_ENTRY_MODE_KEY = 'blueprint_hub_entry_mode_v1';
+const HUB_DRAFT_KEY = 'blueprint_hub_new_project_draft_v1';
+const RECENT_COLLAPSED_COUNT = 6;
 
 const SCAN_DELIVERABLES = [
   'Languages, frameworks, and entry points',
   'Folder structure and dependency inventory',
   'Static quality hints and optional AI review',
+] as const;
+
+const GREENFIELD_STEPS = [
+  { icon: FileText, label: 'Product blueprint', detail: 'Brief and build questions' },
+  { icon: Network, label: 'Architecture map', detail: 'Stack and system flow' },
+  { icon: Code2, label: 'Build handoff', detail: 'Agent-ready export' },
+] as const;
+
+const IDEA_STARTERS = [
+  'Fleet dashboard for dispatchers to track drivers and jobs in real time',
+  'Internal booking tool for staff to schedule rooms and equipment',
+  'B2B SaaS where teams manage projects, tasks, and client updates',
 ] as const;
 
 const STARTING_POINTS: {
@@ -63,8 +95,39 @@ function loadPendingCodebaseAnalysis(): CodebaseAnalysis | null {
   }
 }
 
+function loadSavedEntryMode(): EntryMode {
+  try {
+    const saved = localStorage.getItem(HUB_ENTRY_MODE_KEY);
+    return saved === 'brownfield' ? 'brownfield' : 'greenfield';
+  } catch {
+    return 'greenfield';
+  }
+}
+
+function loadHubDraft(): { name: string; idea: string } {
+  try {
+    const raw = sessionStorage.getItem(HUB_DRAFT_KEY);
+    if (!raw) return { name: '', idea: '' };
+    const parsed = JSON.parse(raw) as { name?: string; idea?: string };
+    return {
+      name: typeof parsed.name === 'string' ? parsed.name : '',
+      idea: typeof parsed.idea === 'string' ? parsed.idea : '',
+    };
+  } catch {
+    return { name: '', idea: '' };
+  }
+}
+
 function projectKind(project: Project): 'codebase' | 'blueprint' {
   return project.codebaseAnalysis ? 'codebase' : 'blueprint';
+}
+
+function clearHubDraft() {
+  try {
+    sessionStorage.removeItem(HUB_DRAFT_KEY);
+  } catch {
+    // ignore
+  }
 }
 
 export const CreateProjectView: React.FC = () => {
@@ -78,17 +141,20 @@ export const CreateProjectView: React.FC = () => {
     createProject,
     createCodebaseProject,
     setProjectToDelete,
+    duplicateBlueprintProject,
     isLoaded,
   } = useProjects();
   const { isDark } = useTheme();
   const { notify } = useNotification();
-  const [entryMode, setEntryMode] = useState<EntryMode>('greenfield');
-  const [inputName, setInputName] = useState('');
-  const [inputIdea, setInputIdea] = useState('');
+  const { isAiConfigured, setIsSettingsOpen } = useAI();
+  const [entryMode, setEntryMode] = useState<EntryMode>(() => loadSavedEntryMode());
+  const [inputName, setInputName] = useState(() => loadHubDraft().name);
+  const [inputIdea, setInputIdea] = useState(() => loadHubDraft().idea);
   const [isFocused, setIsFocused] = useState(false);
   const [restoringScan, setRestoringScan] = useState<CodebaseAnalysis | null>(() => loadPendingCodebaseAnalysis());
   const [isAnalyzingCodebase, setIsAnalyzingCodebase] = useState(false);
   const [codebaseError, setCodebaseError] = useState<string | null>(null);
+  const [showAllRecent, setShowAllRecent] = useState(false);
   const restoreStarted = useRef(false);
   const createCodebaseProjectRef = useRef(createCodebaseProject);
   createCodebaseProjectRef.current = createCodebaseProject;
@@ -105,16 +171,40 @@ export const CreateProjectView: React.FC = () => {
     setRestoringScan(null);
   }, [isLoaded, restoringScan]);
 
-  const handleSubmit = (event: React.FormEvent) => {
-    event.preventDefault();
-    if (!inputName.trim() || duplicateNameProject) return;
-    const created = createProject(inputName, inputIdea);
+  useEffect(() => {
+    try {
+      localStorage.setItem(HUB_ENTRY_MODE_KEY, entryMode);
+    } catch {
+      // ignore
+    }
+  }, [entryMode]);
+
+  useEffect(() => {
+    try {
+      sessionStorage.setItem(
+        HUB_DRAFT_KEY,
+        JSON.stringify({ name: inputName, idea: inputIdea }),
+      );
+    } catch {
+      // ignore
+    }
+  }, [inputName, inputIdea]);
+
+  const finishCreate = (created: Project | null) => {
     if (!created) {
       notify.warning('A project with this name already exists. Open it or pick another name.');
-      return;
+      return false;
     }
     setInputName('');
     setInputIdea('');
+    clearHubDraft();
+    return true;
+  };
+
+  const handleSubmit = (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!inputName.trim() || duplicateNameProject) return;
+    finishCreate(createProject(inputName, inputIdea));
   };
 
   const handleAnalyzeCodebase = async () => {
@@ -153,6 +243,7 @@ export const CreateProjectView: React.FC = () => {
   const border = overviewBorderClass(isDark);
   const divide = overviewDivideClass(isDark);
   const panel = overviewPanelClass(isDark);
+  const inner = isDark ? 'bg-white/[0.02]' : 'bg-slate-50/80';
 
   const inputClass = isDark
     ? 'border-white/[0.08] bg-black/20 text-slate-100 placeholder:text-slate-500 focus:border-blue-500/50'
@@ -168,11 +259,15 @@ export const CreateProjectView: React.FC = () => {
     ? 'text-xs font-medium text-slate-400 hover:text-slate-200'
     : 'text-xs font-medium text-slate-500 hover:text-slate-900';
 
+  const chipClass = isDark
+    ? 'border-white/[0.08] bg-white/[0.03] text-slate-300 hover:border-blue-500/30 hover:bg-blue-500/[0.08] hover:text-blue-100'
+    : 'border-slate-200 bg-white text-slate-600 hover:border-blue-200 hover:bg-blue-50 hover:text-blue-800';
+
   const desktop = isDesktopApp();
   const openedFromActiveProject = isCreatingNew && Boolean(activeProjectId && activeProject);
-  /** Top-of-page back when opened from Home; panel uses Cancel only when not in that flow. */
   const showPanelDismiss = projects.length > 0 && !openedFromActiveProject;
   const isRestoringLastScan = Boolean(restoringScan);
+  const isFirstVisit = projects.length === 0;
 
   const recentProjects = useMemo(
     () =>
@@ -182,6 +277,10 @@ export const CreateProjectView: React.FC = () => {
       ),
     [projects],
   );
+
+  const visibleRecent = showAllRecent
+    ? recentProjects
+    : recentProjects.slice(0, RECENT_COLLAPSED_COUNT);
 
   const trimmedName = inputName.trim();
   const duplicateNameProject = useMemo(() => {
@@ -195,11 +294,7 @@ export const CreateProjectView: React.FC = () => {
     if (event.metaKey || event.ctrlKey) {
       event.preventDefault();
       if (inputName.trim() && !duplicateNameProject) {
-        const created = createProject(inputName, inputIdea);
-        if (created) {
-          setInputName('');
-          setInputIdea('');
-        }
+        finishCreate(createProject(inputName, inputIdea));
       }
       return;
     }
@@ -212,10 +307,14 @@ export const CreateProjectView: React.FC = () => {
       <h2 className={`mt-0.5 text-[15px] font-medium ${titleText}`}>Open a project</h2>
       <div className={`mt-3 overflow-hidden rounded-2xl border ${panel}`}>
         <ul className={`divide-y ${divide}`}>
-          {recentProjects.map(project => {
+          {visibleRecent.map(project => {
             const kind = projectKind(project);
             const KindIcon = kind === 'codebase' ? SearchCode : FolderCode;
             const touchedAt = project.updatedAt ?? project.createdAt;
+            const statusLine =
+              kind === 'blueprint'
+                ? getBlueprintHubStatus(project)
+                : project.codebaseAnalysis?.rootName ?? 'Codebase scan';
             return (
               <li key={project.id} className="group flex items-stretch">
                 <button
@@ -238,8 +337,8 @@ export const CreateProjectView: React.FC = () => {
                     </span>
                     <span className="min-w-0">
                       <span className={`block truncate text-[13px] ${titleText}`}>{project.name}</span>
-                      <span className={`mt-0.5 block text-[11px] ${muted}`}>
-                        {kind === 'codebase' ? 'Codebase' : 'Blueprint'}
+                      <span className={`mt-0.5 block truncate text-[11px] ${muted}`}>
+                        {statusLine}
                         {' · '}
                         {formatRelativeTime(touchedAt)}
                       </span>
@@ -247,6 +346,23 @@ export const CreateProjectView: React.FC = () => {
                   </span>
                   <ArrowRight className={`h-4 w-4 shrink-0 opacity-30 transition-all group-hover:translate-x-0.5 group-hover:opacity-80 ${muted}`} />
                 </button>
+                {kind === 'blueprint' ? (
+                  <button
+                    type="button"
+                    onClick={event => {
+                      event.stopPropagation();
+                      duplicateBlueprintProject(project.id);
+                      notify.success(`Duplicated “${project.name}”`);
+                    }}
+                    aria-label={`Duplicate ${project.name}`}
+                    title="Duplicate blueprint"
+                    className={`shrink-0 border-l px-3 ${border} ${
+                      isDark ? 'text-slate-500 hover:bg-white/[0.04] hover:text-slate-200' : 'text-slate-400 hover:bg-slate-50 hover:text-slate-700'
+                    }`}
+                  >
+                    <Copy className="h-3.5 w-3.5" />
+                  </button>
+                ) : null}
                 <button
                   type="button"
                   onClick={() => setProjectToDelete(project)}
@@ -263,11 +379,49 @@ export const CreateProjectView: React.FC = () => {
           })}
         </ul>
       </div>
+      {recentProjects.length > RECENT_COLLAPSED_COUNT ? (
+        <button
+          type="button"
+          onClick={() => setShowAllRecent(open => !open)}
+          className={`mt-2 text-xs font-medium ${isDark ? 'text-blue-400 hover:text-blue-300' : 'text-blue-600 hover:text-blue-800'}`}
+        >
+          {showAllRecent ? 'Show fewer' : `Show all ${recentProjects.length} projects`}
+        </button>
+      ) : null}
       <p className={`mt-3 text-[11px] leading-relaxed ${muted}`}>
         Projects stay on this device. Export JSON from the project menu to back up.
       </p>
     </div>
   ) : null;
+
+  const greenfieldStepsPanel = (
+    <div className={`mt-5 space-y-2 rounded-xl border p-3.5 ${border} ${inner}`}>
+      <p className={`text-[10px] font-medium uppercase tracking-wide ${muted}`}>What you&apos;ll do next</p>
+      <ol className="space-y-2.5">
+        {GREENFIELD_STEPS.map((step, index) => {
+          const Icon = step.icon;
+          return (
+            <li key={step.label} className="flex items-start gap-2.5">
+              <span
+                className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-md border text-[10px] font-semibold tabular-nums ${border} ${
+                  isDark ? 'bg-white/[0.04] text-slate-300' : 'bg-white text-slate-600'
+                }`}
+              >
+                {index + 1}
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className={`flex items-center gap-1.5 text-xs font-medium ${titleText}`}>
+                  <Icon className="h-3.5 w-3.5 opacity-70" strokeWidth={1.75} />
+                  {step.label}
+                </span>
+                <span className={`mt-0.5 block text-[11px] leading-relaxed ${muted}`}>{step.detail}</span>
+              </span>
+            </li>
+          );
+        })}
+      </ol>
+    </div>
+  );
 
   return (
     <div
@@ -312,21 +466,43 @@ export const CreateProjectView: React.FC = () => {
             <div className="min-w-0">
               <p className={`text-xs ${muted}`}>Blueprint Studio</p>
               <h1 className={`mt-0.5 text-[22px] font-medium leading-snug tracking-tight sm:text-2xl ${titleText}`}>
-                {openedFromActiveProject && projects.length > 0 ? 'Start something new' : 'Welcome back'}
+                {isFirstVisit
+                  ? 'Welcome to Blueprint Studio'
+                  : openedFromActiveProject
+                    ? 'Start something new'
+                    : 'Welcome back'}
               </h1>
               <p className={`mt-2 max-w-md text-[13px] leading-relaxed ${muted}`}>
-                {openedFromActiveProject
-                  ? 'Pick a path below or reopen a recent project. Everything stays on this device.'
-                  : 'Plan a new product blueprint or scan an existing codebase—local only, no cloud upload.'}
+                {isFirstVisit
+                  ? 'Create a product blueprint or scan a codebase. Everything stays on this device—export JSON anytime to back up.'
+                  : openedFromActiveProject
+                    ? 'Pick a path below or reopen a recent project. Everything stays on this device.'
+                    : 'Plan a new product blueprint or scan an existing codebase—local only, no cloud upload.'}
               </p>
             </div>
           </div>
+
+          {isFirstVisit ? (
+            <div
+              className={`mt-5 max-w-lg rounded-xl border px-4 py-3 text-xs leading-relaxed ${
+                isDark ? 'border-emerald-500/20 bg-emerald-500/[0.06] text-emerald-100/90' : 'border-emerald-200 bg-emerald-50 text-emerald-900'
+              }`}
+            >
+              <p className={`flex items-center gap-2 font-medium ${isDark ? 'text-emerald-200' : 'text-emerald-800'}`}>
+                <Check className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                Your first workspace
+              </p>
+              <p className={`mt-1.5 ${isDark ? 'text-emerald-100/80' : 'text-emerald-800/90'}`}>
+                Name a blueprint on the right, add a one-line idea if you like, then shape the brief and architecture in three guided steps.
+              </p>
+            </div>
+          ) : null}
 
           {recentProjectsSection ? (
             <div className="mt-7 lg:hidden">{recentProjectsSection}</div>
           ) : null}
 
-          <p className={`mt-8 text-xs font-medium ${muted}`}>Choose a starting point</p>
+          <p className={`${isFirstVisit ? 'mt-6' : 'mt-8'} text-xs font-medium ${muted}`}>Choose a starting point</p>
           <div className="mt-2 grid max-w-lg gap-2" role="listbox" aria-label="Project entry mode">
             {STARTING_POINTS.map(({ mode, title, description, icon: Icon, idleBadge }) => {
               const selected = entryMode === mode;
@@ -397,6 +573,7 @@ export const CreateProjectView: React.FC = () => {
                 <p className={`mt-1 text-[13px] leading-relaxed ${muted}`}>
                   You&apos;ll shape the product brief on the next screen.
                 </p>
+                {greenfieldStepsPanel}
               </>
             ) : (
               <>
@@ -445,7 +622,40 @@ export const CreateProjectView: React.FC = () => {
                     placeholder="Who is it for and what should they be able to do?"
                     className={`w-full resize-none rounded-lg border px-3 py-2.5 text-sm leading-relaxed outline-none transition-colors ${inputClass}`}
                   />
+                  <div className="flex flex-wrap gap-1.5 pt-1">
+                    {IDEA_STARTERS.map(starter => (
+                      <button
+                        key={starter}
+                        type="button"
+                        onClick={() => setInputIdea(starter)}
+                        className={`rounded-lg border px-2 py-1 text-[10px] leading-snug transition-colors ${chipClass}`}
+                      >
+                        {starter.length > 42 ? `${starter.slice(0, 42)}…` : starter}
+                      </button>
+                    ))}
+                  </div>
                 </div>
+
+                {!isAiConfigured ? (
+                  <div
+                    className={`flex items-start gap-2.5 rounded-lg border px-3 py-2.5 text-xs leading-relaxed ${
+                      isDark ? 'border-amber-500/20 bg-amber-500/[0.06] text-amber-100/90' : 'border-amber-200 bg-amber-50 text-amber-900'
+                    }`}
+                  >
+                    <Settings2 className="mt-0.5 h-3.5 w-3.5 shrink-0 opacity-80" aria-hidden />
+                    <p>
+                      Connect AI for tailored build questions. The{' '}
+                      <span className={isDark ? 'text-amber-50' : 'font-medium'}>standard question set</span> works without a key.{' '}
+                      <button
+                        type="button"
+                        onClick={() => setIsSettingsOpen(true)}
+                        className={`font-semibold underline underline-offset-2 ${isDark ? 'text-amber-50 hover:text-white' : 'text-amber-950'}`}
+                      >
+                        Open AI settings
+                      </button>
+                    </p>
+                  </div>
+                ) : null}
 
                 {inputIdea.trim() ? (
                   <p
@@ -478,7 +688,7 @@ export const CreateProjectView: React.FC = () => {
 
                 <p className={`flex items-center gap-1.5 text-[11px] ${muted}`}>
                   <CornerDownLeft className="h-3 w-3 shrink-0 opacity-70" />
-                  Enter to continue · {desktop ? 'Ctrl' : '⌘'}+Enter in idea field
+                  {desktop ? 'Ctrl' : '⌘'}+Enter in idea field to create
                 </p>
 
                 <div className={`flex flex-wrap items-center justify-end gap-3 border-t pt-4 ${border}`}>
@@ -488,7 +698,7 @@ export const CreateProjectView: React.FC = () => {
                     </button>
                   ) : null}
                   <button type="submit" disabled={!inputName.trim() || Boolean(duplicateNameProject)} className={`group ${primaryActionClass}`}>
-                    Continue
+                    Create blueprint
                     <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
                   </button>
                 </div>

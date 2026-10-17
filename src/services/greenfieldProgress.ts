@@ -50,3 +50,30 @@ export function getGreenfieldPhaseProgress(
     return { id: phase.id, label: phase.label, shortLabel: phase.shortLabel, state };
   });
 }
+
+/** Short status line for home / recent project rows. */
+export function getBlueprintHubStatus(project: Project): string {
+  const interview = project.spec.interview;
+  const recommendation = project.spec.frameworkRecommendation || project.spec.frameworkRecommendations?.[0];
+  const handoff = project.spec.handoff;
+
+  if (handoff?.files?.length) {
+    return 'Handoff package ready';
+  }
+  if (interview?.status === 'completed' && recommendation) {
+    return 'Architecture map ready';
+  }
+  if (interview?.status === 'in_progress') {
+    const total = interview.questions.length;
+    const index = Math.min(interview.currentQuestionIndex + 1, total);
+    return total > 0 ? `Build questions · ${index}/${total}` : 'Build questions in progress';
+  }
+  if (interview?.status === 'completed' && !recommendation) {
+    return 'Generating architecture…';
+  }
+  const words = project.spec.description?.trim().split(/\s+/).filter(Boolean).length ?? 0;
+  if (words >= 5) {
+    return 'Product brief started';
+  }
+  return 'New · start product brief';
+}
