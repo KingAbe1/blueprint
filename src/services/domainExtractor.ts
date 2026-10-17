@@ -142,8 +142,8 @@ export function parseProductBriefSections(text: string): ProductBriefSection[] {
         bullets: [],
       };
       if (inlineHeader.remainder) {
-        if (/^[•\-*–—]\s+/.test(inlineHeader.remainder)) {
-          current.bullets.push(inlineHeader.remainder.replace(/^[•\-*–—]\s*/, '').trim());
+        if (/^[•\-*– - ]\s+/.test(inlineHeader.remainder)) {
+          current.bullets.push(inlineHeader.remainder.replace(/^[•\-*– - ]\s*/, '').trim());
         } else {
           current.paragraphs.push(inlineHeader.remainder);
         }
@@ -155,8 +155,8 @@ export function parseProductBriefSections(text: string): ProductBriefSection[] {
       current = { id: 'overview', title: 'Overview', paragraphs: [], bullets: [] };
     }
 
-    if (/^[•\-*–—]\s+/.test(line) || (/^[•\-*–—]/.test(line) && line.length > 1)) {
-      current.bullets.push(line.replace(/^[•\-*–—]\s*/, '').trim());
+    if (/^[•\-*– - ]\s+/.test(line) || (/^[•\-*– - ]/.test(line) && line.length > 1)) {
+      current.bullets.push(line.replace(/^[•\-*– - ]\s*/, '').trim());
     } else {
       current.paragraphs.push(line);
     }

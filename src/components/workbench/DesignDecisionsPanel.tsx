@@ -71,7 +71,7 @@ export const DesignDecisionsPanel: React.FC<DesignDecisionsPanelProps> = ({
             <div className={`overflow-hidden rounded-xl border ${inner}`}>
               <div className={`border-b px-4 py-3 ${border}`}>
                 <p className={`text-xs ${titleText}`}>From your brief</p>
-                <p className={`mt-0.5 text-[11px] ${muted}`}>Already decided — no question asked.</p>
+                <p className={`mt-0.5 text-[11px] ${muted}`}>Already decided - no question asked.</p>
               </div>
               <ul className={`divide-y ${divide}`}>
                 {(interview.inferredFacts || []).map(fact => (

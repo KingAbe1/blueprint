@@ -419,7 +419,7 @@ export const BuildHandoffView: React.FC = () => {
                         {allHandoffFilesOnDisk
                           ? `All ${handoff.files.length} handoff files are in this folder. Re-export after you edit the preview.`
                           : overwriteConflictCount > 0
-                            ? `${overwriteConflictCount} file${overwriteConflictCount === 1 ? '' : 's'} will be replaced — you’ll confirm before exporting.`
+                            ? `${overwriteConflictCount} file${overwriteConflictCount === 1 ? '' : 's'} will be replaced - you’ll confirm before exporting.`
                             : `Ready to add ${handoff.files.length} files without overwriting.`}
                       </p>
                     </div>
@@ -543,7 +543,7 @@ export const BuildHandoffView: React.FC = () => {
                   </span>
                   <div className="min-w-0">
                     <p className={`text-xs ${muted}`}>Selected file</p>
-                    <p className={`mt-0.5 truncate text-[13px] ${titleText}`}>{selectedFile ? fileBaseName(selectedFile.path) : '—'}</p>
+                    <p className={`mt-0.5 truncate text-[13px] ${titleText}`}>{selectedFile ? fileBaseName(selectedFile.path) : '-'}</p>
                     <p className={`mt-0.5 truncate font-mono text-[10px] ${muted}`}>{selectedFile?.path}</p>
                   </div>
                 </div>

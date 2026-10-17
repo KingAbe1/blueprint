@@ -148,7 +148,7 @@ export const CodebaseHeroPulse: React.FC<CodebaseHeroPulseProps> = React.memo(({
           label="Stack"
           isDark={isDark}
           primary={stackLine[0] || 'Unknown stack'}
-          secondary={stackSecondary || '—'}
+          secondary={stackSecondary || '-'}
         />
 
         <MetricCell
@@ -183,7 +183,7 @@ export const CodebaseHeroPulse: React.FC<CodebaseHeroPulseProps> = React.memo(({
                 </span>
               </span>
             ) : (
-              '—'
+              '-'
             )
           }
           secondary={healthSecondaryParts.length > 0 ? healthSecondaryParts.join(' · ') : 'No quality scan'}

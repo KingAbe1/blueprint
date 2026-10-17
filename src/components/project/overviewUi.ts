@@ -16,7 +16,7 @@ export function overviewBorderClass(isDark: boolean): string {
 
 export type OverviewEmphasis = 'critical' | 'warning' | 'info' | 'neutral';
 
-/** Left rail + optional wash — use on one row/cell when something needs to stand out. */
+/** Left rail + optional wash - use on one row/cell when something needs to stand out. */
 export function overviewRowEmphasis(isDark: boolean, level: OverviewEmphasis): string {
   switch (level) {
     case 'critical':

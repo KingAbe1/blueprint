@@ -153,7 +153,7 @@ export const Header: React.FC<HeaderProps> = ({
         type="button"
         onClick={() => setIsSettingsOpen(true)}
         className={`flex items-center gap-2 rounded-md px-2.5 py-2 text-xs transition-colors ${interactiveChrome} ${iconButton}`}
-        title={isAiConfigured ? 'AI provider connected — open settings' : 'No AI provider — connect in settings'}
+        title={isAiConfigured ? 'AI provider connected - open settings' : 'No AI provider - connect in settings'}
         aria-label={isAiConfigured ? 'AI connected, open settings' : 'Connect AI in settings'}
       >
         <span

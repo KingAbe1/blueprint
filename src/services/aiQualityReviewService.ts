@@ -186,7 +186,7 @@ SCOPE:
 PROJECT CONTEXT:
 ${JSON.stringify(buildProjectContext(analysis), null, 2)}
 
-BLUEPRINT STATIC FINDINGS (heuristic rules already ran on this repo — may be false positives):
+BLUEPRINT STATIC FINDINGS (heuristic rules already ran on this repo - may be false positives):
 ${JSON.stringify(staticFindings, null, 2)}
 
 ${focusNote ? `REVIEWER FOCUS FROM USER:\n${focusNote}\n` : ''}
@@ -199,9 +199,9 @@ TASKS:
 2. Add up to 6 NEW findings about logic, security, data handling, error paths, test gaps, or maintainability that static rules likely missed.
 3. Do NOT duplicate static titles in "findings" unless you add a distinct, code-specific issue beyond the static note.
 
-WRITING QUALITY (required — reject vague one-liners):
+WRITING QUALITY (required - reject vague one-liners):
 - whyFlagged / rationale: 2–5 sentences naming functions, variables, control flow, or missing checks seen in the supplied source. Say WHY Blueprint or you flagged it, not generic best practices.
-- recommendedFix / recommendation: 2–5 concrete steps (newline-separated). Name what to extract, wrap in try/catch, validate, move to env, or test — tied to the code you cited.
+- recommendedFix / recommendation: 2–5 concrete steps (newline-separated). Name what to extract, wrap in try/catch, validate, move to env, or test - tied to the code you cited.
 - Include "line" on findings (and cite lines in text) whenever the issue maps to a specific line in the supplied source.
 
 Return ONLY valid JSON:
@@ -224,7 +224,7 @@ Return ONLY valid JSON:
       "line": 1,
       "category": "correctness|security|maintainability|testing|performance|structure",
       "relatedStaticFinding": "static title or null",
-      "rationale": "2-5 sentences — why flagged in this code",
+      "rationale": "2-5 sentences - why flagged in this code",
       "recommendation": "step one\\nstep two"
     }
   ],

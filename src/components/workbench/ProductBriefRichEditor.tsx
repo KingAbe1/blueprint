@@ -132,7 +132,7 @@ export const ProductBriefRichEditor: React.FC<ProductBriefRichEditorProps> = ({
   html,
   onChange,
   inputClassName,
-  placeholder = 'Describe the product — use section headings and bullet lists for capabilities.',
+  placeholder = 'Describe the product - use section headings and bullet lists for capabilities.',
   readOnly = false,
 }) => {
   const { isDark } = useTheme();

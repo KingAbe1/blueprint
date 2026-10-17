@@ -407,7 +407,7 @@ export async function expandAndPolishDescription(
   }
 
   const wordCount = draft.split(/\s+/).filter(Boolean).length;
-  const draftBulletCount = (draft.match(/^[ \t]*[•\-*–—]\s+/gm) || []).length;
+  const draftBulletCount = (draft.match(/^[ \t]*[•\-*– - ]\s+/gm) || []).length;
   const mode: 'expand' | 'polish' | 'tighten' =
     wordCount < 18 ? 'expand' : wordCount > 140 ? 'tighten' : 'polish';
 
@@ -415,12 +415,12 @@ export async function expandAndPolishDescription(
     mode === 'expand'
       ? 'The input is short. Add reasonable detail, but do not invent features that are not implied.'
       : mode === 'tighten'
-        ? 'The input is long. Clarify and deduplicate wording only—keep every distinct feature, role, and constraint from the draft; do not drop bullets to save space.'
+        ? 'The input is long. Clarify and deduplicate wording only - keep every distinct feature, role, and constraint from the draft; do not drop bullets to save space.'
         : 'Keep roughly the same length. Improve clarity, specificity, and flow without removing content the draft already states.';
 
   const preserveBulletsNote =
     draftBulletCount > 0
-      ? `\nThe draft already lists ${draftBulletCount} bullet item(s). Under "What it does (first release)", include at least ${draftBulletCount} bullets—one per distinct capability from the draft (merge duplicates, but do not omit any capability the draft mentions).\n`
+      ? `\nThe draft already lists ${draftBulletCount} bullet item(s). Under "What it does (first release)", include at least ${draftBulletCount} bullets - one per distinct capability from the draft (merge duplicates, but do not omit any capability the draft mentions).\n`
       : '';
 
   const prompt = `You are a senior product writer helping a developer describe software before architecture planning.
@@ -444,7 +444,7 @@ Who it's for
 • [secondary user or role, if any]
 
 What it does (first release)
-• [one bullet per capability—include every feature the draft mentions, including newly added lines]
+• [one bullet per capability - include every feature the draft mentions, including newly added lines]
 • [each bullet is one clear outcome, not technical jargon]
 
 Out of scope (for now)
@@ -454,19 +454,19 @@ Rules:
 - Cumulative merge: the draft is the source of truth. Never remove a feature, user role, or constraint that appears in the draft unless the draft explicitly deletes it. New sentences in the draft must appear in the output (usually as new or updated bullets).
 - Write like internal product notes, not marketing copy or a pitch deck.
 - Keep every specific number, domain term, and constraint from the draft (e.g. fleet size, vehicle types, regions).
-- Summary: max 2 sentences, max 55 words. Say what the product is and who uses it—no filler.
+- Summary: max 2 sentences, max 55 words. Say what the product is and who uses it - no filler.
 - Never use these phrases (or close variants): "addresses the challenges", "enhance efficiency", "cut costs", "improve service delivery", "real-time insights", "organizations managing", "comprehensive solution", "streamline operations".
 - Bullets: start with a verb; max 12 words each; describe what a user can do or see, not abstract benefits.
 - Plain language; no architecture acronyms or stack unless the draft names them.
 - Do not add login, payments, admin dashboards, or analytics unless the draft implies them.
-- Out of scope: only defer things that would be tempting given the draft—not generic "integrations" unless relevant.
+- Out of scope: only defer things that would be tempting given the draft - not generic "integrations" unless relevant.
 - No preamble ("Here is…"). Output only the brief.
 
 Example of a bad Summary (do not write like this):
 "The Fleet Management System addresses the challenges of overseeing a large fleet... enhance efficiency, cut costs..."
 
 Example of a good Summary:
-"Fleet managers need one place to see vehicle location, maintenance due dates, and fuel spend across 500+ vehicles. This product is that operations hub—built for dispatch and maintenance teams, not executives reading slide decks."`;
+"Fleet managers need one place to see vehicle location, maintenance due dates, and fuel spend across 500+ vehicles. This product is that operations hub - built for dispatch and maintenance teams, not executives reading slide decks."`;
 
   const rawText = await callAIModel(activeConfig, prompt, { temperature: 0.25, maxTokens: 900 });
 
@@ -504,7 +504,7 @@ Project description:
 ${description.trim()}
 """
 
-First extract concrete architectural decisions that are already explicit in the description. Then create an interview containing ONLY the decisions that still matter for this specific project—nothing else.
+First extract concrete architectural decisions that are already explicit in the description. Then create an interview containing ONLY the decisions that still matter for this specific project - nothing else.
 
 Requirements:
 - Fully dynamic scope: do NOT walk a fixed checklist. Choose 6–18 questions based on what this product actually needs. A small internal tool may need ~6; a regulated multi-tenant product may need ~18.
@@ -515,24 +515,24 @@ Requirements:
 - Do not ask anything already fully settled by an inferredFact. You may ask a different question in the same broad area when it resolves another material decision.
 - Example: if the description says "mobile app", record platform and do not ask where it should run.
 - Example: if it names React Native, record frontend facts and do not ask the user to choose those again.
-- NEVER infer platform (web, mobile, desktop) from domain clues alone. Live GPS, drivers, dispatch, geo-fencing, fleet tracking, or "communication in the field" do NOT mean iOS/Android apps—operations teams often use browser dashboards. If the brief does not explicitly say web, mobile, desktop, or CLI, do NOT add a platform inferredFact; you MUST include a plain-language platform question instead.
+- NEVER infer platform (web, mobile, desktop) from domain clues alone. Live GPS, drivers, dispatch, geo-fencing, fleet tracking, or "communication in the field" do NOT mean iOS/Android apps - operations teams often use browser dashboards. If the brief does not explicitly say web, mobile, desktop, or CLI, do NOT add a platform inferredFact; you MUST include a plain-language platform question instead.
 - Do not infer a hard decision from weak clues. When a choice is genuinely ambiguous, ask a clarifying question.
 - Each question must have a unique "id" (snake_case, descriptive, e.g. "fleet_map_freshness").
-- "category" is a UI grouping tag only—pick the closest: product, users, platform, approach, ui, access, frontend, topology, backend, api, data, realtime, integrations, security, compliance, scale, reliability, deployment, delivery, testing, observability, operations, budget. Multiple questions may share a category.
-- The category MUST match the question topic. Geo-fencing, map accuracy, and location refresh belong in product or realtime—not "approach". Maintenance alert lead time belongs in product or observability—not "operations" unless the question is literally about who owns the system. Reserve "approach" for how strict vs flexible Blueprint should be when choosing defaults. Reserve "operations" for who runs and maintains the system day to day.
-- Tailoring is mandatory: every question and option must reference this project (roles, features, data, workflows from the description)—never generic checklist wording.
+- "category" is a UI grouping tag only - pick the closest: product, users, platform, approach, ui, access, frontend, topology, backend, api, data, realtime, integrations, security, compliance, scale, reliability, deployment, delivery, testing, observability, operations, budget. Multiple questions may share a category.
+- The category MUST match the question topic. Geo-fencing, map accuracy, and location refresh belong in product or realtime - not "approach". Maintenance alert lead time belongs in product or observability - not "operations" unless the question is literally about who owns the system. Reserve "approach" for how strict vs flexible Blueprint should be when choosing defaults. Reserve "operations" for who runs and maintains the system day to day.
+- Tailoring is mandatory: every question and option must reference this project (roles, features, data, workflows from the description) - never generic checklist wording.
 - Ask one decision per question. Questions must yield actionable constraints for an AI coding agent (scope, access, data accuracy, integrations, recovery, release process, monitoring, ownership, cost).
 - Set "allowMultiple": true when several options can legitimately apply together (e.g. multiple user roles, integrations, regions, or compliance needs). Keep "allowMultiple": false (default) for mutually exclusive choices (primary platform, deployment model, monolith vs services, budget tier).
 - Ask about outcomes and tradeoffs, not implementation jargon (no "REST vs GraphQL"; no database or framework names unless the description named them).
-- Balance product behavior vs build constraints: every question must change implementation choices (hosting, data retention, system shape, security, scale, release)—not fine-grained feature UX (geofence editor complexity, messaging screen layout) unless the brief leaves a compliance or integration gap. Cap feature-behavior questions at ~30% of the set; the rest should constrain how the system is built and operated.
-- For products that store operational or customer data (typical SaaS, fleet, admin tools), include at least one WHERE IT RUNS question (category deployment): managed cloud vs company-owned servers vs data residency—without naming AWS, Azure, or GCP.
-- Include at least one DATA KEEPING question (category data): how long history must be kept, how bad would losing recent records be—not "SQL vs NoSQL".
-- Capture how the builder imagines the system's future—in plain language—whenever it would change implementation. Do not use the words "scalability", "architecture", or "stack" in questions; translate intent into concrete scenarios from this product.
+- Balance product behavior vs build constraints: every question must change implementation choices (hosting, data retention, system shape, security, scale, release) - not fine-grained feature UX (geofence editor complexity, messaging screen layout) unless the brief leaves a compliance or integration gap. Cap feature-behavior questions at ~30% of the set; the rest should constrain how the system is built and operated.
+- For products that store operational or customer data (typical SaaS, fleet, admin tools), include at least one WHERE IT RUNS question (category deployment): managed cloud vs company-owned servers vs data residency - without naming AWS, Azure, or GCP.
+- Include at least one DATA KEEPING question (category data): how long history must be kept, how bad would losing recent records be - not "SQL vs NoSQL".
+- Capture how the builder imagines the system's future - in plain language - whenever it would change implementation. Do not use the words "scalability", "architecture", or "stack" in questions; translate intent into concrete scenarios from this product.
 - When the product is multi-user, operational, customer-facing, or data-heavy (not a trivial solo scratchpad), include tailored questions that surface:
-  • Growth headroom (category scale or product): e.g. fleet/users/records doubling or 10×—must it still feel fast and accurate, or is early size enough for years?
+  • Growth headroom (category scale or product): e.g. fleet/users/records doubling or 10× - must it still feel fast and accurate, or is early size enough for years?
   • Downtime impact (category reliability or operations): e.g. can dispatch stop for an hour overnight, or is it unacceptable during business hours?
   • Change pace & ownership (category operations, delivery, or approach): solo vibe-coder vs small product team vs company IT; ship experiments often vs slow-and-stable?
-  • Cost & complexity appetite (category budget or deployment): keep running cost low and simple vs invest for headroom and polish—without naming cloud vendors.
+  • Cost & complexity appetite (category budget or deployment): keep running cost low and simple vs invest for headroom and polish - without naming cloud vendors.
   Skip any of the above only when clearly irrelevant (personal notes app, one-off script, fixed tiny audience with no growth implied).
 - Wrong (too technical): "Monolith or microservices?" / "Which database?" / "Do you need horizontal scaling?"
 - Right (same intent): "If this grows from hundreds to thousands of vehicles, should tracking and reports still feel instant?" / "Will one team maintain everything, or will different departments own separate pieces and release on their own schedule?"
@@ -738,7 +738,7 @@ function platformRoleHints(description: string): {
     return {
       webUsers: 'managers and dispatch',
       mobileUsers: 'drivers or field staff',
-      hybridDetail: 'Managers and dispatch on the web; drivers on phones—shared backend, two experiences.',
+      hybridDetail: 'Managers and dispatch on the web; drivers on phones - shared backend, two experiences.',
     };
   }
   if (/\b(project|task|sprint|backlog|kanban|roadmap|milestone|issue tracker)\b/.test(text)) {
@@ -760,7 +760,7 @@ function buildDeploymentClarificationQuestion(description: string): Architecture
     id: 'where_system_runs',
     category: 'deployment',
     question: 'Where should this system run in production?',
-    context: 'This drives hosting, networking, and how backups are handled—not which brand of cloud to buy.',
+    context: 'This drives hosting, networking, and how backups are handled - not which brand of cloud to buy.',
     allowCustom: true,
     options: [
       {
@@ -796,12 +796,12 @@ function buildDataRetentionClarificationQuestion(_description: string): Architec
     id: 'data_history_importance',
     category: 'data',
     question: 'How important is keeping historical records (activity, reports, past versions)?',
-    context: 'This drives database design, backups, and storage cost—not the name of a database product.',
+    context: 'This drives database design, backups, and storage cost - not the name of a database product.',
     allowCustom: true,
     options: [
       {
         id: 'years_required',
-        label: 'Years of history—must be recoverable',
+        label: 'Years of history - must be recoverable',
         description: 'Losing old data would be a serious business or legal problem; plan for backups and retention.',
         recommended: false,
       },
@@ -813,7 +813,7 @@ function buildDataRetentionClarificationQuestion(_description: string): Architec
       },
       {
         id: 'recent_only',
-        label: 'Mostly live data—short history',
+        label: 'Mostly live data - short history',
         description: 'Only the last few days or weeks need to be queryable; minimal archive needs.',
         recommended: false,
       },
@@ -840,7 +840,7 @@ function buildPlatformClarificationQuestion(description: string): ArchitectureQu
       {
         id: 'web_primary',
         label: 'Web browser (primary experience)',
-        description: `Best for ${roles.webUsers}—dashboards, forms, admin, and reporting in one hub.`,
+        description: `Best for ${roles.webUsers} - dashboards, forms, admin, and reporting in one hub.`,
         recommended: true,
       },
       {
@@ -993,7 +993,7 @@ export async function analyzeFrameworksWithAI(
   const desktopProduct = /\b(desktop app|desktop application|native desktop|macos app|windows app|linux app|tauri|electron|installed (?:app|application)|local-first app)\b/i.test(description)
     || /\btarget platform\b[\s\S]{0,80}\bdesktop\b/i.test(options?.customRequirements || '');
   if (desktopProduct) {
-    dynamicConstraints.push('- Product delivery: Native desktop application (installable on macOS, Windows, and/or Linux)—not a browser-hosted website as the primary product.');
+    dynamicConstraints.push('- Product delivery: Native desktop application (installable on macOS, Windows, and/or Linux) - not a browser-hosted website as the primary product.');
   }
 
   const decisionText = `${description}\n${options?.customRequirements || ''}`;
@@ -1005,7 +1005,7 @@ export async function analyzeFrameworksWithAI(
 
   if (!platformChoseNativeMobile && (platformChoseWeb || !platformExplicitInBrief)) {
     dynamicConstraints.push(
-      '- Target platform: The brief does not require native iOS/Android apps as the primary product (and build-question answers favor web or are silent on mobile). Prefer a full-stack WEB application (browser) for manager, dispatch, and operations workflows—not Flutter, Expo, or Firebase-as-the-default mobile stack unless answers explicitly chose native phone apps for drivers or field staff.',
+      '- Target platform: The brief does not require native iOS/Android apps as the primary product (and build-question answers favor web or are silent on mobile). Prefer a full-stack WEB application (browser) for manager, dispatch, and operations workflows - not Flutter, Expo, or Firebase-as-the-default mobile stack unless answers explicitly chose native phone apps for drivers or field staff.',
     );
   }
 
@@ -1026,17 +1026,17 @@ Architectural Guidelines:
 - You are free to recommend ANY modern production-grade programming languages (e.g. TypeScript, Python, Go, Rust, C#/.NET 9, Elixir, Kotlin, Java, Swift, PHP, etc.), frameworks, and database architectures that best serve this specific product.
 - Produce exactly ONE final, production-ready architecture that honors the interview decisions. The interview is the selection process; do not present alternatives or reopen choices the user already made.
 - Honor the system-shape answer. Default to a modular monolith for one small product team unless the interview explicitly justifies independently deployed services, serverless functions, an event-driven system, or a hybrid.
-- A modular monolith must still have clear product-domain modules. Microservices must be justified by independent ownership, release, scaling, or failure-isolation needs—not by the desire to appear scalable.
+- A modular monolith must still have clear product-domain modules. Microservices must be justified by independent ownership, release, scaling, or failure-isolation needs - not by the desire to appear scalable.
 - Treat "No preference" and "Let Blueprint decide" as permission to make the safest evidence-based choice, not as an architectural constraint.
 - For commerce systems with products, inventory, orders, and payments, prefer a transactional relational system of record unless the interview explicitly requires another model. Do not choose a document database merely because realtime updates are needed.
 - Never claim that a framework, cloud provider, or database makes the application compliant. Technology can support controls or reduce compliance scope, but compliance still requires correct implementation, policies, evidence, and review.
-- When payments use Stripe, Apple Pay, or a similar provider, keep raw card data out of the application and describe this as reducing payment-compliance scope—not guaranteeing compliance.
+- When payments use Stripe, Apple Pay, or a similar provider, keep raw card data out of the application and describe this as reducing payment-compliance scope - not guaranteeing compliance.
 - Use only real, correctly named products and libraries. Do not invent an ORM, hosting product, or integration that the provider does not offer.
 - For a mobile product, deploymentTarget must include app signing/builds and distribution through Apple App Store and Google Play as well as the backend hosting target.
-- For a desktop product, category must be "Desktop Software" (or equivalent), architecture must be "Desktop Native" (or hybrid with a local shell), deploymentTarget must describe native installers or app bundles—not Vercel or a public URL as the main way users run the product. Prefer stacks such as Tauri, Electron, or platform-native UI when the brief or interview says desktop.
+- For a desktop product, category must be "Desktop Software" (or equivalent), architecture must be "Desktop Native" (or hybrid with a local shell), deploymentTarget must describe native installers or app bundles - not Vercel or a public URL as the main way users run the product. Prefer stacks such as Tauri, Electron, or platform-native UI when the brief or interview says desktop.
 - Do not recommend "Full-Stack Web" or a hosted SPA as the primary architecture when the user is building desktop software unless they explicitly chose a web client.
 - Do NOT treat fleet tracking, live GPS, drivers, or geo-fencing as proof the product must be Flutter, React Native, or Firebase mobile. Default to web for centralized monitoring unless the brief or build-question answers explicitly chose native phone apps.
-- Recommend Flutter, Expo/React Native, or Firebase as the primary stack only when the brief or build-question answers explicitly chose native mobile apps—not from domain stereotypes alone.
+- Recommend Flutter, Expo/React Native, or Firebase as the primary stack only when the brief or build-question answers explicitly chose native mobile apps - not from domain stereotypes alone.
 - If recommending Supabase, describe its data layer as PostgreSQL with Row Level Security and its normal client/query tooling; never call it "Supabase ORM" or "Supabase Hosting".
 
 For the final architecture, provide one object with:
@@ -1085,7 +1085,7 @@ Do NOT include markdown formatting outside the JSON array.`;
 
 function sanitizeArchitectureClaim(claim: string): string {
   if (/\b(ensures?|guarantees?|provides?)\b[^.]{0,120}\b(compliance|compliant)\b/i.test(claim)) {
-    return 'Keeps sensitive payment data with the approved payment provider, reducing—but not eliminating—the application’s compliance scope.';
+    return 'Keeps sensitive payment data with the approved payment provider, reducing - but not eliminating - the application’s compliance scope.';
   }
   return claim;
 }

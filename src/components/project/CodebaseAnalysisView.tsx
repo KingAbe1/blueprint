@@ -541,7 +541,7 @@ export const CodebaseAnalysisView: React.FC<CodebaseAnalysisViewProps> = ({
           {(analysis.truncated || (supportsGitHub && !githubConnected)) && (
             <div className="mb-3 flex flex-wrap items-center justify-end gap-2">
               {analysis.truncated ? (
-                <p className={`mr-auto text-xs ${muted}`}>Large repo — some files were skipped in the scan.</p>
+                <p className={`mr-auto text-xs ${muted}`}>Large repo - some files were skipped in the scan.</p>
               ) : null}
               {supportsGitHub && !githubConnected ? (
                 <button

@@ -136,7 +136,7 @@ export const QualityHealthSummary: React.FC<QualityHealthSummaryProps> = ({
         <div className="px-5 py-4 sm:px-6">
           <dt className={`text-[13px] ${muted}`}>Lines of code</dt>
           <dd className={`mt-2 text-xl font-medium tabular-nums tracking-tight ${title}`}>
-            {quality.linesOfCode ? `${Math.round(quality.linesOfCode / 1000)}k` : '—'}
+            {quality.linesOfCode ? `${Math.round(quality.linesOfCode / 1000)}k` : '-'}
           </dd>
         </div>
       </dl>

@@ -2,7 +2,7 @@
 
 ## Supported versions
 
-Security fixes are applied on the default branch (`main`). There are no long-term support releases yet—use the latest commit or release tag.
+Security fixes are applied on the default branch (`main`). There are no long-term support releases yet - use the latest commit or release tag.
 
 ## Reporting a vulnerability
 

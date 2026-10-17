@@ -344,7 +344,7 @@ export const CreateProjectView: React.FC = () => {
                     onClick={event => {
                       event.stopPropagation();
                       duplicateBlueprintProject(project.id);
-                      notify.success(`Duplicated “${project.name}” — includes brief, questions, and map`);
+                      notify.success(`Duplicated “${project.name}” - includes brief, questions, and map`);
                     }}
                     aria-label={`Duplicate ${project.name}`}
                     title="Duplicate blueprint"
@@ -437,10 +437,10 @@ export const CreateProjectView: React.FC = () => {
               </h1>
               <p className={`mt-2 max-w-md text-[13px] leading-relaxed ${muted}`}>
                 {isFirstVisit
-                  ? 'Create a product blueprint or scan a codebase. Everything stays on this device—export JSON anytime to back up.'
+                  ? 'Create a product blueprint or scan a codebase. Everything stays on this device - export JSON anytime to back up.'
                   : openedFromActiveProject
                     ? 'Pick a path below or reopen a recent project. Everything stays on this device.'
-                    : 'Plan a new product blueprint or scan an existing codebase—local only, no cloud upload.'}
+                    : 'Plan a new product blueprint or scan an existing codebase - local only, no cloud upload.'}
               </p>
             </div>
           </div>
@@ -456,7 +456,7 @@ export const CreateProjectView: React.FC = () => {
                 Your first workspace
               </p>
               <p className={`mt-1.5 ${isDark ? 'text-emerald-100/80' : 'text-emerald-800/90'}`}>
-                Add a name on the right to get started—everything stays on this device.
+                Add a name on the right to get started - everything stays on this device.
               </p>
             </div>
           ) : null}

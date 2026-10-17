@@ -2,7 +2,7 @@
 
 **Website:** [blueprint-web-chi.vercel.app](https://blueprint-web-chi.vercel.app/) · **Source:** [github.com/KingAbe1/blueprint](https://github.com/KingAbe1/blueprint)
 
-*Architectural rigor for the generative era* — a desktop and browser workstation for **spec-first greenfield planning** and **brownfield codebase analysis**, with exportable agent handoff packages for Cursor, Claude Code, VS Code, Codex, JetBrains, and other IDEs.
+*Architectural rigor for the generative era* - a desktop and browser workstation for **spec-first greenfield planning** and **brownfield codebase analysis**, with exportable agent handoff packages for Cursor, Claude Code, VS Code, Codex, JetBrains, and other IDEs.
 
 The [marketing site](https://blueprint-web-chi.vercel.app/) explains the product story and workflow; **this repository** is the open-source Blueprint Studio app (run locally or build the Tauri desktop shell).
 
@@ -26,8 +26,8 @@ A project is one or the other: greenfield projects have no `codebaseAnalysis`; b
 Header tabs (unlocked in order):
 
 1. **Product blueprint** (`domain-intent`)
-2. **Architecture map** (`architecture-map`) — after build questions are completed
-3. **Build handoff** (`in-flight`) — after a final stack recommendation exists
+2. **Architecture map** (`architecture-map`) - after build questions are completed
+3. **Build handoff** (`in-flight`) - after a final stack recommendation exists
 
 ### Product brief
 
@@ -59,8 +59,8 @@ Header tabs (unlocked in order):
 
 Generates a preview-editable package, then:
 
-- **Download ZIP** — save dialog on desktop; File System Access API or fallback download in the browser.
-- **Add files to project** — pick a folder (Tauri or `showDirectoryPicker`), detect path conflicts, confirm overwrites, write files via Rust or the File System Access API.
+- **Download ZIP** - save dialog on desktop; File System Access API or fallback download in the browser.
+- **Add files to project** - pick a folder (Tauri or `showDirectoryPicker`), detect path conflicts, confirm overwrites, write files via Rust or the File System Access API.
 
 **Handoff contents (typical):**
 
@@ -93,9 +93,9 @@ Pick a local directory (Tauri native dialog or browser File System Access API). 
 
 ### Sections
 
-- **Project overview** — hero summary, languages, frameworks, structure, suggestions, topology diagram, GitHub link (optional token).
-- **Code analysis** — file tree, dependency inventory (packages tab), npm scripts (scripts tab), framework specialization panel when applicable.
-- **Quality & risks** — scored dimensions, static findings, extended rules, optional **AI quality review** on chosen files.
+- **Project overview** - hero summary, languages, frameworks, structure, suggestions, topology diagram, GitHub link (optional token).
+- **Code analysis** - file tree, dependency inventory (packages tab), npm scripts (scripts tab), framework specialization panel when applicable.
+- **Quality & risks** - scored dimensions, static findings, extended rules, optional **AI quality review** on chosen files.
 
 ### Next.js vs everything else
 
@@ -124,7 +124,7 @@ One **global** AI setup (all projects), stored in `localStorage`:
 
 - Providers: **OpenAI**, **Anthropic**, **Google Gemini**, **Ollama** (local), **OpenRouter**, **Custom** (OpenAI-compatible base URL).
 - Used for: product polish, architecture interview, final stack JSON, optional brownfield file review.
-- Prompts go **directly to the provider you configure**—not through Blueprint servers.
+- Prompts go **directly to the provider you configure** - not through Blueprint servers.
 - Greenfield shows a dismissible banner until AI is connected or dismissed.
 
 Without API keys, greenfield still works for brief editing, heuristic stack choice, map, and handoff; interview generation requires configuration (or fails with a clear error).
@@ -133,10 +133,10 @@ Without API keys, greenfield still works for brief editing, heuristic stack choi
 
 ## Data and privacy
 
-- **Projects and specs** — `localStorage` (`blueprint_projects_list`, active project id, tab preference, AI settings). Use **Export JSON** from the project menu for backup; import restores projects.
-- **Codebase scans** — analysis results live on the project in localStorage; source files are read locally for scanning only and are not uploaded to Blueprint.
-- **Optional GitHub** — token you supply; requests go to GitHub for repo metadata/status.
-- **Dependency advisories** — may call public npm/OSV APIs using **package names and versions** from the lockfile, not your full source tree.
+- **Projects and specs** - `localStorage` (`blueprint_projects_list`, active project id, tab preference, AI settings). Use **Export JSON** from the project menu for backup; import restores projects.
+- **Codebase scans** - analysis results live on the project in localStorage; source files are read locally for scanning only and are not uploaded to Blueprint.
+- **Optional GitHub** - token you supply; requests go to GitHub for repo metadata/status.
+- **Dependency advisories** - may call public npm/OSV APIs using **package names and versions** from the lockfile, not your full source tree.
 - No account or login.
 
 ---
@@ -190,7 +190,7 @@ npm run build        # Web build (tsc + vite)
 
 | Document | Purpose |
 | --- | --- |
-| [LICENSE](./LICENSE) | **MIT** — use, modify, and distribute with attribution |
+| [LICENSE](./LICENSE) | **MIT** - use, modify, and distribute with attribution |
 | [CONTRIBUTING.md](./CONTRIBUTING.md) | Setup, PR process, **project rules** (privacy, scope, no secrets) |
 | [CODE_OF_CONDUCT.md](./CODE_OF_CONDUCT.md) | Community behavior standards |
 | [SECURITY.md](./SECURITY.md) | How to report vulnerabilities privately |

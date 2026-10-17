@@ -796,7 +796,7 @@ export async function analyzeCodebaseSource(source: CodebaseSource): Promise<Cod
     try {
       dependencyRisk = await scanNpmDependencyRisks(npmInventory);
     } catch {
-      // OSV.dev unavailable — score excludes CVEs until a later audit succeeds.
+      // OSV.dev unavailable - score excludes CVEs until a later audit succeeds.
     }
   }
 

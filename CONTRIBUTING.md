@@ -27,7 +27,7 @@ Open a PR only after `npm run build` succeeds locally.
 
 - Bug fixes and tests for real behavior (not trivial assertions).
 - Documentation that matches **current** behavior.
-- Brownfield rules and analyzers (especially new framework profiles—Next.js is the reference implementation).
+- Brownfield rules and analyzers (especially new framework profiles - Next.js is the reference implementation).
 - Greenfield handoff and interview improvements that stay provider-agnostic unless explicitly scoped.
 - Accessibility and UX fixes in existing patterns.
 - Performance wins with measurable impact on scan or UI paths.
@@ -42,7 +42,7 @@ Open a PR only after `npm run build` succeeds locally.
 
 ### Scope and quality
 
-- **Minimize diff size**—one concern per PR when possible.
+- **Minimize diff size** - one concern per PR when possible.
 - **Match existing code style** (TypeScript, React patterns, naming in the file you edit).
 - **No drive-by refactors** unrelated to the issue you are solving.
 - **Greenfield** stack choice must remain **multi-stack** (not hard-coded to one framework). Stack-specific handoff text belongs behind detection (see `greenfieldStackPolicy.ts` / `handoffNextJsGuidance.ts`).
@@ -50,7 +50,7 @@ Open a PR only after `npm run build` succeeds locally.
 
 ### AI and prompts
 
-- Prompt changes in `aiService.ts` affect all users with AI enabled—describe behavior changes in the PR.
+- Prompt changes in `aiService.ts` affect all users with AI enabled - describe behavior changes in the PR.
 - Do not embed provider API keys or proprietary endpoints in the repo.
 
 ## Pull request process

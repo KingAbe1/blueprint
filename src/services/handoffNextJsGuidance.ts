@@ -5,7 +5,7 @@ export function nextJsHandoffArchitectureSection(): string {
 
 - Scaffold with \`create-next-app\` using **TypeScript**, **ESLint**, **Tailwind CSS**, and the **App Router** (\`app/\`).
 - Default to **React Server Components**; add \`'use client'\` only when the UI needs browser-only APIs or local interaction state.
-- Place pages and layouts under \`app/\`; use **Route Handlers** (\`app/api/.../route.ts\`) or **Server Actions** for trusted mutations—avoid bolting on a separate Node HTTP server unless architecture explicitly requires it.
+- Place pages and layouts under \`app/\`; use **Route Handlers** (\`app/api/.../route.ts\`) or **Server Actions** for trusted mutations - avoid bolting on a separate Node HTTP server unless architecture explicitly requires it.
 - Colocate feature modules (\`src/features/<domain>/\` or \`app/(app)/...\`) to match the blueprint domain boundaries.
 - Read \`cookies()\`, \`headers()\`, and dynamic route \`params\` asynchronously (Next.js 15+).
 - Keep secrets in environment variables; document names in \`.env.example\` only.

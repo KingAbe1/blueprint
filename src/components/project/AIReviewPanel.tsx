@@ -572,7 +572,7 @@ function AIReviewPanelHeader({
     ? 'Connect a provider to send selected source files for an optional second opinion.'
     : inResultsMode
       ? 'Browse AI notes and new findings for the files you reviewed.'
-      : 'Pick source files to review. Uses your scan and static findings — does not change your score.';
+      : 'Pick source files to review. Uses your scan and static findings - does not change your score.';
 
   return (
     <header className={`border-b ${border}`}>
@@ -797,7 +797,7 @@ function SetupDetailPane({
     reviewPhase === 'reading' ? 'Reading files…' : reviewPhase === 'reviewing' ? 'Reviewing…' : 'Run AI review';
   const runHint =
     reviewPhase === 'reading'
-      ? 'Reading source on this device — nothing sent yet.'
+      ? 'Reading source on this device - nothing sent yet.'
       : reviewPhase === 'reviewing'
         ? `${providerName} · ${modelName}`
         : 'Local read first, then code and related static findings go to your AI provider.';
@@ -906,7 +906,7 @@ function FileListPaginationFooter({
     : totalCount > pageSize
       ? 'Use Filter paths above to narrow a long list.'
       : projectTotal !== undefined && projectTotal > totalCount
-        ? `${projectTotal} reviewable paths in this project — filter to find one quickly.`
+        ? `${projectTotal} reviewable paths in this project - filter to find one quickly.`
         : null;
 
   return (
@@ -916,7 +916,7 @@ function FileListPaginationFooter({
         <p className={`mt-1.5 text-[11px] leading-relaxed ${muted}`}>
           All {totalCount} paths are already in your scan.{' '}
           <span className={`font-medium tabular-nums ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>{remaining}</span>{' '}
-          are hidden only in this picker — show more below or filter by path.
+          are hidden only in this picker - show more below or filter by path.
         </p>
       ) : null}
       {helper ? <p className={`mt-1.5 text-[11px] leading-relaxed ${muted}`}>{helper}</p> : null}
@@ -950,7 +950,7 @@ function FileListPaginationFooter({
             </button>
           ) : remaining > pageSize ? (
             <p className={`text-center text-[10px] leading-relaxed ${muted}`}>
-              Very large project — reveal in batches of {pageSize}, or search by path.
+              Very large project - reveal in batches of {pageSize}, or search by path.
             </p>
           ) : null}
         </div>
@@ -964,7 +964,7 @@ function reviewFixSteps(text: string): string[] {
   if (!trimmed) return [];
   const lines = trimmed
     .split(/\n+/)
-    .map(line => line.replace(/^[\s•\-–—*]+/, '').replace(/^\d+[.)]\s*/, '').trim())
+    .map(line => line.replace(/^[\s•\-– - *]+/, '').replace(/^\d+[.)]\s*/, '').trim())
     .filter(Boolean);
   return lines.length > 1 ? lines : [trimmed];
 }

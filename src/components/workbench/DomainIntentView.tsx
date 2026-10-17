@@ -314,11 +314,11 @@ export const DomainIntentView: React.FC<DomainIntentViewProps> = ({ onOpenArchit
 
   const buildAnswerBrief = (completedInterview: ArchitecturalInterview) => {
     const facts = (completedInterview.inferredFacts || []).map(fact =>
-      `${CATEGORY_LABELS[fact.category]} — Already specified in description\nDecision: ${fact.value}`
+      `${CATEGORY_LABELS[fact.category]} - Already specified in description\nDecision: ${fact.value}`
     );
     const answers = completedInterview.questions.map(question => {
       const answer = completedInterview.answers.find(item => item.questionId === question.id);
-      return `${CATEGORY_LABELS[question.category]} — ${question.question}\nAnswer: ${answer?.label || 'No preference'}`;
+      return `${CATEGORY_LABELS[question.category]} - ${question.question}\nAnswer: ${answer?.label || 'No preference'}`;
     });
     return [...facts, ...answers].join('\n\n');
   };
@@ -494,13 +494,13 @@ export const DomainIntentView: React.FC<DomainIntentViewProps> = ({ onOpenArchit
       return 'Describe the product in plain language.';
     }
     if (interview?.status === 'completed') {
-      return 'Brief and answers saved—edit here or open the architecture map.';
+      return 'Brief and answers saved - edit here or open the architecture map.';
     }
     if (interview?.status === 'in_progress') {
       return 'One choice per question; Blueprint recommends a stack from your answers.';
     }
     if (pinBuildQuestionsBesideBrief) {
-      return 'Brief ready—start build questions when you are.';
+      return 'Brief ready - start build questions when you are.';
     }
     return 'Add a brief, then answer build questions.';
   }, [showArchitectureSection, interview?.status, pinBuildQuestionsBesideBrief]);
@@ -654,7 +654,7 @@ export const DomainIntentView: React.FC<DomainIntentViewProps> = ({ onOpenArchit
             <div className={`mb-5 rounded-xl border px-4 py-3 ${border} ${inner}`}>
               <p className={`text-xs ${titleText}`}>Seeded from your one-line idea</p>
               <p className={`mt-1 text-[13px] leading-relaxed ${muted}`}>
-                &ldquo;{spec.initialOneLineIdea}&rdquo; — expand it below or polish with AI when you&apos;re ready.
+                &ldquo;{spec.initialOneLineIdea}&rdquo; - expand it below or polish with AI when you&apos;re ready.
               </p>
               <button
                 type="button"

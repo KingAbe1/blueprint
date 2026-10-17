@@ -167,7 +167,7 @@ export function recommendFrameworkFromText(projectName: string, description: str
     whyReasons: [
       'Instant development feedback with sub-second hot module replacement.',
       'Easily connects to serverless backends like Supabase, Firebase, or custom REST APIs.',
-      'Zero server maintenance — host on any global CDN for free with zero cold starts.',
+      'Zero server maintenance - host on any global CDN for free with zero cold starts.',
     ],
     bestFor: 'Interactive dashboards, client portals, and responsive tools',
     isRecommended: recommendations.length === 0,

@@ -245,7 +245,7 @@ export function evaluateFunctionComplexityFinding(
   return {
     title: 'Oversized function',
     priority,
-    detail: `${name} spans ${logicalLineCount} logical lines (${lineSpan} total). Effective complexity is ${effectiveComplexity}, which is moderate—consider splitting by responsibility if the function mixes formatting, I/O, and business rules.`,
+    detail: `${name} spans ${logicalLineCount} logical lines (${lineSpan} total). Effective complexity is ${effectiveComplexity}, which is moderate - consider splitting by responsibility if the function mixes formatting, I/O, and business rules.`,
     evidenceExtra,
   };
 }

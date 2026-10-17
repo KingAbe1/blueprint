@@ -237,7 +237,7 @@ ${nextJs ? `\n${nextJsHandoffArchitectureSection()}\n` : ''}
 
 Build vertical, demonstrable slices. Do not build every database or infrastructure layer before proving a complete user journey.
 
-## Milestone 0 — Foundation and walking skeleton
+## Milestone 0 - Foundation and walking skeleton
 
 **Goal:** Prove the client, application layer, data store, automated checks, and deployment path work together.
 
@@ -249,7 +249,7 @@ ${nextJs ? nextJsMilestoneZeroBullets() : `- Establish the repository structure 
 
 **Exit criteria:** A small end-to-end feature is testable locally and deployable through the selected release path.
 
-${modules.map((module, index) => `## Milestone ${index + 1} — ${module}
+${modules.map((module, index) => `## Milestone ${index + 1} - ${module}
 
 **Goal:** Deliver the smallest production-usable ${module.toLowerCase()} capability.
 
@@ -263,14 +263,14 @@ ${modules.map((module, index) => `## Milestone ${index + 1} — ${module}
 
 **Exit criteria:** The capability works through the real product interface, persists correctly, and satisfies its acceptance criteria.
 `).join('\n')}
-## Milestone ${modules.length + 1} — Integration hardening
+## Milestone ${modules.length + 1} - Integration hardening
 
 - Validate ${integrations} using test or sandbox accounts.
 - Handle timeouts, retries, duplicate events, and reconciliation.
 - Confirm secrets are stored outside the repository.
 - Exercise critical workflows when an external provider is unavailable.
 
-## Milestone ${modules.length + 2} — Release readiness
+## Milestone ${modules.length + 2} - Release readiness
 
 - Complete security and privacy review for the documented risk level.
 - Verify monitoring, alerting, backups, restore procedures, and rollback.

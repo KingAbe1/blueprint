@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# Blueprint Studio — open the Vite dev server in a standalone app window (macOS)
+# Blueprint Studio - open the Vite dev server in a standalone app window (macOS)
 PORT=5173
 URL="http://localhost:$PORT"
 
