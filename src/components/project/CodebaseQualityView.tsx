@@ -9,6 +9,7 @@ import { AIReviewPanel } from './AIReviewPanel';
 import { DependencySecurityPanel } from './DependencySecurityPanel';
 import { QualityHealthSummary } from './QualityHealthSummary';
 import { useCodebaseWorkspace } from '../../context/CodebaseWorkspaceContext';
+import { pathsFromQualityFinding } from '../../services/qualityReviewSourceService';
 import {
   overviewBorderClass,
   overviewDivideClass,
@@ -33,12 +34,7 @@ interface ParsedFindingInfo {
 }
 
 function qualityReviewPathFromFinding(finding: QualityFinding): string | undefined {
-  if (finding.location?.path) return finding.location.path;
-  for (const evidence of finding.evidence) {
-    const match = evidence.match(/^(.*?):\d+(?:[–-]\d+)?$/);
-    if (match?.[1]) return match[1];
-  }
-  return undefined;
+  return pathsFromQualityFinding(finding)[0];
 }
 
 function parseFindingInfo(finding: QualityFinding): ParsedFindingInfo {

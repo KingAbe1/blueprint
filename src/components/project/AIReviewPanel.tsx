@@ -1,10 +1,12 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { CheckCircle2, Loader2, Search } from 'lucide-react';
+import { CheckCircle2, ChevronDown, FileCheck2, FileStack, Loader2, Search } from 'lucide-react';
 import { useAI } from '../../context/AIContext';
 import { useTheme } from '../../context/ThemeContext';
 import {
+  getAllFindingLinkedReviewPaths,
   getSuggestedAIReviewPaths,
   runQualityAIReview,
+  type AIReviewCodeSnippet,
   type AIReviewFinding,
   type AIReviewResult,
 } from '../../services/aiQualityReviewService';
@@ -27,7 +29,17 @@ interface AIReviewPanelProps {
   onFocusHandled?: () => void;
 }
 
-type ReviewStep = 1 | 2 | 3;
+const AI_REVIEW_FILE_LIST_PAGE = 100;
+
+function aiReviewRunButtonClass(isDark: boolean): string {
+  const base =
+    'inline-flex w-full items-center justify-center gap-2 rounded-lg border px-4 py-2.5 text-[13px] font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-45';
+  return `${base} ${
+    isDark
+      ? 'border-blue-500/35 bg-blue-500/[0.12] text-blue-100 hover:border-blue-500/45 hover:bg-blue-500/20'
+      : 'border-blue-600/15 bg-blue-600 text-white hover:bg-blue-700 shadow-[0_1px_2px_rgba(37,99,235,0.2)]'
+  }`;
+}
 
 function aiSeverityEmphasis(severity: AIReviewFinding['severity']): OverviewEmphasis {
   if (severity === 'high') return 'critical';
@@ -63,21 +75,37 @@ export const AIReviewPanel: React.FC<AIReviewPanelProps> = ({
   const [aiReviewFiles, setAIReviewFiles] = useState<QualityReviewSourceFile[]>([]);
   const [aiReviewResult, setAIReviewResult] = useState<AIReviewResult | null>(null);
   const [aiReviewError, setAIReviewError] = useState<string | null>(null);
-  const [isPreparingAIReview, setIsPreparingAIReview] = useState(false);
   const [isRunningAIReview, setIsRunningAIReview] = useState(false);
+  const [reviewPhase, setReviewPhase] = useState<'idle' | 'reading' | 'reviewing'>('idle');
   const [activeFocusNote, setActiveFocusNote] = useState<string | undefined>();
   const [selectedResultIndex, setSelectedResultIndex] = useState(0);
   const [showResults, setShowResults] = useState(false);
-  const [expandedPreviewPath, setExpandedPreviewPath] = useState<string | null>(null);
+  const [showSentPayload, setShowSentPayload] = useState(false);
+  const [expandedPayloadPath, setExpandedPayloadPath] = useState<string | null>(null);
+  const [fileListLimit, setFileListLimit] = useState(AI_REVIEW_FILE_LIST_PAGE);
 
-  const suggestedPaths = useMemo(() => getSuggestedAIReviewPaths(analysis, 6), [analysis]);
-  const busy = isPreparingAIReview || isRunningAIReview;
+  const allFindingLinkedPaths = useMemo(() => getAllFindingLinkedReviewPaths(analysis), [analysis]);
+  const suggestedPaths = useMemo(() => getSuggestedAIReviewPaths(analysis), [analysis]);
+  const suggestedButtonLabel =
+    allFindingLinkedPaths.length > suggestedPaths.length
+      ? `Suggested (${suggestedPaths.length} of ${allFindingLinkedPaths.length})`
+      : `Suggested (${suggestedPaths.length})`;
+  const busy = isRunningAIReview;
 
-  const step: ReviewStep = aiReviewResult ? 3 : aiReviewFiles.length ? 2 : 1;
-
-  const matchingAIReviewCandidates = aiReviewCandidates.filter(path =>
-    path.toLowerCase().includes(aiReviewSearch.trim().toLowerCase()),
+  const matchingAIReviewCandidates = useMemo(
+    () =>
+      aiReviewCandidates.filter(path =>
+        path.toLowerCase().includes(aiReviewSearch.trim().toLowerCase()),
+      ),
+    [aiReviewCandidates, aiReviewSearch],
   );
+
+  const visibleFileCandidates = useMemo(
+    () => matchingAIReviewCandidates.slice(0, fileListLimit),
+    [matchingAIReviewCandidates, fileListLimit],
+  );
+
+  const fileListHasMore = fileListLimit < matchingAIReviewCandidates.length;
 
   const resultListItems = useMemo(() => {
     if (!aiReviewResult) return [];
@@ -107,7 +135,20 @@ export const AIReviewPanel: React.FC<AIReviewPanelProps> = ({
     setActiveFocusNote(undefined);
     setShowResults(false);
     setSelectedResultIndex(0);
+    setFileListLimit(AI_REVIEW_FILE_LIST_PAGE);
   }, [analysis.scannedAt]);
+
+  useEffect(() => {
+    if (showResults || !aiSelectedPaths.length) return;
+    let maxIndex = -1;
+    for (const path of aiSelectedPaths) {
+      const index = matchingAIReviewCandidates.indexOf(path);
+      if (index > maxIndex) maxIndex = index;
+    }
+    if (maxIndex < 0) return;
+    const neededLimit = Math.ceil((maxIndex + 1) / AI_REVIEW_FILE_LIST_PAGE) * AI_REVIEW_FILE_LIST_PAGE;
+    setFileListLimit(current => (current >= neededLimit ? current : neededLimit));
+  }, [aiSelectedPaths, matchingAIReviewCandidates, showResults]);
 
   useEffect(() => {
     if (!focusPaths?.length) return;
@@ -127,7 +168,13 @@ export const AIReviewPanel: React.FC<AIReviewPanelProps> = ({
   useEffect(() => {
     if (aiReviewResult) {
       setShowResults(true);
-      setSelectedResultIndex(0);
+      const firstDetailIndex =
+        aiReviewResult.staticFindingNotes.length > 0
+          ? 1
+          : aiReviewResult.findings.length > 0
+            ? 1
+            : 0;
+      setSelectedResultIndex(firstDetailIndex);
     }
   }, [aiReviewResult]);
 
@@ -158,55 +205,29 @@ export const AIReviewPanel: React.FC<AIReviewPanelProps> = ({
     setSelectedResultIndex(0);
   };
 
-  const prepareAIReview = async () => {
-    setIsPreparingAIReview(true);
+  const runAIReviewFromSelection = async () => {
+    if (!isAiConfigured || !aiSelectedPaths.length) return;
+    setIsRunningAIReview(true);
+    setReviewPhase('reading');
     setAIReviewError(null);
     setAIReviewResult(null);
     setShowResults(false);
+    setShowSentPayload(false);
     try {
       const files = await readQualityReviewSources(analysis, aiSelectedPaths);
-      if (!files.length) throw new Error('None of the selected files could be read. Re-analyze the codebase and try again.');
+      if (!files.length) {
+        throw new Error('None of the selected files could be read. Re-analyze the codebase and try again.');
+      }
       setAIReviewFiles(files);
-      setExpandedPreviewPath(files[0]?.path ?? null);
-    } catch (error) {
-      setAIReviewError(error instanceof Error ? error.message : 'Could not prepare selected files for review.');
-    } finally {
-      setIsPreparingAIReview(false);
-    }
-  };
-
-  const runAIReview = async () => {
-    if (!isAiConfigured || !aiReviewFiles.length) return;
-    setIsRunningAIReview(true);
-    setAIReviewError(null);
-    try {
-      setAIReviewResult(await runQualityAIReview(activeConfig, analysis, aiReviewFiles, activeFocusNote));
+      setReviewPhase('reviewing');
+      setAIReviewResult(await runQualityAIReview(activeConfig, analysis, files, activeFocusNote));
     } catch (error) {
       setAIReviewError(error instanceof Error ? error.message : 'The AI review failed. Please try again.');
     } finally {
       setIsRunningAIReview(false);
+      setReviewPhase('idle');
     }
   };
-
-  const stepClass = (n: ReviewStep) => {
-    const active = step === n;
-    const done = step > n;
-    return active
-      ? isDark
-        ? 'text-slate-100'
-        : 'text-slate-900'
-      : done
-        ? isDark
-          ? 'text-slate-400'
-          : 'text-slate-600'
-        : muted;
-  };
-
-  const actionButtonClass = `inline-flex items-center gap-2 rounded-lg border px-3.5 py-2 text-xs font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-45 ${
-    isDark
-      ? 'border-blue-500/30 bg-blue-500/10 text-blue-300 hover:bg-blue-500/20'
-      : 'border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100'
-  }`;
 
   const textAction = isDark ? 'text-xs font-medium text-blue-400 hover:text-blue-300' : 'text-xs font-medium text-blue-600 hover:text-blue-800';
 
@@ -217,8 +238,8 @@ export const AIReviewPanel: React.FC<AIReviewPanelProps> = ({
           <div>
             <h2 className={`text-[15px] font-medium ${titleText}`}>AI code review</h2>
             <p className={`mt-0.5 max-w-2xl text-[13px] ${muted}`}>
-              Optional second opinion on files you choose. Validates static findings and adds logic or security notes — does
-              not change your score.
+              Optional second opinion on files you choose. Builds on the static scan already in this project — does not
+              change your score.
             </p>
           </div>
           {isAiConfigured ? (
@@ -228,20 +249,6 @@ export const AIReviewPanel: React.FC<AIReviewPanelProps> = ({
           ) : null}
         </div>
 
-        {isAiConfigured && aiReviewCandidates.length > 0 ? (
-          <ol className={`mt-4 flex flex-wrap gap-x-6 gap-y-1 text-[11px] ${border} border-t pt-3`}>
-            <li className={stepClass(1)}>
-              <span className="font-medium">1.</span> Select files
-              {aiSelectedPaths.length ? ` (${aiSelectedPaths.length}/6)` : ''}
-            </li>
-            <li className={stepClass(2)}>
-              <span className="font-medium">2.</span> Local preview
-            </li>
-            <li className={stepClass(3)}>
-              <span className="font-medium">3.</span> AI review
-            </li>
-          </ol>
-        ) : null}
       </header>
 
       {!isAiConfigured ? (
@@ -258,50 +265,80 @@ export const AIReviewPanel: React.FC<AIReviewPanelProps> = ({
       ) : (
         <>
           <div className={`border-b px-5 py-3 sm:px-6 ${border}`}>
-            <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-              <div className="relative min-w-0 flex-1 lg:max-w-md">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
+              <div className="relative min-w-0 w-full flex-1 sm:max-w-lg">
                 <Search className={`pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 ${muted}`} />
                 <input
                   type="search"
                   value={aiReviewSearch}
-                  onChange={e => setAIReviewSearch(e.target.value)}
-                  placeholder="Filter paths…"
+                  onChange={e => {
+                    setAIReviewSearch(e.target.value);
+                    setFileListLimit(AI_REVIEW_FILE_LIST_PAGE);
+                  }}
+                  placeholder={
+                    showResults && aiReviewResult
+                      ? 'Filter disabled while viewing results'
+                      : 'Filter paths…'
+                  }
                   disabled={showResults && Boolean(aiReviewResult)}
-                  className={`w-full rounded-lg border py-1.5 pl-8 pr-3 text-xs outline-none disabled:opacity-50 ${
+                  className={`w-full rounded-lg border py-1.5 pl-8 pr-8 text-xs outline-none disabled:opacity-50 ${
                     isDark
                       ? 'border-white/[0.08] bg-black/20 text-slate-100 placeholder:text-slate-500 focus:border-blue-500/50'
                       : 'border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:border-blue-400'
                   }`}
                 />
-              </div>
-              <div className="flex flex-wrap items-center gap-2">
-                {showResults && aiReviewResult ? (
-                  <button type="button" onClick={() => setShowResults(false)} className={textAction}>
-                    Change files
+                {aiReviewSearch && !(showResults && aiReviewResult) ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAIReviewSearch('');
+                      setFileListLimit(AI_REVIEW_FILE_LIST_PAGE);
+                    }}
+                    className={`absolute right-2 top-1/2 -translate-y-1/2 text-xs ${muted}`}
+                    aria-label="Clear filter"
+                  >
+                    ✕
                   </button>
-                ) : (
-                  <>
-                    <button type="button" onClick={applySuggestedPaths} disabled={busy} className={textAction}>
-                      Use suggested ({suggestedPaths.length})
-                    </button>
-                    {aiSelectedPaths.length > 0 ? (
+                ) : null}
+              </div>
+              {showResults && aiReviewResult ? (
+                <button type="button" onClick={() => setShowResults(false)} className={`shrink-0 ${textAction}`}>
+                  Change files
+                </button>
+              ) : (
+                <div className="flex shrink-0 flex-wrap items-center justify-end gap-2 sm:ml-auto">
+                  {aiSelectedPaths.length > 0 ? (
+                    <>
+                      <span className={`text-[11px] tabular-nums ${muted}`}>
+                        {aiSelectedPaths.length}/6 selected
+                      </span>
                       <button type="button" onClick={() => setAISelectedPaths([])} disabled={busy} className={`text-xs ${muted}`}>
                         Clear selection
                       </button>
-                    ) : null}
-                  </>
-                )}
-              </div>
+                    </>
+                  ) : null}
+                  <button
+                    type="button"
+                    onClick={applySuggestedPaths}
+                    disabled={busy || suggestedPaths.length === 0}
+                    className={textAction}
+                    title={
+                      suggestedPaths.length === 0
+                        ? 'No file paths in static findings'
+                        : allFindingLinkedPaths.length > suggestedPaths.length
+                          ? `Select up to ${suggestedPaths.length} files for AI review (highest-priority finding paths first). ${allFindingLinkedPaths.length - suggestedPaths.length} more finding-linked files are not included due to the review size limit.`
+                          : 'Select files linked to static findings (highest priority first)'
+                    }
+                  >
+                    {suggestedButtonLabel}
+                  </button>
+                </div>
+              )}
             </div>
-            <p className={`mt-2 text-xs tabular-nums ${muted}`}>
-              {showResults && aiReviewResult
-                ? `${resultListItems.length} review sections`
-                : `${matchingAIReviewCandidates.length} paths · ${aiSelectedPaths.length} of 6 selected`}
-            </p>
           </div>
 
           <div className={`grid grid-cols-1 lg:grid-cols-12 lg:divide-x ${divide}`}>
-            <div className="lg:col-span-5 max-h-[480px] overflow-y-auto">
+            <div className="lg:col-span-5 min-h-[280px] max-h-[min(560px,55vh)] overflow-y-auto overscroll-contain">
               {showResults && aiReviewResult ? (
                 <ul className={`divide-y ${divide}`}>
                   {resultListItems.map((item, idx) => {
@@ -312,12 +349,12 @@ export const AIReviewPanel: React.FC<AIReviewPanelProps> = ({
                           <button
                             type="button"
                             onClick={() => setSelectedResultIndex(idx)}
-                            className={`w-full py-3.5 pr-5 text-left sm:pr-6 ${
+                            className={`w-full py-4 pr-5 pl-5 text-left sm:pr-6 sm:pl-6 ${
                               isSelected ? (isDark ? 'bg-white/[0.04]' : 'bg-slate-50') : isDark ? 'hover:bg-white/[0.02]' : 'hover:bg-slate-50/80'
                             } ${overviewRowEmphasis(isDark, isSelected ? 'info' : 'neutral')}`}
                           >
                             <p className={`text-[13px] font-medium ${titleText}`}>Summary</p>
-                            <p className={`mt-1 truncate text-xs ${muted}`}>Overview and strengths</p>
+                            <p className={`mt-1.5 text-xs ${muted}`}>Overview and strengths</p>
                           </button>
                         </li>
                       );
@@ -329,12 +366,13 @@ export const AIReviewPanel: React.FC<AIReviewPanelProps> = ({
                           <button
                             type="button"
                             onClick={() => setSelectedResultIndex(idx)}
-                            className={`w-full py-3.5 pr-5 text-left sm:pr-6 ${
+                            className={`w-full py-4 pr-5 pl-5 text-left sm:pr-6 sm:pl-6 ${
                               isSelected ? (isDark ? 'bg-white/[0.04]' : 'bg-slate-50') : isDark ? 'hover:bg-white/[0.02]' : 'hover:bg-slate-50/80'
                             } ${overviewRowEmphasis(isDark, isSelected ? 'info' : staticAssessmentLabel(note.assessment))}`}
                           >
                             <p className={`text-[13px] leading-snug ${titleText}`}>{note.staticTitle}</p>
-                            <p className={`mt-1 text-xs capitalize ${overviewSeverityLabel(isDark, note.assessment === 'disagree' ? 'critical' : note.assessment === 'nuance' ? 'warning' : 'optimization')}`}>
+                            <p className={`mt-1.5 line-clamp-2 text-xs leading-relaxed ${muted}`}>{note.whyFlagged}</p>
+                            <p className={`mt-1.5 text-[11px] capitalize ${overviewSeverityLabel(isDark, note.assessment === 'disagree' ? 'critical' : note.assessment === 'nuance' ? 'warning' : 'optimization')}`}>
                               Static · {note.assessment}
                             </p>
                           </button>
@@ -347,7 +385,7 @@ export const AIReviewPanel: React.FC<AIReviewPanelProps> = ({
                         <button
                           type="button"
                           onClick={() => setSelectedResultIndex(idx)}
-                          className={`w-full py-3.5 pr-5 text-left sm:pr-6 ${
+                          className={`w-full py-4 pr-5 pl-5 text-left sm:pr-6 sm:pl-6 ${
                             isSelected ? (isDark ? 'bg-white/[0.04]' : 'bg-slate-50') : isDark ? 'hover:bg-white/[0.02]' : 'hover:bg-slate-50/80'
                           } ${overviewRowEmphasis(isDark, isSelected ? 'info' : aiSeverityEmphasis(finding.severity))}`}
                         >
@@ -357,7 +395,8 @@ export const AIReviewPanel: React.FC<AIReviewPanelProps> = ({
                               {finding.severity}
                             </span>
                           </div>
-                          <p className={`mt-1 truncate font-mono text-xs ${muted}`}>
+                          <p className={`mt-1.5 line-clamp-2 text-xs leading-relaxed ${muted}`}>{finding.rationale}</p>
+                          <p className={`mt-1.5 break-all font-mono text-[11px] leading-relaxed ${muted}`}>
                             {finding.path}
                             {finding.line ? `:${finding.line}` : ''}
                           </p>
@@ -367,8 +406,9 @@ export const AIReviewPanel: React.FC<AIReviewPanelProps> = ({
                   })}
                 </ul>
               ) : (
+                <>
                 <ul className={`divide-y ${divide}`}>
-                  {matchingAIReviewCandidates.slice(0, 100).map(path => {
+                  {visibleFileCandidates.map(path => {
                     const selected = aiSelectedPaths.includes(path);
                     const disabled = !selected && aiSelectedPaths.length >= 6;
                     const fileName = path.split('/').pop() || path;
@@ -378,12 +418,12 @@ export const AIReviewPanel: React.FC<AIReviewPanelProps> = ({
                           type="button"
                           disabled={disabled}
                           onClick={() => toggleAIReviewPath(path)}
-                          className={`w-full py-3.5 pr-5 text-left transition-colors sm:pr-6 disabled:cursor-not-allowed disabled:opacity-40 ${
+                          className={`w-full py-4 pr-5 pl-5 text-left transition-colors sm:pr-6 sm:pl-6 disabled:cursor-not-allowed disabled:opacity-40 ${
                             selected ? (isDark ? 'bg-white/[0.04]' : 'bg-slate-50') : isDark ? 'hover:bg-white/[0.02]' : 'hover:bg-slate-50/80'
                           } ${overviewRowEmphasis(isDark, selected ? 'info' : 'neutral')}`}
                         >
-                          <p className={`text-[13px] ${selected ? `font-medium ${titleText}` : titleText}`}>{fileName}</p>
-                          <p className={`mt-1 truncate font-mono text-xs ${muted}`} title={path}>
+                          <p className={`text-[13px] leading-snug ${selected ? `font-medium ${titleText}` : titleText}`}>{fileName}</p>
+                          <p className={`mt-2 break-all font-mono text-[11px] leading-relaxed ${muted}`} title={path}>
                             {path}
                           </p>
                         </button>
@@ -396,42 +436,58 @@ export const AIReviewPanel: React.FC<AIReviewPanelProps> = ({
                     </li>
                   ) : null}
                 </ul>
+                {matchingAIReviewCandidates.length > 0 ? (
+                  <FileListPaginationFooter
+                    visibleCount={visibleFileCandidates.length}
+                    totalCount={matchingAIReviewCandidates.length}
+                    projectTotal={aiReviewSearch.trim() ? undefined : aiReviewCandidates.length}
+                    hasMore={fileListHasMore}
+                    pageSize={AI_REVIEW_FILE_LIST_PAGE}
+                    showAllEnabled={matchingAIReviewCandidates.length <= 500}
+                    busy={busy}
+                    isDark={isDark}
+                    muted={muted}
+                    border={border}
+                    onShowMore={() => setFileListLimit(limit => limit + AI_REVIEW_FILE_LIST_PAGE)}
+                    onShowAll={() => setFileListLimit(matchingAIReviewCandidates.length)}
+                  />
+                ) : null}
+                </>
               )}
             </div>
 
-            <div className="lg:col-span-7 max-h-[480px] overflow-y-auto px-5 py-4 sm:px-6 sm:py-5">
+            <div className="lg:col-span-7 min-h-[280px] max-h-[min(560px,55vh)] overflow-y-auto overscroll-contain px-5 py-4 sm:px-6 sm:py-5">
               {showResults && aiReviewResult && selectedResultItem ? (
                 <ResultDetailPane
                   item={selectedResultItem}
                   result={aiReviewResult}
-                  isDark={isDark}
-                  titleText={titleText}
-                  muted={muted}
-                  border={border}
-                  onReset={resetReview}
-                />
-              ) : (
-                <SetupDetailPane
-                  aiSelectedPaths={aiSelectedPaths}
-                  aiReviewFiles={aiReviewFiles}
-                  activeFocusNote={activeFocusNote}
-                  expandedPreviewPath={expandedPreviewPath}
-                  setExpandedPreviewPath={setExpandedPreviewPath}
-                  busy={busy}
-                  isPreparingAIReview={isPreparingAIReview}
-                  isRunningAIReview={isRunningAIReview}
-                  aiReviewError={aiReviewError}
-                  actionButtonClass={actionButtonClass}
-                  textAction={textAction}
+                  sentFiles={aiReviewFiles}
+                  showSentPayload={showSentPayload}
+                  setShowSentPayload={setShowSentPayload}
+                  expandedPayloadPath={expandedPayloadPath}
+                  setExpandedPayloadPath={setExpandedPayloadPath}
                   isDark={isDark}
                   titleText={titleText}
                   muted={muted}
                   border={border}
                   divide={divide}
-                  onPrepare={() => void prepareAIReview()}
-                  onRun={() => void runAIReview()}
-                  onRefreshPreview={() => void prepareAIReview()}
                   onReset={resetReview}
+                />
+              ) : (
+                <SetupDetailPane
+                  aiSelectedPaths={aiSelectedPaths}
+                  activeFocusNote={activeFocusNote}
+                  busy={busy}
+                  reviewPhase={reviewPhase}
+                  aiReviewError={aiReviewError}
+                  providerName={activeConfig.name}
+                  modelName={activeConfig.model}
+                  isDark={isDark}
+                  titleText={titleText}
+                  muted={muted}
+                  border={border}
+                  divide={divide}
+                  onRun={() => void runAIReviewFromSelection()}
                 />
               )}
             </div>
@@ -442,151 +498,413 @@ export const AIReviewPanel: React.FC<AIReviewPanelProps> = ({
   );
 };
 
-function SetupDetailPane({
-  aiSelectedPaths,
-  aiReviewFiles,
-  activeFocusNote,
-  expandedPreviewPath,
-  setExpandedPreviewPath,
-  busy,
-  isPreparingAIReview,
-  isRunningAIReview,
-  aiReviewError,
-  actionButtonClass,
-  textAction,
+function SentPayloadDetails({
+  files,
+  showSentPayload,
+  setShowSentPayload,
+  expandedPayloadPath,
+  setExpandedPayloadPath,
   isDark,
   titleText,
   muted,
   border,
   divide,
-  onPrepare,
-  onRun,
-  onRefreshPreview,
-  onReset,
 }: {
-  aiSelectedPaths: string[];
-  aiReviewFiles: QualityReviewSourceFile[];
-  activeFocusNote?: string;
-  expandedPreviewPath: string | null;
-  setExpandedPreviewPath: (path: string | null) => void;
-  busy: boolean;
-  isPreparingAIReview: boolean;
-  isRunningAIReview: boolean;
-  aiReviewError: string | null;
-  actionButtonClass: string;
-  textAction: string;
+  files: QualityReviewSourceFile[];
+  showSentPayload: boolean;
+  setShowSentPayload: (open: boolean) => void;
+  expandedPayloadPath: string | null;
+  setExpandedPayloadPath: (path: string | null) => void;
   isDark: boolean;
   titleText: string;
   muted: string;
   border: string;
   divide: string;
-  onPrepare: () => void;
-  onRun: () => void;
-  onRefreshPreview: () => void;
-  onReset: () => void;
 }) {
-  if (!aiSelectedPaths.length) {
-    return (
-      <div className={`flex min-h-[200px] flex-col items-center justify-center text-center ${muted}`}>
-        <p className={`text-sm font-medium ${titleText}`}>Select source files</p>
-        <p className="mt-0.5 max-w-sm text-xs">Pick up to six paths from the list, or use suggested files from static findings.</p>
-      </div>
-    );
-  }
+  if (!files.length) return null;
+  const chars = files.reduce((n, f) => n + f.content.length, 0);
+  return (
+    <div className="mt-3">
+      <button
+        type="button"
+        onClick={() => setShowSentPayload(!showSentPayload)}
+        className={`text-xs font-medium ${isDark ? 'text-blue-400 hover:text-blue-300' : 'text-blue-600 hover:text-blue-800'}`}
+      >
+        {showSentPayload ? 'Hide' : 'Show'} source sent to AI ({chars.toLocaleString()} chars)
+      </button>
+      {showSentPayload ? (
+        <ul className={`mt-2 divide-y rounded-lg border ${divide} ${border}`}>
+          {files.map(file => {
+            const open = expandedPayloadPath === file.path;
+            return (
+              <li key={file.path}>
+                <button
+                  type="button"
+                  onClick={() => setExpandedPayloadPath(open ? null : file.path)}
+                  className={`flex w-full items-center justify-between gap-2 px-4 py-2.5 text-left text-xs ${isDark ? 'hover:bg-white/[0.03]' : 'hover:bg-slate-50'}`}
+                >
+                  <span className={`break-all font-mono ${titleText}`}>{file.path}</span>
+                  <span className={`shrink-0 ${muted}`}>{open ? 'Hide' : 'View'}</span>
+                </button>
+                {open ? (
+                  <pre
+                    className={`max-h-44 overflow-auto border-t px-4 py-2 font-mono text-[11px] leading-relaxed ${border} ${
+                      isDark ? 'bg-black/25 text-slate-300' : 'bg-slate-950 text-slate-300'
+                    }`}
+                  >
+                    {file.content}
+                  </pre>
+                ) : null}
+              </li>
+            );
+          })}
+        </ul>
+      ) : null}
+    </div>
+  );
+}
 
-  const previewChars = aiReviewFiles.reduce((n, f) => n + f.content.length, 0);
+function AIReviewSelectionPlaceholder({
+  isDark,
+  titleText,
+  muted,
+  border,
+}: {
+  isDark: boolean;
+  titleText: string;
+  muted: string;
+  border: string;
+}) {
+  const steps = [
+    'Select up to six paths from the list on the left.',
+    'Or use Suggested to pick files linked to static findings.',
+  ];
 
   return (
-    <div className="space-y-4">
-      <div>
-        <p className={`text-xs ${muted}`}>Review setup</p>
-        <h3 className={`mt-0.5 text-[15px] font-medium ${titleText}`}>
-          {aiReviewFiles.length ? 'Preview ready' : `${aiSelectedPaths.length} file${aiSelectedPaths.length === 1 ? '' : 's'} selected`}
-        </h3>
-        <p className={`mt-1 text-[13px] leading-relaxed ${muted}`}>
-          Files are read locally first. Nothing is sent to your AI provider until you confirm below.
-        </p>
-      </div>
-
-      {activeFocusNote ? (
-        <div className={`rounded-lg border px-3 py-2.5 text-[13px] ${border} ${overviewRowEmphasis(isDark, 'info')}`}>
-          <p className={`text-xs font-medium ${titleText}`}>Focus</p>
-          <p className={`mt-1 text-xs leading-relaxed ${muted}`}>{activeFocusNote}</p>
+    <div className="flex min-h-[min(480px,52vh)] flex-col justify-center px-1 py-6">
+      <div
+        className={`mx-auto w-full max-w-md rounded-2xl border border-dashed px-6 py-8 sm:px-8 ${border} ${
+          isDark ? 'border-white/[0.08] bg-white/[0.015]' : 'border-slate-200/90 bg-slate-50/40'
+        }`}
+      >
+        <div className="mx-auto mb-6 flex max-w-[240px] flex-col items-start gap-2 opacity-[0.32]" aria-hidden>
+          {(['w-full', 'w-[88%]', 'w-[72%]'] as const).map(widthClass => (
+            <div
+              key={widthClass}
+              className={`flex ${widthClass} items-center gap-2.5 rounded-lg border px-3 py-2 ${border} ${
+                isDark ? 'border-white/[0.06] bg-white/[0.03]' : 'border-slate-200/80 bg-white'
+              }`}
+            >
+              <div className={`h-2 w-2 shrink-0 rounded-full ${isDark ? 'bg-white/20' : 'bg-slate-300'}`} />
+              <div className={`h-1.5 min-w-0 flex-1 rounded-full ${isDark ? 'bg-white/10' : 'bg-slate-200'}`} />
+            </div>
+          ))}
         </div>
-      ) : null}
 
-      <ul className={`divide-y rounded-lg border ${divide} ${border}`}>
-        {(aiReviewFiles.length ? aiReviewFiles.map(f => f.path) : aiSelectedPaths).map(path => (
-          <li key={path} className="px-3 py-2 font-mono text-[11px] truncate" title={path}>
-            {path}
-          </li>
-        ))}
-      </ul>
-
-      {aiReviewFiles.length > 0 ? (
-        <div>
-          <p className={`text-xs ${muted}`}>
-            Preview · {previewChars.toLocaleString()} characters
-            {aiReviewFiles.some(f => f.truncated) ? ' · some files clipped to review limits' : ''}
+        <div className="text-center">
+          <div
+            className={`mx-auto flex h-11 w-11 items-center justify-center rounded-full border ${
+              isDark ? 'border-white/[0.08] bg-white/[0.04] text-slate-400' : 'border-slate-200/90 bg-white text-slate-600 shadow-sm'
+            }`}
+          >
+            <FileStack className="h-5 w-5" strokeWidth={1.75} />
+          </div>
+          <p className={`mt-4 text-[15px] font-medium ${titleText}`}>No files selected</p>
+          <p className={`mx-auto mt-1.5 max-w-[18rem] text-[13px] leading-relaxed ${muted}`}>
+            Your queue and <span className={titleText}>Run AI review</span> action appear here after you choose files.
           </p>
-          <ul className={`mt-2 divide-y rounded-lg border ${divide} ${border}`}>
-            {aiReviewFiles.map(file => {
-              const open = expandedPreviewPath === file.path;
-              return (
-                <li key={file.path}>
-                  <button
-                    type="button"
-                    onClick={() => setExpandedPreviewPath(open ? null : file.path)}
-                    className={`flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-xs ${isDark ? 'hover:bg-white/[0.03]' : 'hover:bg-slate-50'}`}
-                  >
-                    <span className={`truncate font-mono ${titleText}`}>{file.path}</span>
-                    <span className={`shrink-0 ${muted}`}>{open ? 'Hide' : 'Show'}</span>
-                  </button>
-                  {open ? (
-                    <pre
-                      className={`max-h-44 overflow-auto border-t px-3 py-2 font-mono text-[11px] leading-relaxed ${border} ${
-                        isDark ? 'bg-black/25 text-slate-300' : 'bg-slate-950 text-slate-300'
-                      }`}
-                    >
-                      {file.content}
-                    </pre>
-                  ) : null}
-                </li>
-              );
-            })}
-          </ul>
         </div>
-      ) : null}
 
-      {aiReviewError ? (
-        <p role="alert" className="rounded-lg border border-rose-500/20 bg-rose-500/10 px-3 py-2 text-xs text-rose-500">
-          {aiReviewError}
-        </p>
-      ) : null}
+        <ol className={`mt-7 space-y-2.5 border-t pt-6 ${border}`}>
+          {steps.map((text, index) => (
+            <li key={index} className="flex gap-3 text-left">
+              <span
+                className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[11px] font-medium tabular-nums ${
+                  isDark ? 'bg-white/[0.06] text-slate-400' : 'bg-slate-100 text-slate-600'
+                }`}
+              >
+                {index + 1}
+              </span>
+              <p className={`min-w-0 pt-0.5 text-xs leading-relaxed ${muted}`}>{text}</p>
+            </li>
+          ))}
+        </ol>
+      </div>
+    </div>
+  );
+}
 
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 pt-1">
-        {aiReviewFiles.length ? (
-          <>
-            <button type="button" onClick={onRun} disabled={busy} className={actionButtonClass}>
-              {isRunningAIReview ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
-              {isRunningAIReview ? 'Reviewing…' : 'Send for AI review'}
-            </button>
-            <button type="button" onClick={onRefreshPreview} disabled={busy} className={textAction}>
-              Refresh preview
-            </button>
-          </>
-        ) : (
-          <button type="button" onClick={onPrepare} disabled={busy} className={actionButtonClass}>
-            {isPreparingAIReview ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
-            {isPreparingAIReview ? 'Preparing…' : 'Prepare local preview'}
-          </button>
-        )}
-        {aiReviewFiles.length ? (
-          <button type="button" onClick={onReset} disabled={busy} className={`text-xs ${muted}`}>
-            Clear preview
-          </button>
+function SetupDetailPane({
+  aiSelectedPaths,
+  activeFocusNote,
+  busy,
+  reviewPhase,
+  aiReviewError,
+  providerName,
+  modelName,
+  isDark,
+  titleText,
+  muted,
+  border,
+  divide,
+  onRun,
+}: {
+  aiSelectedPaths: string[];
+  activeFocusNote?: string;
+  busy: boolean;
+  reviewPhase: 'idle' | 'reading' | 'reviewing';
+  aiReviewError: string | null;
+  providerName: string;
+  modelName: string;
+  isDark: boolean;
+  titleText: string;
+  muted: string;
+  border: string;
+  divide: string;
+  onRun: () => void;
+}) {
+  if (!aiSelectedPaths.length) {
+    return <AIReviewSelectionPlaceholder isDark={isDark} titleText={titleText} muted={muted} border={border} />;
+  }
+
+  const runLabel =
+    reviewPhase === 'reading' ? 'Reading files…' : reviewPhase === 'reviewing' ? 'Reviewing…' : 'Run AI review';
+  const runHint =
+    reviewPhase === 'reading'
+      ? 'Reading source on this device — nothing sent yet.'
+      : reviewPhase === 'reviewing'
+        ? `${providerName} · ${modelName}`
+        : 'Local read first, then code and related static findings go to your AI provider.';
+
+  return (
+    <div className="flex min-h-[min(480px,52vh)] flex-col">
+      <div className="min-h-0 flex-1 space-y-4 pb-4">
+        <div className="flex items-baseline justify-between gap-3">
+          <div>
+            <p className={`text-xs ${muted}`}>Selected for review</p>
+            <h3 className={`mt-0.5 text-[15px] font-medium ${titleText}`}>
+              {aiSelectedPaths.length} file{aiSelectedPaths.length === 1 ? '' : 's'}
+            </h3>
+          </div>
+          <span className={`text-[11px] tabular-nums ${muted}`}>{aiSelectedPaths.length}/6</span>
+        </div>
+
+        {activeFocusNote ? (
+          <div className={`rounded-lg border px-3 py-2.5 ${border} ${overviewRowEmphasis(isDark, 'info')}`}>
+            <p className={`text-xs font-medium ${titleText}`}>Focus</p>
+            <p className={`mt-1 text-xs leading-relaxed ${muted}`}>{activeFocusNote}</p>
+          </div>
+        ) : null}
+
+        <ul className={`divide-y rounded-xl border ${divide} ${border}`}>
+          {aiSelectedPaths.map(path => {
+            const fileName = path.split('/').pop() || path;
+            return (
+              <li key={path} className="flex gap-3 px-4 py-3">
+                <FileCheck2 className={`mt-0.5 h-3.5 w-3.5 shrink-0 ${isDark ? 'text-blue-400/90' : 'text-blue-600'}`} />
+                <div className="min-w-0">
+                  <p className={`text-[13px] leading-snug ${titleText}`}>{fileName}</p>
+                  <p className={`mt-1 break-all font-mono text-[10px] leading-relaxed ${muted}`} title={path}>
+                    {path}
+                  </p>
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+
+        {aiReviewError ? (
+          <p role="alert" className="rounded-lg border border-rose-500/20 bg-rose-500/10 px-3 py-2 text-xs text-rose-500">
+            {aiReviewError}
+          </p>
         ) : null}
       </div>
+
+      <div
+        className={`sticky bottom-0 -mx-5 mt-auto space-y-3 border-t px-5 pt-4 pb-1 sm:-mx-6 sm:px-6 ${border} ${
+          isDark
+            ? 'bg-gradient-to-t from-[#131417] via-[#131417]/98 to-transparent'
+            : 'bg-gradient-to-t from-white via-white/98 to-transparent'
+        }`}
+      >
+        <p className={`text-center text-[11px] leading-relaxed ${muted}`}>{runHint}</p>
+        <button type="button" onClick={onRun} disabled={busy} className={aiReviewRunButtonClass(isDark)}>
+          {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+          {runLabel}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function FileListPaginationFooter({
+  visibleCount,
+  totalCount,
+  projectTotal,
+  hasMore,
+  pageSize,
+  showAllEnabled,
+  busy,
+  isDark,
+  muted,
+  border,
+  onShowMore,
+  onShowAll,
+}: {
+  visibleCount: number;
+  totalCount: number;
+  projectTotal?: number;
+  hasMore: boolean;
+  pageSize: number;
+  showAllEnabled: boolean;
+  busy: boolean;
+  isDark: boolean;
+  muted: string;
+  border: string;
+  onShowMore: () => void;
+  onShowAll: () => void;
+}) {
+  const remaining = totalCount - visibleCount;
+  const nextBatch = Math.min(pageSize, remaining);
+  const surface = isDark ? 'bg-[#0f1012]/80' : 'bg-slate-50/90';
+  const emphasis = isDark ? 'text-slate-200' : 'text-slate-800';
+
+  const headline = hasMore
+    ? `Showing ${visibleCount} of ${totalCount} paths in this list`
+    : totalCount === 1
+      ? '1 path in this list'
+      : `All ${totalCount} matching paths are visible`;
+
+  const helper = hasMore
+    ? null
+    : totalCount > pageSize
+      ? 'Use Filter paths above to narrow a long list.'
+      : projectTotal !== undefined && projectTotal > totalCount
+        ? `${projectTotal} reviewable paths in this project — filter to find one quickly.`
+        : null;
+
+  return (
+    <div className={`border-t px-5 py-4 sm:px-6 ${border} ${surface}`}>
+      <p className={`text-xs font-medium tabular-nums ${emphasis}`}>{headline}</p>
+      {hasMore ? (
+        <p className={`mt-1.5 text-[11px] leading-relaxed ${muted}`}>
+          All {totalCount} paths are already in your scan.{' '}
+          <span className={`font-medium tabular-nums ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>{remaining}</span>{' '}
+          are hidden only in this picker — show more below or filter by path.
+        </p>
+      ) : null}
+      {helper ? <p className={`mt-1.5 text-[11px] leading-relaxed ${muted}`}>{helper}</p> : null}
+
+      {hasMore ? (
+        <div className="mt-3 space-y-2">
+          <button
+            type="button"
+            disabled={busy}
+            onClick={onShowMore}
+            aria-label={`Show ${nextBatch} more paths in the list`}
+            className={`group flex w-full items-center justify-center gap-1.5 rounded-lg border py-2 text-xs font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
+              isDark
+                ? 'border-white/[0.08] bg-white/[0.03] text-slate-200 hover:border-white/[0.12] hover:bg-white/[0.06]'
+                : 'border-slate-200/90 bg-white text-slate-800 shadow-[0_1px_2px_rgba(15,23,42,0.04)] hover:border-slate-300 hover:bg-slate-50'
+            }`}
+          >
+            <ChevronDown className={`h-3.5 w-3.5 opacity-60 transition-transform group-hover:translate-y-0.5 ${muted}`} />
+            Show {nextBatch} more in list
+          </button>
+          {showAllEnabled ? (
+            <button
+              type="button"
+              disabled={busy}
+              onClick={onShowAll}
+              className={`mx-auto block text-[11px] transition-colors disabled:opacity-40 ${muted} ${
+                isDark ? 'hover:text-slate-300' : 'hover:text-slate-700'
+              }`}
+            >
+              Reveal all {totalCount} paths in list
+            </button>
+          ) : remaining > pageSize ? (
+            <p className={`text-center text-[10px] leading-relaxed ${muted}`}>
+              Very large project — reveal in batches of {pageSize}, or search by path.
+            </p>
+          ) : null}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function reviewFixSteps(text: string): string[] {
+  const trimmed = text.trim();
+  if (!trimmed) return [];
+  const lines = trimmed
+    .split(/\n+/)
+    .map(line => line.replace(/^[\s•\-–—*]+/, '').replace(/^\d+[.)]\s*/, '').trim())
+    .filter(Boolean);
+  return lines.length > 1 ? lines : [trimmed];
+}
+
+function ReviewCodeSnippetBlock({
+  snippet,
+  isDark,
+  muted,
+  border,
+}: {
+  snippet: AIReviewCodeSnippet;
+  isDark: boolean;
+  muted: string;
+  border: string;
+}) {
+  return (
+    <div className={`overflow-x-auto rounded-lg border font-mono text-[11px] leading-5 ${border} ${isDark ? 'border-white/[0.08] bg-[#0c0d0f] text-slate-300' : 'border-slate-200 bg-slate-950 text-slate-300'}`}>
+      {snippet.lines.map((line, lineIndex) => {
+        const lineNumber = snippet.startLine + lineIndex;
+        const isFocus = lineNumber === snippet.focusLine;
+        return (
+          <div
+            key={lineNumber}
+            className={`flex min-w-max px-3 ${isFocus ? 'bg-blue-500/15 border-l-2 border-blue-400/80' : 'border-l-2 border-transparent'}`}
+          >
+            <span className={`mr-3 w-6 select-none text-right tabular-nums ${muted}`}>{lineNumber}</span>
+            <code className="whitespace-pre">{line || ' '}</code>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function WhyFlaggedBlock({ text, titleText, isDark }: { text: string; titleText: string; isDark: boolean }) {
+  return (
+    <div>
+      <h4 className={`text-[13px] font-medium ${titleText}`}>Why flagged</h4>
+      <p className={`mt-2 text-[13px] leading-relaxed ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>{text}</p>
+    </div>
+  );
+}
+
+function RecommendedFixBlock({
+  text,
+  titleText,
+  muted,
+}: {
+  text: string;
+  titleText: string;
+  muted: string;
+}) {
+  const steps = reviewFixSteps(text);
+  if (!steps.length) return null;
+  return (
+    <div>
+      <h4 className={`text-[13px] font-medium ${titleText}`}>Recommended fix</h4>
+      {steps.length > 1 ? (
+        <ul className={`mt-2 list-disc space-y-1.5 pl-4 text-[13px] leading-relaxed ${muted}`}>
+          {steps.map((step, index) => (
+            <li key={index}>{step}</li>
+          ))}
+        </ul>
+      ) : (
+        <p className={`mt-2 text-[13px] leading-relaxed ${muted}`}>{steps[0]}</p>
+      )}
     </div>
   );
 }
@@ -594,18 +912,30 @@ function SetupDetailPane({
 function ResultDetailPane({
   item,
   result,
+  sentFiles,
+  showSentPayload,
+  setShowSentPayload,
+  expandedPayloadPath,
+  setExpandedPayloadPath,
   isDark,
   titleText,
   muted,
   border,
+  divide,
   onReset,
 }: {
   item: { kind: 'summary' | 'static' | 'finding'; index?: number };
   result: AIReviewResult;
+  sentFiles: QualityReviewSourceFile[];
+  showSentPayload: boolean;
+  setShowSentPayload: (open: boolean) => void;
+  expandedPayloadPath: string | null;
+  setExpandedPayloadPath: (path: string | null) => void;
   isDark: boolean;
   titleText: string;
   muted: string;
   border: string;
+  divide: string;
   onReset: () => void;
 }) {
   const textAction = isDark ? 'text-xs font-medium text-blue-400 hover:text-blue-300' : 'text-xs font-medium text-blue-600 hover:text-blue-800';
@@ -631,6 +961,18 @@ function ResultDetailPane({
         {result.limitations.length > 0 ? (
           <p className={`text-xs leading-relaxed ${muted}`}>Limits: {result.limitations.join(' · ')}</p>
         ) : null}
+        <SentPayloadDetails
+          files={sentFiles}
+          showSentPayload={showSentPayload}
+          setShowSentPayload={setShowSentPayload}
+          expandedPayloadPath={expandedPayloadPath}
+          setExpandedPayloadPath={setExpandedPayloadPath}
+          isDark={isDark}
+          titleText={titleText}
+          muted={muted}
+          border={border}
+          divide={divide}
+        />
         <button type="button" onClick={onReset} className={textAction}>
           Start a new review
         </button>
@@ -641,14 +983,43 @@ function ResultDetailPane({
   if (item.kind === 'static' && item.index !== undefined) {
     const note = result.staticFindingNotes[item.index];
     return (
-      <div className="space-y-3">
+      <div className="space-y-4">
         <div>
           <p className={`text-xs capitalize ${overviewSeverityLabel(isDark, note.assessment === 'disagree' ? 'critical' : note.assessment === 'nuance' ? 'warning' : 'optimization')}`}>
             Static finding · {note.assessment}
           </p>
           <h3 className={`mt-1 text-[15px] font-medium leading-snug ${titleText}`}>{note.staticTitle}</h3>
+          {note.path ? (
+            <p className={`mt-1 font-mono text-xs ${muted}`}>
+              {note.path}
+              {note.line ? `:${note.line}` : ''}
+            </p>
+          ) : null}
         </div>
-        <p className={`text-[13px] leading-relaxed ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>{note.note}</p>
+
+        {note.blueprintDetail ? (
+          <p className={`text-xs leading-relaxed ${muted}`}>{note.blueprintDetail}</p>
+        ) : null}
+
+        {note.codeSnippet ? (
+          <ReviewCodeSnippetBlock snippet={note.codeSnippet} isDark={isDark} muted={muted} border={border} />
+        ) : null}
+
+        <WhyFlaggedBlock text={note.whyFlagged} titleText={titleText} isDark={isDark} />
+        <RecommendedFixBlock text={note.recommendedFix} titleText={titleText} muted={muted} />
+
+        {note.blueprintEvidence && note.blueprintEvidence.length > 0 ? (
+          <div>
+            <h4 className={`text-[13px] font-medium ${titleText}`}>Blueprint evidence</h4>
+            <ul className={`mt-2 space-y-1 font-mono text-[11px] leading-relaxed ${muted}`}>
+              {note.blueprintEvidence.map((line, index) => (
+                <li key={index} className="break-all">
+                  {line}
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
       </div>
     );
   }
@@ -677,25 +1048,11 @@ function ResultDetailPane({
         ) : null}
 
         {finding.codeSnippet ? (
-          <div className={`overflow-x-auto rounded-lg border font-mono text-[11px] leading-5 ${border} ${isDark ? 'border-white/[0.08] bg-[#0c0d0f] text-slate-300' : 'border-slate-200 bg-slate-950 text-slate-300'}`}>
-            {finding.codeSnippet.lines.map((line, lineIndex) => {
-              const lineNumber = finding.codeSnippet!.startLine + lineIndex;
-              const isFocus = lineNumber === finding.codeSnippet!.focusLine;
-              return (
-                <div key={lineNumber} className={`flex min-w-max px-3 ${isFocus ? 'bg-blue-500/15 border-l-2 border-blue-400/80' : 'border-l-2 border-transparent'}`}>
-                  <span className={`mr-3 w-6 select-none text-right tabular-nums ${muted}`}>{lineNumber}</span>
-                  <code className="whitespace-pre">{line || ' '}</code>
-                </div>
-              );
-            })}
-          </div>
+          <ReviewCodeSnippetBlock snippet={finding.codeSnippet} isDark={isDark} muted={muted} border={border} />
         ) : null}
 
-        <p className={`text-[13px] leading-relaxed ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>{finding.rationale}</p>
-        <div>
-          <h4 className={`text-[13px] font-medium ${titleText}`}>Suggested next step</h4>
-          <p className={`mt-1 text-[13px] leading-relaxed ${muted}`}>{finding.recommendation}</p>
-        </div>
+        <WhyFlaggedBlock text={finding.rationale} titleText={titleText} isDark={isDark} />
+        <RecommendedFixBlock text={finding.recommendation} titleText={titleText} muted={muted} />
       </div>
     );
   }

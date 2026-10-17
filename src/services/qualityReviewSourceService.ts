@@ -1,4 +1,4 @@
-import type { CodebaseAnalysis } from '../types/codebase';
+import type { CodebaseAnalysis, QualityFinding } from '../types/codebase';
 import { BrowserDirectoryHandle, BrowserFileHandle, isDirectoryHandle, loadDirectoryHandle } from './browserDirectoryAccess';
 import { IGNORED_DIRECTORIES } from './codebaseAnalysisConstants';
 
@@ -13,22 +13,73 @@ const QUALITY_REVIEW_MAX_FILES = 6;
 const QUALITY_REVIEW_MAX_FILE_CHARS = 6000;
 const QUALITY_REVIEW_MAX_TOTAL_CHARS = 24000;
 
+function isQualityReviewSourcePath(path: string): boolean {
+  const lower = path.toLowerCase();
+  return QUALITY_REVIEW_SOURCE_EXTENSIONS.has(`.${lower.split('.').pop() || ''}`)
+    && !lower.split('/').some(segment => IGNORED_DIRECTORIES.has(segment) || segment.startsWith('.env'));
+}
+
+/** Paths tied to a static quality finding (location + line evidence). */
+export function pathsFromQualityFinding(finding: QualityFinding): string[] {
+  const out: string[] = [];
+  const add = (path?: string) => {
+    if (path && !out.includes(path)) out.push(path);
+  };
+  add(finding.location?.path);
+  for (const evidence of finding.evidence) {
+    add(evidence.match(/^(.*?):\d+(?:[–-]\d+)?$/)?.[1]);
+  }
+  for (const evidence of finding.evidence) {
+    if (evidence.includes(' lines')) add(evidence.split(' · ')[0]);
+  }
+  return out;
+}
+
+const staticCodeFindingsFilter = (finding: QualityFinding) =>
+  !finding.ruleId?.startsWith('cve-') && !finding.title.toLowerCase().startsWith('vulnerable package');
+
+function collectFindingLinkedReviewPaths(analysis: CodebaseAnalysis, limit?: number): string[] {
+  const structure = new Set(analysis.structurePaths || []);
+  const priorityOrder = { high: 0, medium: 1, low: 2 } as const;
+  const findings = (analysis.quality?.findings || [])
+    .filter(staticCodeFindingsFilter)
+    .sort((a, b) => priorityOrder[a.priority] - priorityOrder[b.priority]);
+
+  const ordered: string[] = [];
+  const seen = new Set<string>();
+  for (const finding of findings) {
+    for (const path of pathsFromQualityFinding(finding)) {
+      if (seen.has(path) || !structure.has(path) || !isQualityReviewSourcePath(path)) continue;
+      seen.add(path);
+      ordered.push(path);
+      if (limit !== undefined && ordered.length >= limit) return ordered;
+    }
+  }
+  return ordered;
+}
+
+/** Every unique reviewable path referenced by static findings (priority order). */
+export function getAllFindingLinkedReviewPaths(analysis: CodebaseAnalysis): string[] {
+  return collectFindingLinkedReviewPaths(analysis);
+}
+
+/** Up to `limit` reviewable paths from static findings, highest priority first (AI review cap). */
+export function getSuggestedPathsFromQualityFindings(analysis: CodebaseAnalysis, limit = QUALITY_REVIEW_MAX_FILES): string[] {
+  return collectFindingLinkedReviewPaths(analysis, limit);
+}
+
+export function getQualityReviewMaxFiles(): number {
+  return QUALITY_REVIEW_MAX_FILES;
+}
+
 export function getQualityReviewCandidatePaths(analysis: CodebaseAnalysis): string[] {
-  const paths = (analysis.structurePaths || []).filter(path => {
-    const lower = path.toLowerCase();
-    return QUALITY_REVIEW_SOURCE_EXTENSIONS.has(`.${lower.split('.').pop() || ''}`)
-      && !lower.split('/').some(segment => IGNORED_DIRECTORIES.has(segment) || segment.startsWith('.env'));
-  });
+  const paths = (analysis.structurePaths || []).filter(isQualityReviewSourcePath);
   const available = new Set(paths);
   const prioritized: string[] = [];
   const add = (path?: string) => { if (path && available.has(path) && !prioritized.includes(path)) prioritized.push(path); };
   for (const entry of analysis.entryPoints) add(entry);
   for (const finding of analysis.quality?.findings || []) {
-    add(finding.location?.path);
-    for (const evidence of finding.evidence) add(evidence.match(/^(.*?):\d+(?:[–-]\d+)?$/)?.[1]);
-  }
-  for (const file of analysis.quality?.findings.flatMap(finding => finding.evidence).filter(item => item.includes(' lines')) || []) {
-    add(file.split(' · ')[0]);
+    for (const path of pathsFromQualityFinding(finding)) add(path);
   }
   for (const path of paths) add(path);
   return prioritized;
