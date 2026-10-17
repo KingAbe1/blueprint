@@ -16,6 +16,11 @@ import {
   analyzeFunctionBodyComplexity,
   evaluateFunctionComplexityFinding,
 } from './functionComplexityAnalysis';
+import {
+  deepProfileNotMatchedMessage,
+  deepProfileRulesUnsupportedMessage,
+  supportedDeepProfilesSummary,
+} from '../constants/supportedAnalysisProfiles';
 
 const EXTENSION_LANGUAGES: Record<string, string> = {
   ts: 'TypeScript', tsx: 'TypeScript', mts: 'TypeScript', cts: 'TypeScript',
@@ -88,7 +93,7 @@ async function inspectSourceCode(source: CodebaseSource): Promise<{ findings: Qu
   const isNextProject = hasNextJsProjectSignal(source.paths, source.manifests);
   const findings: QualityFinding[] = [];
   const sourcePathSet = new Set(source.paths.map(path => path.replace(/\\/g, '/').toLowerCase()));
-  // Next.js is the first complete language/framework profile. Keep file-level
+  // Supported deep profiles (see supportedAnalysisProfiles.ts). Keep file-level
   // rules and parsing within its JavaScript/TypeScript sources until another
   // profile is deliberately implemented and assessed.
   const jsEntries = isNextProject
@@ -407,9 +412,9 @@ function assessQualityChecks(
   if (isNextProject && nextProfilePathCount > 0) checks.push(
     check('source-parse', 'Next.js JavaScript / TypeScript parsing', 'correctness', deepAnalysis.skippedFiles > 0 || nextProfileFilesNotInspected > 0 ? 'incomplete' : syntaxIssues > 0 ? 'issues' : 'passed', deepAnalysis.skippedFiles > 0 || nextProfileFilesNotInspected > 0 ? `${deepAnalysis.parsedFiles} parsed; ${deepAnalysis.skippedFiles + nextProfileFilesNotInspected} profile files were not inspected.` : syntaxIssues > 0 ? `${syntaxIssues} syntax issue(s) detected. This does not include type-checking.` : `${deepAnalysis.parsedFiles} Next.js JavaScript/TypeScript file(s) parsed with no syntax issues detected; type-checking was not run.`),
   );
-  else checks.push(check('nextjs-profile', 'Next.js / TypeScript code profile', 'correctness', 'unsupported', 'Deep source-level checks currently support Next.js JavaScript/TypeScript projects. Other languages and frameworks are identified, but their dedicated analysis profiles have not been implemented yet.'));
+  else checks.push(check('supported-profile', 'Supported language / framework profile', 'correctness', 'unsupported', deepProfileNotMatchedMessage()));
   checks.push(
-    check('source-patterns', 'Next.js source risk patterns', 'security', !isNextProject || deepAnalysis.parsedFiles === 0 ? 'unsupported' : codeFindings('security') > 0 ? 'issues' : deepAnalysis.skippedFiles > 0 || nextProfileFilesNotInspected > 0 ? 'incomplete' : 'passed', !isNextProject || deepAnalysis.parsedFiles === 0 ? 'Risk-pattern review is currently enabled for the Next.js JavaScript/TypeScript profile only.' : codeFindings('security') > 0 ? 'Review the flagged patterns in Next.js JavaScript/TypeScript files; findings are signals, not proof of a vulnerability.' : 'No configured risk patterns matched the inspected Next.js JavaScript/TypeScript files; this is not a complete security audit.'),
+    check('source-patterns', 'Supported profile risk patterns', 'security', !isNextProject || deepAnalysis.parsedFiles === 0 ? 'unsupported' : codeFindings('security') > 0 ? 'issues' : deepAnalysis.skippedFiles > 0 || nextProfileFilesNotInspected > 0 ? 'incomplete' : 'passed', !isNextProject || deepAnalysis.parsedFiles === 0 ? deepProfileRulesUnsupportedMessage() : codeFindings('security') > 0 ? `Review the flagged patterns in inspected ${supportedDeepProfilesSummary()} source files; findings are signals, not proof of a vulnerability.` : `No configured risk patterns matched the inspected ${supportedDeepProfilesSummary()} source files; this is not a complete security audit.`),
     check('maintainability', 'Maintainability signals', 'maintainability', sourceMetrics.analyzedFiles === 0 ? 'unsupported' : codeFindings('maintainability') > 0 ? 'issues' : sourceMetrics.skippedFiles > 0 ? 'incomplete' : 'passed', sourceMetrics.analyzedFiles === 0 ? 'Source contents were not available to inspect.' : codeFindings('maintainability') > 0 ? 'Large files, TODO markers, or complex/repeated functions need review.' : 'No configured maintainability thresholds were crossed in inspected files.'),
     check('ci-workflows', 'CI workflows', 'delivery', workflows.length === 0 ? 'not-configured' : !workflowHasTests || !workflowHasBuild ? 'issues' : 'not-run', workflows.length === 0 ? 'No GitHub Actions workflow was found in the scan.' : !workflowHasTests || !workflowHasBuild ? `Workflow found; test step ${workflowHasTests ? 'detected' : 'not detected'}, build step ${workflowHasBuild ? 'detected' : 'not detected'}.` : 'Test and build signals detected in workflow files; blueprint studio did not execute the workflow.'),
     check('folder-structure', 'Folder structure', 'structure', sourceMetrics.analyzedFiles === 0 ? 'unsupported' : codeFindings('structure') > 0 ? 'issues' : 'passed', sourceMetrics.analyzedFiles === 0 ? 'No source files were available to assess.' : codeFindings('structure') > 0 ? 'Review the reported folder or module-boundary signals.' : 'No configured folder-structure concerns were detected.'),
@@ -516,8 +521,8 @@ function assessCodeQuality(
     { name: 'Folder structure', score: organizationScore, maxScore: 15, summary: sourcePaths.length ? `${directories.length} folders · ${rootLevelSourceFiles} source files at the project root.` : 'No source files were available to assess organization.' },
     { name: 'CI checks', score: automationScore, maxScore: 15, summary: hasWorkflow ? `Workflow detected${workflowHasTests ? ' with test signals' : ''}${workflowHasBuild ? ' with build signals' : ''}.` : 'No CI workflow was detected.' },
     { name: 'Documentation', score: documentationScore, maxScore: 10, summary: `${hasReadme ? 'README found' : 'No README found'}${hasDocs ? ' · documentation folder found' : ''}.` },
-    { name: 'Security risks', score: securityScore, maxScore: securityAssessed ? 10 : 0, assessmentStatus: securityAssessed ? (deepAnalysis.skippedFiles || nextProfileFilesNotInspected ? 'partial' as const : 'reviewed' as const) : 'not-assessed' as const, summary: securityAssessed ? `${securityFindings.length} configured risk pattern${securityFindings.length === 1 ? '' : 's'} flagged in the Next.js JavaScript/TypeScript profile across ${deepAnalysis.parsedFiles} inspected files. Other language profiles are not enabled yet; no match does not guarantee security.` : 'The first code-level profile is for Next.js JavaScript/TypeScript projects; no supported profile source was available to inspect.' },
-    { name: 'Code correctness', score: correctnessScore, maxScore: correctnessAssessed ? 5 : 0, assessmentStatus: !correctnessAssessed ? 'not-assessed' as const : correctnessPartial ? 'partial' as const : 'reviewed' as const, summary: correctnessAssessed ? `${correctnessFindings.length} Next.js/React correctness signal${correctnessFindings.length === 1 ? '' : 's'} flagged across ${correctnessPaths.length} source files. Checks cover App Router boundaries, route/page exports, React hook placement, and JavaScript/TypeScript syntax. ${correctnessPartial ? 'Some files were skipped or are outside this first profile.' : 'Only configured static rules were checked.'}` : 'No Next.js source profile was available; correctness is not scored as a pass.' },
+    { name: 'Security risks', score: securityScore, maxScore: securityAssessed ? 10 : 0, assessmentStatus: securityAssessed ? (deepAnalysis.skippedFiles || nextProfileFilesNotInspected ? 'partial' as const : 'reviewed' as const) : 'not-assessed' as const, summary: securityAssessed ? `${securityFindings.length} configured risk pattern${securityFindings.length === 1 ? '' : 's'} flagged across ${deepAnalysis.parsedFiles} inspected file(s) using the ${supportedDeepProfilesSummary()} profile. A clean result does not guarantee security.` : `No supported language/framework profile matched this repo for deep security rules. ${deepProfileNotMatchedMessage()}` },
+    { name: 'Code correctness', score: correctnessScore, maxScore: correctnessAssessed ? 5 : 0, assessmentStatus: !correctnessAssessed ? 'not-assessed' as const : correctnessPartial ? 'partial' as const : 'reviewed' as const, summary: correctnessAssessed ? `${correctnessFindings.length} correctness signal${correctnessFindings.length === 1 ? '' : 's'} flagged across ${correctnessPaths.length} source file(s) (${supportedDeepProfilesSummary()}). ${correctnessPartial ? 'Some files were skipped or fall outside the active profile.' : 'Only configured static rules were checked.'}` : `No supported language/framework profile matched for deep correctness checks. ${deepProfileNotMatchedMessage()}` },
   ];
 
   const findings: QualityFinding[] = [];

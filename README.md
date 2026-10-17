@@ -2,7 +2,7 @@
 
 *Architectural rigor for the generative era* - a desktop and browser workstation for **spec-first greenfield planning** and **brownfield codebase analysis**, with exportable agent handoff packages for Cursor, Claude Code, VS Code, Codex, JetBrains, and other IDEs.
 
-blueprint studio itself is a **Tauri 2 + Vite + React 19** app. Projects you create in greenfield mode can target **any stack** the interview selects (Next.js, Tauri, Expo, FastAPI, and others). Brownfield scanning works on any local folder; **deep code-quality profiles are implemented for Next.js (TypeScript/JavaScript) today**.
+blueprint studio itself is a **Tauri 2 + Vite + React 19** app. Projects you create in greenfield mode can target **any stack** the interview selects (Next.js, Tauri, Expo, FastAPI, and others). Brownfield scanning works on any local folder; **deep code-quality profiles** apply when the repo matches a **supported language/framework profile** (see below).
 
 ---
 
@@ -93,18 +93,21 @@ Pick a local directory (Tauri native dialog or browser File System Access API). 
 - **Code analysis** - file tree, dependency inventory (packages tab), npm scripts (scripts tab), framework specialization panel when applicable.
 - **Quality & risks** - scored dimensions, static findings, extended rules, optional **AI quality review** on chosen files.
 
-### Next.js vs everything else
+### Supported languages & frameworks (brownfield)
 
-| Capability | Next.js TS/JS project | Other stacks |
+Every scan runs a **baseline** pass (languages, structure, scripts, dependencies, generic hints). When the repo matches a **supported deep profile**, blueprint studio also runs parsers, framework rules, and specialization UI for that stack.
+
+**Deep profiles shipped today:** Next.js (JavaScript / TypeScript). More language/framework profiles are planned; add them under `src/services/frameworks/` and list them in `src/constants/supportedAnalysisProfiles.ts`.
+
+| Capability | Baseline scan (any repo) | Deep profile (when matched) |
 | --- | --- | --- |
 | Language / framework detection | Yes | Yes |
 | Structure, scripts, dependencies | Yes | Yes |
 | npm advisory scan (lockfile metadata) | Yes | Yes |
-| Deep parse, App Router / RSC rules, `nextJsAnalyzer` | Yes | Not yet |
-| Next.js specialization UI | Yes | Hidden; generic framework badges only |
-| Quality checks message | Full profile when sources parse | “Profile not implemented” / partial signals |
+| Deep parse, framework-specific rules, analyzer UI | No | Yes (for supported profiles) |
+| Quality dimension summaries | Baseline signals always | Full deep rules when profile matches |
 
-Implementation lives under `src/services/frameworks/nextjs/`, `architectureAnalysisService.ts`, `codeQualityRules.ts`, and related views.
+Reference implementation today: `src/services/frameworks/nextjs/nextJsAnalyzer.ts`, plus `architectureAnalysisService.ts` and `codeQualityRules.ts`.
 
 ### Rescan and export
 

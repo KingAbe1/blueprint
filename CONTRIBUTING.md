@@ -27,7 +27,7 @@ Open a PR only after `npm run build` succeeds locally.
 
 - Bug fixes and tests for real behavior (not trivial assertions).
 - Documentation that matches **current** behavior.
-- Brownfield rules and analyzers (especially new framework profiles - Next.js is the reference implementation).
+- Brownfield **supported language/framework profiles** (register in `src/constants/supportedAnalysisProfiles.ts`; Next.js is the reference implementation today).
 - Greenfield handoff and interview improvements that stay provider-agnostic unless explicitly scoped.
 - Accessibility and UX fixes in existing patterns.
 - Performance wins with measurable impact on scan or UI paths.
