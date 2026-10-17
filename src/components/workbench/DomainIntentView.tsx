@@ -3,13 +3,11 @@ import {
   ArrowLeft,
   ArrowRight,
   Check,
-  ChevronDown,
   FileText,
   Layers,
   Loader2,
   Pencil,
   RefreshCw,
-  Sparkles,
   WandSparkles,
 } from 'lucide-react';
 import { useProjects } from '../../context/ProjectContext';
@@ -24,6 +22,9 @@ import {
 import { isDesktopApp } from '../../utils/platform';
 import { ProductBriefDisplay } from './ProductBriefDisplay';
 import { WorkbenchPhaseHeader, WorkbenchStep } from './WorkbenchPhaseHeader';
+import { workbenchCanvasClass, workbenchPagePadding, workbenchTheme } from './workbenchUi';
+import { CATEGORY_LABELS } from './architectureInterviewLabels';
+import { DesignDecisionsPanel } from './DesignDecisionsPanel';
 import { recommendFrameworkFromText } from '../../services/frameworkRecommender';
 import {
   ArchitectureAnswer,
@@ -56,64 +57,6 @@ function fitDescriptionTextareaHeight(element: HTMLTextAreaElement) {
   element.style.height = `${nextHeight}px`;
   element.style.overflowY = contentHeight > maxHeight ? 'auto' : 'hidden';
 }
-
-const CATEGORY_LABELS: Record<ArchitectureQuestion['category'], string> = {
-  product: 'Product scope',
-  users: 'Users & workflows',
-  platform: 'Target platform',
-  approach: 'Decision defaults',
-  ui: 'User experience',
-  access: 'Sign-in & access',
-  frontend: 'App screens',
-  topology: 'System shape',
-  backend: 'Behind the scenes',
-  api: 'Connections',
-  data: 'Data & storage',
-  realtime: 'Realtime & offline',
-  integrations: 'Integrations',
-  security: 'Security & privacy',
-  compliance: 'Compliance',
-  scale: 'Expected usage',
-  reliability: 'Backups & recovery',
-  deployment: 'Hosting & deployment',
-  delivery: 'Releasing updates',
-  testing: 'Quality checks',
-  observability: 'Monitoring & alerts',
-  operations: 'Team ownership',
-  budget: 'Cost constraints',
-};
-
-const DECISION_GROUPS: Array<{
-  title: string;
-  description: string;
-  categories: ArchitectureQuestion['category'][];
-}> = [
-  {
-    title: 'Foundation',
-    description: 'Scope, users, platform, and decision principles',
-    categories: ['product', 'users', 'platform', 'approach'],
-  },
-  {
-    title: 'Experience & access',
-    description: 'Interface, identity, and client technology',
-    categories: ['ui', 'access', 'frontend'],
-  },
-  {
-    title: 'Services & data',
-    description: 'Backend, APIs, storage, sync, and integrations',
-    categories: ['topology', 'backend', 'api', 'data', 'realtime', 'integrations'],
-  },
-  {
-    title: 'Trust & scale',
-    description: 'Security, compliance, performance, and recovery',
-    categories: ['security', 'compliance', 'scale', 'reliability'],
-  },
-  {
-    title: 'Delivery & operations',
-    description: 'Hosting, releases, quality, monitoring, and cost',
-    categories: ['deployment', 'delivery', 'testing', 'observability', 'operations', 'budget'],
-  },
-];
 
 function compactDecisionValues(values: string[]): string[] {
   return values.reduce<string[]>((result, value) => {
@@ -268,11 +211,7 @@ export const DomainIntentView: React.FC<DomainIntentViewProps> = ({ onOpenArchit
     setCustomAnswer(currentAnswer?.optionId ? '' : currentAnswer?.value || '');
   }, [currentQuestion?.id, currentAnswer?.optionId, currentAnswer?.value]);
 
-  const surface = isDark ? 'bg-[#141518] border-white/[0.08]' : 'bg-white border-slate-200';
-  const muted = isDark ? 'text-[#92949C]' : 'text-slate-500';
-  const input = isDark
-    ? 'bg-[#0F1012] border-white/[0.09] text-white placeholder:text-[#5F6169] focus:border-blue-500/70'
-    : 'bg-slate-50/70 border-slate-200 text-slate-900 placeholder:text-slate-400 focus:bg-white focus:border-blue-500';
+  const { border, panel, muted, title: titleText, input, inner } = workbenchTheme(isDark);
 
   const updateSpec = (updates: Parameters<typeof updateProjectSpec>[1]) => {
     updateProjectSpec(activeProject.id, updates);
@@ -559,14 +498,9 @@ export const DomainIntentView: React.FC<DomainIntentViewProps> = ({ onOpenArchit
   const desktop = isDesktopApp();
   const showBriefPreview = !showDescriptionTextarea && interview?.status !== 'completed';
   const briefLooksPolished = descriptionReady && (descriptionWordCountEarly >= 40 || spec.description.includes('\n'));
-  const cardRadius = desktop ? 'rounded-lg' : 'rounded-2xl';
-  const pagePadding = desktop
-    ? 'w-full px-6 py-7 lg:px-8 xl:px-10'
-    : 'w-full px-5 py-7 sm:px-6 lg:px-10 lg:py-8 xl:px-12';
-
   return (
-    <div className="flex-1 overflow-y-auto">
-      <div className={pagePadding}>
+    <div className={`flex-1 overflow-y-auto ${workbenchCanvasClass(isDark)}`}>
+      <div className={workbenchPagePadding(desktop)}>
         <WorkbenchPhaseHeader
           eyebrow={`${activeProject.name} · Step ${foundationStep} of 2 · ${interviewStatus}`}
           title="Product blueprint"
@@ -581,25 +515,23 @@ export const DomainIntentView: React.FC<DomainIntentViewProps> = ({ onOpenArchit
               : 'flex max-w-none flex-col gap-5 xl:gap-6'
           }
         >
-        <section id="product-section" className={`scroll-mt-6 border p-5 sm:p-6 ${cardRadius} ${surface}`}>
-          <div
-            className={`mb-5 flex items-center justify-between gap-4 ${
-              interview?.status === 'completed'
-                ? `border-b pb-4 ${isDark ? 'border-white/[0.06]' : 'border-slate-100'}`
-                : ''
-            }`}
-          >
+        <section id="product-section" className={`scroll-mt-6 overflow-hidden rounded-2xl border ${panel}`}>
+          <div className={`border-b px-5 py-4 sm:px-6 ${border}`}>
+          <div className="flex items-center justify-between gap-4">
             {interview?.status === 'completed' ? (
-              <p className={`text-sm font-semibold ${isDark ? 'text-white' : 'text-slate-900'}`}>Product brief</p>
+              <div>
+                <p className={`text-xs ${muted}`}>Captured from your idea</p>
+                <p className={`mt-0.5 text-[13px] ${titleText}`}>Product brief</p>
+              </div>
             ) : (
               <div className="flex gap-3">
-                <div className={`mt-0.5 flex h-8 w-8 items-center justify-center rounded-lg ${
-                  isDark ? 'bg-blue-500/10 text-blue-400' : 'bg-blue-50 text-blue-600'
+                <div className={`mt-0.5 flex h-9 w-9 items-center justify-center rounded-lg border ${border} ${
+                  isDark ? 'bg-white/[0.03] text-slate-400' : 'bg-white text-slate-500'
                 }`}>
-                  <FileText className="h-4 w-4" />
+                  <FileText className="h-4 w-4" strokeWidth={1.75} />
                 </div>
                 <div>
-                  <h2 className={`text-base font-semibold ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                  <h2 className={`text-[13px] ${titleText}`}>
                     {showBriefPreview ? 'Product brief' : 'What are you building?'}
                   </h2>
                   {showBriefPreview ? null : (
@@ -662,7 +594,9 @@ export const DomainIntentView: React.FC<DomainIntentViewProps> = ({ onOpenArchit
               </div>
             )}
           </div>
+          </div>
 
+          <div className="px-5 py-5 sm:px-6 sm:py-6">
           {interview?.status === 'completed' || showBriefPreview ? (
             <ProductBriefDisplay text={spec.description || ''} wordCount={wordCount} />
           ) : (
@@ -675,7 +609,7 @@ export const DomainIntentView: React.FC<DomainIntentViewProps> = ({ onOpenArchit
               }}
               rows={1}
               placeholder={`What should ${activeProject.name} do? Example: A workspace where teams plan work, assign tasks, and keep a searchable history of decisions.`}
-              className={`box-border w-full min-h-[7.5rem] resize-none rounded-xl border p-4 text-sm leading-6 outline-none transition-colors ${input}`}
+              className={`box-border w-full min-h-[7.5rem] resize-none rounded-lg border px-3 py-3 text-sm leading-6 outline-none transition-colors ${input}`}
             />
           )}
 
@@ -690,13 +624,14 @@ export const DomainIntentView: React.FC<DomainIntentViewProps> = ({ onOpenArchit
                 <button
                   type="button"
                   onClick={scrollToArchitecture}
-                  className="flex items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-2 text-xs font-semibold text-white hover:bg-blue-500"
+                  className="btn-primary-blue flex items-center gap-1.5 px-3.5 py-2 text-[13px] font-medium text-white"
                 >
                   Continue
                   <ArrowRight className="h-3.5 w-3.5" />
                 </button>
               )}
             </div>
+          </div>
           </div>
         </section>
 
@@ -709,20 +644,21 @@ export const DomainIntentView: React.FC<DomainIntentViewProps> = ({ onOpenArchit
         {showArchitectureSection && (
         <section
           id="architecture-section"
-          className={`scroll-mt-6 border p-5 sm:p-6 ${cardRadius} ${surface} ${
+          className={`scroll-mt-6 overflow-hidden rounded-2xl border ${panel} ${
             pinBuildQuestionsBesideBrief ? 'lg:sticky lg:top-4 lg:self-start' : ''
           }`}
         >
+          <div className={`border-b px-5 py-4 sm:px-6 ${border}`}>
           <div className={`flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between ${pinBuildQuestionsBesideBrief && !interview ? 'sm:flex-col' : ''}`}>
             <div className="flex gap-3">
-              <div className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${
-                isDark ? 'bg-blue-500/10 text-blue-400' : 'bg-blue-50 text-blue-600'
+              <div className={`mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border ${border} ${
+                isDark ? 'bg-white/[0.03] text-slate-400' : 'bg-white text-slate-500'
               }`}>
-                <Layers className="h-4 w-4" />
+                <Layers className="h-4 w-4" strokeWidth={1.75} />
               </div>
               <div>
                 <div className="flex flex-wrap items-center gap-2">
-                  <h2 className={`text-base font-semibold ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                  <h2 className={`text-[13px] ${titleText}`}>
                     {interview?.status === 'completed'
                       ? 'Design decisions'
                       : pinBuildQuestionsBesideBrief
@@ -762,7 +698,9 @@ export const DomainIntentView: React.FC<DomainIntentViewProps> = ({ onOpenArchit
               </div>
             )}
           </div>
+          </div>
 
+          <div className="px-5 py-5 sm:px-6 sm:py-6">
           {!interview && (
             pinBuildQuestionsBesideBrief ? (
               <div className="mt-5 space-y-4">
@@ -773,7 +711,7 @@ export const DomainIntentView: React.FC<DomainIntentViewProps> = ({ onOpenArchit
                   disabled={isGeneratingInterview || !descriptionReady}
                   className="flex w-full items-center justify-center gap-2 rounded-lg btn-primary-blue px-4 py-3 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-40"
                 >
-                  {isGeneratingInterview ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+                  {isGeneratingInterview ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowRight className="h-4 w-4" />}
                   {isGeneratingInterview ? 'Preparing…' : isAiConfigured ? 'Start questions' : 'Connect AI to start'}
                 </button>
               </div>
@@ -789,7 +727,7 @@ export const DomainIntentView: React.FC<DomainIntentViewProps> = ({ onOpenArchit
                     disabled={isGeneratingInterview || !descriptionReady}
                     className="flex items-center justify-center gap-2 rounded-lg btn-primary-blue px-4 py-2.5 text-xs font-semibold text-white disabled:cursor-not-allowed disabled:opacity-40"
                   >
-                    {isGeneratingInterview ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
+                    {isGeneratingInterview ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ArrowRight className="h-3.5 w-3.5" />}
                     {isGeneratingInterview ? 'Preparing…' : isAiConfigured ? 'Start questions' : 'Connect AI to start'}
                   </button>
                 </div>
@@ -901,7 +839,7 @@ export const DomainIntentView: React.FC<DomainIntentViewProps> = ({ onOpenArchit
                   type="button"
                   onClick={saveCurrentAnswer}
                   disabled={!selectedOptionId && !customAnswer.trim()}
-                  className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2.5 text-xs font-semibold text-white transition-colors hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-40"
+                  className="btn-primary-blue flex items-center gap-2 px-4 py-2.5 text-xs font-medium text-white disabled:cursor-not-allowed disabled:opacity-40"
                 >
                   {interview.currentQuestionIndex === interview.questions.length - 1 ? 'Build final architecture' : 'Continue'}
                   <ArrowRight className="h-3.5 w-3.5" />
@@ -911,108 +849,49 @@ export const DomainIntentView: React.FC<DomainIntentViewProps> = ({ onOpenArchit
           )}
 
           {interview?.status === 'completed' && (
-            <div className="mt-5">
+            <div className="space-y-5">
               {isAnalyzing && !selectedFramework ? (
-                <div className={`mt-5 rounded-2xl border border-dashed px-5 py-9 text-center ${isDark ? 'border-white/[0.1]' : 'border-slate-200'}`}>
+                <div className={`rounded-xl border border-dashed px-5 py-9 text-center ${border} ${inner}`}>
                   <Loader2 className="mx-auto h-5 w-5 animate-spin text-blue-500" />
-                  <p className={`mt-3 text-xs ${muted}`}>Turning your decisions into one implementation-ready architecture…</p>
+                  <p className={`mt-3 text-[13px] ${muted}`}>Turning your decisions into one implementation-ready architecture…</p>
                 </div>
               ) : selectedFramework ? (
-                <div className={`mt-5 flex flex-col gap-4 border-t pt-5 sm:flex-row sm:items-center sm:justify-between ${isDark ? 'border-white/[0.07]' : 'border-slate-200'}`}>
+                <div className={`flex flex-col gap-4 rounded-xl border p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5 ${inner}`}>
                   <div className="flex min-w-0 items-start gap-3">
-                    <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${isDark ? 'bg-blue-500/10 text-blue-300' : 'bg-blue-50 text-blue-700'}`}>
-                      <Layers className="h-4 w-4" />
+                    <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border ${border} ${isDark ? 'bg-white/[0.03] text-slate-400' : 'bg-white text-slate-500'}`}>
+                      <Layers className="h-4 w-4" strokeWidth={1.75} />
                     </div>
                     <div className="min-w-0">
-                      <p className={`text-[10px] font-semibold uppercase tracking-[0.13em] ${isDark ? 'text-blue-300' : 'text-blue-700'}`}>Architecture map ready</p>
-                      <h3 className={`mt-1 text-sm font-semibold ${isDark ? 'text-white' : 'text-slate-950'}`}>{selectedFramework.name}</h3>
-                      <p className={`mt-1 text-xs leading-5 ${muted}`}>Explore the interactive system map, deployment path, and how the product components connect.</p>
+                      <p className={`text-xs ${muted}`}>Architecture map ready</p>
+                      <h3 className={`mt-0.5 text-[13px] ${titleText}`}>{selectedFramework.name}</h3>
+                      <p className={`mt-1 text-xs leading-relaxed ${muted}`}>
+                        Open the interactive system map to see how components connect.
+                      </p>
                     </div>
                   </div>
                   <button
                     type="button"
                     onClick={onOpenArchitectureMap}
                     disabled={!onOpenArchitectureMap}
-                    className="flex shrink-0 items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-2.5 text-xs font-semibold text-white transition-colors hover:bg-blue-500 disabled:opacity-50"
+                    className="btn-primary-blue flex shrink-0 items-center justify-center gap-2 px-4 py-2.5 text-xs font-medium text-white disabled:opacity-50"
                   >
                     Open architecture map
                     <ArrowRight className="h-3.5 w-3.5" />
                   </button>
                 </div>
               ) : (
-                <div className={`mt-5 rounded-xl border border-dashed px-5 py-7 text-center ${isDark ? 'border-white/[0.1]' : 'border-slate-200'}`}>
-                  <p className={`text-xs ${muted}`}>The final architecture could not be prepared.</p>
+                <div className={`rounded-xl border border-dashed px-5 py-7 text-center ${border} ${inner}`}>
+                  <p className={`text-[13px] ${muted}`}>The final architecture could not be prepared.</p>
                   <button type="button" onClick={() => generateStackRecommendations(interview)} className="btn-secondary mt-3 px-3 py-2 text-xs">
                     Try again
                   </button>
                 </div>
               )}
 
-              <details className={`group mt-5 overflow-hidden rounded-xl border ${isDark ? 'border-white/[0.07] bg-black/10' : 'border-slate-200 bg-slate-50/50'}`}>
-                <summary className={`flex cursor-pointer list-none items-center justify-between gap-4 px-4 py-3.5 transition-colors ${isDark ? 'hover:bg-white/[0.03]' : 'hover:bg-slate-100/70'}`}>
-                  <div>
-                    <h3 className={`text-xs font-semibold ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>Decision details</h3>
-                    <p className={`mt-0.5 text-[10px] ${muted}`}>Review the choices and constraints behind this architecture.</p>
-                  </div>
-                  <div className="flex shrink-0 items-center gap-3">
-                    <span className={`text-[10px] font-medium ${muted}`}>{decisionItems.length} decisions</span>
-                    <ChevronDown className={`h-4 w-4 transition-transform group-open:rotate-180 ${muted}`} />
-                  </div>
-                </summary>
-
-                <div className={`grid gap-3 border-t p-3 lg:grid-cols-2 ${isDark ? 'border-white/[0.06]' : 'border-slate-200'}`}>
-                  {(interview.inferredFacts || []).length > 0 && (
-                    <div className={`overflow-hidden rounded-xl border lg:col-span-2 ${isDark ? 'border-emerald-500/15 bg-emerald-500/[0.03]' : 'border-emerald-100 bg-emerald-50/40'}`}>
-                      <div className={`border-b px-4 py-3 ${isDark ? 'border-emerald-500/10' : 'border-emerald-100'}`}>
-                        <h4 className={`text-xs font-semibold ${isDark ? 'text-emerald-200' : 'text-emerald-900'}`}>From your brief</h4>
-                        <p className={`mt-0.5 text-[10px] ${muted}`}>Blueprint treated these as already decided—no question asked.</p>
-                      </div>
-                      <ul className={`divide-y ${isDark ? 'divide-emerald-500/10' : 'divide-emerald-100'}`}>
-                        {(interview.inferredFacts || []).map(fact => (
-                          <li key={`${fact.category}-${fact.value}`} className="flex flex-wrap items-baseline gap-x-2 gap-y-1 px-4 py-2.5">
-                            <span className={`text-[9px] font-semibold uppercase tracking-[0.11em] ${muted}`}>{CATEGORY_LABELS[fact.category]}</span>
-                            <span className={`text-xs font-medium ${isDark ? 'text-slate-100' : 'text-slate-800'}`}>{fact.value}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-                  {DECISION_GROUPS.map(group => {
-                    const groupQuestions = interview.questions.filter(question =>
-                      group.categories.includes(question.category),
-                    );
-                    if (groupQuestions.length === 0) return null;
-
-                    return (
-                      <div key={group.title} className={`overflow-hidden rounded-xl border ${isDark ? 'border-white/[0.07] bg-[#141518]' : 'border-slate-200 bg-white'}`}>
-                        <div className={`flex items-start justify-between gap-3 border-b px-4 py-3 ${isDark ? 'border-white/[0.06]' : 'border-slate-200'}`}>
-                          <div>
-                            <h4 className={`text-xs font-semibold ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>{group.title}</h4>
-                            <p className={`mt-0.5 text-[10px] ${muted}`}>{group.description}</p>
-                          </div>
-                          <span className={`rounded-full px-2 py-0.5 text-[9px] font-semibold ${isDark ? 'bg-white/[0.05] text-slate-400' : 'bg-slate-50 text-slate-500'}`}>{groupQuestions.length}</span>
-                        </div>
-                        <div className={`divide-y ${isDark ? 'divide-white/[0.05]' : 'divide-slate-200'}`}>
-                          {groupQuestions.map(question => {
-                            const answer = interview.answers.find(item => item.questionId === question.id);
-                            return (
-                              <div key={question.id} className="px-4 py-3">
-                                <p className={`text-[9px] font-semibold uppercase tracking-[0.11em] ${muted}`}>{CATEGORY_LABELS[question.category]}</p>
-                                <p className={`mt-1 text-xs leading-5 ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>{question.question}</p>
-                                <p className={`mt-2 text-xs font-semibold leading-5 ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                                  {answer?.label || 'No preference'}
-                                </p>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </details>
+              <DesignDecisionsPanel interview={interview} defaultExpanded={false} />
             </div>
           )}
+          </div>
         </section>
         )}
         </div>

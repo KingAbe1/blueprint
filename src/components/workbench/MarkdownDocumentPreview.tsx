@@ -32,7 +32,12 @@ function splitTableRow(line: string) {
   return line.trim().replace(/^\|/, '').replace(/\|$/, '').split('|').map(cell => cell.trim());
 }
 
-export const MarkdownDocumentPreview: React.FC<{ content: string; isDark: boolean }> = ({ content, isDark }) => {
+export const MarkdownDocumentPreview: React.FC<{
+  content: string;
+  isDark: boolean;
+  /** `embedded` fills the handoff pane; `document` keeps a centered reading column. */
+  layout?: 'document' | 'embedded';
+}> = ({ content, isDark, layout = 'document' }) => {
   const lines = content.replace(/\r\n/g, '\n').split('\n');
   const blocks: React.ReactNode[] = [];
   let index = 0;
@@ -138,9 +143,17 @@ export const MarkdownDocumentPreview: React.FC<{ content: string; isDark: boolea
     blocks.push(<p key={`paragraph-${index}`} className={`my-3 text-sm leading-7 ${bodyText}`}>{renderInline(paragraph.join(' '), isDark)}</p>);
   }
 
+  const embedded = layout === 'embedded';
+
   return (
-    <article className={`min-h-[min(58vh,680px)] flex-1 overflow-y-auto overscroll-contain px-6 py-5 sm:px-8 sm:py-7 xl:min-h-0 ${bodyText}`}>
-      <div className={`mx-auto max-w-3xl ${mutedText}`}>{blocks}</div>
+    <article
+      className={`flex-1 overflow-y-auto overscroll-contain xl:min-h-0 ${bodyText} ${
+        embedded
+          ? 'min-h-[min(52vh,640px)] px-5 py-5 sm:px-6 sm:py-6'
+          : 'min-h-[min(58vh,680px)] px-6 py-5 sm:px-8 sm:py-7'
+      }`}
+    >
+      <div className={embedded ? mutedText : `mx-auto max-w-3xl ${mutedText}`}>{blocks}</div>
     </article>
   );
 };

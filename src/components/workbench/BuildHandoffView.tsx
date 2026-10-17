@@ -8,7 +8,6 @@ import {
   Loader2,
   Package,
   RefreshCw,
-  Sparkles,
 } from 'lucide-react';
 import { useNotification } from '../../context/NotificationContext';
 import { useProjects } from '../../context/ProjectContext';
@@ -17,6 +16,8 @@ import { isDesktopApp } from '../../utils/platform';
 import { Dropdown } from '../common/Dropdown';
 import { MarkdownDocumentPreview } from './MarkdownDocumentPreview';
 import { WorkbenchPhaseHeader } from './WorkbenchPhaseHeader';
+import { overviewDivideClass } from '../project/overviewUi';
+import { workbenchCanvasClass, workbenchPagePadding, workbenchTheme } from './workbenchUi';
 import { generateHandoffPackage } from '../../services/handoffService';
 import {
   chooseHandoffTarget,
@@ -104,14 +105,13 @@ export const BuildHandoffView: React.FC = () => {
     ...group,
     files: handoff?.files.filter(file => fileGroup(file.path) === group.id) || [],
   })).filter(group => group.files.length > 0), [handoff]);
-  const surface = isDark ? 'border-white/[0.08] bg-[#141518]' : 'border-slate-200 bg-white';
-  const muted = isDark ? 'text-slate-400' : 'text-slate-500';
   const desktop = isDesktopApp();
-  const cardRadius = desktop ? 'rounded-lg' : 'rounded-2xl';
-  const pagePadding = desktop
-    ? 'w-full px-6 py-7 lg:px-8 xl:px-10'
-    : 'w-full px-5 py-7 sm:px-6 lg:px-10 lg:py-8 xl:px-12';
-  const subCard = isDark ? 'border-white/[0.07] bg-white/[0.02]' : 'border-slate-200/90 bg-slate-50/70';
+  const { border, panel, muted, title: titleText, inner, input } = workbenchTheme(isDark);
+  const divide = overviewDivideClass(isDark);
+  const listRail = isDark ? 'bg-black/15' : 'bg-slate-50/90';
+  const ghostButton = isDark
+    ? 'border-white/[0.08] bg-white/[0.03] text-slate-300 hover:border-white/[0.12] hover:bg-white/[0.06] hover:text-white'
+    : 'border-slate-200/90 bg-white text-slate-700 shadow-[0_1px_2px_rgba(15,23,42,0.04)] hover:border-slate-300 hover:bg-slate-50';
 
   if (!activeProject) return null;
 
@@ -194,16 +194,18 @@ export const BuildHandoffView: React.FC = () => {
 
   if (!canGenerate || !handoff) {
     return (
-      <div className="flex-1 overflow-y-auto">
-        <div className={pagePadding}>
-          <section className={`mx-auto mt-4 max-w-lg border p-8 text-center ${cardRadius} ${surface}`}>
-            <div className={`mx-auto flex h-12 w-12 items-center justify-center ${cardRadius} ${isDark ? 'bg-blue-500/10 text-blue-300' : 'bg-blue-50 text-blue-600'}`}>
-              <Sparkles className="h-5 w-5" />
+      <div className={`flex-1 overflow-y-auto ${workbenchCanvasClass(isDark)}`}>
+        <div className={workbenchPagePadding(desktop)}>
+          <section className={`mx-auto mt-2 max-w-lg overflow-hidden rounded-2xl border ${panel}`}>
+            <div className="px-6 py-10 text-center">
+              <div className={`mx-auto flex h-11 w-11 items-center justify-center rounded-xl border ${border} ${inner}`}>
+                <Package className="h-5 w-5 text-blue-500" strokeWidth={1.75} />
+              </div>
+              <h1 className={`mt-4 text-[15px] font-medium ${titleText}`}>Complete the architecture first</h1>
+              <p className={`mx-auto mt-2 max-w-sm text-[13px] leading-relaxed ${muted}`}>
+                Build handoff is generated from your product brief, build-question answers, and architecture map.
+              </p>
             </div>
-            <h1 className={`mt-4 text-lg font-semibold ${isDark ? 'text-white' : 'text-slate-950'}`}>Complete the architecture first</h1>
-            <p className={`mx-auto mt-2 text-sm leading-6 ${muted}`}>
-              Build handoff is generated from your product brief, build-question answers, and architecture map.
-            </p>
           </section>
         </div>
       </div>
@@ -211,8 +213,8 @@ export const BuildHandoffView: React.FC = () => {
   }
 
   return (
-    <div className="flex-1 overflow-y-auto">
-      <div className={pagePadding}>
+    <div className={`flex-1 overflow-y-auto ${workbenchCanvasClass(isDark)}`}>
+      <div className={workbenchPagePadding(desktop)}>
         <WorkbenchPhaseHeader
           eyebrow={`${activeProject.name} · Step 3 of 3 · Export to your IDE`}
           title="Build handoff"
@@ -221,7 +223,7 @@ export const BuildHandoffView: React.FC = () => {
             <button
               type="button"
               onClick={() => regenerate()}
-              className="btn-secondary-accent flex shrink-0 items-center justify-center gap-2 px-3.5 py-2.5 text-xs font-semibold"
+              className="btn-secondary-accent flex shrink-0 items-center justify-center gap-2 px-3.5 py-2.5 text-xs font-medium"
             >
               <RefreshCw className="h-3.5 w-3.5" />
               Regenerate from blueprint
@@ -230,35 +232,46 @@ export const BuildHandoffView: React.FC = () => {
         />
 
         <div className="space-y-5">
-          <section className={`border p-5 sm:p-6 ${cardRadius} ${surface}`}>
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-              <div className="flex gap-3">
-                <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${isDark ? 'bg-violet-500/10 text-violet-300' : 'bg-violet-50 text-violet-600'}`}>
-                  <Package className="h-5 w-5" />
+          <section className={`overflow-hidden rounded-2xl border ${panel}`}>
+            <div className={`border-b px-5 py-4 sm:px-6 ${border}`}>
+              <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                <div className="flex min-w-0 gap-3">
+                  <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border ${border} ${isDark ? 'bg-white/[0.03] text-slate-400' : 'bg-white text-slate-500'}`}>
+                    <Package className="h-4 w-4" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className={`text-xs ${muted}`}>Handoff package</p>
+                    <p className={`mt-0.5 text-[13px] ${titleText}`}>
+                      {handoff.files.length} Markdown files · {selectedIDE.label}
+                    </p>
+                    <p className={`mt-1 text-xs leading-relaxed ${muted}`}>
+                      Agent entry point is <span className="font-mono text-[11px]">AGENTS.md</span> at the repo root.
+                      {hasManualEdits ? ' Preview edits are included when you export.' : ''}
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <p className={`text-[10px] font-semibold uppercase tracking-[0.12em] ${isDark ? 'text-violet-300' : 'text-violet-700'}`}>
-                    Handoff package
-                  </p>
-                  <p className={`mt-1 text-sm font-semibold ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                    {handoff.files.length} files for {selectedIDE.label}
-                  </p>
-                  <p className={`mt-1 text-xs ${muted}`}>
-                    Start with <span className="font-mono text-[11px]">AGENTS.md</span> in your repo root.
-                    {hasManualEdits ? ' · Preview includes your edits.' : ''}
-                  </p>
+                <div className="flex flex-wrap items-center gap-2 lg:justify-end">
+                  {hasManualEdits ? (
+                    <span className={`rounded-full px-2.5 py-1 text-[10px] ${isDark ? 'bg-amber-500/10 text-amber-300' : 'bg-amber-50 text-amber-800'}`}>
+                      Edited in preview
+                    </span>
+                  ) : null}
+                  {architecture?.name ? (
+                    <span className={`rounded-full px-2.5 py-1 text-[10px] ${isDark ? 'bg-white/[0.06] text-slate-300' : 'bg-slate-100 text-slate-600'}`}>
+                      Stack · {architecture.name}
+                    </span>
+                  ) : null}
                 </div>
               </div>
-              {hasManualEdits && (
-                <span className={`self-start rounded-full px-2.5 py-1 text-[10px] font-semibold ${isDark ? 'bg-amber-500/10 text-amber-300' : 'bg-amber-50 text-amber-800'}`}>
-                  Edited in preview
-                </span>
-              )}
             </div>
 
-            <div className="mt-6 grid gap-4 lg:grid-cols-3">
-              <div className={`rounded-xl border p-4 ${subCard}`}>
-                <p className={`text-[10px] font-semibold uppercase tracking-[0.1em] ${muted}`}>1 · IDE</p>
+            <div className={`grid gap-0 lg:grid-cols-3 lg:divide-x ${isDark ? 'lg:divide-white/[0.06]' : 'lg:divide-slate-200/90'}`}>
+              <div className="space-y-3 p-5 sm:p-6 lg:col-span-1">
+                <div>
+                  <p className={`text-xs ${muted}`}>Step 1</p>
+                  <p className={`mt-0.5 text-[13px] ${titleText}`}>Target IDE</p>
+                  <p className={`mt-1 text-[11px] leading-relaxed ${muted}`}>{selectedIDE.detail}</p>
+                </div>
                 <Dropdown<IDETarget>
                   label="Target IDE"
                   options={IDE_OPTIONS.map(option => ({
@@ -272,139 +285,184 @@ export const BuildHandoffView: React.FC = () => {
                   variant="subtle"
                   size="md"
                   icon={<Code2 className="h-3.5 w-3.5" />}
-                  className="mt-3"
                   triggerClassName="!rounded-lg !py-2.5"
                   menuClassName="!rounded-xl"
                 />
-                <p className={`mt-2 text-[11px] leading-5 ${muted}`}>{selectedIDE.detail}</p>
               </div>
 
-              <div className={`rounded-xl border p-4 ${subCard}`}>
-                <p className={`text-[10px] font-semibold uppercase tracking-[0.1em] ${muted}`}>2 · Project folder</p>
+              <div className={`space-y-3 border-t p-5 sm:p-6 lg:border-t-0 ${border}`}>
+                <div>
+                  <p className={`text-xs ${muted}`}>Step 2</p>
+                  <p className={`mt-0.5 text-[13px] ${titleText}`}>Project folder</p>
+                  <p className={`mt-1 text-[11px] leading-relaxed ${muted}`}>Choose the repo where files should be written.</p>
+                </div>
                 <button
                   type="button"
                   onClick={chooseFolder}
                   disabled={isChoosingFolder}
-                  className="btn-secondary mt-3 flex w-full items-center gap-2.5 px-3 py-2.5 text-left text-xs disabled:opacity-50"
+                  className={`flex w-full items-center gap-2.5 rounded-lg border px-3 py-2.5 text-left text-xs transition-colors disabled:opacity-50 ${ghostButton}`}
                 >
-                  {isChoosingFolder ? <Loader2 className="h-4 w-4 shrink-0 animate-spin" /> : <FolderOpen className="h-4 w-4 shrink-0 text-blue-500" />}
-                  <span className="min-w-0 flex-1 truncate">{target ? target.name : 'Choose folder…'}</span>
-                  {target && <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-emerald-500" />}
+                  {isChoosingFolder ? <Loader2 className="h-4 w-4 shrink-0 animate-spin" /> : <FolderOpen className="h-4 w-4 shrink-0 opacity-80" />}
+                  <span className={`min-w-0 flex-1 truncate ${target ? titleText : muted}`}>
+                    {target ? target.name : 'Choose folder…'}
+                  </span>
+                  {target ? <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-emerald-500" aria-hidden /> : null}
                 </button>
-                {target && (
-                  <div className={`mt-3 flex items-start gap-2 rounded-lg border px-2.5 py-2 ${
-                    conflicts.length > 0
-                      ? isDark ? 'border-amber-500/25 bg-amber-500/[0.06]' : 'border-amber-200 bg-amber-50/80'
-                      : isDark ? 'border-emerald-500/25 bg-emerald-500/[0.06]' : 'border-emerald-200 bg-emerald-50/80'
-                  }`}>
-                    {conflicts.length > 0
-                      ? <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-500" />
-                      : <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-500" />}
-                    <p className={`text-[11px] leading-5 ${muted}`}>
+                {target ? (
+                  <div className={`flex items-start gap-2 rounded-lg border px-3 py-2.5 ${border} ${inner}`}>
+                    {conflicts.length > 0 ? (
+                      <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-500" />
+                    ) : (
+                      <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-500" />
+                    )}
+                    <p className={`text-[11px] leading-relaxed ${muted}`}>
                       {conflicts.length > 0
-                        ? `${conflicts.length} file${conflicts.length === 1 ? '' : 's'} already exist — we’ll confirm before replacing.`
+                        ? `${conflicts.length} file${conflicts.length === 1 ? '' : 's'} already exist — you’ll confirm before replacing.`
                         : `Ready to add ${handoff.files.length} files without overwriting.`}
                     </p>
                   </div>
-                )}
+                ) : null}
               </div>
 
-              <div className={`flex flex-col rounded-xl border p-4 ${subCard}`}>
-                <p className={`text-[10px] font-semibold uppercase tracking-[0.1em] ${muted}`}>3 · Add to project</p>
+              <div className={`flex flex-col space-y-3 border-t p-5 sm:p-6 lg:border-t-0 ${border}`}>
+                <div>
+                  <p className={`text-xs ${muted}`}>Step 3</p>
+                  <p className={`mt-0.5 text-[13px] ${titleText}`}>Add to project</p>
+                  <p className={`mt-1 text-[11px] leading-relaxed ${muted}`}>Only files shown in the preview below are written to disk.</p>
+                </div>
                 <button
                   type="button"
                   onClick={exportPackage}
                   disabled={!target || isExporting}
-                  className="btn-primary-blue mt-3 flex w-full items-center justify-center gap-2 px-4 py-3 text-xs font-semibold text-white disabled:cursor-not-allowed disabled:opacity-40"
+                  className="btn-primary-blue flex w-full items-center justify-center gap-2 px-4 py-3 text-xs font-medium text-white disabled:cursor-not-allowed disabled:opacity-40"
                 >
-                  {isExporting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
+                  {isExporting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <FileCode2 className="h-3.5 w-3.5" />}
                   {isExporting ? 'Writing files…' : `Add ${handoff.files.length} files`}
                 </button>
-                <p className={`mt-2 text-[11px] leading-5 ${muted}`}>Only files in the preview below are written to disk.</p>
 
-                {exportResult && (
-                  <div className={`mt-3 rounded-lg border p-3 ${isDark ? 'border-emerald-500/25 bg-emerald-500/[0.06]' : 'border-emerald-200 bg-emerald-50/90'}`}>
-                    <div className="flex gap-2">
+                {exportResult ? (
+                  <div className={`rounded-xl border p-3.5 ${border} ${inner}`}>
+                    <div className="flex gap-2.5">
                       <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500" />
                       <div className="min-w-0">
-                        <p className={`text-xs font-semibold ${isDark ? 'text-emerald-200' : 'text-emerald-900'}`}>Handoff complete</p>
-                        <p className={`mt-1 text-[11px] leading-5 ${muted}`}>
-                          {exportResult.written.length} files in {target?.name}. Open {selectedIDE.label} and start with AGENTS.md.
+                        <p className={`text-[13px] ${titleText}`}>Handoff complete</p>
+                        <p className={`mt-1 text-[11px] leading-relaxed ${muted}`}>
+                          {exportResult.written.length} files in {target?.name}. Open {selectedIDE.label} and start with{' '}
+                          <span className="font-mono">AGENTS.md</span>.
                         </p>
-                        {exportResult.overwritten.length > 0 && (
+                        {exportResult.overwritten.length > 0 ? (
                           <p className={`mt-1 text-[11px] ${muted}`}>
                             Updated {exportResult.overwritten.length} existing file{exportResult.overwritten.length === 1 ? '' : 's'}.
                           </p>
-                        )}
-                        {target?.kind === 'tauri' && (
+                        ) : null}
+                        {target?.kind === 'tauri' ? (
                           <button
                             type="button"
                             onClick={openProjectFolder}
-                            className="btn-secondary-accent mt-2 inline-flex items-center gap-1.5 px-2.5 py-1.5 text-[10px] font-semibold"
+                            className="btn-secondary-accent mt-2.5 inline-flex items-center gap-1.5 px-2.5 py-1.5 text-[10px] font-medium"
                           >
                             <FolderOpen className="h-3 w-3" />
                             Open folder
                           </button>
-                        )}
+                        ) : null}
                       </div>
                     </div>
                   </div>
-                )}
+                ) : null}
               </div>
             </div>
           </section>
 
-          <section aria-label="Build handoff files" className={`grid min-h-[min(62vh,760px)] gap-4 xl:grid-cols-[260px_minmax(0,1fr)] xl:min-h-[420px]`}>
-            <aside className={`flex min-h-0 flex-col overflow-hidden border ${cardRadius} ${isDark ? 'border-white/[0.08] bg-black/10' : 'border-slate-200 bg-slate-50/60'}`}>
-              <div className={`border-b px-4 py-3.5 ${isDark ? 'border-white/[0.07]' : 'border-slate-200'}`}>
-                <h2 className={`text-sm font-semibold ${isDark ? 'text-white' : 'text-slate-900'}`}>Files</h2>
-                <p className={`mt-0.5 text-xs ${muted}`}>{handoff.files.length} generated · select to preview</p>
+          <section
+            aria-label="Build handoff files"
+            className={`flex min-h-[min(62vh,760px)] flex-col overflow-hidden rounded-2xl border xl:min-h-[420px] xl:flex-row ${panel}`}
+          >
+            <aside className={`flex max-h-[40vh] min-h-0 w-full shrink-0 flex-col border-b xl:max-h-none xl:w-[min(100%,17.5rem)] xl:border-b-0 xl:border-r ${border} ${listRail}`}>
+              <div className={`border-b px-4 py-3.5 sm:px-5 ${border}`}>
+                <p className={`text-xs ${muted}`}>Handoff preview</p>
+                <h2 className={`mt-0.5 text-[13px] ${titleText}`}>Package files</h2>
+                <p className={`mt-0.5 text-[11px] ${muted}`}>{handoff.files.length} files · pick one to read or edit</p>
               </div>
-              <div className="max-h-[320px] overflow-y-auto overscroll-contain p-2 [scrollbar-gutter:stable] xl:max-h-none xl:flex-1">
-                {groupedFiles.map(group => (
-                  <div key={group.id} className="px-1 pb-2">
-                    <p className={`px-2.5 pb-1 pt-2 text-[10px] font-semibold uppercase tracking-[0.1em] ${muted}`}>{group.title}</p>
-                    {group.files.map(file => {
-                      const active = file.path === selectedFile?.path;
-                      const existing = conflicts.includes(file.path);
-                      return (
-                        <button
-                          key={file.path}
-                          type="button"
-                          title={file.path}
-                          onClick={() => setSelectedPath(file.path)}
-                          className={`mb-1 flex w-full items-start gap-2 rounded-lg px-2.5 py-2 text-left transition-colors ${
-                            active
-                              ? isDark ? 'bg-blue-500/10 text-white ring-1 ring-inset ring-blue-400/25' : 'bg-blue-50 text-slate-950 ring-1 ring-inset ring-blue-200'
-                              : isDark ? 'text-slate-400 hover:bg-white/[0.04] hover:text-white' : 'text-slate-600 hover:bg-white hover:text-slate-900'
-                          }`}
-                        >
-                          <FileCode2 className={`mt-0.5 h-3.5 w-3.5 shrink-0 ${active ? 'text-blue-500' : ''}`} />
-                          <span className="min-w-0 flex-1">
-                            <span className="block truncate text-[11px] font-semibold leading-4">{fileBaseName(file.path)}</span>
-                            <span className={`mt-0.5 block truncate font-mono text-[9px] leading-4 ${muted}`}>{file.path}</span>
-                          </span>
-                          {existing && <AlertTriangle className="mt-0.5 h-3 w-3 shrink-0 text-amber-500" aria-label="File already exists in target folder" />}
-                        </button>
-                      );
-                    })}
-                  </div>
-                ))}
-              </div>
+              <nav className="min-h-0 flex-1 overflow-y-auto overscroll-contain [scrollbar-gutter:stable]" aria-label="Handoff files">
+                <ul className={`divide-y ${divide}`}>
+                  {groupedFiles.map(group => (
+                    <li key={group.id}>
+                      <div className={`px-4 py-2.5 sm:px-5 ${isDark ? 'bg-white/[0.02]' : 'bg-white/50'}`}>
+                        <p className={`text-[11px] ${titleText}`}>{group.title}</p>
+                        <p className={`text-[10px] leading-relaxed ${muted}`}>{group.description}</p>
+                      </div>
+                      <ul className={`divide-y ${divide}`}>
+                        {group.files.map(file => {
+                          const active = file.path === selectedFile?.path;
+                          const existing = conflicts.includes(file.path);
+                          return (
+                            <li key={file.path}>
+                              <button
+                                type="button"
+                                title={file.path}
+                                onClick={() => setSelectedPath(file.path)}
+                                aria-current={active ? 'true' : undefined}
+                                className={`flex w-full items-center gap-2.5 px-4 py-2.5 text-left transition-colors sm:px-5 ${
+                                  active
+                                    ? isDark
+                                      ? 'bg-blue-500/[0.08] text-slate-100'
+                                      : 'bg-blue-50/80 text-slate-900'
+                                    : isDark
+                                      ? 'text-slate-400 hover:bg-white/[0.03] hover:text-white'
+                                      : 'text-slate-600 hover:bg-white hover:text-slate-900'
+                                }`}
+                              >
+                                <span
+                                  className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border ${border} ${
+                                    active
+                                      ? isDark
+                                        ? 'border-blue-500/30 bg-blue-500/10 text-blue-300'
+                                        : 'border-blue-200 bg-white text-blue-600'
+                                      : isDark
+                                        ? 'bg-white/[0.03] text-slate-500'
+                                        : 'bg-white text-slate-500'
+                                  }`}
+                                >
+                                  <FileCode2 className="h-3.5 w-3.5" />
+                                </span>
+                                <span className="min-w-0 flex-1">
+                                  <span className={`block truncate text-[12px] ${titleText}`}>{fileBaseName(file.path)}</span>
+                                  <span className={`mt-0.5 block truncate font-mono text-[10px] ${muted}`}>{file.path}</span>
+                                </span>
+                                {existing ? (
+                                  <AlertTriangle className="h-3.5 w-3.5 shrink-0 text-amber-500" aria-label="File already exists in target folder" />
+                                ) : null}
+                              </button>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    </li>
+                  ))}
+                </ul>
+              </nav>
             </aside>
 
-            <div className={`flex min-w-0 flex-col overflow-hidden border ${cardRadius} ${surface}`}>
-              <div className={`flex flex-wrap items-center justify-between gap-3 border-b px-4 py-3 ${isDark ? 'border-white/[0.07]' : 'border-slate-200'}`}>
-                <div className="min-w-0">
-                  <h2 className={`truncate font-mono text-sm font-semibold ${isDark ? 'text-white' : 'text-slate-900'}`}>{selectedFile?.path}</h2>
-                  <p className={`mt-0.5 truncate text-xs ${muted}`}>{selectedFile?.description}</p>
+            <div className="flex min-h-[min(48vh,520px)] min-w-0 flex-1 flex-col xl:min-h-0">
+              <div className={`flex shrink-0 flex-wrap items-center justify-between gap-3 border-b px-4 py-3.5 sm:px-5 ${border}`}>
+                <div className="flex min-w-0 items-start gap-3">
+                  <span
+                    className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border ${border} ${inner}`}
+                  >
+                    <FileCode2 className="h-4 w-4 opacity-80" />
+                  </span>
+                  <div className="min-w-0">
+                    <p className={`text-xs ${muted}`}>Selected file</p>
+                    <p className={`mt-0.5 truncate text-[13px] ${titleText}`}>{selectedFile ? fileBaseName(selectedFile.path) : '—'}</p>
+                    <p className={`mt-0.5 truncate font-mono text-[10px] ${muted}`}>{selectedFile?.path}</p>
+                  </div>
                 </div>
-                <div role="group" aria-label="Document view" className={`flex shrink-0 rounded-lg border p-0.5 ${isDark ? 'border-white/10 bg-black/20' : 'border-slate-200 bg-slate-50'}`}>
+                <div role="group" aria-label="Document view" className={`flex shrink-0 rounded-lg border p-0.5 ${border} ${inner}`}>
                   <button
                     type="button"
                     aria-pressed={!isSourceView}
                     onClick={() => setIsSourceView(false)}
-                    className={`rounded-md px-3 py-1.5 text-[10px] font-semibold transition-colors ${!isSourceView ? 'btn-secondary-accent shadow-sm' : isDark ? 'text-slate-400 hover:text-white' : 'text-slate-500 hover:text-slate-900'}`}
+                    className={`rounded-md px-3 py-1.5 text-[10px] font-medium transition-colors ${!isSourceView ? 'btn-secondary-accent shadow-sm' : isDark ? 'text-slate-400 hover:text-white' : 'text-slate-500 hover:text-slate-900'}`}
                   >
                     Preview
                   </button>
@@ -412,25 +470,32 @@ export const BuildHandoffView: React.FC = () => {
                     type="button"
                     aria-pressed={isSourceView}
                     onClick={() => setIsSourceView(true)}
-                    className={`rounded-md px-3 py-1.5 text-[10px] font-semibold transition-colors ${isSourceView ? 'btn-secondary-accent shadow-sm' : isDark ? 'text-slate-400 hover:text-white' : 'text-slate-500 hover:text-slate-900'}`}
+                    className={`rounded-md px-3 py-1.5 text-[10px] font-medium transition-colors ${isSourceView ? 'btn-secondary-accent shadow-sm' : isDark ? 'text-slate-400 hover:text-white' : 'text-slate-500 hover:text-slate-900'}`}
                   >
-                    Source
+                    Edit source
                   </button>
                 </div>
               </div>
-              {isSourceView ? (
-                <textarea
-                  value={selectedFile?.content || ''}
-                  onChange={event => updateSelectedFile(event.target.value)}
-                  spellCheck={false}
-                  aria-label={`Edit Markdown source for ${selectedFile?.path || 'handoff file'}`}
-                  className={`min-h-[min(52vh,640px)] flex-1 resize-none p-5 font-mono text-[11px] leading-[1.7] outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-500/30 sm:text-xs xl:min-h-0 ${
-                    isDark ? 'bg-[#0e0f12] text-slate-300' : 'bg-slate-50/70 text-slate-700'
-                  }`}
-                />
-              ) : (
-                <MarkdownDocumentPreview content={selectedFile?.content || ''} isDark={isDark} />
-              )}
+
+              {selectedFile?.description ? (
+                <p className={`shrink-0 border-b px-4 py-2 text-[11px] leading-relaxed sm:px-5 ${border} ${muted}`}>
+                  {selectedFile.description}
+                </p>
+              ) : null}
+
+              <div className={`flex min-h-0 flex-1 flex-col ${isDark ? 'bg-black/10' : 'bg-slate-50/40'}`}>
+                {isSourceView ? (
+                  <textarea
+                    value={selectedFile?.content || ''}
+                    onChange={event => updateSelectedFile(event.target.value)}
+                    spellCheck={false}
+                    aria-label={`Edit Markdown source for ${selectedFile?.path || 'handoff file'}`}
+                    className={`min-h-[min(44vh,560px)] flex-1 resize-none border-0 bg-transparent p-5 font-mono text-[11px] leading-[1.7] outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-500/30 sm:px-6 sm:text-xs xl:min-h-0 ${input}`}
+                  />
+                ) : (
+                  <MarkdownDocumentPreview content={selectedFile?.content || ''} isDark={isDark} layout="embedded" />
+                )}
+              </div>
             </div>
           </section>
         </div>

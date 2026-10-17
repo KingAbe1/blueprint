@@ -22,6 +22,7 @@ import {
   ArchitectureTopology,
   FrameworkRecommendation,
 } from '../../types/project';
+import { workbenchTheme } from './workbenchUi';
 
 interface ArchitectureDecision {
   category: ArchitectureQuestion['category'];
@@ -113,10 +114,26 @@ const FLOW_LANES = LANE_SPECS.reduce<Array<{ x: number; width: number; label: st
 const CANVAS_WIDTH = FLOW_LANES[FLOW_LANES.length - 1].x + FLOW_LANES[FLOW_LANES.length - 1].width + CANVAS_PADDING_X;
 
 const toneStyles = {
-  blue: { icon: 'bg-blue-500/12 text-blue-500', border: 'border-blue-400', glow: 'shadow-blue-500/10' },
-  violet: { icon: 'bg-violet-500/12 text-violet-500', border: 'border-violet-400', glow: 'shadow-violet-500/10' },
-  emerald: { icon: 'bg-emerald-500/12 text-emerald-500', border: 'border-emerald-400', glow: 'shadow-emerald-500/10' },
-  amber: { icon: 'bg-amber-500/12 text-amber-500', border: 'border-amber-400', glow: 'shadow-amber-500/10' },
+  blue: {
+    icon: 'bg-blue-500/10 text-blue-500',
+    border: 'border-blue-500/40',
+    glow: 'shadow-[0_0_0_1px_rgba(59,130,246,0.15)]',
+  },
+  violet: {
+    icon: 'bg-slate-500/10 text-slate-500',
+    border: 'border-slate-400/35',
+    glow: 'shadow-[0_0_0_1px_rgba(148,163,184,0.12)]',
+  },
+  emerald: {
+    icon: 'bg-emerald-500/10 text-emerald-600',
+    border: 'border-emerald-500/35',
+    glow: 'shadow-[0_0_0_1px_rgba(16,185,129,0.12)]',
+  },
+  amber: {
+    icon: 'bg-amber-500/10 text-amber-600',
+    border: 'border-amber-500/35',
+    glow: 'shadow-[0_0_0_1px_rgba(245,158,11,0.12)]',
+  },
 } as const;
 
 const topologyMeta: Record<ArchitectureTopology, { label: string; description: string }> = {
@@ -390,10 +407,10 @@ export const ArchitectureMap: React.FC<ArchitectureMapProps> = ({
 
   const activeNode = visibleNodes.find(node => node.id === activeNodeId) || visibleNodes[0];
   const ActiveIcon = activeNode.icon;
+  const { border, panel, muted, title: titleText, inner } = workbenchTheme(isDark);
   const nodeSurface = isDark
-    ? 'border-white/[0.12] bg-[#17191e]/95 hover:border-white/[0.22]'
-    : 'border-slate-200 bg-white/95 hover:border-slate-300';
-  const muted = isDark ? 'text-slate-400' : 'text-slate-500';
+    ? 'border-white/[0.08] bg-[#131417]/95 hover:border-white/[0.14]'
+    : 'border-slate-200/90 bg-white hover:border-slate-300';
 
   const persistLayoutRef = useRef(onPersistLayout);
   persistLayoutRef.current = onPersistLayout;
@@ -574,17 +591,22 @@ export const ArchitectureMap: React.FC<ArchitectureMapProps> = ({
   }, [isExpanded]);
 
   const mapContent = (
-    <section className={`${isExpanded ? 'flex h-full min-h-0 flex-col shadow-2xl' : 'relative'} overflow-hidden rounded-xl border lg:rounded-2xl ${
-      isDark ? 'border-white/[0.08] bg-[#101216]' : 'border-slate-200 bg-slate-50'
-    }`}>
-      <div className={`shrink-0 flex flex-col gap-3 border-b px-4 py-3.5 sm:flex-row sm:items-center sm:justify-between sm:px-5 sm:py-4 ${isDark ? 'border-white/[0.07] bg-black/15' : 'border-slate-200 bg-white/80'}`}>
-        <div>
+    <section className={`${isExpanded ? 'flex h-full min-h-0 flex-col shadow-2xl' : 'relative'} overflow-hidden rounded-2xl border ${panel}`}>
+      <div className={`shrink-0 flex flex-col gap-3 border-b px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6 ${border}`}>
+        <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
-            <div className={`text-[10px] font-semibold uppercase tracking-[0.14em] ${isDark ? 'text-blue-300' : 'text-blue-700'}`}>System flow</div>
-            <span className={`rounded-full px-2 py-0.5 text-[9px] font-semibold ${isDark ? 'bg-violet-500/12 text-violet-200' : 'bg-violet-100 text-violet-700'}`}>{selectedTopology.label}</span>
+            <p className={`text-xs ${muted}`}>Interactive map</p>
+            <span
+              className={`rounded-full px-2 py-0.5 text-[10px] ${
+                isDark ? 'bg-white/[0.06] text-slate-300' : 'bg-slate-100 text-slate-600'
+              }`}
+            >
+              {selectedTopology.label}
+            </span>
           </div>
-          <p className={`mt-1 text-xs ${muted}`}>
-            Drag nodes to rearrange · positions save automatically · follow the blue path · click for detail
+          <h3 className={`mt-0.5 text-[13px] ${titleText}`}>System flow</h3>
+          <p className={`mt-1 text-xs leading-relaxed ${muted}`}>
+            Drag nodes to rearrange · positions save automatically · follow the blue path · click a node for detail
           </p>
         </div>
         <div className="flex flex-wrap items-center justify-end gap-1.5">
@@ -613,14 +635,14 @@ export const ArchitectureMap: React.FC<ArchitectureMapProps> = ({
         className={`relative touch-none overflow-hidden ${panRef.current ? 'cursor-grabbing' : 'cursor-grab'} ${isExpanded ? 'min-h-0 flex-1' : 'h-[min(52vh,520px)] min-h-[420px]'}`}
         style={{
           backgroundImage: isDark
-            ? 'radial-gradient(circle, rgba(255,255,255,0.10) 1px, transparent 1px)'
-            : 'radial-gradient(circle, rgba(100,116,139,0.22) 1px, transparent 1px)',
+            ? 'radial-gradient(circle, rgba(255,255,255,0.06) 1px, transparent 1px)'
+            : 'radial-gradient(circle, rgba(100,116,139,0.16) 1px, transparent 1px)',
           backgroundSize: `${20 * zoom}px ${20 * zoom}px`,
           backgroundPosition: `${pan.x}px ${pan.y + LANE_HEADER_HEIGHT}px`,
         }}
       >
           <div
-            className={`pointer-events-none absolute inset-x-0 top-0 z-10 border-b ${isDark ? 'border-white/[0.08] bg-[#101216]/95' : 'border-slate-200 bg-slate-50/95'}`}
+            className={`pointer-events-none absolute inset-x-0 top-0 z-10 border-b ${border} ${isDark ? 'bg-[#0E0F12]/95' : 'bg-[#F6F7F9]/95'}`}
             style={{ height: LANE_HEADER_HEIGHT }}
             aria-hidden="true"
           >
@@ -633,7 +655,7 @@ export const ArchitectureMap: React.FC<ArchitectureMapProps> = ({
                   width: lane.width * zoom,
                 }}
               >
-                <span className={`truncate text-[10px] font-semibold uppercase tracking-[0.12em] ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
+                <span className={`truncate text-[10px] uppercase tracking-wide ${muted}`}>
                   {lane.label}
                 </span>
               </div>
@@ -732,21 +754,21 @@ export const ArchitectureMap: React.FC<ArchitectureMapProps> = ({
                   onPointerMove={onPointerMove}
                   onPointerUp={stopDragging}
                   onPointerCancel={stopDragging}
-                  className={`absolute flex h-24 w-48 touch-none cursor-grab flex-col rounded-2xl border p-3 text-left shadow-lg backdrop-blur-sm transition-[border-color,box-shadow] active:cursor-grabbing ${nodeSurface} ${
-                    selected ? `${toneStyles[node.tone].border} ${toneStyles[node.tone].glow} shadow-xl` : ''
+                  className={`absolute flex h-24 w-48 touch-none cursor-grab flex-col rounded-xl border p-3 text-left shadow-sm backdrop-blur-sm transition-[border-color,box-shadow] active:cursor-grabbing ${nodeSurface} ${
+                    selected ? `${toneStyles[node.tone].border} ${toneStyles[node.tone].glow}` : ''
                   }`}
                   style={{ left: position.x, top: position.y }}
                 >
                   <div className="flex min-w-0 items-start gap-2.5">
-                    <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${toneStyles[node.tone].icon}`}>
+                    <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border ${toneStyles[node.tone].icon}`}>
                       <Icon className="h-4 w-4" />
                     </span>
                     <div className="min-w-0 flex-1">
-                      <div className={`flex items-center justify-between gap-2 text-[8px] font-semibold uppercase tracking-[0.12em] ${muted}`}>
+                      <div className={`flex items-center justify-between gap-2 text-[9px] uppercase tracking-wide ${muted}`}>
                         <span>{node.eyebrow}</span>
                         <Move className="h-3 w-3 shrink-0 opacity-40" />
                       </div>
-                      <div className={`mt-1 line-clamp-3 text-[11px] font-semibold leading-4 ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>{node.label}</div>
+                      <div className={`mt-1 line-clamp-3 text-[11px] leading-4 ${titleText}`}>{node.label}</div>
                     </div>
                   </div>
                 </button>
@@ -755,19 +777,19 @@ export const ArchitectureMap: React.FC<ArchitectureMapProps> = ({
           </div>
       </div>
 
-      <div className={`shrink-0 flex items-start gap-3 border-t px-4 py-4 sm:px-5 ${isDark ? 'border-white/[0.07] bg-[#141518]/90' : 'border-slate-200 bg-white'}`}>
-        <span className={`mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${toneStyles[activeNode.tone].icon}`}>
+      <div className={`shrink-0 flex items-start gap-3 border-t px-5 py-4 sm:px-6 ${border} ${inner}`}>
+        <span className={`mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border ${toneStyles[activeNode.tone].icon}`}>
           <ActiveIcon className="h-4 w-4" />
         </span>
         <div className="min-w-0 flex-1">
-          <p className={`text-[10px] font-semibold uppercase tracking-[0.1em] ${muted}`}>{activeNode.eyebrow}</p>
-          <p className={`mt-1 text-sm font-semibold leading-5 ${isDark ? 'text-white' : 'text-slate-900'}`}>{activeNode.label}</p>
-          <p className={`mt-1.5 text-xs leading-5 ${muted}`}>{activeNode.detail}</p>
+          <p className={`text-[10px] uppercase tracking-wide ${muted}`}>{activeNode.eyebrow}</p>
+          <p className={`mt-0.5 text-[13px] ${titleText}`}>{activeNode.label}</p>
+          <p className={`mt-1.5 text-xs leading-relaxed ${muted}`}>{activeNode.detail}</p>
           {activeNode.id === 'services' && (
             <div className="mt-2 flex flex-wrap gap-1.5">
               {systemModules.map(module => (
-                <span key={module} className={`rounded-md border px-2 py-1 text-[9px] font-medium ${
-                  isDark ? 'border-white/[0.08] bg-white/[0.04] text-slate-300' : 'border-slate-200 bg-slate-50 text-slate-600'
+                <span key={module} className={`rounded-md border px-2 py-1 text-[10px] ${border} ${
+                  isDark ? 'bg-white/[0.03] text-slate-300' : 'bg-white text-slate-600'
                 }`}>{module}</span>
               ))}
             </div>

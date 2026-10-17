@@ -84,7 +84,7 @@ const AppContent: React.FC = () => {
                 onRescan={() => reanalyzeCodebase(activeProject.codebaseAnalysis!)}
               />
             ) : (
-            <div className="flex-1 flex overflow-hidden min-h-0">
+            <div className={`flex-1 flex overflow-hidden min-h-0 ${isDark ? 'bg-[#0E0F12]' : 'bg-[#F6F7F9]'}`}>
               {activeTab === 'in-flight' ? (
                 <BuildHandoffView />
               ) : activeTab === 'architecture-map' ? (
