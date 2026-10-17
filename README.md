@@ -46,8 +46,12 @@ npm run build
 
 `./launch-desktop.sh` on macOS opens the dev UI in a standalone browser window.
 
-## License & contributing
+## License & forks
 
-MIT - [LICENSE](./LICENSE). [CONTRIBUTING.md](./CONTRIBUTING.md), [CODE_OF_CONDUCT.md](./CODE_OF_CONDUCT.md), [SECURITY.md](./SECURITY.md).
+[MIT](./LICENSE). You can fork, modify, and ship your own product from this code (keep the license notice in copies).
+
+The name **blueprint studio** and the build at [blueprint-web-chi.vercel.app](https://blueprint-web-chi.vercel.app/) are the maintainer’s product. Forks are welcome; please use a different name and branding so users are not confused about who they are getting software from. That does not stop the maintainer from selling services, paid builds, or pursuing funding or acquisition around the official project.
+
+Contributing: [CONTRIBUTING.md](./CONTRIBUTING.md), [CODE_OF_CONDUCT.md](./CODE_OF_CONDUCT.md), [SECURITY.md](./SECURITY.md).
 
 Built with React 19, Vite, Tailwind 4, Tiptap, TypeScript, Tauri 2.
