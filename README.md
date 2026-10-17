@@ -1,8 +1,10 @@
 # Blueprint Studio
 
-**Repository:** [github.com/KingAbe1/blueprint](https://github.com/KingAbe1/blueprint)
+**Website:** [blueprint-web-chi.vercel.app](https://blueprint-web-chi.vercel.app/) · **Source:** [github.com/KingAbe1/blueprint](https://github.com/KingAbe1/blueprint)
 
-Desktop and browser workstation for **spec-first greenfield planning** and **brownfield codebase analysis**, with exportable agent handoff packages for Cursor, Claude Code, VS Code, Codex, JetBrains, and other IDEs.
+*Architectural rigor for the generative era* — a desktop and browser workstation for **spec-first greenfield planning** and **brownfield codebase analysis**, with exportable agent handoff packages for Cursor, Claude Code, VS Code, Codex, JetBrains, and other IDEs.
+
+The [marketing site](https://blueprint-web-chi.vercel.app/) explains the product story and workflow; **this repository** is the open-source Blueprint Studio app (run locally or build the Tauri desktop shell).
 
 Blueprint itself is a **Tauri 2 + Vite + React 19** app. Projects you create in greenfield mode can target **any stack** the interview selects (Next.js, Tauri, Expo, FastAPI, and others). Brownfield scanning works on any local folder; **deep code-quality profiles are implemented for Next.js (TypeScript/JavaScript) today**.
 

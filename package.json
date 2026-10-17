@@ -10,7 +10,7 @@
   "bugs": {
     "url": "https://github.com/KingAbe1/blueprint/issues"
   },
-  "homepage": "https://github.com/KingAbe1/blueprint#readme",
+  "homepage": "https://blueprint-web-chi.vercel.app/",
   "type": "module",
   "scripts": {
     "dev": "vite",
