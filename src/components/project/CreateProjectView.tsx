@@ -11,7 +11,6 @@ import {
   overviewBorderClass,
   overviewDivideClass,
   overviewPanelClass,
-  overviewRowEmphasis,
 } from './overviewUi';
 
 type EntryMode = 'greenfield' | 'brownfield';
@@ -219,7 +218,7 @@ export const CreateProjectView: React.FC = () => {
                   }}
                   className={`flex min-w-0 flex-1 items-center justify-between gap-3 px-4 py-3.5 text-left transition-colors ${
                     isDark ? 'hover:bg-white/[0.03]' : 'hover:bg-slate-50/80'
-                  } ${overviewRowEmphasis(isDark, 'neutral')}`}
+                  }`}
                 >
                   <span className="flex min-w-0 items-center gap-3">
                     <span
@@ -230,7 +229,7 @@ export const CreateProjectView: React.FC = () => {
                       <KindIcon className="h-4 w-4" />
                     </span>
                     <span className="min-w-0">
-                      <span className={`block truncate text-[13px] font-medium ${titleText}`}>{project.name}</span>
+                      <span className={`block truncate text-[13px] ${titleText}`}>{project.name}</span>
                       <span className={`mt-0.5 block text-[11px] ${muted}`}>
                         {kind === 'codebase' ? 'Codebase' : 'Blueprint'}
                         {' · '}
@@ -281,8 +280,8 @@ export const CreateProjectView: React.FC = () => {
           </p>
         </div>
       ) : null}
-      <div className="flex min-h-full items-start justify-center px-5 py-8 sm:px-8 lg:py-12">
-        <div className="mx-auto flex w-full max-w-5xl flex-col items-stretch gap-8 lg:flex-row lg:items-start lg:gap-10">
+      <div className="flex min-h-full flex-1 items-center justify-center px-5 py-8 sm:px-8 lg:py-12">
+        <div className="mx-auto flex w-full max-w-5xl flex-col items-stretch gap-8 lg:flex-row lg:items-center lg:justify-center lg:gap-16 xl:gap-20">
         <section className="min-w-0 flex-1 lg:max-w-md">
           {openedFromActiveProject && (
             <button
@@ -333,7 +332,9 @@ export const CreateProjectView: React.FC = () => {
                   disabled={isAnalyzingCodebase}
                   className={`flex w-full items-start gap-3 rounded-xl border p-4 text-left transition-colors disabled:opacity-60 ${border} ${
                     selected
-                      ? overviewRowEmphasis(isDark, 'info')
+                      ? isDark
+                        ? 'border-blue-500/25 bg-blue-500/[0.04]'
+                        : 'border-blue-200/90 bg-blue-50/50'
                       : isDark
                         ? 'bg-white/[0.02] hover:bg-white/[0.04]'
                         : 'bg-white/80 hover:bg-white'
@@ -354,7 +355,7 @@ export const CreateProjectView: React.FC = () => {
                   </div>
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center justify-between gap-2">
-                      <p className={`text-[13px] font-medium ${titleText}`}>{title}</p>
+                      <p className={`text-[13px] ${titleText}`}>{title}</p>
                       <span className={`shrink-0 text-[10px] tabular-nums ${muted}`}>
                         {mode === 'brownfield' && isAnalyzingCodebase ? 'Scanning…' : idleBadge}
                       </span>
@@ -378,7 +379,7 @@ export const CreateProjectView: React.FC = () => {
         </section>
 
         <section
-          className={`desktop-panel w-full shrink-0 overflow-hidden rounded-2xl border lg:sticky lg:top-8 lg:w-[min(100%,380px)] lg:max-w-[380px] lg:self-start ${panel}`}
+          className={`desktop-panel w-full shrink-0 overflow-hidden rounded-2xl border lg:w-[min(100%,380px)] lg:max-w-[380px] lg:self-center ${panel}`}
         >
           <div className={`border-b px-5 py-4 sm:px-6 ${border}`}>
             {entryMode === 'greenfield' ? (
