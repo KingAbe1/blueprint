@@ -7,14 +7,14 @@ Desktop and browser workstation for **spec-first greenfield planning** and **bro
 ### New product (greenfield)
 
 1. **Product blueprint** — Describe the product; optional AI to expand the description, infer architecture facts, and run a structured architecture interview.
-2. **Architecture map** — Review framework recommendation, topology, and interview decisions on an interactive map.
-3. **Build handoff** — Generate `AGENTS.md`, `blueprint/*.md`, and IDE-specific rules; preview, edit, and export to a project folder (Tauri desktop or browser).
+2. **Architecture map** — Review the **AI- or heuristic-chosen stack** (any language/framework fit for the product), topology, and interview decisions on an interactive map.
+3. **Build handoff** — Generate stack-aware `AGENTS.md`, `blueprint/*.md`, and IDE-specific rules (extra Next.js scaffolding when that stack is chosen); preview, edit, and export to a project folder (Tauri desktop or browser).
 
 ### Existing codebase (brownfield)
 
 - Scan a local folder (Tauri or File System Access API).
 - Surface languages, frameworks, structure, scripts, static quality findings, dependency inventory, and optional npm advisory scan.
-- Next.js-specific analysis when detected.
+- **Deep quality analysis is Next.js-first today** — App Router rules, the Next.js analyzer, and extended correctness/security checks run when a Next.js TypeScript project is detected; other stacks get structure and generic signals until dedicated profiles ship.
 - Optional AI quality review on selected source files (requires configured provider).
 
 Projects are persisted **on your machine only** in the browser’s **localStorage** (use Export JSON in the project menu for backups)—not on a Blueprint-hosted cloud.

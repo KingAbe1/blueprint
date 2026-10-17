@@ -75,13 +75,12 @@ export const BASE_FRAMEWORKS: Record<string, {
 export function recommendFrameworkFromText(projectName: string, description: string): FrameworkRecommendation[] {
   const text = (projectName + ' ' + description).toLowerCase().trim();
 
-  // If no information is provided, return empty array (no static defaults)
   if (!text || (!description.trim() && !projectName.trim())) {
     return [];
   }
 
-  // Feature detection
-  const isDesktop = text.includes('desktop') || text.includes('macos') || text.includes('windows') || text.includes('native') || text.includes('offline') || text.includes('local file') || text.includes('studio') || text.includes('workstation');
+  const isDesktop = /\b(desktop app(?:lication)?|native desktop|tauri|electron|installable on (?:mac|windows|linux))\b/.test(text)
+    || (text.includes('desktop') && (text.includes('macos') || text.includes('windows') || text.includes('offline')));
   const isMobile = text.includes('mobile') || text.includes('ios') || text.includes('android') || text.includes('phone') || text.includes('app store') || text.includes('tablet');
   const isAI = text.includes('ai') || text.includes('machine learning') || text.includes('llm') || text.includes('python') || text.includes('data analysis') || text.includes('rag') || text.includes('gpt') || text.includes('claude');
   const isEcomOrPayments = text.includes('pay') || text.includes('cart') || text.includes('store') || text.includes('shop') || text.includes('checkout') || text.includes('stripe') || text.includes('billing') || text.includes('order');
@@ -90,81 +89,76 @@ export function recommendFrameworkFromText(projectName: string, description: str
 
   const recommendations: FrameworkRecommendation[] = [];
 
-  // 1. If Desktop match
   if (isDesktop) {
     recommendations.push({
       id: 'tauri',
-      name: BASE_FRAMEWORKS['tauri'].name,
+      name: BASE_FRAMEWORKS.tauri.name,
       category: 'Desktop App',
       description: 'Native cross-platform desktop application for macOS, Windows, and Linux.',
       whyReasons: [
         'Direct offline access to the user’s local computer filesystem and system notifications.',
         'Extremely lightweight (<30MB RAM), using system webviews instead of resource-heavy Electron.',
-        'Build native desktop tools using modern web tech (React/TypeScript) backed by a secure Rust core.'
+        'Build native desktop tools using modern web tech (React/TypeScript) backed by a secure Rust core.',
       ],
       bestFor: `Desktop tools, offline workstations, and local file managers matching ${projectName}`,
-      isRecommended: true
+      isRecommended: true,
     });
   }
 
-  // 2. If Mobile match
   if (isMobile) {
     recommendations.push({
       id: 'expo',
-      name: BASE_FRAMEWORKS['expo'].name,
+      name: BASE_FRAMEWORKS.expo.name,
       category: 'Mobile App',
       description: 'Universal mobile application for iOS and Android using a single TypeScript codebase.',
       whyReasons: [
         'Single codebase runs natively on both iPhone and Android devices with native UI fluidity.',
         'Immediate mobile testing: scan a QR code with the Expo Go app to test directly on your phone.',
-        'Full hardware integration: Access cameras, push notifications, FaceID, and device sensors.'
+        'Full hardware integration: Access cameras, push notifications, FaceID, and device sensors.',
       ],
       bestFor: `Mobile apps and on-the-go user experiences matching ${projectName}`,
-      isRecommended: recommendations.length === 0
+      isRecommended: recommendations.length === 0,
     });
   }
 
-  // 3. If AI / Data match
-  if (isAI) {
+  if (isAI && isApiOnly) {
     recommendations.push({
       id: 'fastapi',
-      name: BASE_FRAMEWORKS['fastapi'].name,
+      name: BASE_FRAMEWORKS.fastapi.name,
       category: 'Backend API',
       description: 'High-speed async Python API backend with native machine learning support.',
       whyReasons: [
         'Seamless integration with Python AI ecosystems (OpenAI, LangChain, PyTorch, HuggingFace).',
         'Automatic interactive API documentation (Swagger UI) generated directly from your code.',
-        'Strict type validation with Pydantic guarantees clean data inputs across your AI pipelines.'
+        'Strict type validation with Pydantic guarantees clean data inputs across your AI pipelines.',
       ],
-      bestFor: `AI processing backends, data transformation pipelines, and intelligent services`,
-      isRecommended: recommendations.length === 0
+      bestFor: 'AI processing backends, data transformation pipelines, and intelligent services',
+      isRecommended: recommendations.length === 0,
     });
   }
 
-  // 4. If Full-Stack Web / E-commerce / SaaS
   if (isEcomOrPayments || !isDesktop || recommendations.length === 0) {
     const dynamicReasons = [
-      isEcomOrPayments 
+      isEcomOrPayments
         ? 'Built-in server routes provide secure, idempotent Stripe webhook and checkout handling.'
         : 'Unified full-stack architecture lets you build user interfaces and database logic together.',
       isRealtime
         ? 'Server components and streaming SSR deliver instant UI rendering for live data updates.'
         : 'Server-side rendering ensures fast page speeds and top search engine discovery.',
-      'Out-of-the-box support for Tailwind CSS, database ORMs (Prisma/Drizzle), and user auth.'
+      'Out-of-the-box support for Tailwind CSS, database ORMs (Prisma/Drizzle), and user auth.',
     ];
 
     recommendations.push({
       id: 'nextjs',
-      name: BASE_FRAMEWORKS['nextjs'].name,
+      name: BASE_FRAMEWORKS.nextjs.name,
       category: 'Full-Stack Web',
       description: 'Production-ready full-stack web framework with server actions and edge API routes.',
       whyReasons: dynamicReasons,
       bestFor: `SaaS platforms, customer portals, and web services matching ${projectName}`,
-      isRecommended: recommendations.length === 0
+      isRecommended: recommendations.length === 0,
     });
   }
 
-  // 5. If SPA / Utility match
   recommendations.push({
     id: 'react-vite',
     name: BASE_FRAMEWORKS['react-vite'].name,
@@ -173,15 +167,14 @@ export function recommendFrameworkFromText(projectName: string, description: str
     whyReasons: [
       'Instant development feedback with sub-second hot module replacement.',
       'Easily connects to serverless backends like Supabase, Firebase, or custom REST APIs.',
-      'Zero server maintenance — host on any global CDN for free with zero cold starts.'
+      'Zero server maintenance — host on any global CDN for free with zero cold starts.',
     ],
-    bestFor: `Interactive dashboards, client portals, and responsive tools`,
-    isRecommended: recommendations.length === 0
+    bestFor: 'Interactive dashboards, client portals, and responsive tools',
+    isRecommended: recommendations.length === 0,
   });
 
-  // Ensure top item has isRecommended flag
   return recommendations.slice(0, 3).map((fw, index) => ({
     ...fw,
-    isRecommended: index === 0
+    isRecommended: index === 0,
   }));
 }

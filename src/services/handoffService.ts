@@ -6,6 +6,12 @@ import {
   IDETarget,
   Project,
 } from '../types/project';
+import { isNextJsGreenfieldStack } from './greenfieldStackPolicy';
+import {
+  nextJsAgentsWorkingAgreementBullets,
+  nextJsHandoffArchitectureSection,
+  nextJsMilestoneZeroBullets,
+} from './handoffNextJsGuidance';
 
 const CATEGORY_LABELS: Record<ArchitectureQuestion['category'], string> = {
   product: 'Product scope',
@@ -120,6 +126,7 @@ function makeFiles(project: Project, ide: IDETarget): HandoffFile[] {
   const integrations = decisionValue(project, 'integrations');
   const description = project.spec.description.trim();
   const generatedOn = new Date().toISOString().slice(0, 10);
+  const nextJs = isNextJsGreenfieldStack(recommendation);
 
   const files: HandoffFile[] = [
     {
@@ -142,6 +149,7 @@ This repository is governed by the product blueprint in \`blueprint/\`. Read the
 - Treat the architecture decisions as constraints. Do not replace the selected stack or ${topologyLabel.toLowerCase()} without recording a new decision.
 - Keep domain boundaries explicit: ${modules.join(', ')}.
 - Prefer the smallest implementation that satisfies the acceptance criteria.
+${nextJs ? `${nextJsAgentsWorkingAgreementBullets()}\n` : ''}
 - Add or update automated tests for behavior changed in a milestone.
 - Never commit credentials. Use environment variables and update \`.env.example\` with names only.
 - Before declaring a milestone complete, run the relevant tests and verify its acceptance criteria.
@@ -219,6 +227,7 @@ flowchart LR
 | Area | Decision | Source |
 | --- | --- | --- |
 ${decisionTable(project)}
+${nextJs ? `\n${nextJsHandoffArchitectureSection()}\n` : ''}
 `,
     },
     {
@@ -232,11 +241,11 @@ Build vertical, demonstrable slices. Do not build every database or infrastructu
 
 **Goal:** Prove the client, application layer, data store, automated checks, and deployment path work together.
 
-- Establish the repository structure for ${topologyLabel.toLowerCase()}.
+${nextJs ? nextJsMilestoneZeroBullets() : `- Establish the repository structure for ${topologyLabel.toLowerCase()}.
 - Configure local, test, staging, and production environment conventions.
 - Add automated formatting, type checking, and a minimal test pipeline.
 - Implement one thin end-to-end read/write path with health monitoring.
-- Document required environment variables in \`.env.example\` without values.
+- Document required environment variables in \`.env.example\` without values.`}
 
 **Exit criteria:** A small end-to-end feature is testable locally and deployable through the selected release path.
 
