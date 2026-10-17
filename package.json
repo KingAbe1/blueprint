@@ -1,7 +1,7 @@
 {
   "name": "blueprint-studio",
   "version": "1.0.0",
-  "description": "Architectural Rigor for the Generative Era - Desktop Pre-Flight Studio & Spec Generator",
+  "description": "Local app to plan new products and scan codebases; exports agent handoff packages.",
   "license": "MIT",
   "repository": {
     "type": "git",

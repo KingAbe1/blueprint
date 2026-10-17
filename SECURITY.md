@@ -19,7 +19,7 @@ Include when you can:
 - Affected version or commit SHA
 - Any suggested fix (optional)
 
-We aim to acknowledge reports within a few business days and will coordinate disclosure after a fix is available.
+Maintainers will reply when they can and coordinate disclosure after a fix.
 
 ## Scope
 
