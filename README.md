@@ -2,22 +2,41 @@
 
 *Architectural rigor for the generative era.*
 
-Local-first workstation for **planning new products** and **understanding existing codebases**, with exportable agent handoff packages for Cursor, Claude Code, VS Code, Codex, JetBrains, and other IDEs.
+AI makes it fast to generate code. **blueprint studio** helps you decide what *should* be built first: product intent, architecture choices, constraints, and a structured handoff so Cursor, Claude Code, VS Code, Codex, JetBrains, and similar tools implement against a shared plan - not ad-hoc prompts alone.
 
-**Product overview:** [blueprint-web-chi.vercel.app](https://blueprint-web-chi.vercel.app/)
+Everything runs **local-first** on your machine (browser or Tauri desktop). There is no blueprint studio cloud for your specs, scans, or source trees.
+
+**Story & workflow:** [blueprint-web-chi.vercel.app](https://blueprint-web-chi.vercel.app/)
+
+### Plan a new product (greenfield)
+
+Turn a rough idea into something an agent can execute:
+
+1. **Product blueprint** - capture who it’s for, scope, and first-release boundaries (optional AI polish).
+2. **Build questions** - structured interview so platform, data, security, and shape decisions are explicit before stack selection.
+3. **Architecture map** - one recommended stack and topology, visualized from your answers.
+4. **Build handoff** - generated `AGENTS.md`, `blueprint/*.md` (product, architecture, roadmap, requirements, acceptance criteria), and IDE-specific rules. Preview, edit, then zip or write into a real project folder.
+
+Greenfield supports **multiple stacks** from the interview (web, mobile, desktop, API, etc.); handoff text follows the stack you chose.
+
+### Understand an existing codebase (brownfield)
+
+Point at a local repo to see how it is put together:
+
+- Languages, frameworks, layout, scripts, dependencies, and static quality signals.
+- **Supported deep profiles** add framework-specific rules and review UI when the repo matches (see [supported profiles](src/constants/supportedAnalysisProfiles.ts) - **Next.js (JavaScript / TypeScript)** today, more planned).
+- Optional **AI quality review** on files you pick, using your configured provider.
+
+Each project is either greenfield or brownfield - you pick the path when you start.
 
 ---
 
-## What it does
+## Quick reference
 
-| Mode | Start from home | Outcome |
+| Path | You start with | You leave with |
 | --- | --- | --- |
-| **Plan a new project** | Product brief → build questions → architecture map | Reviewable **build handoff** (`AGENTS.md`, `blueprint/*.md`, IDE rules) to zip or write into a repo |
-| **Understand a codebase** | Pick a local folder | Overview, structure, quality signals, optional AI review on selected files |
-
-Greenfield and brownfield are separate project types in the app (you choose one path per project).
-
-Brownfield runs a **baseline scan** on any folder. **Deep language/framework profiles** (parsers, rules, specialization UI) apply when the repo matches a [supported profile](src/constants/supportedAnalysisProfiles.ts) - **Next.js (JavaScript / TypeScript)** today, with more planned.
+| **Plan a new project** | A product idea / brief | Agent-ready blueprint package in your repo |
+| **Understand a codebase** | A folder on disk | A saved scan + quality overview on this device |
 
 ---
 
