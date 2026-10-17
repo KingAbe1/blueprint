@@ -1,48 +1,186 @@
 # Blueprint Studio
 
-Desktop and browser workstation for **spec-first greenfield planning** and **brownfield codebase analysis**, with exportable agent handoff packages for Cursor, Claude Code, VS Code, and JetBrains.
+Desktop and browser workstation for **spec-first greenfield planning** and **brownfield codebase analysis**, with exportable agent handoff packages for Cursor, Claude Code, VS Code, Codex, JetBrains, and other IDEs.
 
-## What it does
+Blueprint itself is a **Tauri 2 + Vite + React 19** app. Projects you create in greenfield mode can target **any stack** the interview selects (Next.js, Tauri, Expo, FastAPI, and others). Brownfield scanning works on any local folder; **deep code-quality profiles are implemented for Next.js (TypeScript/JavaScript) today**.
 
-### New product (greenfield)
+---
 
-1. **Product blueprint** — Describe the product; optional AI to expand the description, infer architecture facts, and run a structured architecture interview.
-2. **Architecture map** — Review the **AI- or heuristic-chosen stack** (any language/framework fit for the product), topology, and interview decisions on an interactive map.
-3. **Build handoff** — Generate stack-aware `AGENTS.md`, `blueprint/*.md`, and IDE-specific rules (extra Next.js scaffolding when that stack is chosen); preview, edit, and export to a project folder (Tauri desktop or browser).
+## Two project modes
 
-### Existing codebase (brownfield)
+| Mode | How you start | What you get |
+| --- | --- | --- |
+| **Greenfield** | Home → **Plan a new project** | Product brief → build questions → architecture map → agent handoff package |
+| **Brownfield** | Home → **Understand an existing codebase** → pick a folder | Local scan stored on the project; overview, code analysis, and quality views |
 
-- Scan a local folder (Tauri or File System Access API).
-- Surface languages, frameworks, structure, scripts, static quality findings, dependency inventory, and optional npm advisory scan.
-- **Deep quality analysis is Next.js-first today** — App Router rules, the Next.js analyzer, and extended correctness/security checks run when a Next.js TypeScript project is detected; other stacks get structure and generic signals until dedicated profiles ship.
-- Optional AI quality review on selected source files (requires configured provider).
+A project is one or the other: greenfield projects have no `codebaseAnalysis`; brownfield projects skip the workbench phases and open the codebase workspace.
 
-Projects are persisted **on your machine only** in the browser’s **localStorage** (use Export JSON in the project menu for backups)—not on a Blueprint-hosted cloud.
+---
 
-## Data & privacy
+## Greenfield workflow
 
-- **Codebase scans** run locally. File contents used for analysis stay on your device except where you explicitly opt in (see below).
-- **Blueprint does not** operate a cloud repository for your company code, scan results, or project specs.
-- **Optional AI** (architecture interview, description polish, quality review): **one provider setup for all projects**—stored in `localStorage`. Prompts go **directly to the provider you configure** (OpenAI, Anthropic, Ollama on localhost, etc.). Use Ollama or your org’s gateway if nothing may leave your network.
-- **Optional GitHub status** uses a token you supply; requests go to GitHub, not Blueprint.
-- **Dependency advisories** may query public npm/OSV APIs using package names and versions from your lockfile—not your source tree.
+Header tabs (unlocked in order):
 
-There is no account or login—open the app and use it. Everything stays local.
+1. **Product blueprint** (`domain-intent`)
+2. **Architecture map** (`architecture-map`) — after build questions are completed
+3. **Build handoff** (`in-flight`) — after a final stack recommendation exists
+
+### Product brief
+
+- Rich-text editor (Tiptap) with optional **Preview** (read-only).
+- Plain-text `description` is kept for AI and exports; optional `descriptionHtml` for display.
+- **Polish with AI** (expand / tighten / polish) when a provider is configured; **Undo polish** restores the prior brief.
+- AI is optional for the whole flow; without it, stack choice uses heuristics in `frameworkRecommender.ts`.
+
+### Build questions (architecture interview)
+
+- **Start build questions** calls `generateArchitectureInterview` using the **project name** and **plain product description** (not HTML).
+- Questions are AI-generated when configured; inferred facts from the brief reduce duplicate questions.
+- Supports **multi-select** answers where the model sets `allowMultiple`.
+- Review step before finishing; completed interview drives **one final architecture** (not a menu of alternatives).
+
+### Final architecture
+
+- With AI: `analyzeFrameworksWithAI` returns a single JSON recommendation (stack, topology, modules, deploy target, etc.).
+- Without AI: `recommendFrameworkFromText` suggests up to three stacks from keyword heuristics.
+- Interview answers adjust topology and module names (`applyInterviewTopology`).
+
+### Architecture map
+
+- Interactive map of stack, topology, modules, and interview decisions.
+- Layout (node positions, zoom, pan) persists in `spec.architectureMapLayout`.
+- Export map as **PNG** or **SVG** (browser download or Tauri save dialog).
+
+### Build handoff
+
+Generates a preview-editable package, then:
+
+- **Download ZIP** — save dialog on desktop; File System Access API or fallback download in the browser.
+- **Add files to project** — pick a folder (Tauri or `showDirectoryPicker`), detect path conflicts, confirm overwrites, write files via Rust or the File System Access API.
+
+**Handoff contents (typical):**
+
+| Path | Purpose |
+| --- | --- |
+| `AGENTS.md` | Entry point and working agreement for coding agents |
+| `blueprint/PRODUCT.md` | Product intent and boundaries |
+| `blueprint/ARCHITECTURE.md` | Stack, topology, modules, decision table |
+| `blueprint/ROADMAP.md` | Milestone-ordered implementation plan |
+| `blueprint/REQUIREMENTS.md` | Functional and non-functional constraints |
+| `blueprint/INTEGRATIONS.md` | External services and integration rules |
+| `blueprint/OPERATIONS.md` | Hosting, delivery, runbooks |
+| `blueprint/ACCEPTANCE_CRITERIA.md` | Definition of done |
+| `blueprint/MANIFEST.md` | Generation metadata |
+| IDE-specific file | e.g. `.cursor/rules/blueprint.mdc`, `CLAUDE.md`, `.github/copilot-instructions.md`, `.aiassistant/rules/blueprint.md` |
+
+When the selected stack is **Next.js**, handoff also injects App Router conventions, Milestone 0 (`create-next-app`, health route, etc.) via `handoffNextJsGuidance.ts`. Other stacks get generic milestone wording tied to the chosen recommendation.
+
+**Target IDE** (handoff): Cursor, VS Code, Codex, Claude Code, JetBrains, Other.
+
+**Folder status UI:** amber warnings mean a path **already exists** in the chosen folder and would be replaced on export; after a successful export, matching files show **on disk** until you edit the preview, change folder, or regenerate the package.
+
+Handoff folder and IDE preferences are remembered per project in `greenfieldHandoffPrefsStorage`.
+
+---
+
+## Brownfield workflow
+
+Pick a local directory (Tauri native dialog or browser File System Access API). Blueprint walks the tree, reads manifests and selected sources, and stores a `CodebaseAnalysis` snapshot on the project.
+
+### Sections
+
+- **Project overview** — hero summary, languages, frameworks, structure, suggestions, topology diagram, GitHub link (optional token).
+- **Code analysis** — file tree, dependency inventory (packages tab), npm scripts (scripts tab), framework specialization panel when applicable.
+- **Quality & risks** — scored dimensions, static findings, extended rules, optional **AI quality review** on chosen files.
+
+### Next.js vs everything else
+
+| Capability | Next.js TS/JS project | Other stacks |
+| --- | --- | --- |
+| Language / framework detection | Yes | Yes |
+| Structure, scripts, dependencies | Yes | Yes |
+| npm advisory scan (lockfile metadata) | Yes | Yes |
+| Deep parse, App Router / RSC rules, `nextJsAnalyzer` | Yes | Not yet |
+| Next.js specialization UI | Yes | Hidden; generic framework badges only |
+| Quality checks message | Full profile when sources parse | “Profile not implemented” / partial signals |
+
+Implementation lives under `src/services/frameworks/nextjs/`, `architectureAnalysisService.ts`, `codeQualityRules.ts`, and related views.
+
+### Rescan and export
+
+- **Rescan** re-runs analysis with progress overlay.
+- **Export report** (toolbar) produces a markdown summary of the scan.
+- Open in external IDE via protocol links or copied CLI commands (VS Code, Cursor, Windsurf, JetBrains, Zed, Sublime, etc.).
+
+---
+
+## AI configuration
+
+One **global** AI setup (all projects), stored in `localStorage`:
+
+- Providers: **OpenAI**, **Anthropic**, **Google Gemini**, **Ollama** (local), **OpenRouter**, **Custom** (OpenAI-compatible base URL).
+- Used for: product polish, architecture interview, final stack JSON, optional brownfield file review.
+- Prompts go **directly to the provider you configure**—not through Blueprint servers.
+- Greenfield shows a dismissible banner until AI is connected or dismissed.
+
+Without API keys, greenfield still works for brief editing, heuristic stack choice, map, and handoff; interview generation requires configuration (or fails with a clear error).
+
+---
+
+## Data and privacy
+
+- **Projects and specs** — `localStorage` (`blueprint_projects_list`, active project id, tab preference, AI settings). Use **Export JSON** from the project menu for backup; import restores projects.
+- **Codebase scans** — analysis results live on the project in localStorage; source files are read locally for scanning only and are not uploaded to Blueprint.
+- **Optional GitHub** — token you supply; requests go to GitHub for repo metadata/status.
+- **Dependency advisories** — may call public npm/OSV APIs using **package names and versions** from the lockfile, not your full source tree.
+- No account or login.
+
+---
 
 ## Run locally
 
 ```bash
 npm install
-npm run dev          # http://localhost:5173
-npm run tauri:dev    # native desktop shell + Vite
+npm run dev          # Vite → http://localhost:5173
+npm run tauri:dev    # Tauri desktop shell + Vite (alias: npm run app)
+npm run tauri:build  # Production desktop build
+npm run build        # Web build (tsc + vite)
 ```
 
-`launch-desktop.sh` opens the dev server in a standalone browser app window on macOS (Chrome / Brave / Edge).
+`launch-desktop.sh` (macOS) opens the dev server in a standalone browser app window (Chrome / Brave / Edge).
 
-## Stack
+**Desktop vs browser**
 
-- React 19 + Vite + Tailwind CSS 4
-- Tauri 2 (optional desktop: folder pick, file read/write for scans and handoff export)
+| Feature | Tauri | Browser |
+| --- | --- | --- |
+| Brownfield folder pick | Native dialog | `showDirectoryPicker` where supported |
+| Handoff export to folder | `export_handoff_files` | File System Access API |
+| Handoff ZIP | Save dialog + write | Save picker or download |
+| Open exported folder | `open_handoff_folder` | Manual |
+
+---
+
+## Repository layout (implementation)
+
+| Area | Location |
+| --- | --- |
+| Greenfield UI | `src/components/workbench/` (`DomainIntentView`, `ArchitectureMapView`, `BuildHandoffView`, `ProductBriefRichEditor`) |
+| Handoff generation | `src/services/handoffService.ts`, `handoffExportService.ts`, `handoffZipDownload.ts` |
+| Stack heuristics | `src/services/frameworkRecommender.ts` |
+| AI prompts | `src/services/aiService.ts` |
+| Brownfield analysis | `src/services/codebaseAnalysisService.ts`, `codebaseAnalysisLoader.ts` |
+| Next.js analyzer | `src/services/frameworks/nextjs/nextJsAnalyzer.ts` |
+| Tauri commands | `src-tauri/src/lib.rs` (`inspect_handoff_conflicts`, `export_handoff_files`, `write_export_file`, …) |
+
+---
+
+## Stack (this app)
+
+- React 19, Vite, Tailwind CSS 4, Tiptap (product brief)
+- Tauri 2 + `@tauri-apps/plugin-dialog`
+- TypeScript throughout
+
+---
 
 ## Contributing
 
