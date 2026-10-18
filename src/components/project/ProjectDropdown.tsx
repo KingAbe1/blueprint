@@ -36,8 +36,6 @@ export const ProjectDropdown: React.FC<ProjectDropdownProps> = ({
     setIsCreatingNew, 
     setEditingProjectId, 
     setProjectToDelete,
-    exportProjects,
-    importProjectsFromFile,
     duplicateBlueprintProject,
   } = useProjects();
   const { isDark } = useTheme();
@@ -220,46 +218,6 @@ export const ProjectDropdown: React.FC<ProjectDropdownProps> = ({
               <Plus className="w-3.5 h-3.5" />
               <span>Create new project</span>
             </button>
-
-            <div className="flex items-center space-x-1 pt-1">
-              <button
-                onClick={() => {
-                  exportProjects();
-                  onClose();
-                }}
-                className={`flex-1 flex items-center justify-center space-x-1 px-2 py-1 rounded-lg text-[11px] font-medium transition-colors cursor-pointer border ${
-                  isDark
-                    ? 'border-white/[0.06] text-slate-300 hover:bg-white/[0.06] hover:text-white'
-                    : 'border-slate-200 text-slate-600 hover:bg-slate-100 hover:text-slate-900'
-                }`}
-                title="Export all projects as JSON backup"
-              >
-                <span>Export JSON</span>
-              </button>
-
-              <label
-                className={`flex-1 flex items-center justify-center space-x-1 px-2 py-1 rounded-lg text-[11px] font-medium transition-colors cursor-pointer border ${
-                  isDark
-                    ? 'border-white/[0.06] text-slate-300 hover:bg-white/[0.06] hover:text-white'
-                    : 'border-slate-200 text-slate-600 hover:bg-slate-100 hover:text-slate-900'
-                }`}
-                title="Import projects from JSON file"
-              >
-                <span>Import JSON</span>
-                <input
-                  type="file"
-                  accept=".json"
-                  className="hidden"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    if (file) {
-                      importProjectsFromFile(file);
-                      onClose();
-                    }
-                  }}
-                />
-              </label>
-            </div>
           </div>
         </div>
       )}

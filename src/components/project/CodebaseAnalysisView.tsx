@@ -24,6 +24,7 @@ import { parseGitHubRemote } from '../../services/githubService';
 import { overviewBorderClass, overviewDivideClass, overviewPanelClass, overviewSeverityLabel } from './overviewUi';
 import { startRescanProgressTicker } from '../../utils/rescanProgress';
 import { ensureAnalysisDependencyAudit } from '../../services/codebaseAnalysisLoader';
+import { saveExportText } from '../../utils/exportFileSave';
 
 export type ProjectSection = CodebaseProjectSection;
 
@@ -460,7 +461,8 @@ export const CodebaseAnalysisView: React.FC<CodebaseAnalysisViewProps> = ({
     notify,
   ]);
 
-  const exportSummaryMarkdown = useCallback(() => {
+  const exportSummaryMarkdown = useCallback(async () => {
+    const filename = `${analysis.rootName.toLowerCase().replace(/[^a-z0-9_-]/g, '_')}_blueprint_summary.md`;
     const lines = [
       `# ${analysis.rootName} · Architectural summary`,
       ``,
@@ -492,16 +494,21 @@ export const CodebaseAnalysisView: React.FC<CodebaseAnalysisViewProps> = ({
       `*Generated with blueprint studio*`,
     ].filter(Boolean).join('\n');
 
-    const blob = new Blob([lines], { type: 'text/markdown;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `${analysis.rootName.toLowerCase().replace(/[^a-z0-9_-]/g, '_')}_blueprint_summary.md`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-  }, [analysis]);
+    try {
+      const saved = await saveExportText(lines, filename, 'md');
+      if (saved) {
+        notify.success('Summary saved to your chosen location.', { title: 'Export complete' });
+      }
+    } catch (error) {
+      const message =
+        error instanceof Error && error.message
+          ? error.message
+          : typeof error === 'string'
+            ? error
+            : 'Could not export the summary.';
+      notify.error(message, { title: 'Export failed' });
+    }
+  }, [analysis, notify]);
 
   const openPreferredIde = useCallback(() => {
     launchIDE(selectedIde);

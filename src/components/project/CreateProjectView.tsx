@@ -384,7 +384,7 @@ export const CreateProjectView: React.FC = () => {
         </button>
       ) : null}
       <p className={`mt-3 text-[11px] leading-relaxed ${muted}`}>
-        Projects stay on this device. Export JSON from the project menu to back up.
+        Projects stay on this device—stored locally in your browser or app data.
       </p>
     </div>
   ) : null;

@@ -36,7 +36,7 @@ export const CodebaseHeaderToolbar: React.FC = () => {
       {exportReport ? (
         <button
           type="button"
-          onClick={exportReport}
+          onClick={() => void exportReport()}
           className={`inline-flex items-center gap-1 rounded-lg border px-2 py-1.5 text-xs font-medium ${iconButton}`}
           title="Export project summary as Markdown"
         >

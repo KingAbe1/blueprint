@@ -44,7 +44,7 @@ export interface CodebaseToolbarHandlers {
   lastScannedLabel?: string;
   openPreferredIde?: () => void;
   preferredIdeShortName?: string;
-  exportReport?: () => void;
+  exportReport?: () => void | Promise<void>;
   deleteProject?: () => void;
 }
 
