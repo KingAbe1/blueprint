@@ -41,12 +41,6 @@ const SCAN_DELIVERABLES = [
   'Static quality hints and optional AI review',
 ] as const;
 
-const IDEA_STARTERS = [
-  'Fleet dashboard for dispatchers to track drivers and jobs in real time',
-  'Internal booking tool for staff to schedule rooms and equipment',
-  'B2B SaaS where teams manage projects, tasks, and client updates',
-] as const;
-
 const STARTING_POINTS: {
   mode: EntryMode;
   title: string;
@@ -253,10 +247,6 @@ export const CreateProjectView: React.FC = () => {
   const secondaryActionClass = isDark
     ? 'text-xs font-medium text-slate-400 hover:text-slate-200'
     : 'text-xs font-medium text-slate-500 hover:text-slate-900';
-
-  const chipClass = isDark
-    ? 'border-white/[0.08] bg-white/[0.03] text-slate-300 hover:border-blue-500/30 hover:bg-blue-500/[0.08] hover:text-blue-100'
-    : 'border-slate-200 bg-white text-slate-600 hover:border-blue-200 hover:bg-blue-50 hover:text-blue-800';
 
   const desktop = isDesktopApp();
   const openedFromActiveProject = isCreatingNew && Boolean(activeProjectId && activeProject);
@@ -549,18 +539,6 @@ export const CreateProjectView: React.FC = () => {
                     placeholder="Who is it for and what should they be able to do?"
                     className={`w-full resize-none rounded-lg border px-3 py-2.5 text-sm leading-relaxed outline-none transition-colors ${inputClass}`}
                   />
-                  <div className="flex flex-wrap gap-1.5 pt-1">
-                    {IDEA_STARTERS.map(starter => (
-                      <button
-                        key={starter}
-                        type="button"
-                        onClick={() => setInputIdea(starter)}
-                        className={`rounded-lg border px-2 py-1 text-[10px] leading-snug transition-colors ${chipClass}`}
-                      >
-                        {starter.length > 42 ? `${starter.slice(0, 42)}…` : starter}
-                      </button>
-                    ))}
-                  </div>
                 </div>
 
                 {!isAiConfigured ? (
