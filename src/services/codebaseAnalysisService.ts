@@ -907,6 +907,16 @@ async function scanBrowserDirectory(root: BrowserDirectoryHandle, rootPath: stri
   return { rootName: root.name, rootPath, directoryHandleId, paths, directories, manifests, sourceMetrics, sourceContents, truncated, git: { tracked: gitTracked } };
 }
 
+function toScanError(error: unknown): Error {
+  if (error instanceof Error && error.message.trim()) return error;
+  if (typeof error === 'string' && error.trim()) return new Error(error);
+  if (error && typeof error === 'object' && 'message' in error) {
+    const message = (error as { message?: unknown }).message;
+    if (typeof message === 'string' && message.trim()) return new Error(message);
+  }
+  return new Error('Could not scan this codebase.');
+}
+
 export async function chooseAndAnalyzeCodebase(): Promise<CodebaseAnalysis | null> {
   if (window.__TAURI_INTERNALS__) {
     const { open } = await import('@tauri-apps/plugin-dialog');
@@ -917,8 +927,12 @@ export async function chooseAndAnalyzeCodebase(): Promise<CodebaseAnalysis | nul
       title: 'Choose a codebase to analyze',
     });
     if (!selected || Array.isArray(selected)) return null;
-    const source = await invoke<CodebaseSource>('read_codebase', { rootPath: selected });
-    return analyzeCodebaseSource(source);
+    try {
+      const source = await invoke<CodebaseSource>('read_codebase', { rootPath: selected });
+      return await analyzeCodebaseSource(source);
+    } catch (error) {
+      throw toScanError(error);
+    }
   }
 
   if (!window.showDirectoryPicker) {

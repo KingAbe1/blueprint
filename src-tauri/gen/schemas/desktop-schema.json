@@ -177,6 +177,18 @@
       "description": "Permission identifier",
       "oneOf": [
         {
+          "description": "Allows exporting build handoff files and opening export folders on disk.",
+          "type": "string",
+          "const": "allow-handoff-export",
+          "markdownDescription": "Allows exporting build handoff files and opening export folders on disk."
+        },
+        {
+          "description": "Allows scanning and reading source files from a user-selected codebase folder.",
+          "type": "string",
+          "const": "allow-read-codebase",
+          "markdownDescription": "Allows scanning and reading source files from a user-selected codebase folder."
+        },
+        {
           "description": "Allows updating the dock/window icon when appearance changes.",
           "type": "string",
           "const": "allow-set-theme-app-icon",

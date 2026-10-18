@@ -144,7 +144,6 @@ export const CreateProjectView: React.FC = () => {
   const [isFocused, setIsFocused] = useState(false);
   const [restoringScan, setRestoringScan] = useState<CodebaseAnalysis | null>(() => loadPendingCodebaseAnalysis());
   const [isAnalyzingCodebase, setIsAnalyzingCodebase] = useState(false);
-  const [codebaseError, setCodebaseError] = useState<string | null>(null);
   const [showAllRecent, setShowAllRecent] = useState(false);
   const restoreStarted = useRef(false);
   const createCodebaseProjectRef = useRef(createCodebaseProject);
@@ -199,7 +198,6 @@ export const CreateProjectView: React.FC = () => {
   };
 
   const handleAnalyzeCodebase = async () => {
-    setCodebaseError(null);
     setIsAnalyzingCodebase(true);
     try {
       const analysis = await chooseAndAnalyzeCodebase();
@@ -208,7 +206,13 @@ export const CreateProjectView: React.FC = () => {
         createCodebaseProject(analysis);
       }
     } catch (error) {
-      setCodebaseError(error instanceof Error ? error.message : 'Could not scan this codebase.');
+      const message =
+        error instanceof Error && error.message
+          ? error.message
+          : typeof error === 'string'
+            ? error
+            : 'Could not scan this codebase.';
+      notify.error(message, { title: 'Codebase scan failed' });
     } finally {
       setIsAnalyzingCodebase(false);
     }
@@ -223,7 +227,6 @@ export const CreateProjectView: React.FC = () => {
 
   const selectMode = (mode: EntryMode) => {
     setEntryMode(mode);
-    setCodebaseError(null);
     if (mode === 'greenfield') {
       requestAnimationFrame(() => document.getElementById('new-project-name')?.focus());
     } else {
@@ -497,12 +500,6 @@ export const CreateProjectView: React.FC = () => {
               );
             })}
           </div>
-
-          {codebaseError && (
-            <p role="alert" className="mt-3 max-w-lg rounded-lg border border-rose-500/20 bg-rose-500/10 px-3 py-2 text-xs text-rose-500">
-              {codebaseError}
-            </p>
-          )}
 
           {recentProjectsSection ? (
             <div className="mt-8 hidden lg:block">{recentProjectsSection}</div>

@@ -3,7 +3,12 @@ import { CheckCircle2, AlertCircle, AlertTriangle, Info, X, ExternalLink } from 
 import { useTheme } from './ThemeContext';
 import { BRAND_NAME } from '../constants/brand';
 import { BrandMark } from '../components/common/BrandMark';
-import { isAppWindowFocused, sendNativeNotificationIfBackground } from '../utils/nativeNotifications';
+import { isDesktopApp } from '../utils/platform';
+import {
+  isAppWindowFocused,
+  sendNativeNotificationForced,
+  sendNativeNotificationIfBackground,
+} from '../utils/nativeNotifications';
 
 export type NotificationType = 'success' | 'error' | 'warning' | 'info';
 
@@ -153,42 +158,48 @@ export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ childr
     const id = 'toast_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7);
     const duration = item.duration ?? (item.type === 'error' ? 7000 : 5000);
 
+    const titleText =
+      item.title ||
+      (item.type === 'error'
+        ? 'Attention needed'
+        : item.type === 'success'
+          ? 'Success'
+          : item.type === 'warning'
+            ? 'Warning'
+            : BRAND_NAME);
+
     const newNotification: NotificationItem = {
       ...item,
       id,
       duration,
-      timestamp: 'now'
+      timestamp: 'now',
     };
 
-    setNotifications((prev) => [newNotification, ...prev.slice(0, 3)]); // max 4 concurrent in-app banners
-
-    void (async () => {
-      const focused = await isAppWindowFocused();
-      if (focused) {
-        playNotificationSound(item.type);
-      }
-
-      const titleText =
-        item.title ||
-        (item.type === 'error'
-          ? 'Attention needed'
-          : item.type === 'success'
-            ? 'Success'
-            : item.type === 'warning'
-              ? 'Warning'
-              : BRAND_NAME);
-
-      await sendNativeNotificationIfBackground({
-        title: titleText,
-        body: item.message,
-      });
-    })();
+    setNotifications(prev => [newNotification, ...prev.slice(0, 3)]);
 
     if (duration > 0) {
       setTimeout(() => {
         dismissNotification(id);
       }, duration);
     }
+
+    void (async () => {
+      const focused = await isAppWindowFocused();
+      if (focused) playNotificationSound(item.type);
+
+      const isCritical = item.type === 'error' || item.type === 'warning';
+      if (isCritical && isDesktopApp()) {
+        await sendNativeNotificationForced({
+          title: titleText,
+          body: item.message,
+        });
+      } else {
+        await sendNativeNotificationIfBackground({
+          title: titleText,
+          body: item.message,
+        });
+      }
+    })();
 
     return id;
   }, [dismissNotification, playNotificationSound]);

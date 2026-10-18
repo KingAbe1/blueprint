@@ -18,6 +18,7 @@ import { FrameworkSpecializationPanel } from './FrameworkSpecializationPanel';
 import { LanguageDistributionBar } from './LanguageDistributionBar';
 import { DependencyInventoryPanel } from './DependencyInventoryPanel';
 import { useTheme } from '../../context/ThemeContext';
+import { useNotification } from '../../context/NotificationContext';
 import { useGitHub } from '../../context/GitHubContext';
 import { parseGitHubRemote } from '../../services/githubService';
 import { overviewBorderClass, overviewDivideClass, overviewPanelClass, overviewSeverityLabel } from './overviewUi';
@@ -307,7 +308,7 @@ export const CodebaseAnalysisView: React.FC<CodebaseAnalysisViewProps> = ({
     cancelRescan,
     isRescanning,
   } = useCodebaseWorkspace();
-  const [scanError, setScanError] = useState<string | null>(null);
+  const { notify } = useNotification();
   const [showGitHubDialog, setShowGitHubDialog] = useState(false);
   const [githubTokenInput, setGitHubTokenInput] = useState('');
   const [githubRemoteInput, setGitHubRemoteInput] = useState('');
@@ -410,7 +411,6 @@ export const CodebaseAnalysisView: React.FC<CodebaseAnalysisViewProps> = ({
   const rescan = useCallback(async () => {
     if (!onRescan || isRescanning) return;
     beginRescan(analysis.rootName);
-    setScanError(null);
     const stopProgress = startRescanProgressTicker(updateRescan);
     try {
       const scanned = await onRescan();
@@ -418,7 +418,9 @@ export const CodebaseAnalysisView: React.FC<CodebaseAnalysisViewProps> = ({
 
       if (!scanned) {
         cancelRescan();
-        setScanError('Scan was cancelled or the project folder could not be read.');
+        notify.error('Scan was cancelled or the project folder could not be read.', {
+          title: 'Codebase scan failed',
+        });
         return;
       }
 
@@ -438,7 +440,13 @@ export const CodebaseAnalysisView: React.FC<CodebaseAnalysisViewProps> = ({
     } catch (error) {
       stopProgress();
       cancelRescan();
-      setScanError(error instanceof Error ? error.message : 'Could not scan this codebase.');
+      const message =
+        error instanceof Error && error.message
+          ? error.message
+          : typeof error === 'string'
+            ? error
+            : 'Could not scan this codebase.';
+      notify.error(message, { title: 'Codebase scan failed' });
     }
   }, [
     onRescan,
@@ -449,6 +457,7 @@ export const CodebaseAnalysisView: React.FC<CodebaseAnalysisViewProps> = ({
     updateRescan,
     completeRescan,
     cancelRescan,
+    notify,
   ]);
 
   const exportSummaryMarkdown = useCallback(() => {
@@ -554,12 +563,6 @@ export const CodebaseAnalysisView: React.FC<CodebaseAnalysisViewProps> = ({
                 </button>
               ) : null}
             </div>
-          )}
-
-          {scanError && (
-            <p role="alert" className="mb-4 rounded-xl border border-rose-500/20 bg-rose-500/10 px-3.5 py-2 text-xs text-rose-500">
-              {scanError}
-            </p>
           )}
 
           {/* ---------------------------------------------------- */}

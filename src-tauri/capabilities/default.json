@@ -12,6 +12,8 @@
     "core:app:allow-set-app-theme",
     "core:event:allow-listen",
     "allow-set-theme-app-icon",
+    "allow-read-codebase",
+    "allow-handoff-export",
     "dialog:allow-open",
     "dialog:allow-save",
     "notification:default"

@@ -1,0 +1,9 @@
+[[permission]]
+identifier = "allow-handoff-export"
+description = "Allows exporting build handoff files and opening export folders on disk."
+commands.allow = [
+  "inspect_handoff_conflicts",
+  "export_handoff_files",
+  "open_handoff_folder",
+  "write_export_file",
+]

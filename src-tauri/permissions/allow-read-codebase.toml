@@ -1,0 +1,4 @@
+[[permission]]
+identifier = "allow-read-codebase"
+description = "Allows scanning and reading source files from a user-selected codebase folder."
+commands.allow = ["read_codebase", "read_codebase_files"]
