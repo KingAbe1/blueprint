@@ -4,8 +4,10 @@ import './index.css'
 import App from './App.tsx'
 import { markDesktopAppShell } from './utils/platform'
 import { bootstrapTheme } from './utils/themeBootstrap'
+import { installNotificationDevHarness } from './utils/notificationDevHarness'
 
 markDesktopAppShell()
+installNotificationDevHarness()
 
 const root = document.getElementById('root')
 

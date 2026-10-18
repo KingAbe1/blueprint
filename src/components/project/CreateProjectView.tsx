@@ -2,7 +2,6 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ArrowLeft,
   ArrowRight,
-  Check,
   Copy,
   CornerDownLeft,
   FolderCode,
@@ -407,7 +406,7 @@ export const CreateProjectView: React.FC = () => {
         </div>
       ) : null}
       <div className="flex min-h-full flex-1 items-center justify-center px-5 py-10 sm:px-8 lg:py-14">
-        <div className="mx-auto flex w-full max-w-6xl flex-col items-stretch gap-10 lg:flex-row lg:items-start lg:justify-center lg:gap-24 xl:gap-32">
+        <div className="mx-auto flex w-full max-w-6xl flex-col items-stretch gap-10 lg:flex-row lg:items-start lg:justify-center lg:gap-16 xl:gap-20">
         <section className="min-w-0 flex-1 lg:max-w-xl lg:pr-4">
           {openedFromActiveProject && (
             <button
@@ -438,7 +437,7 @@ export const CreateProjectView: React.FC = () => {
               </h1>
               <p className={`mt-2 max-w-md text-[13px] leading-relaxed ${muted}`}>
                 {isFirstVisit
-                  ? 'Create a product blueprint or scan a codebase. Everything stays on this device - export JSON anytime to back up.'
+                  ? 'Choose how you want to start below, then add a project name. Everything stays on this device—you can export JSON anytime to back up.'
                   : openedFromActiveProject
                     ? 'Pick a path below or reopen a recent project. Everything stays on this device.'
                     : 'Plan a new product blueprint or scan an existing codebase - local only, no cloud upload.'}
@@ -446,27 +445,11 @@ export const CreateProjectView: React.FC = () => {
             </div>
           </div>
 
-          {isFirstVisit ? (
-            <div
-              className={`mt-5 max-w-lg rounded-xl border px-4 py-3 text-xs leading-relaxed ${
-                isDark ? 'border-emerald-500/20 bg-emerald-500/[0.06] text-emerald-100/90' : 'border-emerald-200 bg-emerald-50 text-emerald-900'
-              }`}
-            >
-              <p className={`flex items-center gap-2 font-medium ${isDark ? 'text-emerald-200' : 'text-emerald-800'}`}>
-                <Check className="h-3.5 w-3.5 shrink-0" aria-hidden />
-                Your first workspace
-              </p>
-              <p className={`mt-1.5 ${isDark ? 'text-emerald-100/80' : 'text-emerald-800/90'}`}>
-                Add a name on the right to get started - everything stays on this device.
-              </p>
-            </div>
-          ) : null}
-
           {recentProjectsSection ? (
             <div className="mt-7 lg:hidden">{recentProjectsSection}</div>
           ) : null}
 
-          <p className={`${isFirstVisit ? 'mt-6' : 'mt-8'} text-xs font-medium ${muted}`}>Choose a starting point</p>
+          <p className={`mt-8 text-xs font-medium ${muted}`}>Choose a starting point</p>
           <div className="mt-2 grid max-w-lg gap-2" role="listbox" aria-label="Project entry mode">
             {STARTING_POINTS.map(({ mode, title, description, icon: Icon, idleBadge }) => {
               const selected = entryMode === mode;
@@ -527,7 +510,7 @@ export const CreateProjectView: React.FC = () => {
         </section>
 
         <section
-          className={`desktop-panel w-full shrink-0 overflow-hidden rounded-2xl border lg:sticky lg:top-8 lg:w-[min(100%,360px)] lg:max-w-[360px] lg:self-start ${panel}`}
+          className={`desktop-panel w-full shrink-0 overflow-hidden rounded-2xl border lg:sticky lg:top-8 lg:w-[min(100%,28rem)] lg:max-w-md lg:self-start ${panel}`}
         >
           <div className="px-5 py-6 sm:px-7 sm:py-7">
           {entryMode === 'greenfield' ? (

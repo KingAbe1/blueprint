@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ArrowRight, Check, Code2, FileText, LayoutGrid, Moon, Network, Settings2, Sun } from 'lucide-react';
+import { ArrowRight, Check, Code2, FileText, LayoutGrid, MonitorCog, Network, Settings2 } from 'lucide-react';
 import { useProjects } from '../../context/ProjectContext';
 import { useTheme } from '../../context/ThemeContext';
 import { useAI } from '../../context/AIContext';
@@ -105,7 +105,7 @@ export const Header: React.FC<HeaderProps> = ({
   onSelectTab,
 }) => {
   const { isCreatingNew, setIsCreatingNew, activeProject } = useProjects();
-  const { isDark, toggleTheme, followsSystem } = useTheme();
+  const { isDark, followsSystem, setIsSystemSettingsOpen } = useTheme();
   const { isAiConfigured, setIsSettingsOpen } = useAI();
   const [isProjectMenuOpen, setIsProjectMenuOpen] = useState(false);
 
@@ -176,15 +176,16 @@ export const Header: React.FC<HeaderProps> = ({
 
       <button
         type="button"
-        onClick={toggleTheme}
+        onClick={() => setIsSystemSettingsOpen(true)}
         className={`rounded-md p-2 transition-colors ${interactiveChrome} ${iconButton}`}
         title={
           followsSystem
-            ? `Using system theme (${isDark ? 'dark' : 'light'}). Click to switch to ${isDark ? 'light' : 'dark'}.`
-            : `Switch to ${isDark ? 'light' : 'dark'} mode`
+            ? `System settings — appearance follows system (${isDark ? 'dark' : 'light'})`
+            : `System settings — ${isDark ? 'dark' : 'light'} appearance`
         }
+        aria-label="Open system settings"
       >
-        {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+        <MonitorCog className="h-4 w-4" />
       </button>
     </div>
   );

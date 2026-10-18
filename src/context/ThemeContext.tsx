@@ -25,11 +25,14 @@ interface ThemeContextType {
   toggleTheme: () => void;
   isDark: boolean;
   followsSystem: boolean;
+  isSystemSettingsOpen: boolean;
+  setIsSystemSettingsOpen: (open: boolean) => void;
 }
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export const ThemeProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+  const [isSystemSettingsOpen, setIsSystemSettingsOpen] = useState(false);
   const [themePreference, setThemePreferenceState] = useState<ThemePreference>(getBootstrappedPreference);
   const [systemTheme, setSystemTheme] = useState<Theme>(() => {
     const preference = getBootstrappedPreference();
@@ -115,6 +118,8 @@ export const ThemeProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         toggleTheme,
         isDark,
         followsSystem,
+        isSystemSettingsOpen,
+        setIsSystemSettingsOpen,
       }}
     >
       {children}

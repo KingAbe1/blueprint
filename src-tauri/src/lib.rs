@@ -550,6 +550,7 @@ fn set_theme_app_icon(app: tauri::AppHandle, theme: String) -> Result<(), String
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_notification::init())
         .invoke_handler(tauri::generate_handler![
             read_codebase,
             read_codebase_files,

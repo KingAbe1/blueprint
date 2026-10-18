@@ -108,7 +108,7 @@ export const AISettingsModal: React.FC = () => {
     setActiveProvider,
     updateProviderConfig,
   } = useAI();
-  const { isDark, themePreference, setThemePreference } = useTheme();
+  const { isDark } = useTheme();
 
   const [selectedProvider, setSelectedProvider] = useState<AIProviderId>(settings.activeProvider || 'anthropic');
   const [showKey, setShowKey] = useState(false);
@@ -262,41 +262,6 @@ export const AISettingsModal: React.FC = () => {
             </button>
           </div>
         </header>
-
-        <div className={`border-b px-4 py-3 sm:px-6 ${border}`}>
-          <p className={`text-[11px] font-medium uppercase tracking-wide ${muted}`}>Appearance</p>
-          <div
-            className={`mt-2 inline-flex gap-0.5 rounded-lg border p-0.5 ${border} ${isDark ? 'bg-black/20' : 'bg-slate-100/90'}`}
-          >
-            {(
-              [
-                { id: 'system' as const, label: 'System' },
-                { id: 'light' as const, label: 'Light' },
-                { id: 'dark' as const, label: 'Dark' },
-              ] as const
-            ).map(option => (
-              <button
-                key={option.id}
-                type="button"
-                onClick={() => setThemePreference(option.id)}
-                className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
-                  themePreference === option.id
-                    ? isDark
-                      ? 'bg-white/[0.1] text-white shadow-sm'
-                      : 'bg-white text-slate-900 shadow-sm'
-                    : isDark
-                      ? 'text-slate-400 hover:text-slate-200'
-                      : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                {option.label}
-              </button>
-            ))}
-          </div>
-          <p className={`mt-2 text-[11px] ${muted}`}>
-            System follows your computer&apos;s light or dark mode and updates when it changes.
-          </p>
-        </div>
 
         <div className="flex min-h-0 flex-1 flex-col sm:flex-row">
           <aside className={`shrink-0 border-b sm:w-52 sm:border-b-0 sm:border-r ${border} ${isDark ? 'bg-black/15' : 'bg-slate-50/80'}`}>

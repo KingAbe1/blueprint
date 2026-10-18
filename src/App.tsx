@@ -14,6 +14,7 @@ import { reanalyzeCodebase } from './services/codebaseAnalysisLoader';
 import { RenameModal } from './components/modals/RenameModal';
 import { DeleteModal } from './components/modals/DeleteModal';
 import { AISettingsModal } from './components/modals/AISettingsModal';
+import { SystemSettingsModal } from './components/modals/SystemSettingsModal';
 import { SafeErrorBoundary } from './components/common/SafeErrorBoundary';
 import { PhaseTab } from './types/project';
 import { Loader2 } from 'lucide-react';
@@ -147,6 +148,7 @@ const AppContent: React.FC = () => {
         <RenameModal />
         <DeleteModal />
         <AISettingsModal />
+        <SystemSettingsModal />
       </div>
     </CodebaseWorkspaceProvider>
   );

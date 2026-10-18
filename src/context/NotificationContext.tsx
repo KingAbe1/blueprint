@@ -3,6 +3,7 @@ import { CheckCircle2, AlertCircle, AlertTriangle, Info, X, ExternalLink } from 
 import { useTheme } from './ThemeContext';
 import { BRAND_NAME } from '../constants/brand';
 import { BrandMark } from '../components/common/BrandMark';
+import { isAppWindowFocused, sendNativeNotificationIfBackground } from '../utils/nativeNotifications';
 
 export type NotificationType = 'success' | 'error' | 'warning' | 'info';
 
@@ -39,16 +40,21 @@ export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ childr
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const { isDark } = useTheme();
 
-  // Request native OS notification permission on load
   useEffect(() => {
-    if (typeof window !== 'undefined' && 'Notification' in window) {
-      if (Notification.permission === 'default') {
-        Notification.requestPermission().catch(() => {});
+    if (!import.meta.env.DEV) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.metaKey && event.shiftKey && event.key.toLowerCase() === 'n') {
+        event.preventDefault();
+        void (window as typeof window & { blueprintNotifyTest?: (m: string) => void }).blueprintNotifyTest?.(
+          'force-native',
+        );
       }
-    }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
   }, []);
 
-  // Synthesize native desktop notification audio chime via Web Audio API
+  // Synthesize in-app notification chime via Web Audio API (when window is focused)
   const playNotificationSound = useCallback((type: NotificationType) => {
     try {
       const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
@@ -154,23 +160,29 @@ export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ childr
       timestamp: 'now'
     };
 
-    setNotifications((prev) => [newNotification, ...prev.slice(0, 3)]); // max 4 concurrent desktop banners
+    setNotifications((prev) => [newNotification, ...prev.slice(0, 3)]); // max 4 concurrent in-app banners
 
-    // Play native desktop audio chime
-    playNotificationSound(item.type);
-
-    // Dispatch to native Desktop Notification API if permitted
-    if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
-      try {
-        const titleText = item.title || (item.type === 'error' ? 'blueprint studio' : item.type === 'success' ? 'blueprint studio' : 'blueprint studio');
-        new Notification(titleText, {
-          body: item.message,
-          silent: false
-        });
-      } catch (e) {
-        // Ignore iframe / restricted sandbox restrictions
+    void (async () => {
+      const focused = await isAppWindowFocused();
+      if (focused) {
+        playNotificationSound(item.type);
       }
-    }
+
+      const titleText =
+        item.title ||
+        (item.type === 'error'
+          ? 'Attention needed'
+          : item.type === 'success'
+            ? 'Success'
+            : item.type === 'warning'
+              ? 'Warning'
+              : BRAND_NAME);
+
+      await sendNativeNotificationIfBackground({
+        title: titleText,
+        body: item.message,
+      });
+    })();
 
     if (duration > 0) {
       setTimeout(() => {
