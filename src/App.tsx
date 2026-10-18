@@ -1,5 +1,6 @@
 import React, { lazy, Suspense, useState, useEffect } from 'react';
 import { ThemeProvider, useTheme } from './context/ThemeContext';
+import { SystemSettingsProvider } from './context/SystemSettingsContext';
 import { ProjectProvider, useProjects } from './context/ProjectContext';
 import { AIProvider } from './context/AIContext';
 import { ConfirmProvider } from './context/ConfirmContext';
@@ -157,7 +158,8 @@ const AppContent: React.FC = () => {
 export const App: React.FC = () => {
   return (
     <ThemeProvider>
-      <NotificationProvider>
+      <SystemSettingsProvider>
+        <NotificationProvider>
         <ProjectProvider>
           <GitHubProvider>
             <AIProvider>
@@ -170,6 +172,7 @@ export const App: React.FC = () => {
           </GitHubProvider>
         </ProjectProvider>
       </NotificationProvider>
+      </SystemSettingsProvider>
     </ThemeProvider>
   );
 };

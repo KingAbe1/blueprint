@@ -422,6 +422,47 @@ fn write_export_file(path: String, data: Vec<u8>) -> Result<(), String> {
 }
 
 #[tauri::command]
+fn open_external_url(url: String) -> Result<(), String> {
+    let url = url.trim();
+    if url.is_empty() {
+        return Err("URL is empty.".into());
+    }
+
+    #[cfg(target_os = "macos")]
+    {
+        Command::new("open")
+            .arg(url)
+            .spawn()
+            .map_err(|error| format!("Could not open link: {error}"))?;
+        return Ok(());
+    }
+
+    #[cfg(target_os = "windows")]
+    {
+        Command::new("cmd")
+            .args(["/C", "start", "", url])
+            .spawn()
+            .map_err(|error| format!("Could not open link: {error}"))?;
+        return Ok(());
+    }
+
+    #[cfg(target_os = "linux")]
+    {
+        Command::new("xdg-open")
+            .arg(url)
+            .spawn()
+            .map_err(|error| format!("Could not open link: {error}"))?;
+        return Ok(());
+    }
+
+    #[cfg(not(any(target_os = "macos", target_os = "windows", target_os = "linux")))]
+    {
+        let _ = url;
+        Err("Opening system links is not supported on this platform.".into())
+    }
+}
+
+#[tauri::command]
 fn open_handoff_folder(target_dir: String) -> Result<(), String> {
     let root = PathBuf::from(target_dir);
     if !root.is_absolute() || !root.is_dir() {
@@ -558,6 +599,7 @@ pub fn run() {
             export_handoff_files,
             open_handoff_folder,
             write_export_file,
+            open_external_url,
             get_os_theme,
             set_theme_app_icon
         ])

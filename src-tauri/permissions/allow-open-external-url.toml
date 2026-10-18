@@ -1,0 +1,4 @@
+[[permission]]
+identifier = "allow-open-external-url"
+description = "Allows opening system settings URLs (e.g. notification preferences)."
+commands.allow = ["open_external_url"]

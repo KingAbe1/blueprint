@@ -183,6 +183,12 @@
           "markdownDescription": "Allows exporting build handoff files and opening export folders on disk."
         },
         {
+          "description": "Allows opening system settings URLs (e.g. notification preferences).",
+          "type": "string",
+          "const": "allow-open-external-url",
+          "markdownDescription": "Allows opening system settings URLs (e.g. notification preferences)."
+        },
+        {
           "description": "Allows scanning and reading source files from a user-selected codebase folder.",
           "type": "string",
           "const": "allow-read-codebase",

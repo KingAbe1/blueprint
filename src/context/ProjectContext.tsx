@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 import { Project, ProjectSpec } from '../types/project';
 import { CodebaseAnalysis } from '../types/codebase';
 import { storageService } from '../services/storageService';
+import { readSystemPreferences } from '../utils/systemPreferences';
 
 interface ProjectContextType {
   projects: Project[];
@@ -70,6 +71,7 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({ children })
   const [isLoaded, setIsLoaded] = useState(false);
 
   const lastSavedJsonRef = React.useRef<string>('');
+  const launchPreferenceApplied = React.useRef(false);
 
   useEffect(() => {
     let isSubscribed = true;
@@ -117,6 +119,14 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({ children })
   useEffect(() => {
     localStorage.setItem(CREATING_NEW_STORAGE_KEY, String(isCreatingNew));
   }, [isCreatingNew]);
+
+  useEffect(() => {
+    if (!isLoaded || launchPreferenceApplied.current) return;
+    launchPreferenceApplied.current = true;
+    if (!readSystemPreferences().resumeWhereLeftOff) {
+      setIsCreatingNew(true);
+    }
+  }, [isLoaded]);
 
   const activeProject = projects.find(p => p.id === activeProjectId);
 
@@ -286,7 +296,7 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({ children })
       }
     } catch (err) {
       console.error('Import failed:', err);
-      alert('Failed to import project file. Please check file format.');
+      throw err instanceof Error ? err : new Error('Failed to import project file.');
     }
   };
 

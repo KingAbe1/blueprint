@@ -25,68 +25,10 @@ import { overviewBorderClass, overviewDivideClass, overviewPanelClass, overviewS
 import { startRescanProgressTicker } from '../../utils/rescanProgress';
 import { ensureAnalysisDependencyAudit } from '../../services/codebaseAnalysisLoader';
 import { saveExportText } from '../../utils/exportFileSave';
+import { resolveIdeOption } from '../../constants/supportedIdes';
+import { useSystemSettings } from '../../context/SystemSettingsContext';
 
 export type ProjectSection = CodebaseProjectSection;
-
-interface IDEOption {
-  id: string;
-  name: string;
-  shortName: string;
-  getProtocolUrl: (path: string) => string;
-  getCliCommand: (path: string) => string;
-}
-
-const SUPPORTED_IDES: IDEOption[] = [
-  {
-    id: 'vscode',
-    name: 'Visual Studio Code',
-    shortName: 'VS Code',
-    getProtocolUrl: (path) => `vscode://file/${encodeURI(path)}`,
-    getCliCommand: (path) => `code "${path}"`,
-  },
-  {
-    id: 'cursor',
-    name: 'Cursor',
-    shortName: 'Cursor',
-    getProtocolUrl: (path) => `cursor://file/${encodeURI(path)}`,
-    getCliCommand: (path) => `cursor "${path}"`,
-  },
-  {
-    id: 'windsurf',
-    name: 'Windsurf',
-    shortName: 'Windsurf',
-    getProtocolUrl: (path) => `windsurf://file/${encodeURI(path)}`,
-    getCliCommand: (path) => `windsurf "${path}"`,
-  },
-  {
-    id: 'webstorm',
-    name: 'WebStorm',
-    shortName: 'WebStorm',
-    getProtocolUrl: (path) => `webstorm://open?file=${encodeURI(path)}`,
-    getCliCommand: (path) => `webstorm "${path}"`,
-  },
-  {
-    id: 'idea',
-    name: 'IntelliJ IDEA',
-    shortName: 'IntelliJ',
-    getProtocolUrl: (path) => `idea://open?file=${encodeURI(path)}`,
-    getCliCommand: (path) => `idea "${path}"`,
-  },
-  {
-    id: 'zed',
-    name: 'Zed',
-    shortName: 'Zed',
-    getProtocolUrl: (path) => `zed://file/${encodeURI(path)}`,
-    getCliCommand: (path) => `zed "${path}"`,
-  },
-  {
-    id: 'sublime',
-    name: 'Sublime Text',
-    shortName: 'Sublime',
-    getProtocolUrl: (path) => `subl://open?url=file://${encodeURI(path)}`,
-    getCliCommand: (path) => `subl "${path}"`,
-  },
-];
 
 type CodeInspectorTab = 'packages' | 'scripts';
 
@@ -310,23 +252,15 @@ export const CodebaseAnalysisView: React.FC<CodebaseAnalysisViewProps> = ({
     isRescanning,
   } = useCodebaseWorkspace();
   const { notify } = useNotification();
+  const { preferences: systemPreferences } = useSystemSettings();
   const [showGitHubDialog, setShowGitHubDialog] = useState(false);
   const [githubTokenInput, setGitHubTokenInput] = useState('');
   const [githubRemoteInput, setGitHubRemoteInput] = useState('');
   const [githubConnectError, setGitHubConnectError] = useState<string | null>(null);
 
-  // Preferred IDE (persisted)
-  const [selectedIdeId] = useState<string>(() => {
-    try {
-      return window.localStorage.getItem('blueprint:preferred-ide') || 'vscode';
-    } catch {
-      return 'vscode';
-    }
-  });
+  const selectedIde = resolveIdeOption(systemPreferences.preferredIdeId);
 
-  const selectedIde = SUPPORTED_IDES.find(ide => ide.id === selectedIdeId) || SUPPORTED_IDES[0];
-
-  const launchIDE = useCallback((ide: IDEOption) => {
+  const launchIDE = useCallback((ide: typeof selectedIde) => {
     const protocolUrl = ide.getProtocolUrl(analysis.rootPath);
     try {
       const a = document.createElement('a');

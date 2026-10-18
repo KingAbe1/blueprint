@@ -14,6 +14,7 @@
     "allow-set-theme-app-icon",
     "allow-read-codebase",
     "allow-handoff-export",
+    "allow-open-external-url",
     "dialog:allow-open",
     "dialog:allow-save",
     "notification:default"

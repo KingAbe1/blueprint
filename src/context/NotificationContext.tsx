@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useCallback, useEffect, ReactNode } from 'react';
 import { CheckCircle2, AlertCircle, AlertTriangle, Info, X, ExternalLink } from 'lucide-react';
 import { useTheme } from './ThemeContext';
+import { useSystemSettings } from './SystemSettingsContext';
 import { BRAND_NAME } from '../constants/brand';
 import { BrandMark } from '../components/common/BrandMark';
 import { isDesktopApp } from '../utils/platform';
@@ -44,6 +45,7 @@ const NotificationContext = createContext<NotificationContextType | undefined>(u
 export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const { isDark } = useTheme();
+  const { preferences: systemPreferences } = useSystemSettings();
 
   useEffect(() => {
     if (!import.meta.env.DEV) return;
@@ -185,15 +187,17 @@ export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ childr
 
     void (async () => {
       const focused = await isAppWindowFocused();
-      if (focused) playNotificationSound(item.type);
+      if (focused && systemPreferences.notificationSoundEnabled) {
+        playNotificationSound(item.type);
+      }
 
       const isCritical = item.type === 'error' || item.type === 'warning';
-      if (isCritical && isDesktopApp()) {
+      if (isCritical && isDesktopApp() && systemPreferences.osNotificationsEnabled) {
         await sendNativeNotificationForced({
           title: titleText,
           body: item.message,
         });
-      } else {
+      } else if (!isCritical || !isDesktopApp()) {
         await sendNativeNotificationIfBackground({
           title: titleText,
           body: item.message,
@@ -202,7 +206,7 @@ export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ childr
     })();
 
     return id;
-  }, [dismissNotification, playNotificationSound]);
+  }, [dismissNotification, playNotificationSound, systemPreferences.notificationSoundEnabled, systemPreferences.osNotificationsEnabled]);
 
   const notify = {
     success: (message: string, options?: { title?: string; action?: NotificationAction; duration?: number }) =>
