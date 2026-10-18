@@ -97,7 +97,7 @@ export async function syncNativeAppIcon(resolvedTheme: Theme): Promise<void> {
     try {
       const { Image } = await import('@tauri-apps/api/image');
       const { getCurrentWindow } = await import('@tauri-apps/api/window');
-      const iconUrl = new URL(brandAppIconPngSrc(resolvedTheme), window.location.href);
+      const iconUrl = new URL(brandAppIconPngSrc(resolvedTheme === 'dark'), window.location.href);
       const response = await fetch(iconUrl);
       if (!response.ok) return;
 
