@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { useProjects } from '../../context/ProjectContext';
 import { BRAND_NAME } from '../../constants/brand';
+import { BrandMark } from '../common/BrandMark';
 import { useTheme } from '../../context/ThemeContext';
 
 interface ProjectDropdownProps {
@@ -59,6 +60,7 @@ export const ProjectDropdown: React.FC<ProjectDropdownProps> = ({
       <div className="flex min-w-0 items-center w-full">
         {!compact && (
           <div className="flex items-center space-x-2 mr-2 shrink-0">
+            <BrandMark className="h-4 w-4" />
             <span className={`text-xs font-semibold tracking-tight ${isDark ? 'text-white' : 'text-slate-900'}`}>
               {BRAND_NAME}
             </span>

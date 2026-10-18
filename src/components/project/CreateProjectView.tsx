@@ -6,7 +6,6 @@ import {
   Copy,
   CornerDownLeft,
   FolderCode,
-  Layers,
   Loader2,
   SearchCode,
   Settings2,
@@ -18,6 +17,7 @@ import { useTheme } from '../../context/ThemeContext';
 import { useNotification } from '../../context/NotificationContext';
 import { getBlueprintHubStatus } from '../../services/greenfieldProgress';
 import { BRAND_NAME } from '../../constants/brand';
+import { BrandMark } from '../common/BrandMark';
 import { CodebaseAnalysis } from '../../types/codebase';
 import { Project } from '../../types/project';
 import { chooseAndAnalyzeCodebase } from '../../services/codebaseAnalysisLoader';
@@ -422,10 +422,10 @@ export const CreateProjectView: React.FC = () => {
           <div className="flex items-start gap-3">
             <div
               className={`hidden h-10 w-10 shrink-0 items-center justify-center rounded-xl border sm:flex ${border} ${
-                isDark ? 'bg-white/[0.03] text-slate-400' : 'bg-white text-slate-600 shadow-sm'
+                isDark ? 'bg-white/[0.03]' : 'bg-white shadow-sm'
               }`}
             >
-              <Layers className="h-5 w-5" strokeWidth={1.75} />
+              <BrandMark variant="app" className="h-7 w-7 rounded-md" />
             </div>
             <div className="min-w-0">
               <p className={`text-xs ${muted}`}>{BRAND_NAME}</p>

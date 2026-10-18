@@ -1,6 +1,8 @@
 import { CodebaseAnalysis } from './codebase';
 
 export type Theme = 'dark' | 'light';
+/** User choice: match OS, or fixed light/dark. */
+export type ThemePreference = Theme | 'system';
 
 export type PhaseTab = 'domain-intent' | 'architecture-map' | 'in-flight';
 

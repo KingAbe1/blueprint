@@ -1,0 +1,4 @@
+[[permission]]
+identifier = "allow-set-theme-app-icon"
+description = "Allows updating the dock/window icon when appearance changes."
+commands.allow = ["get_os_theme", "set_theme_app_icon"]

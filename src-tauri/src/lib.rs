@@ -468,6 +468,83 @@ mod tests {
     }
 }
 
+#[cfg(target_os = "macos")]
+fn macos_os_theme() -> &'static str {
+    use objc2_foundation::{NSUserDefaults, NSString};
+
+    let defaults = NSUserDefaults::standardUserDefaults();
+    let key = NSString::from_str("AppleInterfaceStyle");
+    if let Some(style) = defaults.stringForKey(&key) {
+        if style.to_string() == "Dark" {
+            return "dark";
+        }
+    }
+    "light"
+}
+
+#[tauri::command]
+fn get_os_theme() -> String {
+    #[cfg(target_os = "macos")]
+    {
+        return macos_os_theme().to_string();
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+        "light".to_string()
+    }
+}
+
+const THEME_APP_ICON_LIGHT: &[u8] = include_bytes!("../icons/theme-app-icon-light.png");
+const THEME_APP_ICON_DARK: &[u8] = include_bytes!("../icons/theme-app-icon-dark.png");
+
+fn theme_app_icon_bytes(theme: &str) -> &'static [u8] {
+    if theme == "light" {
+        THEME_APP_ICON_LIGHT
+    } else {
+        THEME_APP_ICON_DARK
+    }
+}
+
+#[cfg(target_os = "macos")]
+fn set_macos_dock_icon(app: &tauri::AppHandle, png_bytes: &[u8]) -> Result<(), String> {
+    use objc2::{AllocAnyThread, MainThreadMarker};
+    use objc2_app_kit::{NSApplication, NSImage};
+    use objc2_foundation::NSData;
+
+    let png_bytes = png_bytes.to_vec();
+
+    app.run_on_main_thread(move || {
+        let mtm = unsafe { MainThreadMarker::new_unchecked() };
+        let ns_app = NSApplication::sharedApplication(mtm);
+        let data = NSData::with_bytes(&png_bytes);
+        if let Some(app_icon) = NSImage::initWithData(NSImage::alloc(), &data) {
+            unsafe { ns_app.setApplicationIconImage(Some(&app_icon)) };
+        }
+    })
+    .map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+fn set_theme_app_icon(app: tauri::AppHandle, theme: String) -> Result<(), String> {
+    let png_bytes = theme_app_icon_bytes(theme.as_str());
+
+    #[cfg(target_os = "macos")]
+    {
+        return set_macos_dock_icon(&app, png_bytes);
+    }
+
+    #[cfg(not(target_os = "macos"))]
+    {
+        use tauri::{Manager, image::Image};
+        let window = app
+            .get_webview_window("main")
+            .ok_or_else(|| "Main window not found.".to_string())?;
+        let icon = Image::from_bytes(png_bytes).map_err(|error| error.to_string())?;
+        window.set_icon(icon).map_err(|error| error.to_string())?;
+        Ok(())
+    }
+}
+
 // Tauri v2 application library
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -479,9 +556,12 @@ pub fn run() {
             inspect_handoff_conflicts,
             export_handoff_files,
             open_handoff_folder,
-            write_export_file
+            write_export_file,
+            get_os_theme,
+            set_theme_app_icon
         ])
-        .setup(|_app| {
+        .setup(|app| {
+            app.handle().set_theme(None);
             Ok(())
         })
         .run(tauri::generate_context!())

@@ -1,1 +1,1 @@
-{"default":{"identifier":"default","description":"Default blueprint studio desktop permissions","local":true,"windows":["main"],"permissions":["core:default","dialog:allow-open","dialog:allow-save"]}}
+{"default":{"identifier":"default","description":"Default blueprint studio desktop permissions","local":true,"windows":["main"],"permissions":["core:default","core:window:allow-set-theme","core:window:allow-theme","core:window:allow-set-icon","core:app:allow-set-app-theme","core:event:allow-listen","allow-set-theme-app-icon","dialog:allow-open","dialog:allow-save"]}}

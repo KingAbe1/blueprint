@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useCallback, useEffect, Rea
 import { CheckCircle2, AlertCircle, AlertTriangle, Info, X, ExternalLink } from 'lucide-react';
 import { useTheme } from './ThemeContext';
 import { BRAND_NAME } from '../constants/brand';
+import { BrandMark } from '../components/common/BrandMark';
 
 export type NotificationType = 'success' | 'error' | 'warning' | 'info';
 
@@ -227,10 +228,7 @@ export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ childr
             {/* Desktop Notification Header (App Icon + Name + Timestamp + Close) */}
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-2">
-                {/* App icon */}
-                <div className="w-4 h-4 rounded bg-blue-600 flex items-center justify-center shadow-xs">
-                  <div className="w-1.5 h-1.5 border-[1.2px] border-white rounded-[0.5px] rotate-45" />
-                </div>
+                <BrandMark variant="app" className="h-4 w-4 rounded-[4px]" />
                 <span className={`text-[10px] font-semibold tracking-tight ${
                   isDark ? 'text-slate-400' : 'text-slate-500'
                 }`}>

@@ -2,6 +2,8 @@
 export function isDesktopApp(): boolean {
   if (typeof window === 'undefined') return false;
   if (document.documentElement.classList.contains('desktop-app')) return true;
+  const global = globalThis as typeof globalThis & { isTauri?: boolean };
+  if (global.isTauri) return true;
   return '__TAURI_INTERNALS__' in window || '__TAURI__' in window;
 }
 

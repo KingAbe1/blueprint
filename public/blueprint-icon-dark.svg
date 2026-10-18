@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="blueprint studio">
+  <rect width="512" height="512" rx="108" fill="#0A0B0E"/>
+  <rect x="118" y="118" width="118" height="118" rx="28" fill="#3B82F6"/>
+  <rect x="276" y="118" width="118" height="118" rx="28" fill="none" stroke="#64748B" stroke-width="14"/>
+  <rect x="118" y="276" width="118" height="118" rx="28" fill="none" stroke="#64748B" stroke-width="14"/>
+  <rect x="276" y="276" width="118" height="118" rx="28" fill="none" stroke="#475569" stroke-width="14"/>
+</svg>

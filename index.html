@@ -8,8 +8,14 @@
     <script>
       (function () {
         try {
-          var theme = localStorage.getItem('blueprint_theme');
-          var isDark = theme !== 'light';
+          var userSet = localStorage.getItem('blueprint_theme_user_set') === '1';
+          var stored = userSet ? localStorage.getItem('blueprint_theme') : null;
+          var pref =
+            userSet && (stored === 'light' || stored === 'dark' || stored === 'system')
+              ? stored
+              : 'system';
+          var systemDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+          var isDark = pref === 'dark' || (pref === 'system' && systemDark);
           var root = document.documentElement;
           root.classList.add(isDark ? 'dark' : 'light');
           root.style.backgroundColor = isDark ? '#101113' : '#f8fafc';

@@ -11,6 +11,7 @@ import { CodebaseSectionNav } from '../project/CodebaseSectionNav';
 import { CodebaseHeaderToolbar } from '../project/CodebaseHeaderToolbar';
 import { getGreenfieldPhaseProgress } from '../../services/greenfieldProgress';
 import { BRAND_NAME } from '../../constants/brand';
+import { BrandMark } from '../common/BrandMark';
 
 interface HeaderProps {
   activeTab?: PhaseTab;
@@ -104,7 +105,7 @@ export const Header: React.FC<HeaderProps> = ({
   onSelectTab,
 }) => {
   const { isCreatingNew, setIsCreatingNew, activeProject } = useProjects();
-  const { isDark, toggleTheme } = useTheme();
+  const { isDark, toggleTheme, followsSystem } = useTheme();
   const { isAiConfigured, setIsSettingsOpen } = useAI();
   const [isProjectMenuOpen, setIsProjectMenuOpen] = useState(false);
 
@@ -177,7 +178,11 @@ export const Header: React.FC<HeaderProps> = ({
         type="button"
         onClick={toggleTheme}
         className={`rounded-md p-2 transition-colors ${interactiveChrome} ${iconButton}`}
-        title={`Switch to ${isDark ? 'light' : 'dark'} mode`}
+        title={
+          followsSystem
+            ? `Using system theme (${isDark ? 'dark' : 'light'}). Click to switch to ${isDark ? 'light' : 'dark'}.`
+            : `Switch to ${isDark ? 'light' : 'dark'} mode`
+        }
       >
         {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
       </button>
@@ -206,9 +211,10 @@ export const Header: React.FC<HeaderProps> = ({
     <button
       type="button"
       onClick={() => setIsCreatingNew(true)}
-      className={`text-sm font-semibold transition-colors ${isDark ? 'text-[#C4C6CC] hover:text-white' : 'text-slate-700 hover:text-slate-950'}`}
+      className={`inline-flex items-center gap-2 text-sm font-semibold transition-colors ${isDark ? 'text-[#C4C6CC] hover:text-white' : 'text-slate-700 hover:text-slate-950'}`}
     >
-      {BRAND_NAME}
+      <BrandMark className="h-5 w-5" />
+      <span>{BRAND_NAME}</span>
     </button>
   ) : null;
 
