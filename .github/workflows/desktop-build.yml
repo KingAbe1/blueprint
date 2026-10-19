@@ -1,0 +1,94 @@
+# Verify desktop builds on every PR / main push. Manual runs upload installers as workflow artifacts.
+name: Desktop build
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: desktop-build-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: macos-latest
+            label: macos-aarch64
+            args: --target aarch64-apple-darwin
+            rust_target: aarch64-apple-darwin
+            bundle_glob: src-tauri/target/aarch64-apple-darwin/release/bundle/**/*
+          - platform: macos-latest
+            label: macos-x64
+            args: --target x86_64-apple-darwin
+            rust_target: x86_64-apple-darwin
+            bundle_glob: src-tauri/target/x86_64-apple-darwin/release/bundle/**/*
+          - platform: ubuntu-22.04
+            label: linux
+            args: ""
+            rust_target: ""
+            bundle_glob: src-tauri/target/release/bundle/**/*
+          - platform: windows-latest
+            label: windows
+            args: ""
+            rust_target: ""
+            bundle_glob: src-tauri/target/release/bundle/**/*
+
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Add Rust cross-compilation target
+        if: matrix.rust_target != ''
+        run: rustup target add ${{ matrix.rust_target }}
+
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - name: Install Linux dependencies
+        if: matrix.platform == 'ubuntu-22.04'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            libappindicator3-dev \
+            librsvg2-dev \
+            patchelf \
+            libssl-dev \
+            curl \
+            wget \
+            file \
+            libgtk-3-dev \
+            libayatana-appindicator3-dev
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Build desktop app
+        run: npm run tauri build -- ${{ matrix.args }}
+
+      - name: Upload installers (manual runs only)
+        if: github.event_name == 'workflow_dispatch'
+        uses: actions/upload-artifact@v4
+        with:
+          name: blueprint-studio-${{ matrix.label }}
+          path: ${{ matrix.bundle_glob }}
+          if-no-files-found: error
+          retention-days: 14
