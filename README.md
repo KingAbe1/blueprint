@@ -1,79 +1,97 @@
 # blueprint studio
 
-Plan a new product or scan a repo you already have. Output is either a **handoff package** for your coding agent (`AGENTS.md`, `blueprint/*.md`, IDE hints) or a **saved codebase report** on your machine.
+Local studio to **plan a new product** or **scan an existing repo**. You get agent handoff files or a codebase report—not generated app code.
 
-Runs in the browser or as a Tauri desktop app. Projects live in `localStorage`; there is no hosted backend for your specs or source.
+Works in the **browser** or as a **desktop app** (Tauri). Specs and scans stay on your machine; there is no hosted backend for your projects.
 
-Site: [blueprint-web-chi.vercel.app](https://blueprint-web-chi.vercel.app/)  
-Source: [github.com/KingAbe1/blueprint](https://github.com/KingAbe1/blueprint)  
-More detail for contributors: [docs/overview.md](./docs/overview.md)
+| | |
+| --- | --- |
+| Website | [blueprint-web-chi.vercel.app](https://blueprint-web-chi.vercel.app/) |
+| Releases | [github.com/KingAbe1/blueprint/releases](https://github.com/KingAbe1/blueprint/releases) |
+| Contributor notes | [docs/overview.md](./docs/overview.md) |
 
-## New project
+---
 
-1. Product brief (rich text; optional AI polish).
-2. Build questions - interview about platform, data, security, etc. Needs a configured AI provider.
-3. Architecture map - one stack + topology from your answers (AI or simple heuristics).
-4. Build handoff - preview files, edit if you want, download a zip or write into a project folder.
+## What it does
 
-Handoff works with Cursor, VS Code, Claude Code, Codex, JetBrains, and similar. Stack in the handoff follows what the interview picked (Next.js, mobile, desktop, API, etc.).
+### New project (greenfield)
 
-## Existing codebase
+1. Product brief (rich text; optional AI polish)
+2. Build questions — platform, data, security, etc. (needs a configured AI provider)
+3. Architecture map — stack + topology from your answers
+4. Build handoff — preview, edit, download a zip, or write into a project folder
 
-Pick a local folder. You get overview, tree, dependencies, scripts, and quality checks. Deeper rules kick in when the repo matches a **supported profile** ([list in code](src/constants/supportedAnalysisProfiles.ts) - Next.js today). Optional AI review on files you choose.
+Handoff works with Cursor, VS Code, Claude Code, Codex, JetBrains, and similar tools. The stack follows what you chose in the interview—not a hard-coded template.
 
-Use the desktop build for reliable folder access and export.
+### Existing codebase (brownfield)
 
-## AI
+Pick a local folder for overview, tree, dependencies, scripts, and quality checks. Deeper framework review runs when the repo matches a [supported profile](src/constants/supportedAnalysisProfiles.ts) (Next.js today). Optional AI review on files you choose.
 
-One settings panel for all projects. If you turn it on, requests go to **your** provider (OpenAI, Anthropic, Gemini, Ollama, OpenRouter, or a custom base URL). blueprint studio does not proxy them.
+Use the **desktop app** for reliable folder access and writing handoffs to disk.
 
-You can use much of greenfield without AI except the build-question step.
+---
 
-## Privacy (short version)
+## Install
 
-- Specs and scan results: local only. Export/import JSON from the project menu to back up.
-- Scans read files on disk; they are not uploaded to us.
-- GitHub and npm advisory features only use credentials or lockfile metadata you already opted into.
+Download installers from **[Releases](https://github.com/KingAbe1/blueprint/releases)**:
 
-## Download
-
-Pre-built installers: [GitHub Releases](https://github.com/KingAbe1/blueprint/releases).
-
-| Platform | Asset |
-|----------|--------|
+| Platform | File to use |
+| --- | --- |
 | macOS Apple Silicon (M1–M5…) | `.dmg` with `aarch64` in the name |
 | macOS Intel | `.dmg` with `x64` in the name |
-| Windows | `.msi` / NSIS installer |
+| Windows | `.msi` or NSIS installer |
 | Linux | `.deb` or `.AppImage` |
 
 ### macOS: “damaged and can’t be opened”
 
-Builds are not Apple-notarized yet. After installing to Applications:
+Builds are not Apple-notarized yet. After dragging the app to **Applications**:
 
 ```bash
 xattr -cr "/Applications/blueprint studio.app"
 ```
 
-Then open the app again (or right-click → **Open**). That clears the browser quarantine flag; the app is not actually damaged.
+Then open the app again (or right-click → **Open**). That clears the download quarantine flag; the app is not actually damaged.
 
-## Run
+---
+
+## Develop from source
 
 ```bash
 npm install
-npm run dev          # http://localhost:5173
+npm run dev          # browser — http://localhost:5173
 npm run tauri:dev    # desktop (alias: npm run app)
-npm run tauri:build
-npm run build
+npm run tauri:build  # local installers
+npm run build        # frontend only
 ```
 
-`./launch-desktop.sh` on macOS opens the dev UI in a standalone browser window.
+On macOS, `./launch-desktop.sh` opens the web UI in a standalone browser window.
+
+Desktop CI builds for macOS, Windows, and Linux run via GitHub Actions. Publishing a tag like `v1.0.1` triggers a full [release](https://github.com/KingAbe1/blueprint/releases).
+
+---
+
+## AI
+
+Optional. One settings panel for all projects. Requests go to **your** provider (OpenAI, Anthropic, Gemini, Ollama, OpenRouter, or a custom base URL)—blueprint studio does not proxy them.
+
+Much of the app works without AI. Greenfield **build questions** need a provider; scans and handoff preview do not.
+
+## Privacy
+
+- Specs and scan results stay local. Export/import JSON from the project menu to back up.
+- Scans read files on disk; they are not uploaded to us.
+- GitHub / npm advisory features only use credentials or lockfile data you already opted into.
+
+---
 
 ## License & forks
 
-[MIT](./LICENSE). You can fork, modify, and ship your own product from this code (keep the license notice in copies).
+[MIT](./LICENSE). Fork, modify, and ship your own product (keep the license notice).
 
-The name **blueprint studio** and the build at [blueprint-web-chi.vercel.app](https://blueprint-web-chi.vercel.app/) are the maintainer’s product. Forks are welcome; please use a different name and branding so users are not confused about who they are getting software from. That does not stop the maintainer from selling services, paid builds, or pursuing funding or acquisition around the official project.
+The name **blueprint studio** and [blueprint-web-chi.vercel.app](https://blueprint-web-chi.vercel.app/) are the maintainer’s product. Forks are welcome—please use a different name and branding so users know who they are getting software from. That does not stop the maintainer from selling services, paid builds, or pursuing funding around the official project.
 
-Contributing: [CONTRIBUTING.md](./CONTRIBUTING.md), [CODE_OF_CONDUCT.md](./CODE_OF_CONDUCT.md), [SECURITY.md](./SECURITY.md).
+## Contributing
 
-Built with React 19, Vite, Tailwind 4, Tiptap, TypeScript, Tauri 2.
+See [CONTRIBUTING.md](./CONTRIBUTING.md), [CODE_OF_CONDUCT.md](./CODE_OF_CONDUCT.md), and [SECURITY.md](./SECURITY.md).
+
+Stack: React 19 · Vite · Tailwind 4 · Tiptap · TypeScript · Tauri 2
