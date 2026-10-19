@@ -80,9 +80,19 @@ jobs:
           releaseBody: |
             Desktop installers for macOS (Apple Silicon and Intel), Windows, and Linux.
 
-            **macOS:** `.dmg` in the release assets  
+            **macOS:** `.dmg` in the release assets (use `aarch64` on Apple Silicon / M-series, `x64` on Intel)  
             **Windows:** `.msi` / NSIS installer  
             **Linux:** `.deb` and `.AppImage`
+
+            ### macOS: “damaged and can’t be opened”
+
+            Installers are not Apple-notarized yet. After you drag the app to **Applications**, open Terminal and run:
+
+            ```bash
+            xattr -cr "/Applications/blueprint studio.app"
+            ```
+
+            Then open the app again (or right-click → **Open**). This only clears the download quarantine flag; the app is not actually damaged.
 
             Baseline scans and handoff export work offline; configure your own AI provider in settings if you use greenfield AI features.
           releaseDraft: false

@@ -35,6 +35,27 @@ You can use much of greenfield without AI except the build-question step.
 - Scans read files on disk; they are not uploaded to us.
 - GitHub and npm advisory features only use credentials or lockfile metadata you already opted into.
 
+## Download
+
+Pre-built installers: [GitHub Releases](https://github.com/KingAbe1/blueprint/releases).
+
+| Platform | Asset |
+|----------|--------|
+| macOS Apple Silicon (M1–M5…) | `.dmg` with `aarch64` in the name |
+| macOS Intel | `.dmg` with `x64` in the name |
+| Windows | `.msi` / NSIS installer |
+| Linux | `.deb` or `.AppImage` |
+
+### macOS: “damaged and can’t be opened”
+
+Builds are not Apple-notarized yet. After installing to Applications:
+
+```bash
+xattr -cr "/Applications/blueprint studio.app"
+```
+
+Then open the app again (or right-click → **Open**). That clears the browser quarantine flag; the app is not actually damaged.
+
 ## Run
 
 ```bash
