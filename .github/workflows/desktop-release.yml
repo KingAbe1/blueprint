@@ -10,6 +10,11 @@ on:
 permissions:
   contents: write
 
+# Re-running / re-pushing the same tag cancels a stuck release for that tag only.
+concurrency:
+  group: desktop-release-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   publish:
     strategy:

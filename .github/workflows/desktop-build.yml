@@ -8,8 +8,9 @@ on:
   pull_request:
   workflow_dispatch:
 
+# New push/PR update on the same branch cancels the previous run and starts fresh.
 concurrency:
-  group: desktop-build-${{ github.workflow }}-${{ github.ref }}
+  group: desktop-build-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
