@@ -85,6 +85,6 @@ jobs:
             **Linux:** `.deb` and `.AppImage`
 
             Baseline scans and handoff export work offline; configure your own AI provider in settings if you use greenfield AI features.
-          releaseDraft: true
+          releaseDraft: false
           prerelease: false
           args: ${{ matrix.args }}
