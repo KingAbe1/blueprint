@@ -6,6 +6,7 @@ import {
   normalizeAISettings,
   providerIsConfigured,
   readAISettingsFromLocalStorage,
+  resolveActiveProvider,
   saveAISettings,
 } from '../services/aiSettingsStorage';
 
@@ -53,22 +54,33 @@ export const AIProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     void saveAISettings(settings);
   }, [settings, isSettingsLoaded]);
 
-  const activeConfig = settings.providers[settings.activeProvider] || DEFAULT_AI_PROVIDERS.anthropic;
+  const activeProviderId = resolveActiveProvider(settings);
+  const activeConfig = settings.providers[activeProviderId] || DEFAULT_AI_PROVIDERS.anthropic;
 
-  const isAiConfigured = Object.values(settings.providers).some(providerIsConfigured);
+  // "Connected" means the In-use provider can serve requests — not merely that some other key exists.
+  const isAiConfigured = providerIsConfigured(activeConfig);
 
   const setActiveProvider = (providerId: AIProviderId) => {
-    setSettings(prev => normalizeAISettings({
-      ...prev,
-      activeProvider: providerId,
-    }));
+    setSettings(prev => {
+      const merged = mergeAISettings(prev);
+      // Only mark In use when the provider can actually serve requests.
+      if (!providerIsConfigured(merged.providers[providerId])) {
+        return merged;
+      }
+      return {
+        ...merged,
+        activeProvider: providerId,
+      };
+    });
   };
 
   const updateProviderConfig = (providerId: AIProviderId, updates: Partial<AIProviderConfig>) => {
     setSettings(prev => {
       const merged = mergeAISettings(prev);
-      const next: AISettings = {
+      // Editing keys/models must not silently change which provider is In use.
+      return normalizeAISettings({
         ...merged,
+        activeProvider: merged.activeProvider,
         providers: {
           ...merged.providers,
           [providerId]: {
@@ -76,12 +88,7 @@ export const AIProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
             ...updates,
           },
         },
-      };
-      const updated = normalizeAISettings(next);
-      if (updates.apiKey?.trim() || (providerId === 'ollama' && updates.baseUrl?.trim())) {
-        updated.activeProvider = providerId;
-      }
-      return updated;
+      });
     });
   };
 

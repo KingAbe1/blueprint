@@ -5,39 +5,57 @@ const LOCAL_STORAGE_KEY = 'blueprint_ai_settings';
 export function mergeAISettings(parsed: Partial<AISettings> | null | undefined): AISettings {
   const providers = {} as Record<AIProviderId, AIProviderConfig>;
   for (const id of Object.keys(DEFAULT_AI_PROVIDERS) as AIProviderId[]) {
+    const saved = parsed?.providers?.[id];
     providers[id] = {
       ...DEFAULT_AI_PROVIDERS[id],
-      ...(parsed?.providers?.[id] || {}),
+      ...saved,
+      // Keep model lists only after a live fetch (connectionVerifiedAt). Drop old seeded catalogs.
+      availableModels:
+        saved?.connectionVerifiedAt && Array.isArray(saved.availableModels) ? saved.availableModels : [],
     };
   }
+  const activeProvider =
+    parsed?.activeProvider && providers[parsed.activeProvider] ? parsed.activeProvider : 'anthropic';
   return {
-    activeProvider: parsed?.activeProvider && providers[parsed.activeProvider]
-      ? parsed.activeProvider
-      : 'anthropic',
+    activeProvider,
     providers,
   };
 }
 
 export function providerIsConfigured(config: AIProviderConfig): boolean {
-  return config.provider === 'ollama'
-    ? Boolean(config.baseUrl?.trim())
-    : Boolean(config.apiKey?.trim());
-}
-
-/** Prefer the selected provider when configured; otherwise the first provider with credentials. */
-export function resolveActiveProvider(settings: AISettings): AIProviderId {
-  const active = settings.providers[settings.activeProvider];
-  if (active && providerIsConfigured(active)) return settings.activeProvider;
-  for (const id of Object.keys(settings.providers) as AIProviderId[]) {
-    if (providerIsConfigured(settings.providers[id])) return id;
+  if (config.provider === 'ollama') {
+    // Default localhost URL is always present — that does not mean Ollama is running.
+    // Require a successful Test connection / Fetch models before treating it as Ready.
+    return Boolean(config.baseUrl?.trim() && config.connectionVerifiedAt);
   }
-  return settings.activeProvider;
+  return Boolean(config.apiKey?.trim());
 }
 
+/**
+ * Provider marked "In use" — never silently switches to another backend.
+ * Callers must check `providerIsConfigured` (or use `requireActiveProviderConfig`).
+ */
+export function resolveActiveProvider(settings: AISettings): AIProviderId {
+  return settings.activeProvider && settings.providers[settings.activeProvider]
+    ? settings.activeProvider
+    : 'anthropic';
+}
+
+/** Active provider config for requests; throws if the In-use provider is not configured. */
+export function requireActiveProviderConfig(settings: AISettings): AIProviderConfig {
+  const providerId = resolveActiveProvider(settings);
+  const activeConfig = settings.providers[providerId];
+  if (!activeConfig || !providerIsConfigured(activeConfig)) {
+    throw new Error(
+      `API key is required for ${activeConfig?.name || 'the selected AI provider'}. Open AI settings and configure the provider marked In use, or choose another provider.`,
+    );
+  }
+  return activeConfig;
+}
+
+/** Merge defaults only — does not rewrite the user's activeProvider choice. */
 export function normalizeAISettings(raw: Partial<AISettings> | null | undefined): AISettings {
-  const merged = mergeAISettings(raw);
-  const activeProvider = resolveActiveProvider(merged);
-  return { ...merged, activeProvider };
+  return mergeAISettings(raw);
 }
 
 export function readAISettingsFromLocalStorage(): AISettings | null {

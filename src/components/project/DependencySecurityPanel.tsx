@@ -42,6 +42,7 @@ import {
   overviewPanelClass,
   overviewSeverityLabel,
 } from './overviewUi';
+import { handleExternalLinkClick } from '../../utils/openExternalUrl';
 
 interface DependencySecurityPanelProps {
   analysis: CodebaseAnalysis;
@@ -912,6 +913,7 @@ export const DependencySecurityPanel: React.FC<DependencySecurityPanelProps> = R
                                       href={`https://osv.dev/vulnerability/${advisory.id}`}
                                       target="_blank"
                                       rel="noreferrer"
+                                      onClick={handleExternalLinkClick}
                                       className="inline-flex items-center gap-1 font-mono text-[11px] text-blue-400 hover:underline"
                                     >
                                       <span>OSV.dev</span>
@@ -1012,6 +1014,7 @@ export const DependencySecurityPanel: React.FC<DependencySecurityPanelProps> = R
                           href={`https://osv.dev/vulnerability/${advisory.id}`}
                           target="_blank"
                           rel="noreferrer"
+                          onClick={handleExternalLinkClick}
                           className="inline-flex items-center gap-1 font-mono text-[11px] text-blue-400 hover:underline"
                         >
                           <span>OSV.dev</span>

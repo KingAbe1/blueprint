@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   AlertCircle,
   Check,
@@ -24,6 +24,7 @@ import { useTheme } from '../../context/ThemeContext';
 import { AIProviderId } from '../../types/ai';
 import { fetchProviderModels, testAIConnection, TestResult } from '../../services/aiService';
 import { overviewBorderClass, overviewPanelClass } from '../project/overviewUi';
+import { Dropdown } from '../common/Dropdown';
 import { providerIsConfigured } from '../../services/aiSettingsStorage';
 
 interface ProviderMeta {
@@ -69,14 +70,54 @@ const PROVIDERS: ProviderMeta[] = [
     icon: Layers3,
   },
   {
-    id: 'ollama',
-    name: 'Ollama',
-    shortName: 'Ollama',
-    description: 'Run local models without an API key.',
-    placeholder: 'http://localhost:11434',
-    defaultBaseUrl: 'http://localhost:11434',
-    link: { label: 'Install Ollama', url: 'https://ollama.com' },
-    icon: Server,
+    id: 'groq',
+    name: 'Groq',
+    shortName: 'Groq',
+    description: 'Very fast Llama and Mixtral inference.',
+    placeholder: 'gsk_…',
+    defaultBaseUrl: 'https://api.groq.com/openai/v1',
+    link: { label: 'Create a Groq key', url: 'https://console.groq.com/keys' },
+    icon: Cpu,
+  },
+  {
+    id: 'deepseek',
+    name: 'DeepSeek',
+    shortName: 'DeepSeek',
+    description: 'DeepSeek chat and reasoner models.',
+    placeholder: 'sk-…',
+    defaultBaseUrl: 'https://api.deepseek.com/v1',
+    link: { label: 'Create a DeepSeek key', url: 'https://platform.deepseek.com/api_keys' },
+    icon: Layers3,
+  },
+  {
+    id: 'mistral',
+    name: 'Mistral AI',
+    shortName: 'Mistral',
+    description: 'Mistral Large, Small, and Codestral.',
+    placeholder: '…',
+    defaultBaseUrl: 'https://api.mistral.ai/v1',
+    link: { label: 'Create a Mistral key', url: 'https://console.mistral.ai/api-keys' },
+    icon: Globe2,
+  },
+  {
+    id: 'xai',
+    name: 'xAI Grok',
+    shortName: 'xAI',
+    description: 'Grok models from xAI.',
+    placeholder: 'xai-…',
+    defaultBaseUrl: 'https://api.x.ai/v1',
+    link: { label: 'Create an xAI key', url: 'https://console.x.ai' },
+    icon: Cpu,
+  },
+  {
+    id: 'together',
+    name: 'Together AI',
+    shortName: 'Together',
+    description: 'Open models hosted on Together.',
+    placeholder: '…',
+    defaultBaseUrl: 'https://api.together.xyz/v1',
+    link: { label: 'Create a Together key', url: 'https://api.together.xyz/settings/api-keys' },
+    icon: Layers3,
   },
   {
     id: 'openrouter',
@@ -89,12 +130,22 @@ const PROVIDERS: ProviderMeta[] = [
     icon: Globe2,
   },
   {
+    id: 'ollama',
+    name: 'Ollama',
+    shortName: 'Ollama',
+    description: 'Run local models without an API key.',
+    placeholder: 'http://localhost:11434',
+    defaultBaseUrl: 'http://localhost:11434',
+    link: { label: 'Install Ollama', url: 'https://ollama.com' },
+    icon: Server,
+  },
+  {
     id: 'custom',
     name: 'Custom endpoint',
     shortName: 'Custom',
-    description: 'Any OpenAI-compatible endpoint.',
-    placeholder: 'sk-…',
-    defaultBaseUrl: 'https://api.together.xyz/v1',
+    description: 'LM Studio, vLLM, Azure OpenAI-compatible, or any /v1 chat API.',
+    placeholder: 'sk-… (optional for some local servers)',
+    defaultBaseUrl: 'http://localhost:1234/v1',
     icon: PlugZap,
   },
 ];
@@ -126,7 +177,7 @@ export const AISettingsModal: React.FC = () => {
       setFetchResult(null);
       setTestResult(null);
     }
-  }, [isSettingsOpen]);
+  }, [isSettingsOpen, settings.activeProvider]);
 
   useEffect(() => {
     const handleEscape = (event: KeyboardEvent) => {
@@ -136,13 +187,19 @@ export const AISettingsModal: React.FC = () => {
     return () => window.removeEventListener('keydown', handleEscape);
   }, [isSettingsOpen, setIsSettingsOpen]);
 
+  const config = settings.providers[selectedProvider] || settings.providers.anthropic;
+  const fetchedModels = config.availableModels || [];
+  const modelOptions = useMemo(
+    () => fetchedModels.map(model => ({ value: model, label: model })),
+    [fetchedModels],
+  );
+
   if (!isSettingsOpen) return null;
 
-  const config = settings.providers[selectedProvider];
   const provider = PROVIDERS.find(item => item.id === selectedProvider) || PROVIDERS[0];
   const isActive = settings.activeProvider === selectedProvider;
   const isLocal = selectedProvider === 'ollama';
-  const isConfigured = isLocal ? Boolean(config.baseUrl?.trim()) : Boolean(config.apiKey?.trim());
+  const isConfigured = providerIsConfigured(config);
 
   const border = overviewBorderClass(isDark);
   const panel = overviewPanelClass(isDark);
@@ -175,15 +232,22 @@ export const AISettingsModal: React.FC = () => {
       const models = await fetchProviderModels(config);
       if (!models.length) {
         setFetchResult({ type: 'error', text: 'No models were returned by this endpoint.' });
+        if (isLocal) {
+          updateProviderConfig(selectedProvider, { connectionVerifiedAt: undefined });
+        }
         return;
       }
 
       updateProviderConfig(selectedProvider, {
         availableModels: models,
         model: models.includes(config.model) ? config.model : models[0],
+        connectionVerifiedAt: new Date().toISOString(),
       });
       setFetchResult({ type: 'success', text: `${models.length} models found.` });
     } catch (error: any) {
+      if (isLocal) {
+        updateProviderConfig(selectedProvider, { connectionVerifiedAt: undefined });
+      }
       setFetchResult({ type: 'error', text: error?.message || 'Could not load models.' });
     } finally {
       setIsFetchingModels(false);
@@ -194,8 +258,17 @@ export const AISettingsModal: React.FC = () => {
     setIsTesting(true);
     setTestResult(null);
     try {
-      setTestResult(await testAIConnection(config));
+      const result = await testAIConnection(config);
+      setTestResult(result);
+      if (isLocal) {
+        updateProviderConfig(selectedProvider, {
+          connectionVerifiedAt: result.success ? new Date().toISOString() : undefined,
+        });
+      }
     } catch (error: any) {
+      if (isLocal) {
+        updateProviderConfig(selectedProvider, { connectionVerifiedAt: undefined });
+      }
       setTestResult({ success: false, message: error?.message || 'Could not connect to the provider.' });
     } finally {
       setIsTesting(false);
@@ -264,9 +337,13 @@ export const AISettingsModal: React.FC = () => {
         </header>
 
         <div className="flex min-h-0 flex-1 flex-col sm:flex-row">
-          <aside className={`shrink-0 border-b sm:w-52 sm:border-b-0 sm:border-r ${border} ${isDark ? 'bg-black/15' : 'bg-slate-50/80'}`}>
-            <p className={`px-4 pb-1 pt-3 text-[11px] font-medium uppercase tracking-wide ${muted}`}>Providers</p>
-            <div className="flex gap-1 overflow-x-auto px-3 pb-3 sm:block sm:space-y-0.5 sm:overflow-visible sm:px-2 sm:pb-3">
+          <aside
+            className={`flex min-h-0 shrink-0 flex-col border-b sm:w-52 sm:self-stretch sm:border-b-0 sm:border-r ${border} ${
+              isDark ? 'bg-black/15' : 'bg-slate-50/80'
+            }`}
+          >
+            <p className={`shrink-0 px-4 pb-1 pt-3 text-[11px] font-medium uppercase tracking-wide ${muted}`}>Providers</p>
+            <div className="flex gap-1 overflow-x-auto px-3 pb-6 sm:min-h-0 sm:flex-1 sm:block sm:space-y-0.5 sm:overflow-y-auto sm:overscroll-contain sm:px-2 sm:pb-10">
               {PROVIDERS.map(item => {
                 const ItemIcon = item.icon;
                 const itemConfigured = isProviderConfigured(item.id);
@@ -299,7 +376,15 @@ export const AISettingsModal: React.FC = () => {
                     <div className="min-w-0 flex-1">
                       <div className="truncate text-xs font-medium">{item.shortName}</div>
                       <div className={`mt-0.5 text-[10px] ${muted}`}>
-                        {itemActive ? 'In use' : itemConfigured ? 'Ready' : 'Setup needed'}
+                        {itemActive
+                          ? itemConfigured
+                            ? 'In use'
+                            : 'In use · not connected'
+                          : itemConfigured
+                            ? 'Ready'
+                            : item.id === 'ollama'
+                              ? 'Not connected'
+                              : 'Setup needed'}
                       </div>
                     </div>
                     <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${statusDot}`} aria-hidden />
@@ -383,36 +468,86 @@ export const AISettingsModal: React.FC = () => {
                 )}
 
                 <div>
-                  <div className="mb-2 flex items-center justify-between gap-4">
-                    <label htmlFor="provider-model" className={`flex items-center gap-2 text-xs font-medium ${titleText}`}>
+                  <div className="mb-3 flex items-center justify-between gap-4">
+                    <span className={`flex items-center gap-2 text-xs font-medium ${titleText}`}>
                       <Cpu className={`h-3.5 w-3.5 ${isDark ? 'text-slate-400' : 'text-slate-500'}`} />
                       Model
-                    </label>
+                    </span>
                     <button
                       type="button"
                       onClick={handleFetchModels}
-                      disabled={isFetchingModels || !isConfigured}
+                      disabled={isFetchingModels || (!isLocal && !isConfigured)}
                       className={`flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-[11px] font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${secondaryButton}`}
                     >
                       {isFetchingModels ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
                       {isFetchingModels ? 'Loading…' : 'Find available models'}
                     </button>
                   </div>
-                  <input
-                    id="provider-model"
-                    type="text"
-                    list="provider-model-options"
-                    value={config.model || ''}
-                    onChange={event => updateProviderConfig(selectedProvider, { model: event.target.value })}
-                    placeholder="Enter a model ID"
-                    spellCheck={false}
-                    className={`w-full rounded-lg border px-3 py-2.5 font-mono text-xs outline-none transition-colors ${input}`}
-                  />
-                  <datalist id="provider-model-options">
-                    {(config.availableModels || []).map(model => <option key={model} value={model} />)}
-                  </datalist>
-                  <div className={`mt-2 min-h-5 text-[11px] ${muted}`}>
-                    {fetchResult ? (
+
+                  {modelOptions.length > 0 ? (
+                    <div className="space-y-3">
+                      <div>
+                        <label className={`mb-1.5 block text-[11px] font-medium ${muted}`}>
+                          Choose from provider list
+                        </label>
+                        <Dropdown
+                          options={modelOptions}
+                          value={config.model || undefined}
+                          onChange={model => updateProviderConfig(selectedProvider, { model })}
+                          placeholder="Select a model"
+                          searchable
+                          searchPlaceholder="Search models…"
+                          size="sm"
+                          fullWidth
+                          triggerClassName="font-mono"
+                        />
+                        <p className={`mt-1.5 text-[10px] leading-relaxed ${muted}`}>
+                          {modelOptions.length} model{modelOptions.length === 1 ? '' : 's'} loaded from {provider.shortName}.
+                        </p>
+                      </div>
+                      <div>
+                        <label
+                          htmlFor="provider-model-custom"
+                          className={`mb-1.5 block text-[11px] font-medium ${muted}`}
+                        >
+                          Or enter a model name
+                        </label>
+                        <input
+                          id="provider-model-custom"
+                          type="text"
+                          value={config.model || ''}
+                          onChange={event => updateProviderConfig(selectedProvider, { model: event.target.value })}
+                          placeholder="e.g. gpt-4o, llama-3.3-70b-versatile"
+                          spellCheck={false}
+                          className={`w-full rounded-lg border px-3 py-2 font-mono text-[11px] outline-none transition-colors ${input}`}
+                        />
+                        <p className={`mt-1.5 text-[10px] leading-relaxed ${muted}`}>
+                          Use this if the model isn’t in the list above. Matches the dropdown when you pick one.
+                        </p>
+                      </div>
+                    </div>
+                  ) : (
+                    <div>
+                      <label htmlFor="provider-model" className={`mb-1.5 block text-[11px] font-medium ${muted}`}>
+                        Model name
+                      </label>
+                      <input
+                        id="provider-model"
+                        type="text"
+                        value={config.model || ''}
+                        onChange={event => updateProviderConfig(selectedProvider, { model: event.target.value })}
+                        placeholder="e.g. gpt-4o, claude-3-5-sonnet"
+                        spellCheck={false}
+                        className={`w-full rounded-lg border px-3 py-2.5 font-mono text-xs outline-none transition-colors ${input}`}
+                      />
+                      <p className={`mt-1.5 text-[10px] leading-relaxed ${muted}`}>
+                        Type a model name, or use <span className={titleText}>Find available models</span> to load a selectable list.
+                      </p>
+                    </div>
+                  )}
+
+                  {fetchResult && (
+                    <div className={`mt-2 min-h-5 text-[11px]`}>
                       <span
                         className={`inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 ${
                           fetchResult.type === 'success'
@@ -424,13 +559,15 @@ export const AISettingsModal: React.FC = () => {
                               : 'bg-rose-50 text-rose-800'
                         }`}
                       >
-                        {fetchResult.type === 'success' ? <CheckCircle2 className="h-3.5 w-3.5" /> : <AlertCircle className="h-3.5 w-3.5" />}
+                        {fetchResult.type === 'success' ? (
+                          <CheckCircle2 className="h-3.5 w-3.5" />
+                        ) : (
+                          <AlertCircle className="h-3.5 w-3.5" />
+                        )}
                         {fetchResult.text}
                       </span>
-                    ) : (
-                      <span>{(config.availableModels || []).length} saved model{(config.availableModels || []).length === 1 ? '' : 's'}</span>
-                    )}
-                  </div>
+                    </div>
+                  )}
                 </div>
 
                 <div className={`overflow-hidden rounded-xl border ${border}`}>
@@ -462,7 +599,12 @@ export const AISettingsModal: React.FC = () => {
                         id="provider-base-url"
                         type="text"
                         value={config.baseUrl || ''}
-                        onChange={event => updateProviderConfig(selectedProvider, { baseUrl: event.target.value })}
+                        onChange={event =>
+                          updateProviderConfig(selectedProvider, {
+                            baseUrl: event.target.value,
+                            ...(isLocal ? { connectionVerifiedAt: undefined } : {}),
+                          })
+                        }
                         placeholder={provider.defaultBaseUrl}
                         spellCheck={false}
                         className={`w-full rounded-lg border px-3 py-2.5 font-mono text-xs outline-none transition-colors ${input}`}

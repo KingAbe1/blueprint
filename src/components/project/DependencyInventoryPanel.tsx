@@ -17,6 +17,7 @@ import {
   overviewRowEmphasis,
   overviewSeverityLabel,
 } from './overviewUi';
+import { handleExternalLinkClick } from '../../utils/openExternalUrl';
 
 interface DependencyInventoryPanelProps {
   inventory?: DependencyInventory;
@@ -339,6 +340,7 @@ export const DependencyInventoryPanel: React.FC<DependencyInventoryPanelProps> =
                     href={`https://www.npmjs.com/package/${pkg.name}`}
                     target="_blank"
                     rel="noopener noreferrer"
+                    onClick={handleExternalLinkClick}
                     className={`rounded p-0.5 ${isDark ? 'text-slate-500 hover:bg-white/[0.06] hover:text-blue-400' : 'text-slate-500 hover:bg-slate-100 hover:text-blue-600'}`}
                     title="View on npm"
                   >

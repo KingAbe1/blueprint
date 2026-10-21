@@ -1,10 +1,20 @@
-import { AIProviderConfig, AISettings } from '../types/ai';
+import {
+  AIProviderConfig,
+  AIProviderId,
+  AISettings,
+  DEFAULT_AI_PROVIDERS,
+  isOpenAICompatibleProvider,
+} from '../types/ai';
 import { ArchitectureFact, ArchitectureQuestion, ArchitectureTopology, FrameworkRecommendation } from '../types/project';
 import {
   cleanRawDescription,
   formatPolishedProductDescription,
 } from './domainExtractor';
-import { providerIsConfigured, resolveActiveProvider } from './aiSettingsStorage';
+import { requireActiveProviderConfig } from './aiSettingsStorage';
+
+function defaultHostForProvider(provider: AIProviderId): string {
+  return DEFAULT_AI_PROVIDERS[provider]?.baseUrl || 'https://api.openai.com/v1';
+}
 
 
 /**
@@ -39,9 +49,9 @@ export async function fetchProviderModels(config: AIProviderConfig): Promise<str
   const timeoutId = setTimeout(() => controller.abort(), 12000);
 
   try {
-    // 1. OpenAI or Custom OpenAI-compatible endpoints (Groq, Together, vLLM, LMStudio, etc.)
-    if (provider === 'openai' || provider === 'custom') {
-      let host = (baseUrl || 'https://api.openai.com/v1').trim().replace(/\/+$/, '');
+    // 1. OpenAI-compatible catalogs (OpenAI, Groq, DeepSeek, Mistral, xAI, Together, OpenRouter, custom)
+    if (isOpenAICompatibleProvider(provider)) {
+      let host = (baseUrl || defaultHostForProvider(provider)).trim().replace(/\/+$/, '');
       host = host.replace(/\/chat\/completions\/?$/i, '').replace(/\/models\/?$/i, '');
       const url = `${host}/models`;
 
@@ -49,8 +59,11 @@ export async function fetchProviderModels(config: AIProviderConfig): Promise<str
         method: 'GET',
         signal: controller.signal,
         headers: {
-          'Authorization': `Bearer ${apiKey.trim()}`
-        }
+          Authorization: `Bearer ${apiKey.trim()}`,
+          ...(provider === 'openrouter'
+            ? { 'HTTP-Referer': 'https://blueprint.studio', 'X-Title': 'blueprint studio' }
+            : {}),
+        },
       });
 
       if (!res.ok) {
@@ -62,13 +75,15 @@ export async function fetchProviderModels(config: AIProviderConfig): Promise<str
       const list: string[] = (data.data || []).map((m: any) => m.id);
 
       if (provider === 'openai') {
-        // Filter out non-chat / audio / embedding models and sort chat models nicely
-        const chatModels = list.filter(id => 
-          (id.startsWith('gpt-') || id.startsWith('o1') || id.startsWith('o3') || id.startsWith('chatgpt-')) &&
-          !id.includes('realtime') && !id.includes('audio') && !id.includes('transcription') && !id.includes('embedding')
+        const chatModels = list.filter(
+          id =>
+            (id.startsWith('gpt-') || id.startsWith('o1') || id.startsWith('o3') || id.startsWith('chatgpt-')) &&
+            !id.includes('realtime') &&
+            !id.includes('audio') &&
+            !id.includes('transcription') &&
+            !id.includes('embedding'),
         );
 
-        // Sort prioritizing popular everyday models
         chatModels.sort((a, b) => {
           const score = (name: string) => {
             if (name === 'gpt-4o-mini') return 1;
@@ -87,24 +102,6 @@ export async function fetchProviderModels(config: AIProviderConfig): Promise<str
       }
 
       return list;
-    }
-
-    // 2. OpenRouter (Unified multi-provider catalog)
-    if (provider === 'openrouter') {
-      const res = await fetch('https://openrouter.ai/api/v1/models', {
-        method: 'GET',
-        signal: controller.signal,
-        headers: {
-          'Authorization': `Bearer ${apiKey.trim()}`
-        }
-      });
-
-      if (!res.ok) {
-        throw new Error(`OpenRouter returned HTTP ${res.status}`);
-      }
-
-      const data = await res.json();
-      return (data.data || []).map((m: any) => m.id);
     }
 
     // 3. Ollama (Local LLM server)
@@ -180,18 +177,18 @@ export async function callAIModel(
   }
 
   try {
-    // 1. OpenAI, OpenRouter, Custom OpenAI-Compatible
-    if (provider === 'openai' || provider === 'openrouter' || provider === 'custom') {
-      let host = (baseUrl || (provider === 'openai' ? 'https://api.openai.com/v1' : 'https://openrouter.ai/api/v1')).trim().replace(/\/+$/, '');
+    // 1. OpenAI-compatible (OpenAI, Groq, DeepSeek, Mistral, xAI, Together, OpenRouter, custom)
+    if (isOpenAICompatibleProvider(provider)) {
+      let host = (baseUrl || defaultHostForProvider(provider)).trim().replace(/\/+$/, '');
       host = host.replace(/\/chat\/completions\/?$/i, '');
       const url = `${host}/chat/completions`;
 
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
-      const isReasoningModel = /^(o1|o3|o4|gpt-5|gpt-6)/i.test(model || '');
-      const bodyPayload: any = {
-        model: model || 'gpt-4o',
-        messages: [{ role: 'user', content: prompt }]
+      const isReasoningModel = /^(o1|o3|o4|gpt-5|gpt-6|deepseek-reasoner)/i.test(model || '');
+      const bodyPayload: Record<string, unknown> = {
+        model: model || DEFAULT_AI_PROVIDERS[provider]?.model || 'gpt-4o',
+        messages: [{ role: 'user', content: prompt }],
       };
 
       if (isReasoningModel) {
@@ -206,15 +203,20 @@ export async function callAIModel(
         signal: controller.signal,
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${apiKey.trim()}`,
-          ...(provider === 'openrouter' ? { 'HTTP-Referer': 'https://blueprint.studio', 'X-Title': 'product' } : {})
+          Authorization: `Bearer ${apiKey.trim()}`,
+          ...(provider === 'openrouter'
+            ? { 'HTTP-Referer': 'https://blueprint.studio', 'X-Title': 'blueprint studio' }
+            : {}),
         },
-        body: JSON.stringify(bodyPayload)
+        body: JSON.stringify(bodyPayload),
       }).finally(() => clearTimeout(timeoutId));
 
       if (!res.ok) {
         const errJson = await res.json().catch(() => null);
-        const detail = errJson?.error?.message || errJson?.message || (typeof errJson?.error === 'string' ? errJson.error : `HTTP ${res.status}`);
+        const detail =
+          errJson?.error?.message ||
+          errJson?.message ||
+          (typeof errJson?.error === 'string' ? errJson.error : `HTTP ${res.status}`);
         throw new Error(`${config.name} (${model}): ${detail}`);
       }
 
@@ -391,10 +393,6 @@ export async function expandAndPolishDescription(
   currentDescription: string,
   settings: AISettings
 ): Promise<{ text: string; providerName: string }> {
-  const providerId = resolveActiveProvider(settings);
-  const activeConfig = settings.providers[providerId];
-  const hasKey = activeConfig && providerIsConfigured(activeConfig);
-
   const draft = currentDescription.trim();
   const coreInput = cleanRawDescription(draft) || (projectName || '').trim();
 
@@ -402,9 +400,7 @@ export async function expandAndPolishDescription(
     throw new Error('Please enter a project name or brief idea before expanding.');
   }
 
-  if (!hasKey) {
-    throw new Error(`API key is required for ${activeConfig?.name || 'AI'}. Please click 'Configure AI Key' to connect.`);
-  }
+  const activeConfig = requireActiveProviderConfig(settings);
 
   const wordCount = draft.split(/\s+/).filter(Boolean).length;
   const draftBulletCount = (draft.match(/^[ \t]*[•\-*– - ]\s+/gm) || []).length;
@@ -489,13 +485,7 @@ export async function generateArchitectureInterview(
   description: string,
   settings: AISettings
 ): Promise<{ questions: ArchitectureQuestion[]; inferredFacts: ArchitectureFact[]; providerName: string }> {
-  const providerId = resolveActiveProvider(settings);
-  const activeConfig = settings.providers[providerId];
-  const hasKey = activeConfig && providerIsConfigured(activeConfig);
-
-  if (!hasKey) {
-    throw new Error(`API key is required for ${activeConfig?.name || 'AI'} to generate build questions.`);
-  }
+  const activeConfig = requireActiveProviderConfig(settings);
 
   const prompt = `You are a principal software architect interviewing a product builder before implementation.
 Project name: "${projectName || 'Unnamed project'}"
@@ -961,12 +951,7 @@ export async function analyzeFrameworksWithAI(
     customRequirements?: string;
   }
 ): Promise<{ recommendations: FrameworkRecommendation[]; providerName: string }> {
-  const activeConfig = settings.providers[settings.activeProvider];
-  const hasKey = activeConfig && (activeConfig.provider === 'ollama' || Boolean(activeConfig.apiKey?.trim()));
-
-  if (!hasKey) {
-    throw new Error(`API key is required for ${activeConfig?.name || 'AI'}. Please click 'Configure AI Key' to connect.`);
-  }
+  const activeConfig = requireActiveProviderConfig(settings);
 
   // Construct dynamic architectural constraints based on user criteria without rigid if/else locks
   const dynamicConstraints: string[] = [];
