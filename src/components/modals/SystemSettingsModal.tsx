@@ -233,6 +233,10 @@ export const SystemSettingsModal: React.FC = () => {
                   triggerClassName="!rounded-lg !py-2.5"
                   menuClassName="!rounded-xl"
                 />
+                <p className={`mt-2 text-[11px] leading-snug ${isDark ? 'text-slate-500' : 'text-slate-500'}`}>
+                  Open in editor uses the IDE shell command. If opens fail, install it from the editor Command Palette
+                  (e.g. Install &apos;cursor&apos; command in PATH).
+                </p>
               </div>
               <div className={`border-t pt-1 ${border} ${toggleRows}`}>
                 <SettingToggle

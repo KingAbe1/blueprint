@@ -73,8 +73,8 @@ function launchProtocolUrl(protocolUrl: string): void {
  * Open a project path in the user's preferred IDE (System Settings).
  * Pass only `rootPath` to open the project folder; pass `relativePath` (+ optional line) for a file.
  *
- * Desktop (Tauri): launches the IDE CLI in a new window with the project (+ file:line),
- * then activates the app so it comes to the front (avoids buried custom-URL dialogs).
+ * Desktop (Tauri): launches the IDE CLI in a new window with the project (+ file:line).
+ * Resolves common install paths on macOS / Windows / Linux; on macOS also activates the app.
  * Browser: best-effort protocol navigation.
  */
 export async function openInPreferredIde(options: {

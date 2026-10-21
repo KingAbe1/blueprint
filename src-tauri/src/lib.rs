@@ -476,27 +476,178 @@ fn ide_binary_and_app(ide_id: &str) -> Result<(&'static str, Option<&'static str
     }
 }
 
-/// Bundled CLIs (GUI apps usually are not on PATH when launched from Tauri).
-fn ide_bundle_cli_candidates(ide_id: &str) -> &'static [&'static str] {
-    match ide_id {
-        "cursor" => &[
-            "/Applications/Cursor.app/Contents/Resources/app/bin/cursor",
-            "/Applications/Cursor.app/Contents/Resources/app/bin/code",
-        ],
-        "vscode" => &[
-            "/Applications/Visual Studio Code.app/Contents/Resources/app/bin/code",
-            "/Applications/VSCodium.app/Contents/Resources/app/bin/codium",
-        ],
-        "windsurf" => &["/Applications/Windsurf.app/Contents/Resources/app/bin/windsurf"],
-        "zed" => &[
-            "/Applications/Zed.app/Contents/MacOS/zed",
-            "/Applications/Zed.app/Contents/MacOS/cli",
-        ],
-        "sublime" => &["/Applications/Sublime Text.app/Contents/SharedSupport/bin/subl"],
-        "webstorm" => &["/Applications/WebStorm.app/Contents/MacOS/webstorm"],
-        "idea" => &["/Applications/IntelliJ IDEA.app/Contents/MacOS/idea"],
-        _ => &[],
+fn push_unique(candidates: &mut Vec<String>, path: impl Into<String>) {
+    let path = path.into();
+    if path.is_empty() || candidates.iter().any(|existing| existing == &path) {
+        return;
     }
+    candidates.push(path);
+}
+
+fn join_home(segments: &[&str]) -> Option<PathBuf> {
+    let home = home_dir()?;
+    Some(segments.iter().fold(home, |acc, segment| acc.join(segment)))
+}
+
+fn home_dir() -> Option<PathBuf> {
+    #[cfg(windows)]
+    {
+        std::env::var_os("USERPROFILE")
+            .or_else(|| std::env::var_os("HOME"))
+            .map(PathBuf::from)
+    }
+    #[cfg(not(windows))]
+    {
+        std::env::var_os("HOME").map(PathBuf::from)
+    }
+}
+
+/// Bundled / default-install CLIs (GUI apps are often missing from PATH when launched from Tauri).
+fn ide_bundle_cli_candidates(ide_id: &str) -> Vec<String> {
+    let mut out = Vec::new();
+
+    #[cfg(target_os = "macos")]
+    {
+        let mac: &[&str] = match ide_id {
+            "cursor" => &[
+                "/Applications/Cursor.app/Contents/Resources/app/bin/cursor",
+                "/Applications/Cursor.app/Contents/Resources/app/bin/code",
+            ],
+            "vscode" => &[
+                "/Applications/Visual Studio Code.app/Contents/Resources/app/bin/code",
+                "/Applications/VSCodium.app/Contents/Resources/app/bin/codium",
+            ],
+            "windsurf" => &["/Applications/Windsurf.app/Contents/Resources/app/bin/windsurf"],
+            "zed" => &[
+                "/Applications/Zed.app/Contents/MacOS/zed",
+                "/Applications/Zed.app/Contents/MacOS/cli",
+            ],
+            "sublime" => &["/Applications/Sublime Text.app/Contents/SharedSupport/bin/subl"],
+            "webstorm" => &["/Applications/WebStorm.app/Contents/MacOS/webstorm"],
+            "idea" => &["/Applications/IntelliJ IDEA.app/Contents/MacOS/idea"],
+            _ => &[],
+        };
+        for path in mac {
+            push_unique(&mut out, (*path).to_string());
+        }
+    }
+
+    #[cfg(target_os = "windows")]
+    {
+        let local = std::env::var_os("LOCALAPPDATA").map(PathBuf::from);
+        let program_files = std::env::var_os("ProgramFiles").map(PathBuf::from);
+        let program_files_x86 = std::env::var_os("ProgramFiles(x86)").map(PathBuf::from);
+
+        let mut push_under = |base: &Option<PathBuf>, rel: &[&str]| {
+            if let Some(base) = base {
+                let path = rel.iter().fold(base.clone(), |acc, segment| acc.join(segment));
+                push_unique(&mut out, path.to_string_lossy().to_string());
+            }
+        };
+
+        match ide_id {
+            "cursor" => {
+                push_under(&local, &["Programs", "cursor", "resources", "app", "bin", "cursor.cmd"]);
+                push_under(&local, &["Programs", "cursor", "resources", "app", "bin", "cursor.exe"]);
+                push_under(&local, &["Programs", "Cursor", "resources", "app", "bin", "cursor.cmd"]);
+            }
+            "vscode" => {
+                push_under(
+                    &local,
+                    &["Programs", "Microsoft VS Code", "bin", "code.cmd"],
+                );
+                push_under(&local, &["Programs", "Microsoft VS Code", "bin", "code.exe"]);
+                push_under(&program_files, &["Microsoft VS Code", "bin", "code.cmd"]);
+                push_under(&program_files_x86, &["Microsoft VS Code", "bin", "code.cmd"]);
+                push_under(&local, &["Programs", "VSCodium", "bin", "codium.cmd"]);
+            }
+            "windsurf" => {
+                push_under(&local, &["Programs", "Windsurf", "bin", "windsurf.cmd"]);
+                push_under(
+                    &local,
+                    &["Programs", "Windsurf", "resources", "app", "bin", "windsurf.cmd"],
+                );
+            }
+            "zed" => {
+                push_under(&local, &["Programs", "Zed", "zed.exe"]);
+                push_under(&local, &["Programs", "Zed", "bin", "zed.exe"]);
+            }
+            "sublime" => {
+                push_under(&program_files, &["Sublime Text", "subl.exe"]);
+                push_under(&program_files_x86, &["Sublime Text 3", "subl.exe"]);
+            }
+            "webstorm" => {
+                // JetBrains Toolbox installs under LOCALAPPDATA\JetBrains\Toolbox\scripts
+                push_under(&local, &["JetBrains", "Toolbox", "scripts", "webstorm.cmd"]);
+                push_under(&local, &["JetBrains", "Toolbox", "scripts", "webstorm"]);
+            }
+            "idea" => {
+                push_under(&local, &["JetBrains", "Toolbox", "scripts", "idea.cmd"]);
+                push_under(&local, &["JetBrains", "Toolbox", "scripts", "idea64.exe"]);
+            }
+            _ => {}
+        }
+    }
+
+    #[cfg(target_os = "linux")]
+    {
+        let home_bin = join_home(&[".local", "bin"]);
+        let push_home_bin = |name: &str, out: &mut Vec<String>| {
+            if let Some(dir) = &home_bin {
+                push_unique(out, dir.join(name).to_string_lossy().to_string());
+            }
+        };
+
+        match ide_id {
+            "cursor" => {
+                push_home_bin("cursor", &mut out);
+                push_unique(&mut out, "/usr/share/cursor/bin/cursor".into());
+                push_unique(&mut out, "/opt/Cursor/bin/cursor".into());
+                push_unique(&mut out, "/opt/cursor/bin/cursor".into());
+            }
+            "vscode" => {
+                push_home_bin("code", &mut out);
+                push_home_bin("codium", &mut out);
+                push_unique(&mut out, "/usr/share/code/bin/code".into());
+                push_unique(&mut out, "/usr/bin/code".into());
+                push_unique(&mut out, "/snap/bin/code".into());
+                push_unique(&mut out, "/usr/share/codium/bin/codium".into());
+            }
+            "windsurf" => {
+                push_home_bin("windsurf", &mut out);
+                push_unique(&mut out, "/usr/share/windsurf/bin/windsurf".into());
+                push_unique(&mut out, "/opt/Windsurf/bin/windsurf".into());
+            }
+            "zed" => {
+                push_home_bin("zed", &mut out);
+                push_unique(&mut out, "/usr/bin/zed".into());
+                push_unique(&mut out, "/usr/local/bin/zed".into());
+                if let Some(path) = join_home(&[".local", "zed", "bin", "zed"]) {
+                    push_unique(&mut out, path.to_string_lossy().to_string());
+                }
+            }
+            "sublime" => {
+                push_home_bin("subl", &mut out);
+                push_unique(&mut out, "/usr/bin/subl".into());
+                push_unique(&mut out, "/opt/sublime_text/sublime_text".into());
+            }
+            "webstorm" => {
+                push_home_bin("webstorm", &mut out);
+                if let Some(path) = join_home(&[".local", "share", "JetBrains", "Toolbox", "scripts", "webstorm"]) {
+                    push_unique(&mut out, path.to_string_lossy().to_string());
+                }
+            }
+            "idea" => {
+                push_home_bin("idea", &mut out);
+                if let Some(path) = join_home(&[".local", "share", "JetBrains", "Toolbox", "scripts", "idea"]) {
+                    push_unique(&mut out, path.to_string_lossy().to_string());
+                }
+            }
+            _ => {}
+        }
+    }
+
+    out
 }
 
 fn require_absolute_path(path: &str, label: &str) -> Result<PathBuf, String> {
@@ -527,11 +678,27 @@ fn path_is_within(root: &Path, candidate: &Path) -> bool {
 
 fn spawn_command(program: &str, args: &[&str]) -> Result<(), String> {
     let path = Path::new(program);
-    if program.contains('/') || program.contains('\\') {
-        if !path.is_file() {
-            return Err(format!("CLI not found: {program}"));
+    let looks_absolute = program.contains('/')
+        || program.contains('\\')
+        || Path::new(program).is_absolute();
+    if looks_absolute && !path.is_file() {
+        return Err(format!("CLI not found: {program}"));
+    }
+
+    #[cfg(windows)]
+    {
+        let lower = program.to_ascii_lowercase();
+        if lower.ends_with(".cmd") || lower.ends_with(".bat") {
+            return Command::new("cmd")
+                .arg("/C")
+                .arg(program)
+                .args(args)
+                .spawn()
+                .map(|_| ())
+                .map_err(|error| format!("Could not start {program}: {error}"));
         }
     }
+
     Command::new(program)
         .args(args)
         .spawn()
@@ -540,14 +707,24 @@ fn spawn_command(program: &str, args: &[&str]) -> Result<(), String> {
 }
 
 fn try_spawn_ide_binary(ide_id: &str, binary: &str, args: &[&str]) -> Result<(), String> {
-    let mut candidates: Vec<String> = Vec::new();
-    for path in ide_bundle_cli_candidates(ide_id) {
-        candidates.push((*path).to_string());
+    let mut candidates = ide_bundle_cli_candidates(ide_id);
+
+    // PATH / common symlink locations (macOS + Linux). On Windows, bare `binary` resolves via PATH.
+    push_unique(&mut candidates, binary.to_string());
+    #[cfg(windows)]
+    {
+        push_unique(&mut candidates, format!("{binary}.cmd"));
+        push_unique(&mut candidates, format!("{binary}.exe"));
     }
-    candidates.push(binary.to_string());
-    candidates.push(format!("/usr/local/bin/{binary}"));
-    candidates.push(format!("/opt/homebrew/bin/{binary}"));
-    candidates.push(format!("/usr/bin/{binary}"));
+    #[cfg(not(windows))]
+    {
+        push_unique(&mut candidates, format!("/usr/local/bin/{binary}"));
+        push_unique(&mut candidates, format!("/opt/homebrew/bin/{binary}"));
+        push_unique(&mut candidates, format!("/usr/bin/{binary}"));
+        if let Some(path) = join_home(&[".local", "bin", binary]) {
+            push_unique(&mut candidates, path.to_string_lossy().to_string());
+        }
+    }
 
     let mut last_error = format!("Could not find the `{binary}` CLI.");
     for path in candidates {
@@ -812,8 +989,9 @@ fn open_in_ide(
     }
 
     Err(format!(
-        "Could not open {}. Install the `{binary}` shell command (Cursor: Command Palette → “Install 'cursor' command in PATH”).",
-        app_name.unwrap_or(binary)
+        "Could not open {}. Install the `{binary}` shell command and ensure it is on PATH (Cursor / VS Code: Command Palette → “Install '{}' command in PATH”).",
+        app_name.unwrap_or(binary),
+        binary
     ))
 }
 
