@@ -29,7 +29,7 @@ interface QualityHealthSummaryProps {
   cveCount: number;
   showScoreBreakdown: boolean;
   onToggleScoreBreakdown: () => void;
-  onExportReport: () => void;
+  onExportReport: () => void | Promise<void>;
   copiedReport: boolean;
 }
 

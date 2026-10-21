@@ -19,6 +19,7 @@ import {
   type OverviewEmphasis,
 } from './overviewUi';
 import { FindingAiExplanation } from './FindingAiExplanation';
+import { saveExportText } from '../../utils/exportFileSave';
 
 interface CodebaseQualityViewProps {
   analysis: CodebaseAnalysis;
@@ -363,8 +364,8 @@ ${selectedFinding.detail}${snippetText}${evidenceText}
     }
   }, [selectedFinding]);
 
-  // Export Comprehensive Audit Report
-  const exportAuditReport = useCallback(() => {
+  // Export Comprehensive Audit Report (native save dialog on desktop / picker or download on web)
+  const exportAuditReport = useCallback(async () => {
     if (!analysis.quality) return;
     const lines = [
       `# ${analysis.rootName} · Architectural & Security Audit Report`,
@@ -402,17 +403,15 @@ ${selectedFinding.detail}${snippetText}${evidenceText}
       analysis.dependencyRisk ? `## Supply-Chain Vulnerabilities (OSV.dev)\n- **Packages Evaluated:** ${analysis.dependencyRisk.packagesChecked}\n- **Active Advisories:** ${analysis.dependencyRisk.advisories.length}\n${analysis.dependencyRisk.advisories.map(a => `- **${a.packageName}@${a.version}** [${a.severity}]: ${a.summary}`).join('\n')}` : '',
     ];
 
-    const blob = new Blob([lines.join('\n')], { type: 'text/markdown;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `${analysis.rootName.toLowerCase().replace(/[^a-z0-9_-]/g, '_')}_architectural_audit.md`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-    setCopiedReport(true);
-    setTimeout(() => setCopiedReport(false), 2000);
+    const filename = `${analysis.rootName.toLowerCase().replace(/[^a-z0-9_-]/g, '_')}_architectural_audit.md`;
+    try {
+      const saved = await saveExportText(lines.join('\n'), filename, 'md');
+      if (!saved) return;
+      setCopiedReport(true);
+      setTimeout(() => setCopiedReport(false), 2000);
+    } catch {
+      // Keep UI quiet on cancel/failure; saveExportText already surfaces dialog cancel as false
+    }
   }, [analysis, grade.status, highPriorityCount, totalQualityFindings, executiveDiagnosis, codeRigorPillar, securityVerificationPillar, qualityFindings]);
 
   const findingEmphasis = (priority: string): OverviewEmphasis => {
