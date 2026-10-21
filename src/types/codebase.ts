@@ -51,7 +51,7 @@ export interface QualityFinding {
   ruleId?: string;
   category?: QualityCategory;
   confidence?: 'high' | 'medium' | 'low';
-  source?: 'blueprint-static' | 'blueprint-nextjs' | 'blueprint-remix' | 'project-tool';
+  source?: 'blueprint-static' | 'blueprint-nextjs' | 'blueprint-remix' | 'blueprint-nodejs' | 'project-tool';
   location?: { path: string; line?: number };
   codeSnippet?: { startLine: number; focusLine: number; lines: string[] };
   title: string;

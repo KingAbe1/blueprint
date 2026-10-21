@@ -1,13 +1,5 @@
-export type FrameworkId =
-  | 'nextjs'
-  | 'remix'
-  | 'vite'
-  | 'express'
-  | 'fastapi'
-  | 'nestjs'
-  | 'go-fiber'
-  | 'django'
-  | 'generic';
+/** Only IDs with a registered deep analyzer. Do not list planned frameworks here. */
+export type FrameworkId = 'nextjs' | 'remix' | 'nodejs';
 
 export interface UniversalRoute {
   path: string;
@@ -268,6 +260,113 @@ export interface RemixSpecialization {
   dynamicRoutesCount: number;
 }
 
+export type NodeJsRuntimeStyle =
+  | 'express'
+  | 'fastify'
+  | 'koa'
+  | 'hono'
+  | 'nestjs'
+  | 'node-http'
+  | 'mixed'
+  | 'not-identified';
+
+export type NodeJsImprovementCategory =
+  | 'route-hygiene'
+  | 'middleware'
+  | 'error-handling'
+  | 'config-delivery'
+  | 'security'
+  | 'async-hygiene'
+  | 'modernization';
+
+export type NodeJsImprovementSeverity = 'critical' | 'warning' | 'optimization';
+
+export interface NodeJsArchitecturalImprovement {
+  id: string;
+  category: NodeJsImprovementCategory;
+  severity: NodeJsImprovementSeverity;
+  title: string;
+  impact: string;
+  remediation: string;
+  file?: string;
+  line?: number;
+}
+
+export interface NodeJsRouteFileAudit {
+  path: string;
+  methodCount: number;
+  lineCount: number;
+  hasValidation: boolean;
+  hasAuth: boolean;
+}
+
+export interface NodeJsRouteAudit {
+  totalHandlers: number;
+  filesCount: number;
+  unvalidatedFilesCount: number;
+  unprotectedFilesCount: number;
+  files: NodeJsRouteFileAudit[];
+}
+
+export interface NodeJsMiddlewareAudit {
+  helmetOrHeadersPresent: boolean;
+  corsPresent: boolean;
+  rateLimitPresent: boolean;
+  errorMiddlewarePresent: boolean;
+  /** Express/Fastify looks reverse-proxied but trust proxy is unset. */
+  missingTrustProxy?: boolean;
+  issueCount: number;
+}
+
+export interface NodeJsResilienceAudit {
+  hasUncaughtExceptionHandler: boolean;
+  hasUnhandledRejectionHandler: boolean;
+  hasGracefulShutdownSignal: boolean;
+  issueCount: number;
+}
+
+export interface NodeJsConfigAudit {
+  hasEnginesField: boolean;
+  isEsm: boolean;
+  missingLintScript: boolean;
+  missingTypecheckSignal: boolean;
+  /** engines.node major appears EOL (≤18 as of 2025+). */
+  eolNodeEngine?: boolean;
+  /** Committed secret env files found in the tree (not .env.example). */
+  committedEnvFiles?: string[];
+  issueCount: number;
+}
+
+export interface NodeJsSecurityAudit {
+  missingHelmetOrHeaders: boolean;
+  permissiveCorsFiles: string[];
+  dangerousPatternFiles: string[];
+  openRedirectFiles: string[];
+  hardcodedSecretFiles: string[];
+  weakCookieFiles?: string[];
+  unboundedUploadFiles?: string[];
+  errorLeakFiles?: string[];
+  sqlInjectionFiles?: string[];
+  pathTraversalFiles?: string[];
+  webhookUnsignedFiles?: string[];
+  weakJwtFiles?: string[];
+  dependencyFootguns?: string[];
+  issueCount: number;
+}
+
+export interface NodeJsSpecialization {
+  version?: string;
+  majorVersion?: number;
+  runtimeStyle: NodeJsRuntimeStyle;
+  routeAudit: NodeJsRouteAudit;
+  middlewareAudit: NodeJsMiddlewareAudit;
+  resilienceAudit: NodeJsResilienceAudit;
+  configAudit: NodeJsConfigAudit;
+  securityAudit: NodeJsSecurityAudit;
+  improvements: NodeJsArchitecturalImprovement[];
+  entryFiles: string[];
+}
+
 export interface FrameworkProfile<TSpecialization = unknown> {
   id: FrameworkId;
   name: string;
@@ -283,7 +382,11 @@ export interface FrameworkProfile<TSpecialization = unknown> {
 export interface FrameworkAnalyzer<TSpecialization = unknown> {
   id: FrameworkId;
   name: string;
-  detect(source: { paths: string[]; manifests: Record<string, string> }): boolean;
+  detect(source: {
+    paths: string[];
+    manifests: Record<string, string>;
+    sourceContents?: Record<string, string>;
+  }): boolean;
   analyze(source: {
     paths: string[];
     manifests: Record<string, string>;

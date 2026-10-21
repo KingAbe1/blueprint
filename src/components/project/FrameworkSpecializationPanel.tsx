@@ -4,9 +4,11 @@ import {
   NextJsActionAudit,
   NextJsSpecialization,
   NextJsArchitecturalImprovement,
+  NodeJsSpecialization,
   RemixSpecialization,
 } from '../../types/framework';
 import { NextJsSpecializationPanel } from './NextJsSpecializationPanel';
+import { NodeJsSpecializationPanel } from './NodeJsSpecializationPanel';
 import { RemixSpecializationPanel } from './RemixSpecializationPanel';
 import { SafeErrorBoundary } from '../common/SafeErrorBoundary';
 
@@ -28,6 +30,13 @@ const FrameworkSpecializationContent: React.FC<FrameworkSpecializationPanelProps
     const specialization = analysis.frameworkProfile.specialization as RemixSpecialization;
     if (specialization?.loaderAudit && specialization?.actionAudit && specialization?.resilienceAudit) {
       return <RemixSpecializationPanel specialization={specialization} rootName={analysis.rootName} />;
+    }
+  }
+
+  if (analysis.frameworkProfile?.id === 'nodejs') {
+    const specialization = analysis.frameworkProfile.specialization as NodeJsSpecialization;
+    if (specialization?.routeAudit && specialization?.middlewareAudit && specialization?.securityAudit) {
+      return <NodeJsSpecializationPanel specialization={specialization} rootName={analysis.rootName} />;
     }
   }
 

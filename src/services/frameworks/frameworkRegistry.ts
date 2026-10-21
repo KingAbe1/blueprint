@@ -1,14 +1,16 @@
 import { FrameworkAnalyzer, FrameworkProfile } from '../../types/framework';
 import { nextJsAnalyzer } from './nextjs/nextJsAnalyzer';
+import { nodeJsAnalyzer } from './nodejs/nodeJsAnalyzer';
 import { remixAnalyzer } from './remix/remixAnalyzer';
 
 // Extensible registry of framework analyzers.
-// To add support for a new framework (e.g. Vite/React, Express, FastAPI, NestJS, Go Fiber),
+// To add support for a new framework (e.g. Vite/React, FastAPI, Go Fiber),
 // simply implement FrameworkAnalyzer<T> and add it to this array.
-// Order matters: first match wins (Next.js before Remix).
+// Order matters: first match wins (Next.js → Remix → Node.js).
 const FRAMEWORK_ANALYZERS: FrameworkAnalyzer[] = [
   nextJsAnalyzer as FrameworkAnalyzer,
   remixAnalyzer as FrameworkAnalyzer,
+  nodeJsAnalyzer as FrameworkAnalyzer,
 ];
 
 /**

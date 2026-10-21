@@ -8,6 +8,7 @@ import { LANGUAGE_SOURCE_RULES, NEXT_SOURCE_RULES, TOOLCHAIN_QUALITY_RULES } fro
 import { extractNpmDependencyInventory, scanNpmDependencyRisks } from './dependencyRiskService';
 import { detectAndAnalyzeFramework } from './frameworks/frameworkRegistry';
 import { computeNextJsQualityImpact } from './frameworks/nextjs/nextJsQualityImpact';
+import { computeNodeJsQualityImpact } from './frameworks/nodejs/nodeJsQualityImpact';
 import { computeRemixQualityImpact } from './frameworks/remix/remixQualityImpact';
 import {
   collectParsedFileFindings,
@@ -102,9 +103,26 @@ function hasRemixProjectSignal(paths: string[], manifests: Record<string, string
   return hasRemixConfig || hasRemixDep;
 }
 
-/** Next.js or Remix — enables JS/TS deep parse and shared risk patterns. */
+function hasNodeJsProjectSignal(paths: string[], manifests: Record<string, string>) {
+  if (hasNextJsProjectSignal(paths, manifests) || hasRemixProjectSignal(paths, manifests)) return false;
+  const hasServerDep = Object.entries(manifests).some(
+    ([path, content]) =>
+      /(^|\/)package\.json$/i.test(path.replace(/\\/g, '/')) &&
+      /["'](?:express|fastify|koa|hono|@nestjs\/core|restify|polka|@hapi\/hapi|micro)["']\s*:/.test(content),
+  );
+  if (hasServerDep) return true;
+  // Path-only fallback for plain http servers (avoid matching Vite SPA src/main.tsx / index.tsx).
+  const normalized = paths.map(path => path.replace(/\\/g, '/'));
+  return normalized.some(path => /(^|\/)(?:src\/)?server\.(?:js|ts|mjs|cjs)$/i.test(path));
+}
+
+/** Next.js, Remix, or Node.js — enables JS/TS deep parse and shared risk patterns. */
 function hasSupportedJsDeepProfile(paths: string[], manifests: Record<string, string>) {
-  return hasNextJsProjectSignal(paths, manifests) || hasRemixProjectSignal(paths, manifests);
+  return (
+    hasNextJsProjectSignal(paths, manifests) ||
+    hasRemixProjectSignal(paths, manifests) ||
+    hasNodeJsProjectSignal(paths, manifests)
+  );
 }
 
 async function inspectSourceCode(source: CodebaseSource): Promise<{ findings: QualityFinding[]; parsedFiles: number; skippedFiles: number }> {
@@ -509,7 +527,8 @@ function assessCodeQuality(
 
   const nextJsImpact = computeNextJsQualityImpact(frameworkProfile);
   const remixImpact = computeRemixQualityImpact(frameworkProfile);
-  const frameworkImpact = nextJsImpact || remixImpact;
+  const nodeJsImpact = computeNodeJsQualityImpact(frameworkProfile);
+  const frameworkImpact = nextJsImpact || remixImpact || nodeJsImpact;
 
   const testingEvidence: NonNullable<QualityDimension['scoreEvidence']> = [];
   let testingScore = 0;

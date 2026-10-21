@@ -302,7 +302,8 @@ export const CodebaseAnalysisView: React.FC<CodebaseAnalysisViewProps> = ({
   const hasFrameworkDeepReview = Boolean(
     analysis.nextjs ||
       analysis.frameworkProfile?.id === 'nextjs' ||
-      analysis.frameworkProfile?.id === 'remix',
+      analysis.frameworkProfile?.id === 'remix' ||
+      analysis.frameworkProfile?.id === 'nodejs',
   );
   const scanSuggestions = analysis.suggestions ?? [];
   const showScanSuggestions = scanSuggestions.length > 0 && !hasFrameworkDeepReview;
