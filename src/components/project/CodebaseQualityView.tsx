@@ -690,9 +690,11 @@ ${selectedFinding.detail}${snippetText}${evidenceText}
                           ? 'Next.js'
                           : selectedFinding.source === 'blueprint-remix'
                             ? 'Remix'
-                            : selectedFinding.source === 'blueprint-nodejs'
-                              ? 'Node.js'
-                              : analysis.frameworks[0] || 'Codebase'
+                            : selectedFinding.source === 'blueprint-expo'
+                              ? 'Expo'
+                              : selectedFinding.source === 'blueprint-nodejs'
+                                ? 'Node.js'
+                                : analysis.frameworks[0] || 'Codebase'
                       }
                       title={selectedFinding.title}
                       category={selectedFinding.category}

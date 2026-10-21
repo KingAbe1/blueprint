@@ -7,6 +7,7 @@ export type { QualityReviewSourceFile } from './qualityReviewSourceService';
 import { LANGUAGE_SOURCE_RULES, NEXT_SOURCE_RULES, TOOLCHAIN_QUALITY_RULES } from './codeQualityRules';
 import { extractNpmDependencyInventory, scanNpmDependencyRisks } from './dependencyRiskService';
 import { detectAndAnalyzeFramework } from './frameworks/frameworkRegistry';
+import { computeExpoQualityImpact } from './frameworks/expo/expoQualityImpact';
 import { computeNextJsQualityImpact } from './frameworks/nextjs/nextJsQualityImpact';
 import { computeNodeJsQualityImpact } from './frameworks/nodejs/nodeJsQualityImpact';
 import { computeRemixQualityImpact } from './frameworks/remix/remixQualityImpact';
@@ -103,8 +104,29 @@ function hasRemixProjectSignal(paths: string[], manifests: Record<string, string
   return hasRemixConfig || hasRemixDep;
 }
 
-function hasNodeJsProjectSignal(paths: string[], manifests: Record<string, string>) {
+function hasExpoProjectSignal(paths: string[], manifests: Record<string, string>) {
   if (hasNextJsProjectSignal(paths, manifests) || hasRemixProjectSignal(paths, manifests)) return false;
+  const hasDep = Object.entries(manifests).some(
+    ([path, content]) =>
+      /(^|\/)package\.json$/i.test(path.replace(/\\/g, '/')) &&
+      /["'](?:expo|expo-router|react-native)["']\s*:/.test(content),
+  );
+  if (hasDep) return true;
+  const normalized = paths.map(path => path.replace(/\\/g, '/'));
+  return (
+    normalized.some(path => /(^|\/)app\.(?:json|config\.(?:js|ts))$/i.test(path)) &&
+    normalized.some(path => /(^|\/)app\/_layout\.(?:jsx?|tsx?)$/i.test(path))
+  );
+}
+
+function hasNodeJsProjectSignal(paths: string[], manifests: Record<string, string>) {
+  if (
+    hasNextJsProjectSignal(paths, manifests) ||
+    hasRemixProjectSignal(paths, manifests) ||
+    hasExpoProjectSignal(paths, manifests)
+  ) {
+    return false;
+  }
   const hasServerDep = Object.entries(manifests).some(
     ([path, content]) =>
       /(^|\/)package\.json$/i.test(path.replace(/\\/g, '/')) &&
@@ -116,11 +138,12 @@ function hasNodeJsProjectSignal(paths: string[], manifests: Record<string, strin
   return normalized.some(path => /(^|\/)(?:src\/)?server\.(?:js|ts|mjs|cjs)$/i.test(path));
 }
 
-/** Next.js, Remix, or Node.js — enables JS/TS deep parse and shared risk patterns. */
+/** Next.js, Remix, Expo, or Node.js — enables JS/TS deep parse and shared risk patterns. */
 function hasSupportedJsDeepProfile(paths: string[], manifests: Record<string, string>) {
   return (
     hasNextJsProjectSignal(paths, manifests) ||
     hasRemixProjectSignal(paths, manifests) ||
+    hasExpoProjectSignal(paths, manifests) ||
     hasNodeJsProjectSignal(paths, manifests)
   );
 }
@@ -527,8 +550,9 @@ function assessCodeQuality(
 
   const nextJsImpact = computeNextJsQualityImpact(frameworkProfile);
   const remixImpact = computeRemixQualityImpact(frameworkProfile);
+  const expoImpact = computeExpoQualityImpact(frameworkProfile);
   const nodeJsImpact = computeNodeJsQualityImpact(frameworkProfile);
-  const frameworkImpact = nextJsImpact || remixImpact || nodeJsImpact;
+  const frameworkImpact = nextJsImpact || remixImpact || expoImpact || nodeJsImpact;
 
   const testingEvidence: NonNullable<QualityDimension['scoreEvidence']> = [];
   let testingScore = 0;

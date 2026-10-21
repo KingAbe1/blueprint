@@ -2,6 +2,7 @@
 export const SUPPORTED_DEEP_ANALYSIS_PROFILES = [
   'Next.js (JavaScript / TypeScript)',
   'Remix (JavaScript / TypeScript)',
+  'Expo / React Native (JavaScript / TypeScript)',
   'Node.js (Express / Fastify / Koa / Hono / Nest / http)',
 ] as const;
 

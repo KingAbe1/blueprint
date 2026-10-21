@@ -1,5 +1,5 @@
 /** Only IDs with a registered deep analyzer. Do not list planned frameworks here. */
-export type FrameworkId = 'nextjs' | 'remix' | 'nodejs';
+export type FrameworkId = 'nextjs' | 'remix' | 'expo' | 'nodejs';
 
 export interface UniversalRoute {
   path: string;
@@ -388,6 +388,83 @@ export interface NodeJsSpecialization {
   securityAudit: NodeJsSecurityAudit;
   dataModelAudit: NodeJsDataModelAudit;
   improvements: NodeJsArchitecturalImprovement[];
+  entryFiles: string[];
+}
+
+export type ExpoNavigationStyle = 'expo-router' | 'react-navigation' | 'mixed' | 'not-identified';
+
+export type ExpoImprovementCategory =
+  | 'navigation'
+  | 'security'
+  | 'config-delivery'
+  | 'performance'
+  | 'permissions'
+  | 'modernization';
+
+export type ExpoImprovementSeverity = 'critical' | 'warning' | 'optimization';
+
+export interface ExpoArchitecturalImprovement {
+  id: string;
+  category: ExpoImprovementCategory;
+  severity: ExpoImprovementSeverity;
+  title: string;
+  impact: string;
+  remediation: string;
+  file?: string;
+  line?: number;
+}
+
+export interface ExpoNavigationAudit {
+  style: ExpoNavigationStyle;
+  routeFileCount: number;
+  hasRootLayout: boolean;
+  hasErrorBoundary: boolean;
+  issueCount: number;
+}
+
+export interface ExpoSecurityAudit {
+  asyncStorageTokenFiles: string[];
+  secretInPublicEnvFiles: string[];
+  hardcodedSecretFiles: string[];
+  /** localStorage / FileSystem writes that look like auth tokens. */
+  weakSessionStorageFiles?: string[];
+  /** Cleartext http:// fetches or cleartext traffic enabled. */
+  cleartextNetworkFiles?: string[];
+  issueCount: number;
+}
+
+export interface ExpoConfigAudit {
+  configFile?: string;
+  usesExpoRouter: boolean;
+  hasAppConfig: boolean;
+  missingScheme: boolean;
+  missingSplashOrIcon: boolean;
+  sdkMajor?: number;
+  /** expo-updates missing or disabled / no runtimeVersion. */
+  updatesIssue?: boolean;
+  /** newArchEnabled missing or false on recent SDKs. */
+  newArchDisabled?: boolean;
+  /** Sensitive APIs used without matching iOS usage description strings. */
+  missingPrivacyDescriptions?: string[];
+  /** No eas.json or production profile looks incomplete. */
+  easIssue?: boolean;
+  issueCount: number;
+}
+
+export interface ExpoPerformanceAudit {
+  flatListWithoutOptimizationFiles: string[];
+  imageWithoutExpoImageFiles: string[];
+  issueCount: number;
+}
+
+export interface ExpoSpecialization {
+  version?: string;
+  sdkMajor?: number;
+  navigationAudit: ExpoNavigationAudit;
+  securityAudit: ExpoSecurityAudit;
+  configAudit: ExpoConfigAudit;
+  performanceAudit: ExpoPerformanceAudit;
+  improvements: ExpoArchitecturalImprovement[];
   entryFiles: string[];
 }
 

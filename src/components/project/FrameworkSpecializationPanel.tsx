@@ -1,6 +1,7 @@
 import React from 'react';
 import { CodebaseAnalysis } from '../../types/codebase';
 import {
+  ExpoSpecialization,
   NextJsActionAudit,
   NextJsSpecialization,
   NextJsArchitecturalImprovement,
@@ -8,6 +9,7 @@ import {
   NodeJsSpecialization,
   RemixSpecialization,
 } from '../../types/framework';
+import { ExpoSpecializationPanel } from './ExpoSpecializationPanel';
 import { NextJsSpecializationPanel } from './NextJsSpecializationPanel';
 import { NodeJsSpecializationPanel } from './NodeJsSpecializationPanel';
 import { RemixSpecializationPanel } from './RemixSpecializationPanel';
@@ -31,6 +33,13 @@ const FrameworkSpecializationContent: React.FC<FrameworkSpecializationPanelProps
     const specialization = analysis.frameworkProfile.specialization as RemixSpecialization;
     if (specialization?.loaderAudit && specialization?.actionAudit && specialization?.resilienceAudit) {
       return <RemixSpecializationPanel specialization={specialization} rootName={analysis.rootName} />;
+    }
+  }
+
+  if (analysis.frameworkProfile?.id === 'expo') {
+    const specialization = analysis.frameworkProfile.specialization as ExpoSpecialization;
+    if (specialization?.navigationAudit && specialization?.securityAudit && specialization?.configAudit) {
+      return <ExpoSpecializationPanel specialization={specialization} rootName={analysis.rootName} />;
     }
   }
 

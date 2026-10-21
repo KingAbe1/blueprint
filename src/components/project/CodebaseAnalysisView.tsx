@@ -303,6 +303,7 @@ export const CodebaseAnalysisView: React.FC<CodebaseAnalysisViewProps> = ({
     analysis.nextjs ||
       analysis.frameworkProfile?.id === 'nextjs' ||
       analysis.frameworkProfile?.id === 'remix' ||
+      analysis.frameworkProfile?.id === 'expo' ||
       analysis.frameworkProfile?.id === 'nodejs',
   );
   const scanSuggestions = analysis.suggestions ?? [];

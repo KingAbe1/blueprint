@@ -20,7 +20,7 @@ import {
 const NODE_SERVER_DEPS =
   /["'](?:express|fastify|koa|hono|@nestjs\/core|restify|polka|@hapi\/hapi|micro)["']\s*:/;
 
-function hasNextOrRemix(paths: string[], manifests: Record<string, string>): boolean {
+function hasHigherPriorityFramework(paths: string[], manifests: Record<string, string>): boolean {
   const normalized = paths.map(p => p.replace(/\\/g, '/'));
   const hasNext =
     normalized.some(path => /(^|\/)next\.config\.(?:[cm]?js|[cm]?ts)$/i.test(path)) ||
@@ -35,7 +35,12 @@ function hasNextOrRemix(paths: string[], manifests: Record<string, string>): boo
         /(^|\/)package\.json$/i.test(path.replace(/\\/g, '/')) &&
         /["']@remix-run\/(?:react|node|dev|cloudflare|deno|express|serve)["']\s*:|["']remix["']\s*:/.test(content),
     );
-  return hasRemix;
+  if (hasRemix) return true;
+  return Object.entries(manifests).some(
+    ([path, content]) =>
+      /(^|\/)package\.json$/i.test(path.replace(/\\/g, '/')) &&
+      /["'](?:expo|expo-router|react-native)["']\s*:/.test(content),
+  );
 }
 
 function detectNodeVersion(manifests: Record<string, string>): string | undefined {
@@ -94,7 +99,7 @@ export const nodeJsAnalyzer: FrameworkAnalyzer<NodeJsSpecialization> = {
   name: 'Node.js',
 
   detect({ paths, manifests, sourceContents = {} }): boolean {
-    if (hasNextOrRemix(paths, manifests)) return false;
+    if (hasHigherPriorityFramework(paths, manifests)) return false;
 
     const hasServerDep = Object.entries(manifests).some(
       ([path, content]) => /(^|\/)package\.json$/i.test(path.replace(/\\/g, '/')) && NODE_SERVER_DEPS.test(content),
