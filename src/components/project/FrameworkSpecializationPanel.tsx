@@ -25,21 +25,39 @@ const FrameworkSpecializationContent: React.FC<FrameworkSpecializationPanelProps
     const specialization = analysis.frameworkProfile.specialization as NextJsSpecialization;
     if (specialization?.actionAudit && specialization?.bundleAudit && specialization?.resilienceAudit) {
       // Newer audit fields are optional on legacy saved scans; the panel fills defaults.
-      return <NextJsSpecializationPanel specialization={specialization} rootName={analysis.rootName} />;
+      return (
+        <NextJsSpecializationPanel
+          specialization={specialization}
+          rootName={analysis.rootName}
+          analysis={analysis}
+        />
+      );
     }
   }
 
   if (analysis.frameworkProfile?.id === 'remix') {
     const specialization = analysis.frameworkProfile.specialization as RemixSpecialization;
     if (specialization?.loaderAudit && specialization?.actionAudit && specialization?.resilienceAudit) {
-      return <RemixSpecializationPanel specialization={specialization} rootName={analysis.rootName} />;
+      return (
+        <RemixSpecializationPanel
+          specialization={specialization}
+          rootName={analysis.rootName}
+          analysis={analysis}
+        />
+      );
     }
   }
 
   if (analysis.frameworkProfile?.id === 'expo') {
     const specialization = analysis.frameworkProfile.specialization as ExpoSpecialization;
     if (specialization?.navigationAudit && specialization?.securityAudit && specialization?.configAudit) {
-      return <ExpoSpecializationPanel specialization={specialization} rootName={analysis.rootName} />;
+      return (
+        <ExpoSpecializationPanel
+          specialization={specialization}
+          rootName={analysis.rootName}
+          analysis={analysis}
+        />
+      );
     }
   }
 
@@ -60,6 +78,7 @@ const FrameworkSpecializationContent: React.FC<FrameworkSpecializationPanelProps
         <NodeJsSpecializationPanel
           specialization={{ ...specialization, dataModelAudit: withData }}
           rootName={analysis.rootName}
+          analysis={analysis}
         />
       );
     }
@@ -277,7 +296,13 @@ const FrameworkSpecializationContent: React.FC<FrameworkSpecializationPanelProps
       dynamicRoutesCount,
     };
 
-    return <NextJsSpecializationPanel specialization={fallbackSpecialization} rootName={analysis.rootName} />;
+    return (
+      <NextJsSpecializationPanel
+        specialization={fallbackSpecialization}
+        rootName={analysis.rootName}
+        analysis={analysis}
+      />
+    );
   }
 
   // Future framework plugins (e.g. Remix, Vite, FastAPI) will plug in here:

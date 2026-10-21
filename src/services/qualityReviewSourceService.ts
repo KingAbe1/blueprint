@@ -8,7 +8,32 @@ export interface QualityReviewSourceFile {
   truncated: boolean;
 }
 
-const QUALITY_REVIEW_SOURCE_EXTENSIONS = new Set(['.ts', '.tsx', '.js', '.jsx', '.mts', '.cts', '.mjs', '.cjs', '.py', '.rs', '.go', '.java', '.kt', '.swift', '.php', '.rb', '.cs', '.c', '.cpp', '.h', '.hpp', '.sql']);
+const QUALITY_REVIEW_SOURCE_EXTENSIONS = new Set([
+  '.ts',
+  '.tsx',
+  '.js',
+  '.jsx',
+  '.mts',
+  '.cts',
+  '.mjs',
+  '.cjs',
+  '.json',
+  '.prisma',
+  '.py',
+  '.rs',
+  '.go',
+  '.java',
+  '.kt',
+  '.swift',
+  '.php',
+  '.rb',
+  '.cs',
+  '.c',
+  '.cpp',
+  '.h',
+  '.hpp',
+  '.sql',
+]);
 const QUALITY_REVIEW_MAX_FILES = 6;
 const QUALITY_REVIEW_MAX_FILE_CHARS = 6000;
 const QUALITY_REVIEW_MAX_TOTAL_CHARS = 24000;

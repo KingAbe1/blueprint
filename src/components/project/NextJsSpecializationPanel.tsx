@@ -11,6 +11,7 @@ import {
   NextJsSecurityAudit,
   NextJsSeoAudit,
 } from '../../types/framework';
+import type { CodebaseAnalysis } from '../../types/codebase';
 import {
   overviewBorderClass,
   overviewDivideClass,
@@ -25,6 +26,7 @@ import { FindingAiExplanation, FindingStaticCopy } from './FindingAiExplanation'
 interface NextJsSpecializationPanelProps {
   specialization: NextJsSpecialization;
   rootName: string;
+  analysis?: CodebaseAnalysis;
 }
 
 const CATEGORY_LABELS: Record<'all' | NextJsImprovementCategory, string> = {
@@ -208,6 +210,7 @@ function metricCell(
 
 export const NextJsSpecializationPanel: React.FC<NextJsSpecializationPanelProps> = ({
   specialization,
+  analysis,
 }) => {
   const { isDark } = useTheme();
   const muted = isDark ? 'text-slate-500' : 'text-slate-500';
@@ -755,6 +758,7 @@ Refactor the code to implement this recommendation. Ensure clean TypeScript typi
                   impact={item.impact}
                   remediation={item.remediation}
                   file={item.file}
+                  analysis={analysis}
                 />
               </li>
             );

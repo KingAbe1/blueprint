@@ -2,10 +2,13 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { Loader2, Sparkles } from 'lucide-react';
 import { useAI } from '../../context/AIContext';
 import { useTheme } from '../../context/ThemeContext';
+import type { CodebaseAnalysis } from '../../types/codebase';
 import {
   clearCachedFindingExplanation,
+  clipSourceForExplanation,
   explainFinding,
   getCachedFindingExplanation,
+  loadSourceSnippetForFinding,
   setCachedFindingExplanation,
   type FindingExplanation,
 } from '../../services/explainFindingService';
@@ -19,8 +22,11 @@ export interface FindingAiExplanationProps {
   impact: string;
   remediation: string;
   file?: string;
+  focusLine?: number;
   /** Optional clipped source already prepared by the caller. */
   codeSnippet?: string;
+  /** When set, Explain loads the flagged file from disk for a code-grounded answer. */
+  analysis?: CodebaseAnalysis;
 }
 
 function explainButtonClass(isDark: boolean): string {
@@ -38,7 +44,9 @@ export const FindingAiExplanation: React.FC<FindingAiExplanationProps> = ({
   impact,
   remediation,
   file,
+  focusLine,
   codeSnippet,
+  analysis,
 }) => {
   const { isDark } = useTheme();
   const { activeConfig, isAiConfigured, setIsSettingsOpen } = useAI();
@@ -51,6 +59,7 @@ export const FindingAiExplanation: React.FC<FindingAiExplanationProps> = ({
   );
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [usedCode, setUsedCode] = useState(false);
 
   useEffect(() => {
     setExplanation(getCachedFindingExplanation(frameworkLabel, findingId) || null);
@@ -58,56 +67,74 @@ export const FindingAiExplanation: React.FC<FindingAiExplanationProps> = ({
     setLoading(false);
   }, [frameworkLabel, findingId]);
 
-  const runExplain = useCallback(async (forceRefresh = false) => {
-    if (!isAiConfigured) {
-      setIsSettingsOpen(true);
-      return;
-    }
-    if (!forceRefresh) {
-      const cached = getCachedFindingExplanation(frameworkLabel, findingId);
-      if (cached) {
-        setExplanation(cached);
-        setError(null);
+  const runExplain = useCallback(
+    async (forceRefresh = false) => {
+      if (!isAiConfigured) {
+        setIsSettingsOpen(true);
         return;
       }
-    } else {
-      clearCachedFindingExplanation(frameworkLabel, findingId);
-    }
-    setLoading(true);
-    setError(null);
-    try {
-      const result = await explainFinding(activeConfig, {
-        frameworkLabel,
-        title,
-        category,
-        severity,
-        impact,
-        remediation,
-        file,
-        codeSnippet,
-      });
-      setCachedFindingExplanation(frameworkLabel, findingId, result);
-      setExplanation(result);
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Could not explain this finding.';
-      setError(message);
-    } finally {
-      setLoading(false);
-    }
-  }, [
-    activeConfig,
-    category,
-    codeSnippet,
-    file,
-    findingId,
-    frameworkLabel,
-    impact,
-    isAiConfigured,
-    remediation,
-    setIsSettingsOpen,
-    severity,
-    title,
-  ]);
+      if (!forceRefresh) {
+        const cached = getCachedFindingExplanation(frameworkLabel, findingId);
+        if (cached) {
+          setExplanation(cached);
+          setError(null);
+          return;
+        }
+      } else {
+        clearCachedFindingExplanation(frameworkLabel, findingId);
+      }
+      setLoading(true);
+      setError(null);
+      try {
+        // Prefer reading the real file so the model can cite more than the static blurb.
+        let snippet: string | undefined;
+        if (file && analysis) {
+          snippet = await loadSourceSnippetForFinding(analysis, file, focusLine);
+        }
+        if (!snippet && codeSnippet?.trim()) {
+          snippet =
+            focusLine && !codeSnippet.includes('|')
+              ? clipSourceForExplanation(codeSnippet, { focusLine }) || codeSnippet.trim()
+              : codeSnippet.trim();
+        }
+        setUsedCode(Boolean(snippet));
+        const result = await explainFinding(activeConfig, {
+          frameworkLabel,
+          title,
+          category,
+          severity,
+          impact,
+          remediation,
+          file,
+          focusLine,
+          codeSnippet: snippet,
+        });
+        setCachedFindingExplanation(frameworkLabel, findingId, result);
+        setExplanation(result);
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Could not explain this finding.';
+        setError(message);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [
+      activeConfig,
+      analysis,
+      category,
+      codeSnippet,
+      file,
+      findingId,
+      focusLine,
+      frameworkLabel,
+      impact,
+      isAiConfigured,
+      remediation,
+      setIsSettingsOpen,
+      severity,
+      title,
+    ],
+  );
 
   return (
     <div className="mt-3">
@@ -121,18 +148,26 @@ export const FindingAiExplanation: React.FC<FindingAiExplanationProps> = ({
           {loading ? (
             <>
               <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              Explaining…
+              Checking code…
             </>
           ) : (
             <>
               <Sparkles className="h-3.5 w-3.5" />
-              {explanation ? 'Refresh explanation' : isAiConfigured ? 'Explain' : 'Explain (set up AI)'}
+              {explanation
+                ? 'Refresh explanation'
+                : isAiConfigured
+                  ? 'Explain with AI'
+                  : 'Explain (set up AI)'}
             </>
           )}
         </button>
         {!isAiConfigured ? (
-          <span className={`text-[11px] ${muted}`}>Uses your AI settings to rewrite this in plain language.</span>
-        ) : null}
+          <span className={`text-[11px] ${muted}`}>Opens the file and explains what the static finding means in your code.</span>
+        ) : file ? (
+          <span className={`text-[11px] ${muted}`}>Reads `{file}` and adds detail beyond the static note.</span>
+        ) : (
+          <span className={`text-[11px] ${muted}`}>Adds plain-language detail (no file path on this finding).</span>
+        )}
       </div>
 
       {error ? (
@@ -140,7 +175,7 @@ export const FindingAiExplanation: React.FC<FindingAiExplanationProps> = ({
           <p className={`text-xs ${isDark ? 'text-rose-300' : 'text-rose-700'}`}>{error}</p>
           <button
             type="button"
-            onClick={() => void runExplain()}
+            onClick={() => void runExplain(true)}
             className={`mt-1 text-xs font-medium ${isDark ? 'text-blue-400 hover:text-blue-300' : 'text-blue-600 hover:text-blue-800'}`}
           >
             Retry
@@ -154,7 +189,14 @@ export const FindingAiExplanation: React.FC<FindingAiExplanationProps> = ({
             isDark ? 'border-violet-500/20 bg-violet-500/[0.06]' : 'border-violet-200/80 bg-violet-50/60'
           }`}
         >
-          <p className={`text-[11px] font-medium uppercase tracking-wide ${muted}`}>Plain-language explanation</p>
+          <p className={`text-[11px] font-medium uppercase tracking-wide ${muted}`}>
+            {usedCode ? 'AI read your code' : 'Plain-language explanation'}
+          </p>
+
+          <div>
+            <p className={`text-[11px] font-medium ${titleText}`}>In this code</p>
+            <p className={`mt-1 text-xs leading-relaxed ${body}`}>{explanation.inThisCode}</p>
+          </div>
 
           <div>
             <p className={`text-[11px] font-medium ${titleText}`}>What this means</p>

@@ -6,6 +6,7 @@ import {
   RemixArchitecturalImprovement,
   RemixImprovementCategory,
 } from '../../types/framework';
+import type { CodebaseAnalysis } from '../../types/codebase';
 import {
   overviewBorderClass,
   overviewDivideClass,
@@ -20,6 +21,7 @@ import { FindingAiExplanation, FindingStaticCopy } from './FindingAiExplanation'
 interface RemixSpecializationPanelProps {
   specialization: RemixSpecialization;
   rootName: string;
+  analysis?: CodebaseAnalysis;
 }
 
 const CATEGORY_LABELS: Record<'all' | RemixImprovementCategory, string> = {
@@ -147,7 +149,10 @@ function metricCell(
   );
 }
 
-export const RemixSpecializationPanel: React.FC<RemixSpecializationPanelProps> = ({ specialization }) => {
+export const RemixSpecializationPanel: React.FC<RemixSpecializationPanelProps> = ({
+  specialization,
+  analysis,
+}) => {
   const { isDark } = useTheme();
   const muted = isDark ? 'text-slate-500' : 'text-slate-500';
   const title = isDark ? 'text-slate-100' : 'text-slate-900';
@@ -562,6 +567,7 @@ Refactor the code to implement this recommendation. Follow modern Remix (Vite) c
                   impact={item.impact}
                   remediation={item.remediation}
                   file={item.file}
+                  analysis={analysis}
                 />
               </li>
             );

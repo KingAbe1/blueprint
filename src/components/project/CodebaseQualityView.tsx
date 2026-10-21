@@ -706,6 +706,10 @@ ${selectedFinding.detail}${snippetText}${evidenceText}
                           : selectedFinding.detail
                       }
                       file={selectedFinding.location?.path}
+                      focusLine={
+                        selectedFinding.location?.line || selectedFinding.codeSnippet?.focusLine
+                      }
+                      analysis={analysis}
                       codeSnippet={
                         selectedFinding.codeSnippet?.lines?.length
                           ? selectedFinding.codeSnippet.lines

@@ -6,6 +6,7 @@ import {
   NodeJsArchitecturalImprovement,
   NodeJsImprovementCategory,
 } from '../../types/framework';
+import type { CodebaseAnalysis } from '../../types/codebase';
 import {
   overviewBorderClass,
   overviewDivideClass,
@@ -20,6 +21,7 @@ import { FindingAiExplanation, FindingStaticCopy } from './FindingAiExplanation'
 interface NodeJsSpecializationPanelProps {
   specialization: NodeJsSpecialization;
   rootName: string;
+  analysis?: CodebaseAnalysis;
 }
 
 const CATEGORY_LABELS: Record<'all' | NodeJsImprovementCategory, string> = {
@@ -154,7 +156,10 @@ function runtimeLabel(style: NodeJsSpecialization['runtimeStyle']): string {
   return style.charAt(0).toUpperCase() + style.slice(1);
 }
 
-export const NodeJsSpecializationPanel: React.FC<NodeJsSpecializationPanelProps> = ({ specialization }) => {
+export const NodeJsSpecializationPanel: React.FC<NodeJsSpecializationPanelProps> = ({
+  specialization,
+  analysis,
+}) => {
   const { isDark } = useTheme();
   const muted = isDark ? 'text-slate-500' : 'text-slate-500';
   const title = isDark ? 'text-slate-100' : 'text-slate-900';
@@ -630,6 +635,7 @@ Refactor the code to implement this recommendation. Follow modern Node.js server
                   impact={item.impact}
                   remediation={item.remediation}
                   file={item.file}
+                  analysis={analysis}
                 />
               </li>
             );
