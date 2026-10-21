@@ -18,6 +18,7 @@ import {
   overviewSeverityLabel,
   type OverviewEmphasis,
 } from './overviewUi';
+import { FindingAiExplanation } from './FindingAiExplanation';
 
 interface CodebaseQualityViewProps {
   analysis: CodebaseAnalysis;
@@ -672,9 +673,45 @@ ${selectedFinding.detail}${snippetText}${evidenceText}
                       </div>
                     </div>
 
-                    <p className={`text-xs leading-relaxed ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
-                      {selectedFinding.detail}
-                    </p>
+                    <div>
+                      <p className={`text-[11px] font-medium ${muted}`}>Why we flagged this</p>
+                      <p className={`mt-1 text-xs leading-relaxed ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+                        {selectedFinding.detail}
+                      </p>
+                    </div>
+
+                    <FindingAiExplanation
+                      findingId={
+                        selectedFinding.ruleId ||
+                        `${selectedFinding.title}:${selectedFinding.location?.path || ''}:${selectedFinding.location?.line || ''}`
+                      }
+                      frameworkLabel={
+                        selectedFinding.source === 'blueprint-nextjs'
+                          ? 'Next.js'
+                          : selectedFinding.source === 'blueprint-remix'
+                            ? 'Remix'
+                            : selectedFinding.source === 'blueprint-nodejs'
+                              ? 'Node.js'
+                              : analysis.frameworks[0] || 'Codebase'
+                      }
+                      title={selectedFinding.title}
+                      category={selectedFinding.category}
+                      severity={selectedFinding.priority}
+                      impact={selectedFinding.detail}
+                      remediation={
+                        parsedSelected.remediationAdvice.length > 0
+                          ? parsedSelected.remediationAdvice.join('\n')
+                          : selectedFinding.detail
+                      }
+                      file={selectedFinding.location?.path}
+                      codeSnippet={
+                        selectedFinding.codeSnippet?.lines?.length
+                          ? selectedFinding.codeSnippet.lines
+                              .map((line, i) => `${selectedFinding.codeSnippet!.startLine + i}|${line}`)
+                              .join('\n')
+                          : undefined
+                      }
+                    />
 
                     {selectedFinding.codeSnippet ? (
                       <div>

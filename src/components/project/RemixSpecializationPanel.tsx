@@ -15,6 +15,7 @@ import {
   overviewSeverityLabel,
   type OverviewEmphasis,
 } from './overviewUi';
+import { FindingAiExplanation, FindingStaticCopy } from './FindingAiExplanation';
 
 interface RemixSpecializationPanelProps {
   specialization: RemixSpecialization;
@@ -149,7 +150,6 @@ function metricCell(
 export const RemixSpecializationPanel: React.FC<RemixSpecializationPanelProps> = ({ specialization }) => {
   const { isDark } = useTheme();
   const muted = isDark ? 'text-slate-500' : 'text-slate-500';
-  const body = isDark ? 'text-slate-300' : 'text-slate-700';
   const title = isDark ? 'text-slate-100' : 'text-slate-900';
 
   const [categoryFilter, setCategoryFilter] = useState<'all' | RemixImprovementCategory>('all');
@@ -552,8 +552,17 @@ Refactor the code to implement this recommendation. Follow modern Remix (Vite) c
                     )}
                   </button>
                 </div>
-                <p className={`mt-3 text-xs leading-relaxed ${body}`}>{item.impact}</p>
-                <p className={`mt-2 text-xs leading-relaxed ${muted}`}>{item.remediation}</p>
+                <FindingStaticCopy impact={item.impact} remediation={item.remediation} />
+                <FindingAiExplanation
+                  findingId={item.id}
+                  frameworkLabel="Remix"
+                  title={item.title}
+                  category={item.category}
+                  severity={item.severity}
+                  impact={item.impact}
+                  remediation={item.remediation}
+                  file={item.file}
+                />
               </li>
             );
           })}
