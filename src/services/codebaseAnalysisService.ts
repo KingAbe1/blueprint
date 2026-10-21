@@ -353,11 +353,31 @@ function extractPackageScripts(source: CodebaseSource) {
             ? 'bun'
             : 'npm';
     const runPrefix = packageManager === 'npm' ? 'npm run' : packageManager === 'bun' ? 'bun run' : packageManager;
+    const preferredOrder = [
+      'dev',
+      'start',
+      'serve',
+      'build',
+      'test',
+      'lint',
+      'typecheck',
+      'check',
+      'tauri:dev',
+      'tauri:build',
+      'preview',
+    ];
+    const preferredRank = (name: string) => {
+      const index = preferredOrder.indexOf(name);
+      return index === -1 ? preferredOrder.length : index;
+    };
+
     return Object.entries(packageData.scripts || {})
       .filter((entry): entry is [string, string] => typeof entry[1] === 'string')
       .map(([name, command]) => ({ name, command, runCommand: `${runPrefix} ${name}` }))
-      .sort((a, b) => a.name.localeCompare(b.name))
-      .slice(0, 12);
+      .sort((a, b) => {
+        const rankDiff = preferredRank(a.name) - preferredRank(b.name);
+        return rankDiff !== 0 ? rankDiff : a.name.localeCompare(b.name);
+      });
   } catch {
     return [];
   }

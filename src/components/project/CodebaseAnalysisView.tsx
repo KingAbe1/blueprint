@@ -277,14 +277,8 @@ export const CodebaseAnalysisView: React.FC<CodebaseAnalysisViewProps> = ({
   const muted = isDark ? 'text-slate-400' : 'text-slate-500';
   const panel = isDark ? 'border-white/[0.08] bg-[#141518]' : 'border-slate-200/90 bg-white shadow-2xs';
 
-  const visibleScripts = useMemo(() => {
-    const allScripts = analysis.scripts || [];
-    const preferredScriptNames = ['dev', 'start', 'serve', 'build', 'test', 'lint', 'typecheck', 'check', 'tauri:dev'];
-    const preferredScripts = preferredScriptNames
-      .map(name => allScripts.find(script => script.name === name))
-      .filter((script): script is NonNullable<typeof script> => Boolean(script));
-    return (preferredScripts.length > 0 ? preferredScripts : allScripts).slice(0, 8);
-  }, [analysis.scripts]);
+  // Show every package.json script (analysis already prefers common names first).
+  const visibleScripts = useMemo(() => analysis.scripts || [], [analysis.scripts]);
 
   const qualityTabBadges = useMemo(() => {
     const score = analysis.quality?.score;
