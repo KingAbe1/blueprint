@@ -26,6 +26,7 @@ function categoryForImprovement(
   if (category === 'config-delivery') return 'delivery';
   if (category === 'error-handling') return 'correctness';
   if (category === 'async-hygiene') return 'maintainability';
+  if (category === 'data-modeling') return 'structure';
   if (category === 'modernization') return 'correctness';
   return 'maintainability';
 }
@@ -100,7 +101,7 @@ export function computeNodeJsQualityImpact(
     assessmentStatus: 'reviewed',
     summary:
       improvements.length === 0
-        ? 'Routes, middleware, resilience, config, and security checks found no issues.'
+        ? 'Routes, middleware, data models, resilience, config, and security checks found no issues.'
         : `${improvements.length} finding${improvements.length === 1 ? '' : 's'} in the Node.js review (${criticalCount} critical, ${warningCount} warning, ${optimizationCount} optimization).`,
     scoreEvidence: scoreEvidence.length > 0 ? scoreEvidence : undefined,
   };

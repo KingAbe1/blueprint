@@ -8,6 +8,7 @@ import {
 } from '../../../types/framework';
 import {
   auditNodeConfig,
+  auditNodeDataModels,
   auditNodeMiddleware,
   auditNodeResilience,
   auditNodeRoutes,
@@ -132,6 +133,12 @@ export const nodeJsAnalyzer: FrameworkAnalyzer<NodeJsSpecialization> = {
       middlewareAudit,
       improvements,
     );
+    const dataModelAudit = auditNodeDataModels(
+      normalizedPaths,
+      sourceContents,
+      manifests,
+      improvements,
+    );
 
     const universalRoutes: UniversalRoute[] = [];
     for (const file of routeAudit.files.slice(0, 30)) {
@@ -155,6 +162,7 @@ export const nodeJsAnalyzer: FrameworkAnalyzer<NodeJsSpecialization> = {
       resilienceAudit,
       configAudit,
       securityAudit,
+      dataModelAudit,
       improvements,
       entryFiles,
     };
@@ -173,6 +181,8 @@ export const nodeJsAnalyzer: FrameworkAnalyzer<NodeJsSpecialization> = {
         'Route Files': routeAudit.filesCount,
         'Route Risks': routeAudit.unvalidatedFilesCount + routeAudit.unprotectedFilesCount,
         'Security Signals': securityAudit.issueCount,
+        'Data Models': dataModelAudit.modelCount,
+        'Data Issues': dataModelAudit.issueCount,
         Entrypoints: entryFiles.length,
       },
       specialization,

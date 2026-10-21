@@ -4,6 +4,7 @@ import {
   NextJsActionAudit,
   NextJsSpecialization,
   NextJsArchitecturalImprovement,
+  NodeJsDataModelAudit,
   NodeJsSpecialization,
   RemixSpecialization,
 } from '../../types/framework';
@@ -36,7 +37,22 @@ const FrameworkSpecializationContent: React.FC<FrameworkSpecializationPanelProps
   if (analysis.frameworkProfile?.id === 'nodejs') {
     const specialization = analysis.frameworkProfile.specialization as NodeJsSpecialization;
     if (specialization?.routeAudit && specialization?.middlewareAudit && specialization?.securityAudit) {
-      return <NodeJsSpecializationPanel specialization={specialization} rootName={analysis.rootName} />;
+      const withData: NodeJsDataModelAudit = specialization.dataModelAudit || {
+        ormStyle: 'none',
+        modelCount: 0,
+        schemaFiles: [],
+        migrationFilesCount: 0,
+        modelsMissingTimestamps: [],
+        modelsWithSensitiveFields: [],
+        modelsMissingIndexes: [],
+        issueCount: 0,
+      };
+      return (
+        <NodeJsSpecializationPanel
+          specialization={{ ...specialization, dataModelAudit: withData }}
+          rootName={analysis.rootName}
+        />
+      );
     }
   }
 

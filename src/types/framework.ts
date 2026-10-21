@@ -277,7 +277,30 @@ export type NodeJsImprovementCategory =
   | 'config-delivery'
   | 'security'
   | 'async-hygiene'
+  | 'data-modeling'
   | 'modernization';
+
+export type NodeJsOrmStyle =
+  | 'prisma'
+  | 'drizzle'
+  | 'typeorm'
+  | 'mongoose'
+  | 'sequelize'
+  | 'knex'
+  | 'mixed'
+  | 'sql-migrations'
+  | 'none';
+
+export interface NodeJsDataModelAudit {
+  ormStyle: NodeJsOrmStyle;
+  modelCount: number;
+  schemaFiles: string[];
+  migrationFilesCount: number;
+  modelsMissingTimestamps: string[];
+  modelsWithSensitiveFields: string[];
+  modelsMissingIndexes: string[];
+  issueCount: number;
+}
 
 export type NodeJsImprovementSeverity = 'critical' | 'warning' | 'optimization';
 
@@ -363,6 +386,7 @@ export interface NodeJsSpecialization {
   resilienceAudit: NodeJsResilienceAudit;
   configAudit: NodeJsConfigAudit;
   securityAudit: NodeJsSecurityAudit;
+  dataModelAudit: NodeJsDataModelAudit;
   improvements: NodeJsArchitecturalImprovement[];
   entryFiles: string[];
 }

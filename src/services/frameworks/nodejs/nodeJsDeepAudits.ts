@@ -1,7 +1,9 @@
 import {
   NodeJsArchitecturalImprovement,
   NodeJsConfigAudit,
+  NodeJsDataModelAudit,
   NodeJsMiddlewareAudit,
+  NodeJsOrmStyle,
   NodeJsResilienceAudit,
   NodeJsRouteAudit,
   NodeJsRouteFileAudit,
@@ -778,5 +780,356 @@ export function auditNodeSecurity(
       webhookUnsignedFiles.length +
       weakJwtFiles.length +
       dependencyFootguns.length,
+  };
+}
+
+const SENSITIVE_FIELD =
+  /\b(?:password|passwd|secret|token|apiKey|api_key|accessToken|refreshToken|privateKey)\b/i;
+
+const TIMESTAMP_FIELD = /\b(?:createdAt|updatedAt|created_at|updated_at)\b/;
+
+function extractPrismaModels(content: string): Array<{ name: string; body: string }> {
+  const models: Array<{ name: string; body: string }> = [];
+  const re = /model\s+(\w+)\s*\{([\s\S]*?)\n\}/g;
+  let match: RegExpExecArray | null;
+  while ((match = re.exec(content)) !== null) {
+    models.push({ name: match[1], body: match[2] });
+  }
+  return models;
+}
+
+function extractMongooseModels(content: string): Array<{ name: string; body: string }> {
+  const models: Array<{ name: string; body: string }> = [];
+  const schemaRe =
+    /(?:new\s+Schema\s*\(|mongoose\.model\s*\(\s*['"](\w+)['"])([\s\S]{0,2000}?)(?:\)|;)/g;
+  let match: RegExpExecArray | null;
+  while ((match = schemaRe.exec(content)) !== null) {
+    models.push({ name: match[1] || 'Schema', body: match[0] });
+  }
+  const named =
+    content.match(/(?:const|let|var)\s+(\w+)Schema\s*=\s*new\s+(?:mongoose\.)?Schema/g) || [];
+  for (const line of named) {
+    const name = line.match(/(\w+)Schema/)?.[1];
+    if (name) models.push({ name, body: content.slice(0, 2500) });
+  }
+  return models;
+}
+
+function extractTypeOrmEntities(content: string): Array<{ name: string; body: string }> {
+  const models: Array<{ name: string; body: string }> = [];
+  const re = /@Entity\s*\([^)]*\)[\s\S]{0,80}(?:export\s+)?class\s+(\w+)([\s\S]{0,2500}?)(?=\n(?:@Entity|export\s+class|class\s+\w+|\/\*\*|$))/g;
+  let match: RegExpExecArray | null;
+  while ((match = re.exec(content)) !== null) {
+    models.push({ name: match[1], body: match[0] });
+  }
+  return models;
+}
+
+function extractDrizzleTables(content: string): Array<{ name: string; body: string }> {
+  const models: Array<{ name: string; body: string }> = [];
+  const re =
+    /(?:export\s+)?const\s+(\w+)\s*=\s*(?:pgTable|mysqlTable|sqliteTable)\s*\(\s*['"][^'"]+['"]\s*,\s*\{([\s\S]*?)\}\s*(?:,|\))/g;
+  let match: RegExpExecArray | null;
+  while ((match = re.exec(content)) !== null) {
+    models.push({ name: match[1], body: match[2] });
+  }
+  return models;
+}
+
+function detectOrmStyle(
+  manifests: Record<string, string>,
+  normalizedPaths: string[],
+): NodeJsOrmStyle {
+  const depBlob = Object.entries(manifests)
+    .filter(([path]) => /(^|\/)package\.json$/i.test(path.replace(/\\/g, '/')))
+    .map(([, c]) => c)
+    .join('\n');
+
+  const hits: NodeJsOrmStyle[] = [];
+  if (/"@prisma\/client"\s*:|"prisma"\s*:/.test(depBlob) || normalizedPaths.some(p => /schema\.prisma$/i.test(p))) {
+    hits.push('prisma');
+  }
+  if (/"drizzle-orm"\s*:/.test(depBlob)) hits.push('drizzle');
+  if (/"typeorm"\s*:/.test(depBlob)) hits.push('typeorm');
+  if (/"mongoose"\s*:/.test(depBlob)) hits.push('mongoose');
+  if (/"sequelize"\s*:/.test(depBlob)) hits.push('sequelize');
+  if (/"knex"\s*:/.test(depBlob)) hits.push('knex');
+
+  if (hits.length > 1) return 'mixed';
+  if (hits.length === 1) return hits[0];
+  if (normalizedPaths.some(p => /(^|\/)migrations?\/.+\.sql$/i.test(p))) return 'sql-migrations';
+  return 'none';
+}
+
+/**
+ * Reviews database models / schemas (Prisma, Drizzle, TypeORM, Mongoose, SQL migrations)
+ * for indexes, sensitive fields, timestamps, and migration hygiene.
+ */
+export function auditNodeDataModels(
+  normalizedPaths: string[],
+  sourceContents: Record<string, string>,
+  manifests: Record<string, string>,
+  improvements: NodeJsArchitecturalImprovement[],
+): NodeJsDataModelAudit {
+  const ormStyle = detectOrmStyle(manifests, normalizedPaths);
+  const schemaFiles: string[] = [];
+  const modelsMissingTimestamps: string[] = [];
+  const modelsWithSensitiveFields: string[] = [];
+  const modelsMissingIndexes: string[] = [];
+  let modelCount = 0;
+
+  const migrationFiles = normalizedPaths.filter(
+    path =>
+      /(^|\/)migrations?\/.+\.(?:sql|ts|js)$/i.test(path) ||
+      /(^|\/)prisma\/migrations\//i.test(path) ||
+      /(^|\/)drizzle\/.+\.sql$/i.test(path),
+  );
+
+  // --- Prisma ---
+  for (const path of normalizedPaths.filter(p => /schema\.prisma$/i.test(p))) {
+    const content = sourceContents[path] || manifests[path] || '';
+    if (!content) continue;
+    schemaFiles.push(path);
+    const models = extractPrismaModels(content);
+    modelCount += models.length;
+
+    for (const model of models) {
+      const label = `${model.name}@${fileName(path)}`;
+      if (!TIMESTAMP_FIELD.test(model.body)) {
+        modelsMissingTimestamps.push(label);
+      }
+
+      if (SENSITIVE_FIELD.test(model.body) && /\bString\b/.test(model.body)) {
+        // Flag password-like String columns — remind to store hashes only
+        const sensitiveLines = model.body
+          .split('\n')
+          .filter(line => SENSITIVE_FIELD.test(line) && /\bString\b/.test(line));
+        if (sensitiveLines.length > 0) {
+          modelsWithSensitiveFields.push(label);
+          improvements.push({
+            id: `data-sensitive-field-${path}-${model.name}`,
+            category: 'data-modeling',
+            severity: 'warning',
+            title: `Sensitive Field on ${model.name}`,
+            impact: `Prisma model ${model.name} declares password/secret/token-like String fields. Storing plaintext credentials in the database is a critical risk if anything leaks.`,
+            remediation:
+              'Store only one-way hashes (bcrypt/argon2). Never persist raw passwords or long-lived secrets in model columns.',
+            file: path,
+          });
+        }
+      }
+
+      // FK-looking fields without @@index / @relation index hint
+      const fkFields = (model.body.match(/^\s*(\w+Id)\s+\w+/gm) || []).map(l => l.trim().split(/\s+/)[0]);
+      const hasModelIndex = /@@index\s*\(/.test(model.body) || /@@unique\s*\(/.test(model.body);
+      const indexedInline = fkFields.filter(f => new RegExp(`@relation|[\\[]\\s*${f}\\s*[\\]]`).test(model.body));
+      if (fkFields.length >= 2 && !hasModelIndex && indexedInline.length < fkFields.length) {
+        modelsMissingIndexes.push(label);
+        improvements.push({
+          id: `data-missing-index-${path}-${model.name}`,
+          category: 'data-modeling',
+          severity: 'optimization',
+          title: `Missing Indexes on ${model.name} Foreign Keys`,
+          impact: `Model ${model.name} has multiple *Id fields but no @@index/@@unique. Unindexed foreign keys slow joins and filters as tables grow.`,
+          remediation: 'Add @@index([foreignKeyId]) (or @relation with an indexed field) for columns you filter or join on.',
+          file: path,
+        });
+      }
+
+      if (/onDelete\s*:\s*Cascade/i.test(model.body) && /user|account|payment|order/i.test(model.name + model.body)) {
+        improvements.push({
+          id: `data-cascade-${path}-${model.name}`,
+          category: 'data-modeling',
+          severity: 'warning',
+          title: `Cascade Delete on ${model.name}`,
+          impact: `${model.name} uses onDelete: Cascade near user/account/payment-like data. Accidental parent deletes can wipe related records.`,
+          remediation: 'Prefer onDelete: Restrict or SetNull for critical relations, and soft-delete where you need recoverability.',
+          file: path,
+        });
+      }
+    }
+  }
+
+  // --- Drizzle ---
+  for (const [path, content] of Object.entries(sourceContents)) {
+    if (!isSourceFile(path) || !content) continue;
+    if (!/pgTable|mysqlTable|sqliteTable/.test(content)) continue;
+    if (!schemaFiles.includes(path)) schemaFiles.push(path);
+    const tables = extractDrizzleTables(content);
+    modelCount += tables.length;
+    for (const table of tables) {
+      const label = `${table.name}@${fileName(path)}`;
+      if (!TIMESTAMP_FIELD.test(table.body)) modelsMissingTimestamps.push(label);
+      if (SENSITIVE_FIELD.test(table.body)) {
+        modelsWithSensitiveFields.push(label);
+        improvements.push({
+          id: `data-sensitive-drizzle-${path}-${table.name}`,
+          category: 'data-modeling',
+          severity: 'warning',
+          title: `Sensitive Column on ${table.name}`,
+          impact: `Drizzle table ${table.name} includes password/secret/token-like columns.`,
+          remediation: 'Persist hashes only (argon2/bcrypt); keep raw secrets out of the database.',
+          file: path,
+        });
+      }
+      if (/\w+Id\s*:/.test(table.body) && !/\.index\(|uniqueIndex|primaryKey/.test(content.slice(Math.max(0, content.indexOf(table.name) - 50), content.indexOf(table.name) + table.body.length + 200))) {
+        // Soft signal — only if no nearby index helpers in file for this table region
+        if (!modelsMissingIndexes.includes(label) && (table.body.match(/\w+Id\s*:/g) || []).length >= 2) {
+          modelsMissingIndexes.push(label);
+          improvements.push({
+            id: `data-drizzle-index-${path}-${table.name}`,
+            category: 'data-modeling',
+            severity: 'optimization',
+            title: `Likely Missing Index on ${table.name}`,
+            impact: `Table ${table.name} declares multiple *Id columns without an obvious index() nearby.`,
+            remediation: 'Add index()/uniqueIndex() on foreign-key columns used in WHERE/JOIN clauses.',
+            file: path,
+          });
+        }
+      }
+    }
+  }
+
+  // --- TypeORM ---
+  for (const [path, content] of Object.entries(sourceContents)) {
+    if (!isSourceFile(path) || !/@Entity\b/.test(content || '')) continue;
+    if (!schemaFiles.includes(path)) schemaFiles.push(path);
+    const entities = extractTypeOrmEntities(content);
+    modelCount += entities.length || (/@Entity\b/.test(content) ? 1 : 0);
+    for (const entity of entities.length ? entities : [{ name: fileName(path), body: content }]) {
+      const label = `${entity.name}@${fileName(path)}`;
+      if (!TIMESTAMP_FIELD.test(entity.body) && !/@CreateDateColumn|@UpdateDateColumn/.test(entity.body)) {
+        modelsMissingTimestamps.push(label);
+      }
+      if (SENSITIVE_FIELD.test(entity.body) && /@Column/.test(entity.body)) {
+        modelsWithSensitiveFields.push(label);
+        improvements.push({
+          id: `data-sensitive-typeorm-${path}-${entity.name}`,
+          category: 'data-modeling',
+          severity: 'warning',
+          title: `Sensitive Column on ${entity.name}`,
+          impact: `TypeORM entity ${entity.name} has password/secret-like columns.`,
+          remediation: 'Hash credentials before persist; consider @BeforeInsert hooks for hashing.',
+          file: path,
+        });
+      }
+      if (/@ManyToOne|@OneToMany|@JoinColumn/.test(entity.body) && !/@Index\b/.test(entity.body)) {
+        modelsMissingIndexes.push(label);
+        improvements.push({
+          id: `data-typeorm-index-${path}-${entity.name}`,
+          category: 'data-modeling',
+          severity: 'optimization',
+          title: `Relation Without @Index on ${entity.name}`,
+          impact: `Entity ${entity.name} declares relations but no @Index. Relation columns are common filter targets.`,
+          remediation: 'Add @Index() on foreign-key columns used in queries.',
+          file: path,
+        });
+      }
+    }
+  }
+
+  // --- Mongoose ---
+  for (const [path, content] of Object.entries(sourceContents)) {
+    if (!isSourceFile(path) || !content) continue;
+    if (!/\b(?:mongoose|new\s+Schema)\b/.test(content)) continue;
+    if (!/(?:Schema|model)\s*\(/.test(content)) continue;
+    // Skip pure mongoose import in non-model files without schema defs
+    if (!/new\s+(?:mongoose\.)?Schema|mongoose\.model/.test(content)) continue;
+    if (!schemaFiles.includes(path)) schemaFiles.push(path);
+    const models = extractMongooseModels(content);
+    modelCount += Math.max(models.length, 1);
+    const label = `${models[0]?.name || fileName(path)}@${fileName(path)}`;
+    if (!TIMESTAMP_FIELD.test(content) && !/timestamps\s*:\s*true/.test(content)) {
+      modelsMissingTimestamps.push(label);
+      improvements.push({
+        id: `data-mongoose-timestamps-${path}`,
+        category: 'data-modeling',
+        severity: 'optimization',
+        title: `Mongoose Schema Missing Timestamps (${fileName(path)})`,
+        impact: `${path} defines a Mongoose schema without timestamps: true or createdAt/updatedAt fields.`,
+        remediation: 'Pass `{ timestamps: true }` to Schema options for automatic createdAt/updatedAt.',
+        file: path,
+      });
+    }
+    if (SENSITIVE_FIELD.test(content)) {
+      modelsWithSensitiveFields.push(label);
+      improvements.push({
+        id: `data-mongoose-sensitive-${path}`,
+        category: 'data-modeling',
+        severity: 'warning',
+        title: `Sensitive Field in Mongoose Schema (${fileName(path)})`,
+        impact: `${path} declares password/secret-like fields. Ensure values are hashed and select: false where appropriate.`,
+        remediation: 'Hash with bcrypt/argon2 on save; set `select: false` on password fields so they are omitted from default queries.',
+        file: path,
+      });
+    }
+  }
+
+  // --- SQL migrations: CREATE TABLE without PRIMARY KEY ---
+  for (const path of migrationFiles.filter(p => /\.sql$/i.test(p))) {
+    const content = sourceContents[path] || manifests[path] || '';
+    if (!content) continue;
+    const createBlocks = content.match(/CREATE\s+TABLE[\s\S]{0,2000}?\;/gi) || [];
+    for (const block of createBlocks.slice(0, 8)) {
+      const tableName = block.match(/CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?["`]?(\w+)/i)?.[1] || 'table';
+      modelCount += 1;
+      if (!schemaFiles.includes(path)) schemaFiles.push(path);
+      if (!/PRIMARY\s+KEY/i.test(block)) {
+        improvements.push({
+          id: `data-sql-no-pk-${path}-${tableName}`,
+          category: 'data-modeling',
+          severity: 'warning',
+          title: `SQL Table Without Primary Key (${tableName})`,
+          impact: `Migration ${path} creates ${tableName} without a PRIMARY KEY, which complicates updates, replication, and ORM mapping.`,
+          remediation: 'Add an explicit PRIMARY KEY (id UUID/serial) to every application table.',
+          file: path,
+        });
+      }
+    }
+  }
+
+  // Migration hygiene when an ORM is present
+  if (ormStyle !== 'none' && ormStyle !== 'sql-migrations' && ormStyle !== 'mongoose' && migrationFiles.length === 0) {
+    improvements.push({
+      id: 'data-missing-migrations',
+      category: 'data-modeling',
+      severity: 'warning',
+      title: 'ORM Detected Without Migration Files',
+      impact: `${ormStyle} appears in dependencies/schemas, but no migrations folder was found. Schema drift between environments is a common outage cause.`,
+      remediation:
+        ormStyle === 'prisma'
+          ? 'Commit prisma/migrations and run prisma migrate in CI/CD.'
+          : ormStyle === 'drizzle'
+            ? 'Generate and commit Drizzle SQL migrations; apply them in deploy.'
+            : 'Add versioned migration files and apply them as part of deploy.',
+      file: schemaFiles[0],
+    });
+  }
+
+  // Timestamp summary (cap noise — one optimization if many models lack timestamps)
+  const uniqueMissingTs = [...new Set(modelsMissingTimestamps)];
+  if (uniqueMissingTs.length >= 3 && ormStyle !== 'none') {
+    improvements.push({
+      id: 'data-missing-timestamps-summary',
+      category: 'data-modeling',
+      severity: 'optimization',
+      title: `${uniqueMissingTs.length} Models Missing Timestamps`,
+      impact: 'Several models/tables lack createdAt/updatedAt (or ORM timestamp options). Auditing and debugging production data becomes harder.',
+      remediation: 'Add createdAt/updatedAt (Prisma DateTime @default(now()) / @updatedAt, Mongoose timestamps: true, TypeORM @CreateDateColumn).',
+      file: schemaFiles[0],
+    });
+  }
+
+  const issueCount = improvements.filter(i => i.category === 'data-modeling').length;
+
+  return {
+    ormStyle,
+    modelCount,
+    schemaFiles: [...new Set(schemaFiles)].slice(0, 40),
+    migrationFilesCount: migrationFiles.length,
+    modelsMissingTimestamps: uniqueMissingTs.slice(0, 30),
+    modelsWithSensitiveFields: [...new Set(modelsWithSensitiveFields)].slice(0, 30),
+    modelsMissingIndexes: [...new Set(modelsMissingIndexes)].slice(0, 30),
+    issueCount,
   };
 }

@@ -29,6 +29,7 @@ const CATEGORY_LABELS: Record<'all' | NodeJsImprovementCategory, string> = {
   'config-delivery': 'Config',
   security: 'Security',
   'async-hygiene': 'Async',
+  'data-modeling': 'Data',
   modernization: 'Modern',
 };
 
@@ -40,6 +41,7 @@ const CATEGORY_KEYS = [
   'config-delivery',
   'security',
   'async-hygiene',
+  'data-modeling',
   'modernization',
 ] as const;
 
@@ -169,6 +171,7 @@ export const NodeJsSpecializationPanel: React.FC<NodeJsSpecializationPanelProps>
   const resilienceAudit = specialization.resilienceAudit;
   const securityAudit = specialization.securityAudit;
   const configAudit = specialization.configAudit;
+  const dataModelAudit = specialization.dataModelAudit;
 
   const filteredImprovements = useMemo(() => {
     return improvements
@@ -205,6 +208,7 @@ export const NodeJsSpecializationPanel: React.FC<NodeJsSpecializationPanelProps>
       'config-delivery': 0,
       security: 0,
       'async-hygiene': 0,
+      'data-modeling': 0,
       modernization: 0,
     };
     for (const item of improvements) {
@@ -251,6 +255,20 @@ export const NodeJsSpecializationPanel: React.FC<NodeJsSpecializationPanelProps>
         : 'neutral';
   const configEmphasis: OverviewEmphasis =
     configAudit.eolNodeEngine || committedEnvCount > 0 || configAudit.issueCount > 0 ? 'warning' : 'neutral';
+  const dataEmphasis: OverviewEmphasis =
+    (dataModelAudit?.modelsWithSensitiveFields.length || 0) > 0
+      ? 'warning'
+      : (dataModelAudit?.issueCount || 0) > 0
+        ? 'warning'
+        : 'neutral';
+
+  const ormLabel = (() => {
+    const style = dataModelAudit?.ormStyle || 'none';
+    if (style === 'none') return 'No ORM detected';
+    if (style === 'sql-migrations') return 'SQL migrations';
+    if (style === 'mixed') return 'Multiple ORMs';
+    return style.charAt(0).toUpperCase() + style.slice(1);
+  })();
 
   const copyFixPrompt = useCallback(async (item: NodeJsArchitecturalImprovement) => {
     const prompt = `### Node.js Architectural Improvement Request
@@ -435,6 +453,26 @@ Refactor the code to implement this recommendation. Follow modern Node.js server
             <span className={overviewSeverityLabel(isDark, 'warning')}>No engines.node</span>
           ),
           configEmphasis,
+        )}
+        {metricCell(
+          isDark,
+          muted,
+          'Data models',
+          dataModelAudit?.modelCount ?? 0,
+          !dataModelAudit || dataModelAudit.ormStyle === 'none' ? (
+            'No Prisma/Drizzle/TypeORM/Mongoose schema found'
+          ) : (dataModelAudit.modelsWithSensitiveFields.length || 0) > 0 ? (
+            <span className={overviewSeverityLabel(isDark, 'warning')}>
+              {dataModelAudit.modelsWithSensitiveFields.length} with sensitive fields
+            </span>
+          ) : dataModelAudit.issueCount > 0 ? (
+            <span className={overviewSeverityLabel(isDark, 'warning')}>
+              {ormLabel} · {dataModelAudit.issueCount} issue{dataModelAudit.issueCount === 1 ? '' : 's'}
+            </span>
+          ) : (
+            `${ormLabel} · ${dataModelAudit.migrationFilesCount} migration${dataModelAudit.migrationFilesCount === 1 ? '' : 's'}`
+          ),
+          dataEmphasis,
         )}
         {metricCell(
           isDark,
