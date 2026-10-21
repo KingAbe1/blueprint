@@ -26,6 +26,10 @@ import {
   supportedDeepProfilesSummary,
 } from '../constants/supportedAnalysisProfiles';
 import type { FrameworkProfile } from '../types/framework';
+import {
+  findFirstHardcodedCredentialMatch,
+  isSecretScanSkippedPath,
+} from './secretDetectionHeuristics';
 
 const EXTENSION_LANGUAGES: Record<string, string> = {
   ts: 'TypeScript', tsx: 'TypeScript', mts: 'TypeScript', cts: 'TypeScript',
@@ -168,20 +172,33 @@ async function inspectSourceCode(source: CodebaseSource): Promise<{ findings: Qu
     { pattern: /\bdangerouslySetInnerHTML\b|\.innerHTML\s*=/i, title: 'Direct HTML injection API', detail: 'This code writes HTML directly into a page. Verify that untrusted input is escaped or sanitized before it reaches this path.', priority: 'medium' },
     { pattern: /\bshell\s*=\s*True\b/i, title: 'Shell execution enabled', detail: 'A process call appears to invoke a shell. Avoid building the command from untrusted input; argument arrays are safer.', priority: 'medium' },
     { pattern: /\bverify\s*=\s*False\b/i, title: 'TLS certificate verification disabled', detail: 'A network request may skip certificate validation. Keep verification enabled outside narrowly controlled local tests.', priority: 'high' },
-    { pattern: /\b(?:password|secret|api[_-]?key|access[_-]?token)\b\s*[:=]\s*(['"`])[^'"`\r\n]{8,}\1/i, title: 'Possible hard-coded credential', detail: 'A credential-like value appears to be assigned directly in source. Move real secrets to a secret store or environment variable.', priority: 'high' },
     { pattern: /\bNEXT_PUBLIC_[A-Z0-9_]*(?:SECRET|TOKEN|KEY|PASSWORD|PRIVATE)[A-Z0-9_]*\b/i, title: 'Sensitive NEXT_PUBLIC variable name', detail: 'NEXT_PUBLIC_* values are exposed to the browser bundle. Do not prefix secrets or private API keys with NEXT_PUBLIC_; use server-only env vars instead.', priority: 'high' },
   ];
   for (const [path, content] of contentEntries) {
     const extension = normalizedName(path).split('.').pop() || '';
     if (!hasDeepJsProfile || !NEXT_SOURCE_EXTENSIONS.has(extension)) continue;
+
+    if (!isSecretScanSkippedPath(path)) {
+      const secretHit = findFirstHardcodedCredentialMatch(content);
+      if (secretHit) {
+        const line = sourceLineAt(content, secretHit.index);
+        findings.push({
+          title: 'Possible hard-coded credential',
+          detail:
+            'A high-confidence credential-like literal appears assigned in source (or a known provider secret prefix). Move real secrets to a secret store or environment variable.',
+          priority: 'high',
+          evidence: [`${path}:${line}`],
+          codeSnippet: createSourceSnippet(content, line, true),
+        });
+      }
+    }
+
     for (const { pattern, title, detail, priority } of textPatterns) {
       pattern.lastIndex = 0;
       const match = pattern.exec(content);
       if (!match) continue;
       const line = sourceLineAt(content, match.index);
-      const matchedLine = content.split(/\r\n|\n|\r/)[line - 1] || '';
-      if (title === 'Possible hard-coded credential' && /process\.env|import\.meta\.env|example|placeholder|your[_ -].*(?:key|token|secret)/i.test(matchedLine)) continue;
-      findings.push({ title, detail, priority, evidence: [`${path}:${line}`], codeSnippet: createSourceSnippet(content, line, title === 'Possible hard-coded credential') });
+      findings.push({ title, detail, priority, evidence: [`${path}:${line}`], codeSnippet: createSourceSnippet(content, line) });
     }
     for (const rule of LANGUAGE_SOURCE_RULES) {
       if (!rule.extensions.includes(extension) || rule.except?.test(content)) continue;

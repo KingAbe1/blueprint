@@ -10,6 +10,7 @@ import {
   NodeJsRuntimeStyle,
   NodeJsSecurityAudit,
 } from '../../../types/framework';
+import { contentHasHardcodedSecret } from '../../secretDetectionHeuristics';
 
 export const AUTH_SIGNAL =
   /\b(?:auth(?:enticate|orization)?|requireAuth|ensureAuth|isAuthenticated|passport\.|jwt\.verify|verifyToken|checkSession|getSession|req\.user|request\.user|guards?\b|@UseGuards)\b/i;
@@ -36,9 +37,6 @@ const DANGEROUS_PATTERN =
 
 const OPEN_REDIRECT =
   /\b(?:res\.redirect|reply\.redirect|ctx\.redirect|c\.redirect|Response\.redirect)\s*\(\s*(?:[^)]*(?:req\.|request\.|query\.|body\.|params\.|headers\.|url\.search))/i;
-
-const HARDCODED_SECRET =
-  /(?:(?:api[_-]?key|secret|password|token|private[_-]?key)\s*[:=]\s*['"][^'"]{12,}['"])|(?:['"]sk-(?:live|test)[_-][A-Za-z0-9]{16,}['"])/i;
 
 const SYNC_FS_IN_HANDLER =
   /\bfs\.(?:readFileSync|writeFileSync|readdirSync|statSync|existsSync)\s*\(/;
@@ -777,14 +775,14 @@ export function auditNodeSecurity(
       });
     }
 
-    if (HARDCODED_SECRET.test(content) && !/\.env|example|fixture|mock|test/i.test(path)) {
+    if (contentHasHardcodedSecret(path, content)) {
       hardcodedSecretFiles.push(path);
       improvements.push({
         id: `security-hardcoded-secret-${path}`,
         category: 'security',
         severity: 'critical',
         title: `Hardcoded Secret-like Value in ${fileName(path)}`,
-        impact: `${path} appears to embed a long secret/token/password literal in source.`,
+        impact: `${path} appears to embed a high-confidence secret/token/password literal in source.`,
         remediation: 'Move secrets to environment variables or a secret manager; rotate any value that was committed.',
         file: path,
       });

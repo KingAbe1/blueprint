@@ -7,8 +7,7 @@ import {
   ExpoSecurityAudit,
 } from '../../../types/framework';
 
-const HARDCODED_SECRET =
-  /(?:(?:api[_-]?key|secret|password|token|private[_-]?key)\s*[:=]\s*['"][^'"]{12,}['"])|(?:['"]sk-(?:live|test)[_-][A-Za-z0-9]{16,}['"])/i;
+import { contentHasHardcodedSecret } from '../../secretDetectionHeuristics';
 
 const PUBLIC_ENV_SECRET =
   /\b(?:EXPO_PUBLIC_|REACT_NATIVE_)[A-Z0-9_]*(?:SECRET|TOKEN|PASSWORD|PRIVATE|API_KEY|KEY)[A-Z0-9_]*\b/i;
@@ -247,14 +246,14 @@ export function auditExpoSecurity(
       });
     }
 
-    if (HARDCODED_SECRET.test(content) && !/\.env|example|fixture|mock|test/i.test(path)) {
+    if (contentHasHardcodedSecret(path, content)) {
       hardcodedSecretFiles.push(path);
       improvements.push({
         id: `security-hardcoded-secret-${path}`,
         category: 'security',
         severity: 'critical',
         title: `Hardcoded Secret-like Value in ${fileName(path)}`,
-        impact: `${path} appears to embed a long secret/token literal in mobile source that ships to every install.`,
+        impact: `${path} appears to embed a high-confidence secret/token literal in mobile source that ships to every install.`,
         remediation: 'Move secrets off-device (backend / secret manager). Rotate any value that was committed.',
         file: path,
       });
