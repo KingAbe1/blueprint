@@ -124,6 +124,12 @@ export const CodebaseWorkspaceProvider: React.FC<CodebaseWorkspaceProviderProps>
   const openQualitySection = useCallback(
     (focus: QualityOverviewFocus) => {
       if (!enabled) return;
+      // Static findings live on Overview (framework review); Quality keeps score + supply chain + AI.
+      if (focus === 'findings') {
+        setQualitySectionFocus(null);
+        selectSection('overview');
+        return;
+      }
       setQualitySectionFocus(focus);
       selectSection('quality');
     },

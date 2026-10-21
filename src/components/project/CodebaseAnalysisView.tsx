@@ -297,11 +297,7 @@ export const CodebaseAnalysisView: React.FC<CodebaseAnalysisViewProps> = ({
   useEffect(() => {
     if (activeSection !== 'quality' || !qualitySectionFocus) return;
     const targetId =
-      qualitySectionFocus === 'findings'
-        ? 'quality-findings-panel'
-        : qualitySectionFocus === 'supply-chain'
-          ? 'quality-supply-chain-panel'
-          : 'quality-score-panel';
+      qualitySectionFocus === 'supply-chain' ? 'quality-supply-chain-panel' : 'quality-score-panel';
     const timer = window.setTimeout(() => {
       document.getElementById(targetId)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
       clearQualitySectionFocus();

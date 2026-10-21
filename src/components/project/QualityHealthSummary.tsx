@@ -122,6 +122,7 @@ export const QualityHealthSummary: React.FC<QualityHealthSummaryProps> = ({
           >
             {totalQualityFindings}
           </dd>
+          <p className={`mt-1 text-[11px] ${muted}`}>On Overview · AI review below</p>
         </div>
         <div className="px-5 py-4 sm:px-6">
           <dt className={`text-[13px] ${muted}`}>Supply-chain CVEs</dt>
