@@ -8,6 +8,7 @@ import { LANGUAGE_SOURCE_RULES, NEXT_SOURCE_RULES, TOOLCHAIN_QUALITY_RULES } fro
 import { extractNpmDependencyInventory, scanNpmDependencyRisks } from './dependencyRiskService';
 import { detectAndAnalyzeFramework } from './frameworks/frameworkRegistry';
 import { computeNextJsQualityImpact } from './frameworks/nextjs/nextJsQualityImpact';
+import { computeRemixQualityImpact } from './frameworks/remix/remixQualityImpact';
 import {
   collectParsedFileFindings,
   collectProjectHygieneFindings,
@@ -89,16 +90,33 @@ function hasNextJsProjectSignal(paths: string[], manifests: Record<string, strin
   return hasNextConfig || hasNextDependency;
 }
 
+function hasRemixProjectSignal(paths: string[], manifests: Record<string, string>) {
+  const normalized = paths.map(path => path.replace(/\\/g, '/'));
+  if (hasNextJsProjectSignal(paths, manifests)) return false;
+  const hasRemixConfig = normalized.some(path => /(^|\/)remix\.config\.(?:[cm]?js|[cm]?ts)$/i.test(path));
+  const hasRemixDep = Object.entries(manifests).some(
+    ([path, content]) =>
+      /(^|\/)package\.json$/i.test(path.replace(/\\/g, '/')) &&
+      /["']@remix-run\/(?:react|node|dev|cloudflare|deno|express|serve)["']\s*:|["']remix["']\s*:/.test(content),
+  );
+  return hasRemixConfig || hasRemixDep;
+}
+
+/** Next.js or Remix — enables JS/TS deep parse and shared risk patterns. */
+function hasSupportedJsDeepProfile(paths: string[], manifests: Record<string, string>) {
+  return hasNextJsProjectSignal(paths, manifests) || hasRemixProjectSignal(paths, manifests);
+}
+
 async function inspectSourceCode(source: CodebaseSource): Promise<{ findings: QualityFinding[]; parsedFiles: number; skippedFiles: number }> {
   const contents = source.sourceContents || {};
   const contentEntries = Object.entries(contents).sort(([left], [right]) => left.localeCompare(right));
   const isNextProject = hasNextJsProjectSignal(source.paths, source.manifests);
+  const hasDeepJsProfile = hasSupportedJsDeepProfile(source.paths, source.manifests);
   const findings: QualityFinding[] = [];
   const sourcePathSet = new Set(source.paths.map(path => path.replace(/\\/g, '/').toLowerCase()));
   // Supported deep profiles (see supportedAnalysisProfiles.ts). Keep file-level
-  // rules and parsing within its JavaScript/TypeScript sources until another
-  // profile is deliberately implemented and assessed.
-  const jsEntries = isNextProject
+  // rules and parsing within JavaScript/TypeScript sources for matched profiles.
+  const jsEntries = hasDeepJsProfile
     ? contentEntries.filter(([path]) => NEXT_SOURCE_EXTENSIONS.has(normalizedName(path).split('.').pop() || ''))
     : [];
   const MAX_AST_FILES = 1500;
@@ -114,7 +132,7 @@ async function inspectSourceCode(source: CodebaseSource): Promise<{ findings: Qu
   ];
   for (const [path, content] of contentEntries) {
     const extension = normalizedName(path).split('.').pop() || '';
-    if (!isNextProject || !NEXT_SOURCE_EXTENSIONS.has(extension)) continue;
+    if (!hasDeepJsProfile || !NEXT_SOURCE_EXTENSIONS.has(extension)) continue;
     for (const { pattern, title, detail, priority } of textPatterns) {
       pattern.lastIndex = 0;
       const match = pattern.exec(content);
@@ -321,7 +339,8 @@ function detectFrameworks(source: CodebaseSource): string[] {
       const has = (name: string) => Object.hasOwn(dependencies, name);
 
       const matches: Array<[string, string]> = [
-        ['next', 'Next.js'], ['react', 'React'], ['react-native', 'React Native'],
+        ['next', 'Next.js'], ['@remix-run/react', 'Remix'], ['remix', 'Remix'],
+        ['react', 'React'], ['react-native', 'React Native'],
         ['expo', 'Expo'], ['vue', 'Vue'], ['nuxt', 'Nuxt'], ['svelte', 'Svelte'],
         ['@sveltejs/kit', 'SvelteKit'], ['@angular/core', 'Angular'],
         ['express', 'Express'], ['@nestjs/core', 'NestJS'], ['fastify', 'Fastify'],
@@ -394,7 +413,7 @@ function assessQualityChecks(
   manifests: Record<string, string>,
   deepAnalysis: Awaited<ReturnType<typeof inspectSourceCode>>,
   findings: QualityFinding[],
-  nextJsCheck?: NonNullable<QualityAssessment['checks']>[number],
+  frameworkCheck?: NonNullable<QualityAssessment['checks']>[number],
 ): QualityAssessment['checks'] {
   const lowerPaths = paths.map(path => path.toLowerCase());
   const manifestContents = Object.values(manifests).join('\n').toLowerCase();
@@ -405,19 +424,22 @@ function assessQualityChecks(
   const workflowHasBuild = /\b(build|compile|cargo build|npm run build|pnpm build)\b/.test(workflowText);
   const jsPathCount = paths.filter(path => /\.(?:[cm]?[jt]sx?)$/i.test(path)).length;
   const isNextProject = hasNextJsProjectSignal(paths, manifests);
-  const nextProfilePathCount = isNextProject ? jsPathCount : 0;
-  const nextProfileFilesNotInspected = Math.max(0, nextProfilePathCount - deepAnalysis.parsedFiles - deepAnalysis.skippedFiles);
+  const isRemixProject = hasRemixProjectSignal(paths, manifests);
+  const hasDeepJsProfile = hasSupportedJsDeepProfile(paths, manifests);
+  const profileLabel = isNextProject ? 'Next.js' : isRemixProject ? 'Remix' : 'JavaScript/TypeScript';
+  const profilePathCount = hasDeepJsProfile ? jsPathCount : 0;
+  const profileFilesNotInspected = Math.max(0, profilePathCount - deepAnalysis.parsedFiles - deepAnalysis.skippedFiles);
   const syntaxIssues = findings.filter(finding => finding.title === 'Source syntax issue').length;
   const codeFindings = (category: NonNullable<QualityFinding['category']>) => findings.filter(finding => finding.category === category).length;
   const check = (id: string, name: string, category: NonNullable<QualityFinding['category']>, status: NonNullable<QualityAssessment['checks']>[number]['status'], summary: string) => ({ id, name, category, status, summary, findingCount: codeFindings(category) });
 
   const checks: NonNullable<QualityAssessment['checks']> = [];
-  if (isNextProject && nextProfilePathCount > 0) checks.push(
-    check('source-parse', 'Next.js JavaScript / TypeScript parsing', 'correctness', deepAnalysis.skippedFiles > 0 || nextProfileFilesNotInspected > 0 ? 'incomplete' : syntaxIssues > 0 ? 'issues' : 'passed', deepAnalysis.skippedFiles > 0 || nextProfileFilesNotInspected > 0 ? `${deepAnalysis.parsedFiles} parsed; ${deepAnalysis.skippedFiles + nextProfileFilesNotInspected} profile files were not inspected.` : syntaxIssues > 0 ? `${syntaxIssues} syntax issue(s) detected. This does not include type-checking.` : `${deepAnalysis.parsedFiles} Next.js JavaScript/TypeScript file(s) parsed with no syntax issues detected; type-checking was not run.`),
+  if (hasDeepJsProfile && profilePathCount > 0) checks.push(
+    check('source-parse', `${profileLabel} JavaScript / TypeScript parsing`, 'correctness', deepAnalysis.skippedFiles > 0 || profileFilesNotInspected > 0 ? 'incomplete' : syntaxIssues > 0 ? 'issues' : 'passed', deepAnalysis.skippedFiles > 0 || profileFilesNotInspected > 0 ? `${deepAnalysis.parsedFiles} parsed; ${deepAnalysis.skippedFiles + profileFilesNotInspected} profile files were not inspected.` : syntaxIssues > 0 ? `${syntaxIssues} syntax issue(s) detected. This does not include type-checking.` : `${deepAnalysis.parsedFiles} ${profileLabel} JavaScript/TypeScript file(s) parsed with no syntax issues detected; type-checking was not run.`),
   );
   else checks.push(check('supported-profile', 'Supported language / framework profile', 'correctness', 'unsupported', deepProfileNotMatchedMessage()));
   checks.push(
-    check('source-patterns', 'Supported profile risk patterns', 'security', !isNextProject || deepAnalysis.parsedFiles === 0 ? 'unsupported' : codeFindings('security') > 0 ? 'issues' : deepAnalysis.skippedFiles > 0 || nextProfileFilesNotInspected > 0 ? 'incomplete' : 'passed', !isNextProject || deepAnalysis.parsedFiles === 0 ? deepProfileRulesUnsupportedMessage() : codeFindings('security') > 0 ? `Review the flagged patterns in inspected ${supportedDeepProfilesSummary()} source files; findings are signals, not proof of a vulnerability.` : `No configured risk patterns matched the inspected ${supportedDeepProfilesSummary()} source files; this is not a complete security audit.`),
+    check('source-patterns', 'Supported profile risk patterns', 'security', !hasDeepJsProfile || deepAnalysis.parsedFiles === 0 ? 'unsupported' : codeFindings('security') > 0 ? 'issues' : deepAnalysis.skippedFiles > 0 || profileFilesNotInspected > 0 ? 'incomplete' : 'passed', !hasDeepJsProfile || deepAnalysis.parsedFiles === 0 ? deepProfileRulesUnsupportedMessage() : codeFindings('security') > 0 ? `Review the flagged patterns in inspected ${supportedDeepProfilesSummary()} source files; findings are signals, not proof of a vulnerability.` : `No configured risk patterns matched the inspected ${supportedDeepProfilesSummary()} source files; this is not a complete security audit.`),
     check('maintainability', 'Maintainability signals', 'maintainability', sourceMetrics.analyzedFiles === 0 ? 'unsupported' : codeFindings('maintainability') > 0 ? 'issues' : sourceMetrics.skippedFiles > 0 ? 'incomplete' : 'passed', sourceMetrics.analyzedFiles === 0 ? 'Source contents were not available to inspect.' : codeFindings('maintainability') > 0 ? 'Large files, TODO markers, or complex/repeated functions need review.' : 'No configured maintainability thresholds were crossed in inspected files.'),
     check('ci-workflows', 'CI workflows', 'delivery', workflows.length === 0 ? 'not-configured' : !workflowHasTests || !workflowHasBuild ? 'issues' : 'not-run', workflows.length === 0 ? 'No GitHub Actions workflow was found in the scan.' : !workflowHasTests || !workflowHasBuild ? `Workflow found; test step ${workflowHasTests ? 'detected' : 'not detected'}, build step ${workflowHasBuild ? 'detected' : 'not detected'}.` : 'Test and build signals detected in workflow files; blueprint studio did not execute the workflow.'),
     check('folder-structure', 'Folder structure', 'structure', sourceMetrics.analyzedFiles === 0 ? 'unsupported' : codeFindings('structure') > 0 ? 'issues' : 'passed', sourceMetrics.analyzedFiles === 0 ? 'No source files were available to assess.' : codeFindings('structure') > 0 ? 'Review the reported folder or module-boundary signals.' : 'No configured folder-structure concerns were detected.'),
@@ -446,10 +468,10 @@ function assessQualityChecks(
     checks.push(check('tests', 'Automated tests', 'testing', testFilesCount > 0 ? 'incomplete' : 'not-configured', testFilesCount > 0 ? `${testFilesCount} test-like file(s) found; no language-specific runner profile is available.` : 'No test files or supported test runner configuration were detected.'));
   }
 
-  if (nextJsCheck) {
+  if (frameworkCheck) {
     const securityIdx = checks.findIndex(entry => entry.id === 'source-patterns');
-    if (securityIdx >= 0) checks.splice(securityIdx + 1, 0, nextJsCheck);
-    else checks.push(nextJsCheck);
+    if (securityIdx >= 0) checks.splice(securityIdx + 1, 0, frameworkCheck);
+    else checks.push(frameworkCheck);
   }
 
   return checks;
@@ -486,6 +508,8 @@ function assessCodeQuality(
     : 0;
 
   const nextJsImpact = computeNextJsQualityImpact(frameworkProfile);
+  const remixImpact = computeRemixQualityImpact(frameworkProfile);
+  const frameworkImpact = nextJsImpact || remixImpact;
 
   const testingEvidence: NonNullable<QualityDimension['scoreEvidence']> = [];
   let testingScore = 0;
@@ -584,15 +608,15 @@ function assessCodeQuality(
   }
 
   const securityFindings = deepAnalysis.findings.filter(finding => categoryForFinding(finding.title) === 'security');
-  const isNextProject = hasNextJsProjectSignal(normalizedPaths, manifests);
-  const correctnessPaths = isNextProject ? sourcePaths.filter(path => NEXT_SOURCE_EXTENSIONS.has(normalizedName(path).split('.').pop() || '')) : [];
-  const nextProfileFilesNotInspected = Math.max(0, correctnessPaths.length - deepAnalysis.parsedFiles - deepAnalysis.skippedFiles);
-  const securityAssessed = isNextProject && deepAnalysis.parsedFiles > 0;
+  const hasDeepJsProfile = hasSupportedJsDeepProfile(normalizedPaths, manifests);
+  const correctnessPaths = hasDeepJsProfile ? sourcePaths.filter(path => NEXT_SOURCE_EXTENSIONS.has(normalizedName(path).split('.').pop() || '')) : [];
+  const profileFilesNotInspected = Math.max(0, correctnessPaths.length - deepAnalysis.parsedFiles - deepAnalysis.skippedFiles);
+  const securityAssessed = hasDeepJsProfile && deepAnalysis.parsedFiles > 0;
   const correctnessPathSet = new Set(correctnessPaths);
   const correctnessFindings = deepAnalysis.findings.filter(finding => categoryForFinding(finding.title) === 'correctness'
     && finding.evidence.some(evidence => [...correctnessPathSet].some(path => evidence.startsWith(`${path}:`))));
-  const correctnessAssessed = isNextProject && deepAnalysis.parsedFiles > 0 && correctnessPaths.length > 0;
-  const correctnessPartial = correctnessAssessed && (deepAnalysis.skippedFiles > 0 || nextProfileFilesNotInspected > 0);
+  const correctnessAssessed = hasDeepJsProfile && deepAnalysis.parsedFiles > 0 && correctnessPaths.length > 0;
+  const correctnessPartial = correctnessAssessed && (deepAnalysis.skippedFiles > 0 || profileFilesNotInspected > 0);
 
   const securityEvidence: NonNullable<QualityDimension['scoreEvidence']> = [];
   let securityScore = 0;
@@ -646,14 +670,14 @@ function assessCodeQuality(
     { name: 'Folder structure', score: organizationScore, maxScore: 15, summary: sourcePaths.length ? `${directories.length} folders · ${rootLevelSourceFiles} source files at the project root.` : 'No source files were available to assess organization.', scoreEvidence: organizationEvidence },
     { name: 'CI checks', score: automationScore, maxScore: 15, summary: hasWorkflow ? `Workflow detected${workflowHasTests ? ' with test signals' : ''}${workflowHasBuild ? ' with build signals' : ''}.` : 'No CI workflow was detected.', scoreEvidence: automationEvidence },
     { name: 'Documentation', score: documentationScore, maxScore: 10, summary: `${hasReadme ? 'README found' : 'No README found'}${hasDocs ? ' · documentation folder found' : ''}.`, scoreEvidence: documentationEvidence },
-    { name: 'Security risks', score: securityScore, maxScore: securityAssessed ? 10 : 0, assessmentStatus: securityAssessed ? (deepAnalysis.skippedFiles || nextProfileFilesNotInspected ? 'partial' as const : 'reviewed' as const) : 'not-assessed' as const, summary: securityAssessed ? `${securityFindings.length} configured risk pattern${securityFindings.length === 1 ? '' : 's'} flagged across ${deepAnalysis.parsedFiles} inspected file(s) using the ${supportedDeepProfilesSummary()} profile. A clean result does not guarantee security.` : `No supported language/framework profile matched this repo for deep security rules. ${deepProfileNotMatchedMessage()}`, scoreEvidence: securityAssessed ? securityEvidence : undefined },
+    { name: 'Security risks', score: securityScore, maxScore: securityAssessed ? 10 : 0, assessmentStatus: securityAssessed ? (deepAnalysis.skippedFiles || profileFilesNotInspected ? 'partial' as const : 'reviewed' as const) : 'not-assessed' as const, summary: securityAssessed ? `${securityFindings.length} configured risk pattern${securityFindings.length === 1 ? '' : 's'} flagged across ${deepAnalysis.parsedFiles} inspected file(s) using the ${supportedDeepProfilesSummary()} profile. A clean result does not guarantee security.` : `No supported language/framework profile matched this repo for deep security rules. ${deepProfileNotMatchedMessage()}`, scoreEvidence: securityAssessed ? securityEvidence : undefined },
     { name: 'Code correctness', score: correctnessScore, maxScore: correctnessAssessed ? 5 : 0, assessmentStatus: !correctnessAssessed ? 'not-assessed' as const : correctnessPartial ? 'partial' as const : 'reviewed' as const, summary: correctnessAssessed ? `${correctnessFindings.length} correctness signal${correctnessFindings.length === 1 ? '' : 's'} flagged across ${correctnessPaths.length} source file(s) (${supportedDeepProfilesSummary()}). ${correctnessPartial ? 'Some files were skipped or fall outside the active profile.' : 'Only configured static rules were checked.'}` : `No supported language/framework profile matched for deep correctness checks. ${deepProfileNotMatchedMessage()}`, scoreEvidence: correctnessAssessed ? correctnessEvidence : undefined },
   ];
 
-  if (nextJsImpact) {
+  if (frameworkImpact) {
     const securityIdx = dimensions.findIndex(dim => dim.name === 'Security risks');
-    if (securityIdx >= 0) dimensions.splice(securityIdx + 1, 0, nextJsImpact.dimension);
-    else dimensions.push(nextJsImpact.dimension);
+    if (securityIdx >= 0) dimensions.splice(securityIdx + 1, 0, frameworkImpact.dimension);
+    else dimensions.push(frameworkImpact.dimension);
   }
 
   const findings: QualityFinding[] = [];
@@ -673,7 +697,7 @@ function assessCodeQuality(
     ...collectProjectHygieneFindings(normalizedPaths, lowerPaths, manifests, sourceContents),
   );
   findings.push(...deepAnalysis.findings);
-  if (nextJsImpact) findings.push(...nextJsImpact.findings);
+  if (frameworkImpact) findings.push(...frameworkImpact.findings);
 
   const availableScore = dimensions.reduce((total, dimension) => total + dimension.score, 0);
   const availableMaxScore = dimensions.reduce((total, dimension) => total + dimension.maxScore, 0);
@@ -700,7 +724,7 @@ function assessCodeQuality(
       manifests,
       deepAnalysis,
       allNormalizedFindings,
-      nextJsImpact?.check,
+      frameworkImpact?.check,
     ),
     analyzedSourceFiles: sourceMetrics.analyzedFiles,
     linesOfCode: sourceMetrics.linesOfCode,
@@ -947,8 +971,8 @@ export async function analyzeCodebaseSource(source: CodebaseSource): Promise<Cod
   const testFiles = paths.filter(isRecognizedTestFile);
   const sourceMetrics = source.sourceMetrics || createEmptySourceMetrics();
   const deepAnalysis = await inspectSourceCode(source);
-  const nextProject = hasNextJsProjectSignal(paths, source.manifests);
-  const dependencyInventory = extractNpmDependencyInventory(paths, source.manifests, nextProject);
+  const deepJsProfile = hasSupportedJsDeepProfile(paths, source.manifests);
+  const dependencyInventory = extractNpmDependencyInventory(paths, source.manifests, deepJsProfile);
 
   let dependencyRisk: DependencyRiskAssessment | undefined;
   const npmInventory = dependencyInventory;

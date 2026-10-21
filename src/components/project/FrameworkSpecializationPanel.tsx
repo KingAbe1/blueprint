@@ -1,7 +1,13 @@
 import React from 'react';
 import { CodebaseAnalysis } from '../../types/codebase';
-import { NextJsActionAudit, NextJsSpecialization, NextJsArchitecturalImprovement } from '../../types/framework';
+import {
+  NextJsActionAudit,
+  NextJsSpecialization,
+  NextJsArchitecturalImprovement,
+  RemixSpecialization,
+} from '../../types/framework';
 import { NextJsSpecializationPanel } from './NextJsSpecializationPanel';
+import { RemixSpecializationPanel } from './RemixSpecializationPanel';
 import { SafeErrorBoundary } from '../common/SafeErrorBoundary';
 
 interface FrameworkSpecializationPanelProps {
@@ -15,6 +21,13 @@ const FrameworkSpecializationContent: React.FC<FrameworkSpecializationPanelProps
     if (specialization?.actionAudit && specialization?.bundleAudit && specialization?.resilienceAudit) {
       // Newer audit fields are optional on legacy saved scans; the panel fills defaults.
       return <NextJsSpecializationPanel specialization={specialization} rootName={analysis.rootName} />;
+    }
+  }
+
+  if (analysis.frameworkProfile?.id === 'remix') {
+    const specialization = analysis.frameworkProfile.specialization as RemixSpecialization;
+    if (specialization?.loaderAudit && specialization?.actionAudit && specialization?.resilienceAudit) {
+      return <RemixSpecializationPanel specialization={specialization} rootName={analysis.rootName} />;
     }
   }
 

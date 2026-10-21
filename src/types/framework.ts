@@ -160,6 +160,114 @@ export interface NextJsSpecialization {
   dynamicRoutesCount: number;
 }
 
+export type RemixImprovementCategory =
+  | 'loader-hygiene'
+  | 'action-hygiene'
+  | 'route-resilience'
+  | 'bundle-optimization'
+  | 'config-delivery'
+  | 'security'
+  | 'seo-metadata'
+  | 'modernization';
+
+export type RemixImprovementSeverity = 'critical' | 'warning' | 'optimization';
+
+export interface RemixArchitecturalImprovement {
+  id: string;
+  category: RemixImprovementCategory;
+  severity: RemixImprovementSeverity;
+  title: string;
+  impact: string;
+  remediation: string;
+  file?: string;
+  line?: number;
+}
+
+export interface RemixLoaderActionFileAudit {
+  path: string;
+  hasLoader: boolean;
+  hasAction: boolean;
+  hasClientLoader: boolean;
+  hasClientAction: boolean;
+  isResourceRoute: boolean;
+  lineCount: number;
+  hasValidation: boolean;
+  hasAuth: boolean;
+}
+
+export interface RemixMutationAudit {
+  totalHandlers: number;
+  filesCount: number;
+  unvalidatedFilesCount: number;
+  unprotectedFilesCount: number;
+  complexFilesCount: number;
+  /** Loaders that appear to mutate state (CSRF-class smell). */
+  mutatingFilesCount?: number;
+  files: RemixLoaderActionFileAudit[];
+}
+
+export interface RemixResilienceAudit {
+  hasRoot: boolean;
+  hasRootErrorBoundary: boolean;
+  hasRootLayoutExport: boolean;
+  routeErrorBoundaryCount: number;
+  missingErrorBoundaryRoutes: string[];
+  hasHydrateFallback: boolean;
+}
+
+export interface RemixBundleAudit {
+  clientLoaderCount: number;
+  clientActionCount: number;
+  routeModuleCount: number;
+  heavyClientRouteFiles: string[];
+}
+
+export interface RemixConfigAudit {
+  configFile?: string;
+  usesVite: boolean;
+  usesClassicCompiler: boolean;
+  hasSingleFetchFlag: boolean;
+  usesLegacyJsonDefer: boolean;
+  missingLintScript: boolean;
+  missingTypecheckSignal: boolean;
+  issueCount: number;
+}
+
+export interface RemixSecurityAudit {
+  secretEnvInClientFiles: string[];
+  serverImportInClientFiles: string[];
+  serverModuleLeakFiles?: string[];
+  missingSecurityHeaders?: boolean;
+  entryServerFile?: string;
+  unsignedCookieFiles?: string[];
+  openRedirectFiles?: string[];
+  secretInLoaderReturnFiles?: string[];
+  issueCount: number;
+}
+
+export interface RemixSeoAudit {
+  hasRootMeta: boolean;
+  hasRootLinks: boolean;
+  routesMissingMeta: string[];
+  issueCount: number;
+}
+
+export interface RemixSpecialization {
+  version?: string;
+  majorVersion?: number;
+  routingStyle: 'flat-routes' | 'nested-folders' | 'mixed' | 'not-identified';
+  loaderAudit: RemixMutationAudit;
+  actionAudit: RemixMutationAudit;
+  resilienceAudit: RemixResilienceAudit;
+  bundleAudit: RemixBundleAudit;
+  configAudit: RemixConfigAudit;
+  securityAudit: RemixSecurityAudit;
+  seoAudit: RemixSeoAudit;
+  improvements: RemixArchitecturalImprovement[];
+  resourceRouteCount: number;
+  dynamicRoutesCount: number;
+}
+
 export interface FrameworkProfile<TSpecialization = unknown> {
   id: FrameworkId;
   name: string;

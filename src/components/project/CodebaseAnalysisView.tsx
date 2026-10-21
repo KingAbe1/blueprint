@@ -299,11 +299,13 @@ export const CodebaseAnalysisView: React.FC<CodebaseAnalysisViewProps> = ({
     };
   }, [analysis.quality?.score, analysis.quality?.findings, analysis.dependencyRisk?.advisories]);
 
-  const hasNextJsDeepReview = Boolean(
-    analysis.nextjs || analysis.frameworkProfile?.id === 'nextjs',
+  const hasFrameworkDeepReview = Boolean(
+    analysis.nextjs ||
+      analysis.frameworkProfile?.id === 'nextjs' ||
+      analysis.frameworkProfile?.id === 'remix',
   );
   const scanSuggestions = analysis.suggestions ?? [];
-  const showScanSuggestions = scanSuggestions.length > 0 && !hasNextJsDeepReview;
+  const showScanSuggestions = scanSuggestions.length > 0 && !hasFrameworkDeepReview;
 
   const remote = analysis.git?.remote;
   const githubConnected = github.isConnectedFor(remote, projectId);

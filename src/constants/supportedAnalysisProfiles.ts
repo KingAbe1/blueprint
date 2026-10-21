@@ -1,6 +1,7 @@
 /** Brownfield repos matching these profiles get deep parse, rules, and specialization UI. */
 export const SUPPORTED_DEEP_ANALYSIS_PROFILES = [
   'Next.js (JavaScript / TypeScript)',
+  'Remix (JavaScript / TypeScript)',
 ] as const;
 
 export function supportedDeepProfilesSummary(): string {

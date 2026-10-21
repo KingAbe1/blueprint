@@ -180,8 +180,8 @@ export const QualityHealthSummary: React.FC<QualityHealthSummaryProps> = ({
                   How health score is calculated
                 </h2>
                 <p className={`mt-1 text-[13px] leading-relaxed ${muted}`}>
-                  Dimension points from the local scan. Next.js repos include a Next.js practices row. CVEs are scored
-                  separately.
+                  Dimension points from the local scan. Next.js and Remix repos include a framework practices row. CVEs
+                  are scored separately.
                 </p>
               </div>
               <button
