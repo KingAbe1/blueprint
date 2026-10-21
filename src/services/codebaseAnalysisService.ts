@@ -487,30 +487,102 @@ function assessCodeQuality(
 
   const nextJsImpact = computeNextJsQualityImpact(frameworkProfile);
 
+  const testingEvidence: NonNullable<QualityDimension['scoreEvidence']> = [];
   let testingScore = 0;
-  if (testFilesCount > 0) testingScore += 13;
-  if (hasTestConfig) testingScore += 4;
-  if (hasTestScript) testingScore += 3;
+  if (testFilesCount > 0) {
+    testingScore += 13;
+    testingEvidence.push({ label: 'Test files found', points: 13, detail: `${testFilesCount} test file${testFilesCount === 1 ? '' : 's'} detected.` });
+  } else {
+    testingEvidence.push({ label: 'No test files', points: 0, detail: 'Add tests around a critical user flow.' });
+  }
+  if (hasTestConfig) {
+    testingScore += 4;
+    testingEvidence.push({ label: 'Test config', points: 4, detail: 'Recognized test runner configuration present.' });
+  }
+  if (hasTestScript) {
+    testingScore += 3;
+    testingEvidence.push({ label: 'Test script', points: 3, detail: 'package.json exposes a test script.' });
+  }
 
+  const maintainabilityEvidence: NonNullable<QualityDimension['scoreEvidence']> = [];
   let maintainabilityScore = sourceMetrics.analyzedFiles > 0 ? 25 : 12;
-  maintainabilityScore -= Math.min(12, sourceMetrics.largeFiles.length * 4);
-  maintainabilityScore -= Math.min(8, Math.ceil(sourceMetrics.todoMarkers / 5));
+  if (sourceMetrics.analyzedFiles > 0) {
+    maintainabilityEvidence.push({ label: 'Baseline (sources inspected)', points: 25, detail: `${sourceMetrics.analyzedFiles} files · ${sourceMetrics.linesOfCode.toLocaleString()} non-empty lines.` });
+  } else {
+    maintainabilityEvidence.push({ label: 'Limited source inspection', points: 12, detail: 'Source contents were not fully available.' });
+  }
+  const largeFilePenalty = Math.min(12, sourceMetrics.largeFiles.length * 4);
+  if (largeFilePenalty > 0) {
+    maintainabilityScore -= largeFilePenalty;
+    maintainabilityEvidence.push({ label: 'Large source files', points: -largeFilePenalty, detail: `${sourceMetrics.largeFiles.length} file${sourceMetrics.largeFiles.length === 1 ? '' : 's'} over 500 non-empty lines (−4 pts each, capped).` });
+  }
+  const todoPenalty = Math.min(8, Math.ceil(sourceMetrics.todoMarkers / 5));
+  if (todoPenalty > 0) {
+    maintainabilityScore -= todoPenalty;
+    maintainabilityEvidence.push({ label: 'TODO/FIXME markers', points: -todoPenalty, detail: `${sourceMetrics.todoMarkers} markers (−1 pt per 5, capped at 8).` });
+  }
   maintainabilityScore = Math.max(0, maintainabilityScore);
 
+  const organizationEvidence: NonNullable<QualityDimension['scoreEvidence']> = [];
   let organizationScore = sourcePaths.length > 0 ? 15 : 9;
-  if (sourcePaths.length > 0 && rootSourceRatio > 0.3 && rootLevelSourceFiles >= 5) {
-    organizationScore -= Math.min(10, Math.ceil((rootSourceRatio - 0.3) * 18));
+  if (sourcePaths.length > 0) {
+    organizationEvidence.push({ label: 'Baseline structure', points: 15, detail: `${directories.length} folders · ${rootLevelSourceFiles} root source files.` });
+  } else {
+    organizationEvidence.push({ label: 'Limited structure signal', points: 9, detail: 'No source files were available to assess organization.' });
   }
-  if (averageSourceDepth > 5) organizationScore -= Math.min(6, Math.ceil(averageSourceDepth - 5));
-  if (directories.length === 0 && sourcePaths.length >= 10) organizationScore -= 4;
+  if (sourcePaths.length > 0 && rootSourceRatio > 0.3 && rootLevelSourceFiles >= 5) {
+    const rootPenalty = Math.min(10, Math.ceil((rootSourceRatio - 0.3) * 18));
+    organizationScore -= rootPenalty;
+    organizationEvidence.push({ label: 'Root-heavy layout', points: -rootPenalty, detail: `${Math.round(rootSourceRatio * 100)}% of source files sit at the project root.` });
+  }
+  if (averageSourceDepth > 5) {
+    const depthPenalty = Math.min(6, Math.ceil(averageSourceDepth - 5));
+    organizationScore -= depthPenalty;
+    organizationEvidence.push({ label: 'Deep nesting', points: -depthPenalty, detail: `Average source path depth ${averageSourceDepth.toFixed(1)}.` });
+  }
+  if (directories.length === 0 && sourcePaths.length >= 10) {
+    organizationScore -= 4;
+    organizationEvidence.push({ label: 'No folders detected', points: -4, detail: 'Many source files with no directory grouping.' });
+  }
   organizationScore = Math.max(0, organizationScore);
 
-  let automationScore = hasWorkflow ? 8 : 0;
-  if (hasWorkflow && workflowHasTests) automationScore += 4;
-  if (hasWorkflow && workflowHasBuild) automationScore += 3;
-  if (!hasWorkflow && (scriptNames.has('build') || hasTestScript)) automationScore = 3;
+  const automationEvidence: NonNullable<QualityDimension['scoreEvidence']> = [];
+  let automationScore = 0;
+  if (hasWorkflow) {
+    automationScore += 8;
+    automationEvidence.push({ label: 'CI workflow present', points: 8, detail: 'GitHub Actions workflow detected.' });
+    if (workflowHasTests) {
+      automationScore += 4;
+      automationEvidence.push({ label: 'CI test step', points: 4, detail: 'Workflow includes a test signal.' });
+    } else {
+      automationEvidence.push({ label: 'CI test step missing', points: 0, detail: 'No clear test command in workflow files.' });
+    }
+    if (workflowHasBuild) {
+      automationScore += 3;
+      automationEvidence.push({ label: 'CI build step', points: 3, detail: 'Workflow includes a build signal.' });
+    } else {
+      automationEvidence.push({ label: 'CI build step missing', points: 0, detail: 'No clear build command in workflow files.' });
+    }
+  } else if (scriptNames.has('build') || hasTestScript) {
+    automationScore = 3;
+    automationEvidence.push({ label: 'Local scripts only', points: 3, detail: 'Build/test scripts exist, but no CI workflow was found.' });
+  } else {
+    automationEvidence.push({ label: 'No CI workflow', points: 0, detail: 'Add a workflow that runs tests and build.' });
+  }
 
-  const documentationScore = (hasReadme ? 7 : 0) + (hasDocs ? 3 : 0);
+  const documentationEvidence: NonNullable<QualityDimension['scoreEvidence']> = [];
+  let documentationScore = 0;
+  if (hasReadme) {
+    documentationScore += 7;
+    documentationEvidence.push({ label: 'README', points: 7, detail: 'README detected.' });
+  } else {
+    documentationEvidence.push({ label: 'No README', points: 0, detail: 'Add setup and run instructions.' });
+  }
+  if (hasDocs) {
+    documentationScore += 3;
+    documentationEvidence.push({ label: 'Docs folder', points: 3, detail: 'Documentation directory detected.' });
+  }
+
   const securityFindings = deepAnalysis.findings.filter(finding => categoryForFinding(finding.title) === 'security');
   const isNextProject = hasNextJsProjectSignal(normalizedPaths, manifests);
   const correctnessPaths = isNextProject ? sourcePaths.filter(path => NEXT_SOURCE_EXTENSIONS.has(normalizedName(path).split('.').pop() || '')) : [];
@@ -522,21 +594,60 @@ function assessCodeQuality(
   const correctnessAssessed = isNextProject && deepAnalysis.parsedFiles > 0 && correctnessPaths.length > 0;
   const correctnessPartial = correctnessAssessed && (deepAnalysis.skippedFiles > 0 || nextProfileFilesNotInspected > 0);
 
-  const securityScore = securityAssessed
-    ? Math.max(0, 10 - Math.min(10, securityFindings.reduce((penalty, finding) => penalty + (finding.priority === 'high' ? 3 : finding.priority === 'medium' ? 2 : 1), 0)))
-    : 0;
-  const correctnessScore = correctnessAssessed
-    ? Math.max(0, 5 - Math.min(5, correctnessFindings.reduce((penalty, finding) => penalty + (finding.priority === 'high' ? 2 : 1), 0)))
-    : 0;
+  const securityEvidence: NonNullable<QualityDimension['scoreEvidence']> = [];
+  let securityScore = 0;
+  if (securityAssessed) {
+    securityEvidence.push({ label: 'Baseline (profile reviewed)', points: 10, detail: `${deepAnalysis.parsedFiles} inspected file(s).` });
+    let securityPenalty = 0;
+    for (const finding of securityFindings.slice(0, 6)) {
+      const pts = finding.priority === 'high' ? 3 : finding.priority === 'medium' ? 2 : 1;
+      securityPenalty += pts;
+      securityEvidence.push({
+        label: finding.title.length > 56 ? `${finding.title.slice(0, 53)}…` : finding.title,
+        points: -pts,
+        detail: finding.evidence[0] || finding.priority,
+      });
+    }
+    if (securityFindings.length > 6) {
+      const rest = securityFindings.slice(6);
+      const restPts = rest.reduce((n, f) => n + (f.priority === 'high' ? 3 : f.priority === 'medium' ? 2 : 1), 0);
+      securityPenalty += restPts;
+      securityEvidence.push({ label: `${rest.length} more security signals`, points: -restPts, detail: 'Additional configured risk patterns.' });
+    }
+    securityScore = Math.max(0, 10 - Math.min(10, securityPenalty));
+  }
+
+  const correctnessEvidence: NonNullable<QualityDimension['scoreEvidence']> = [];
+  let correctnessScore = 0;
+  if (correctnessAssessed) {
+    correctnessEvidence.push({ label: 'Baseline (profile reviewed)', points: 5, detail: `${correctnessPaths.length} profile source file(s).` });
+    let correctnessPenalty = 0;
+    for (const finding of correctnessFindings.slice(0, 5)) {
+      const pts = finding.priority === 'high' ? 2 : 1;
+      correctnessPenalty += pts;
+      correctnessEvidence.push({
+        label: finding.title.length > 56 ? `${finding.title.slice(0, 53)}…` : finding.title,
+        points: -pts,
+        detail: finding.evidence[0] || finding.priority,
+      });
+    }
+    if (correctnessFindings.length > 5) {
+      const rest = correctnessFindings.slice(5);
+      const restPts = rest.reduce((n, f) => n + (f.priority === 'high' ? 2 : 1), 0);
+      correctnessPenalty += restPts;
+      correctnessEvidence.push({ label: `${rest.length} more correctness signals`, points: -restPts, detail: 'Additional static correctness findings.' });
+    }
+    correctnessScore = Math.max(0, 5 - Math.min(5, correctnessPenalty));
+  }
 
   const dimensions: QualityDimension[] = [
-    { name: 'Tests', score: testingScore, maxScore: 20, summary: testFilesCount > 0 ? `${testFilesCount} test files${hasTestConfig ? ' and test tooling' : ''} detected.` : hasTestConfig || hasTestScript ? 'Test tooling is configured, but no test files were found.' : 'No test files, test configuration, or test script were detected.' },
-    { name: 'Code maintainability', score: maintainabilityScore, maxScore: 25, summary: sourceMetrics.analyzedFiles > 0 ? `${sourceMetrics.analyzedFiles} source files inspected · ${sourceMetrics.linesOfCode.toLocaleString()} non-empty lines.` : 'Source contents were not available to inspect.' },
-    { name: 'Folder structure', score: organizationScore, maxScore: 15, summary: sourcePaths.length ? `${directories.length} folders · ${rootLevelSourceFiles} source files at the project root.` : 'No source files were available to assess organization.' },
-    { name: 'CI checks', score: automationScore, maxScore: 15, summary: hasWorkflow ? `Workflow detected${workflowHasTests ? ' with test signals' : ''}${workflowHasBuild ? ' with build signals' : ''}.` : 'No CI workflow was detected.' },
-    { name: 'Documentation', score: documentationScore, maxScore: 10, summary: `${hasReadme ? 'README found' : 'No README found'}${hasDocs ? ' · documentation folder found' : ''}.` },
-    { name: 'Security risks', score: securityScore, maxScore: securityAssessed ? 10 : 0, assessmentStatus: securityAssessed ? (deepAnalysis.skippedFiles || nextProfileFilesNotInspected ? 'partial' as const : 'reviewed' as const) : 'not-assessed' as const, summary: securityAssessed ? `${securityFindings.length} configured risk pattern${securityFindings.length === 1 ? '' : 's'} flagged across ${deepAnalysis.parsedFiles} inspected file(s) using the ${supportedDeepProfilesSummary()} profile. A clean result does not guarantee security.` : `No supported language/framework profile matched this repo for deep security rules. ${deepProfileNotMatchedMessage()}` },
-    { name: 'Code correctness', score: correctnessScore, maxScore: correctnessAssessed ? 5 : 0, assessmentStatus: !correctnessAssessed ? 'not-assessed' as const : correctnessPartial ? 'partial' as const : 'reviewed' as const, summary: correctnessAssessed ? `${correctnessFindings.length} correctness signal${correctnessFindings.length === 1 ? '' : 's'} flagged across ${correctnessPaths.length} source file(s) (${supportedDeepProfilesSummary()}). ${correctnessPartial ? 'Some files were skipped or fall outside the active profile.' : 'Only configured static rules were checked.'}` : `No supported language/framework profile matched for deep correctness checks. ${deepProfileNotMatchedMessage()}` },
+    { name: 'Tests', score: testingScore, maxScore: 20, summary: testFilesCount > 0 ? `${testFilesCount} test files${hasTestConfig ? ' and test tooling' : ''} detected.` : hasTestConfig || hasTestScript ? 'Test tooling is configured, but no test files were found.' : 'No test files, test configuration, or test script were detected.', scoreEvidence: testingEvidence },
+    { name: 'Code maintainability', score: maintainabilityScore, maxScore: 25, summary: sourceMetrics.analyzedFiles > 0 ? `${sourceMetrics.analyzedFiles} source files inspected · ${sourceMetrics.linesOfCode.toLocaleString()} non-empty lines.` : 'Source contents were not available to inspect.', scoreEvidence: maintainabilityEvidence },
+    { name: 'Folder structure', score: organizationScore, maxScore: 15, summary: sourcePaths.length ? `${directories.length} folders · ${rootLevelSourceFiles} source files at the project root.` : 'No source files were available to assess organization.', scoreEvidence: organizationEvidence },
+    { name: 'CI checks', score: automationScore, maxScore: 15, summary: hasWorkflow ? `Workflow detected${workflowHasTests ? ' with test signals' : ''}${workflowHasBuild ? ' with build signals' : ''}.` : 'No CI workflow was detected.', scoreEvidence: automationEvidence },
+    { name: 'Documentation', score: documentationScore, maxScore: 10, summary: `${hasReadme ? 'README found' : 'No README found'}${hasDocs ? ' · documentation folder found' : ''}.`, scoreEvidence: documentationEvidence },
+    { name: 'Security risks', score: securityScore, maxScore: securityAssessed ? 10 : 0, assessmentStatus: securityAssessed ? (deepAnalysis.skippedFiles || nextProfileFilesNotInspected ? 'partial' as const : 'reviewed' as const) : 'not-assessed' as const, summary: securityAssessed ? `${securityFindings.length} configured risk pattern${securityFindings.length === 1 ? '' : 's'} flagged across ${deepAnalysis.parsedFiles} inspected file(s) using the ${supportedDeepProfilesSummary()} profile. A clean result does not guarantee security.` : `No supported language/framework profile matched this repo for deep security rules. ${deepProfileNotMatchedMessage()}`, scoreEvidence: securityAssessed ? securityEvidence : undefined },
+    { name: 'Code correctness', score: correctnessScore, maxScore: correctnessAssessed ? 5 : 0, assessmentStatus: !correctnessAssessed ? 'not-assessed' as const : correctnessPartial ? 'partial' as const : 'reviewed' as const, summary: correctnessAssessed ? `${correctnessFindings.length} correctness signal${correctnessFindings.length === 1 ? '' : 's'} flagged across ${correctnessPaths.length} source file(s) (${supportedDeepProfilesSummary()}). ${correctnessPartial ? 'Some files were skipped or fall outside the active profile.' : 'Only configured static rules were checked.'}` : `No supported language/framework profile matched for deep correctness checks. ${deepProfileNotMatchedMessage()}`, scoreEvidence: correctnessAssessed ? correctnessEvidence : undefined },
   ];
 
   if (nextJsImpact) {
@@ -626,6 +737,19 @@ export function recalculateQualityWithDependencyRisk(
   const cvePenalty = (criticalCves.length * 6) + (highCves.length * 2) + (mediumCves.length * 0.5) + (lowCves.length * 0.1);
   const cveScore = Math.max(0, Math.round(15 - Math.min(15, cvePenalty)));
 
+  const cveEvidence: NonNullable<QualityDimension['scoreEvidence']> = [
+    { label: 'Baseline (OSV.dev audit)', points: 15, detail: `${dependencyRisk.packagesChecked.toLocaleString()} locked packages checked.` },
+  ];
+  if (criticalCves.length > 0) cveEvidence.push({ label: 'Critical CVEs', points: -(criticalCves.length * 6), detail: `${criticalCves.length} critical advisory${criticalCves.length === 1 ? '' : 'ies'} (−6 pts each).` });
+  if (highCves.length > 0) cveEvidence.push({ label: 'High CVEs', points: -(highCves.length * 2), detail: `${highCves.length} high advisory${highCves.length === 1 ? '' : 'ies'} (−2 pts each).` });
+  if (mediumCves.length + lowCves.length > 0) {
+    cveEvidence.push({
+      label: 'Medium/low CVEs',
+      points: -Math.round(mediumCves.length * 0.5 + lowCves.length * 0.1),
+      detail: `${mediumCves.length} medium · ${lowCves.length} low.`,
+    });
+  }
+
   const cveDimension: QualityDimension = {
     name: 'Dependency CVEs',
     score: cveScore,
@@ -634,6 +758,7 @@ export function recalculateQualityWithDependencyRisk(
     summary: cveAdvisories.length === 0
       ? `${dependencyRisk.packagesChecked.toLocaleString()} dependencies audited via OSV.dev. No known CVE advisories.`
       : `${criticalCves.length > 0 ? `${criticalCves.length} critical, ` : ''}${highCves.length > 0 ? `${highCves.length} high, ` : ''}${mediumCves.length + lowCves.length} medium/low CVEs flagged across locked packages.`,
+    scoreEvidence: cveEvidence,
   };
 
   // Rebalance dimensions to accommodate the 15-point CVE dimension (total 100 max points)

@@ -32,9 +32,24 @@ function isSourceFile(path: string): boolean {
 
 function looksPublicOrAuthRoute(path: string): boolean {
   const lower = path.toLowerCase();
-  return /(?:^|\/)(?:login|signin|sign-in|signup|sign-up|register|auth|public|webhook|health|ready|livez|readyz)(?:\/|$|\.)/i.test(
+  return /(?:^|\/)(?:login|signin|sign-in|signup|sign-up|register|auth|public|webhook|health|ready|livez|readyz|ping|status|version|csrf|favicon|og|opengraph|cron|ingest)(?:\/|$|\.)/i.test(
     lower,
   );
+}
+
+function handlerMutatesState(content: string, kind: 'route-handler' | 'pages-api'): boolean {
+  if (/\bexport\s+(?:async\s+)?(?:function|const)\s+(?:POST|PUT|PATCH|DELETE)\b/i.test(content)) return true;
+  if (/\breq\.method\b[\s\S]{0,120}(?:POST|PUT|PATCH|DELETE)/i.test(content)) return true;
+  if (/\brequest\.method\b[\s\S]{0,120}(?:POST|PUT|PATCH|DELETE)/i.test(content)) return true;
+  // pages/api often uses a default export; only treat as mutation when body/write signals appear.
+  if (kind === 'pages-api') {
+    return /\breq\.body\b|\.json\s*\(|insert\b|update\b|delete\b|create\b|mutate\b/i.test(content);
+  }
+  return false;
+}
+
+function handlerReadsBody(content: string): boolean {
+  return /\b(?:req\.body|request\.json\s*\(|req\.json\s*\(|formData\s*\()/i.test(content);
 }
 
 export function auditApiRoutes(
@@ -69,28 +84,33 @@ export function auditApiRoutes(
     const hasValidation = VALIDATION_SIGNAL.test(content);
     const hasAuth = AUTH_SIGNAL.test(content);
     const publicish = looksPublicOrAuthRoute(path);
+    const mutates = handlerMutatesState(content, kind);
+    const readsBody = handlerReadsBody(content);
+    const getOnly =
+      /\bexport\s+(?:async\s+)?(?:function|const)\s+GET\b/i.test(content) &&
+      !/\bexport\s+(?:async\s+)?(?:function|const)\s+(?:POST|PUT|PATCH|DELETE)\b/i.test(content);
 
-    // Prefer mutation-oriented handlers; still flag GET APIs that look protected-data flavored.
-    const mutates =
-      kind === 'pages-api' ||
-      /\bexport\s+(?:async\s+)?(?:function|const)\s+(?:POST|PUT|PATCH|DELETE)\b/i.test(content) ||
-      /\breq\.method\b[\s\S]{0,80}(?:POST|PUT|PATCH|DELETE)/i.test(content);
+    // Skip trivial health/public GET handlers — validation/auth noise.
+    if (publicish && (getOnly || content.length < 120)) {
+      auditedFiles.push({ path, kind, hasValidation, hasAuth });
+      return;
+    }
 
-    if (mutates && !hasValidation && content.length > 40) {
+    if (mutates && readsBody && !hasValidation && content.length > 80) {
       unvalidatedFilesCount += 1;
       improvements.push({
         id: `api-unvalidated-${path}`,
         category: 'api-hygiene',
-        severity: 'critical',
+        severity: 'warning',
         title: `Unvalidated API Inputs in ${name}`,
-        impact: `${path} accepts request bodies or query values without runtime schema validation. Malformed payloads can crash handlers or corrupt data.`,
+        impact: `${path} accepts request bodies without runtime schema validation. Malformed payloads can crash handlers or corrupt data.`,
         remediation:
           'Parse request JSON/query with Zod (or similar) before business logic, and return 400 on validation failure.',
         file: path,
       });
     }
 
-    if (mutates && !hasAuth && !publicish && content.length > 40) {
+    if (mutates && !hasAuth && !publicish && content.length > 80) {
       unprotectedFilesCount += 1;
       improvements.push({
         id: `api-unprotected-${path}`,
@@ -351,26 +371,35 @@ export function auditCachingAndData(
       });
     }
 
-    // Uncached fetch: fetch(...) without next/cache/revalidate options nearby.
-    const fetchMatches = content.matchAll(/\bfetch\s*\(\s*([^)]*)\)/g);
-    let flaggedUncached = false;
-    for (const match of fetchMatches) {
-      const args = match[1] || '';
-      if (/cache\s*:|next\s*:|revalidate\s*:/.test(args)) continue;
-      // Heuristic: multi-arg fetch with options object on next lines is hard; skip if next:{ nearby in file after call start is messy.
-      if (!flaggedUncached) {
-        flaggedUncached = true;
-        uncachedFetchFiles.push(path);
-        improvements.push({
-          id: `cache-uncached-fetch-${path}`,
-          category: 'data-caching',
-          severity: 'warning',
-          title: `Unconfigured fetch() in ${name}`,
-          impact: `${path} calls fetch() without explicit cache/revalidate options. Default caching behavior varies by Next version and can surprise production traffic.`,
-          remediation:
-            'Pass `{ next: { revalidate: N } }`, `{ cache: "force-cache" }`, or `{ cache: "no-store" }` intentionally for each server fetch.',
-          file: path,
-        });
+    // Uncached fetch: only flag when options are clearly missing in a short call window.
+    // Skip files that already opt into full dynamic rendering, and keep this as an optimization (not a warning).
+    const alreadyDynamic =
+      /\bexport\s+const\s+dynamic\s*=\s*['"]force-dynamic['"]/.test(content) ||
+      /\bexport\s+const\s+revalidate\s*=\s*0\b/.test(content);
+    if (!alreadyDynamic && !looksPublicOrAuthRoute(path) && uncachedFetchFiles.length < 5) {
+      let flaggedUncached = false;
+      const fetchRegex = /\bfetch\s*\(/g;
+      let fetchMatch: RegExpExecArray | null;
+      while ((fetchMatch = fetchRegex.exec(content)) !== null) {
+        const window = content.slice(fetchMatch.index, fetchMatch.index + 220);
+        if (/cache\s*:|next\s*:|revalidate\s*:/.test(window)) continue;
+        // Same-origin relative fetches are often intentionally dynamic; skip those.
+        if (/fetch\s*\(\s*[`'"]\//.test(window)) continue;
+        if (!flaggedUncached) {
+          flaggedUncached = true;
+          uncachedFetchFiles.push(path);
+          improvements.push({
+            id: `cache-uncached-fetch-${path}`,
+            category: 'data-caching',
+            severity: 'optimization',
+            title: `Unconfigured fetch() in ${name}`,
+            impact: `${path} calls fetch() without explicit cache/revalidate options. Default caching behavior varies by Next version.`,
+            remediation:
+              'Pass `{ next: { revalidate: N } }`, `{ cache: "force-cache" }`, or `{ cache: "no-store" }` intentionally for each server fetch.',
+            file: path,
+          });
+        }
+        break;
       }
     }
 
@@ -501,24 +530,29 @@ export function auditSecurity(
   const middlewareFile = middlewareFiles[0];
   if (middlewareFile) {
     const content = sourceContents[middlewareFile] || '';
-    if (content && !AUTH_SIGNAL.test(content) && !/\b(?:getToken|authMiddleware|clerkMiddleware|withAuth)\b/i.test(content)) {
-      // Only warn when middleware actually rewrites/redirects something auth-shaped or is non-trivial
-      const nontrivial =
-        content.split(/\r\n|\n|\r/).filter(l => l.trim()).length >= 20 ||
-        /\b(?:NextResponse\.redirect|rewrite|matcher)\b/i.test(content);
-      if (nontrivial) {
-        middlewareWithoutAuth = true;
-        improvements.push({
-          id: `security-middleware-no-auth-${middlewareFile}`,
-          category: 'security',
-          severity: 'warning',
-          title: `Middleware Without Auth Checks (${fileName(middlewareFile)})`,
-          impact: `${middlewareFile} performs request boundary work but no session/token verification signals were detected. Protected routes may rely only on client-side guards.`,
-          remediation:
-            'Verify auth in middleware (or proxy) for protected matchers, and keep authorization checks in Server Actions/Route Handlers as defense in depth.',
-          file: middlewareFile,
-        });
-      }
+    const hasAuthSignals =
+      AUTH_SIGNAL.test(content) ||
+      /\b(?:getToken|authMiddleware|clerkMiddleware|withAuth|requireAuth)\b/i.test(content);
+    // Edge utilities (i18n, headers, CSP, static asset skips) should not look like missing auth.
+    const looksLikeEdgeUtility =
+      /\b(?:locale|i18n|negotiator|geo|csp|Content-Security|X-Frame-Options|pathname\.startsWith\(\s*['"]\/_next)/i.test(
+        content,
+      );
+    const looksLikeAuthGate =
+      /\b(?:login|signin|sign-in|unauthorized|forbidden|dashboard|admin|protected|session)\b/i.test(content) &&
+      /\b(?:NextResponse\.redirect|Response\.redirect|rewrite)\b/i.test(content);
+    if (content && !hasAuthSignals && looksLikeAuthGate && !looksLikeEdgeUtility) {
+      middlewareWithoutAuth = true;
+      improvements.push({
+        id: `security-middleware-no-auth-${middlewareFile}`,
+        category: 'security',
+        severity: 'warning',
+        title: `Middleware Without Auth Checks (${fileName(middlewareFile)})`,
+        impact: `${middlewareFile} redirects or rewrites around protected-looking paths, but no session/token verification signals were detected.`,
+        remediation:
+          'Verify auth in middleware (or proxy) for protected matchers, and keep authorization checks in Server Actions/Route Handlers as defense in depth.',
+        file: middlewareFile,
+      });
     }
   }
 

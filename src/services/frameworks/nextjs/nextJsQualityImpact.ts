@@ -94,41 +94,43 @@ export function computeNextJsQualityImpact(
   let warningCount = 0;
   let optimizationCount = 0;
   let penalty = 0;
-  const scoreEvidence: NonNullable<QualityDimension['scoreEvidence']> = [];
+
+  const ranked = [...improvements].sort((a, b) => {
+    const rank = { critical: 0, warning: 1, optimization: 2 } as const;
+    return rank[a.severity] - rank[b.severity];
+  });
 
   for (const item of improvements) {
-    const points = pointsForSeverity(item.severity);
-    penalty += points;
+    penalty += pointsForSeverity(item.severity);
     if (item.severity === 'critical') criticalCount += 1;
     else if (item.severity === 'warning') warningCount += 1;
     else optimizationCount += 1;
   }
 
-  // Group evidence by severity for the score breakdown.
-  if (criticalCount > 0) {
-    scoreEvidence.push({
-      label: 'Critical findings',
-      points: -(criticalCount * 3),
-      detail: `${criticalCount} critical Next.js issue${criticalCount === 1 ? '' : 's'} (−3 pts each).`,
-    });
-  }
-  if (warningCount > 0) {
-    scoreEvidence.push({
-      label: 'Warnings',
-      points: -(warningCount * 2),
-      detail: `${warningCount} warning${warningCount === 1 ? '' : 's'} (−2 pts each).`,
-    });
-  }
-  if (optimizationCount > 0) {
-    scoreEvidence.push({
-      label: 'Optimizations',
-      points: -optimizationCount,
-      detail: `${optimizationCount} optimization signal${optimizationCount === 1 ? '' : 's'} (−1 pt each).`,
-    });
-  }
-
   const cappedPenalty = Math.min(NEXT_JS_PRACTICES_MAX_SCORE, penalty);
   const score = Math.max(0, NEXT_JS_PRACTICES_MAX_SCORE - cappedPenalty);
+
+  // Per-finding evidence for the score modal (cap list length for readability).
+  const scoreEvidence: NonNullable<QualityDimension['scoreEvidence']> = ranked.slice(0, 8).map(item => {
+    const points = -pointsForSeverity(item.severity);
+    const shortTitle = item.title.length > 64 ? `${item.title.slice(0, 61)}…` : item.title;
+    return {
+      label: shortTitle,
+      points,
+      detail: item.file
+        ? `${item.severity} · ${item.file}`
+        : `${item.severity} · ${item.category.replace(/-/g, ' ')}`,
+    };
+  });
+  if (ranked.length > 8) {
+    const omitted = ranked.slice(8);
+    const omittedPts = omitted.reduce((sum, item) => sum + pointsForSeverity(item.severity), 0);
+    scoreEvidence.push({
+      label: `${omitted.length} more Next.js finding${omitted.length === 1 ? '' : 's'}`,
+      points: -Math.min(omittedPts, Math.max(0, cappedPenalty - ranked.slice(0, 8).reduce((s, i) => s + pointsForSeverity(i.severity), 0))),
+      detail: 'See the Next.js review panel for the full list.',
+    });
+  }
 
   const dimension: QualityDimension = {
     name: 'Next.js practices',
