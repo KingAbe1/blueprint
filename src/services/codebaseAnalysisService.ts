@@ -334,53 +334,133 @@ function isRecognizedTestFile(path: string) {
 }
 
 
+function detectPackageManager(source: CodebaseSource, packageData: { packageManager?: string }): string {
+  if (typeof packageData.packageManager === 'string') {
+    return packageData.packageManager.split('@')[0] || 'npm';
+  }
+  if (source.paths.some(path => /(^|\/)pnpm-lock\.yaml$/i.test(path))) return 'pnpm';
+  if (source.paths.some(path => /(^|\/)yarn\.lock$/i.test(path))) return 'yarn';
+  if (source.paths.some(path => /(^|\/)bun\.lockb?$/i.test(path))) return 'bun';
+  return 'npm';
+}
+
+function scriptCommandToString(value: unknown): string | null {
+  if (typeof value === 'string' && value.trim()) return value;
+  if (value && typeof value === 'object' && typeof (value as { command?: unknown }).command === 'string') {
+    const command = (value as { command: string }).command.trim();
+    return command || null;
+  }
+  return null;
+}
+
 function extractPackageScripts(source: CodebaseSource) {
   const packageEntries = Object.entries(source.manifests)
     .filter(([path]) => normalizedName(path) === 'package.json')
-    .sort(([left], [right]) => left.localeCompare(right));
-  const rootPackage = packageEntries.find(([path]) => path === 'package.json') || packageEntries[0];
-  if (!rootPackage) return [];
+    .sort(([left], [right]) => {
+      const depthDiff = left.split('/').length - right.split('/').length;
+      return depthDiff !== 0 ? depthDiff : left.localeCompare(right);
+    });
+  if (!packageEntries.length) return [];
 
-  try {
-    const packageData = JSON.parse(rootPackage[1]);
-    const packageManager = typeof packageData.packageManager === 'string'
-      ? packageData.packageManager.split('@')[0]
-      : source.paths.includes('pnpm-lock.yaml')
-        ? 'pnpm'
-        : source.paths.includes('yarn.lock')
-          ? 'yarn'
-          : source.paths.includes('bun.lockb') || source.paths.includes('bun.lock')
-            ? 'bun'
-            : 'npm';
-    const runPrefix = packageManager === 'npm' ? 'npm run' : packageManager === 'bun' ? 'bun run' : packageManager;
-    const preferredOrder = [
-      'dev',
-      'start',
-      'serve',
-      'build',
-      'test',
-      'lint',
-      'typecheck',
-      'check',
-      'tauri:dev',
-      'tauri:build',
-      'preview',
-    ];
-    const preferredRank = (name: string) => {
-      const index = preferredOrder.indexOf(name);
-      return index === -1 ? preferredOrder.length : index;
-    };
+  const preferredOrder = [
+    'dev',
+    'start',
+    'serve',
+    'build',
+    'test',
+    'lint',
+    'typecheck',
+    'check',
+    'tauri:dev',
+    'tauri:build',
+    'preview',
+  ];
+  const preferredRank = (name: string) => {
+    const index = preferredOrder.indexOf(name);
+    return index === -1 ? preferredOrder.length : index;
+  };
 
-    return Object.entries(packageData.scripts || {})
-      .filter((entry): entry is [string, string] => typeof entry[1] === 'string')
-      .map(([name, command]) => ({ name, command, runCommand: `${runPrefix} ${name}` }))
-      .sort((a, b) => {
-        const rankDiff = preferredRank(a.name) - preferredRank(b.name);
-        return rankDiff !== 0 ? rankDiff : a.name.localeCompare(b.name);
+  type ParsedPackage = {
+    path: string;
+    depth: number;
+    packageManager: string;
+    scripts: Array<{ name: string; command: string }>;
+  };
+
+  const parsedPackages: ParsedPackage[] = [];
+  for (const [path, content] of packageEntries) {
+    try {
+      const packageData = JSON.parse(content.replace(/^\uFEFF/, '')) as {
+        packageManager?: string;
+        scripts?: Record<string, unknown>;
+      };
+      const scripts = Object.entries(packageData.scripts || {})
+        .map(([name, value]) => {
+          const command = scriptCommandToString(value);
+          return command ? { name, command } : null;
+        })
+        .filter((entry): entry is { name: string; command: string } => Boolean(entry));
+      parsedPackages.push({
+        path,
+        depth: path.split('/').length,
+        packageManager: detectPackageManager(source, packageData),
+        scripts,
       });
-  } catch {
-    return [];
+    } catch {
+      // Skip invalid package.json files
+    }
   }
+
+  if (!parsedPackages.length) return [];
+
+  // Prefer root / shallowest package.json that actually defines scripts.
+  // Workspace roots often have an empty scripts map while apps/* has the real ones.
+  const withScripts = parsedPackages.filter(entry => entry.scripts.length > 0);
+  const chosen =
+    withScripts.find(entry => entry.path === 'package.json' || !entry.path.includes('/')) ||
+    withScripts[0] ||
+    parsedPackages.find(entry => entry.path === 'package.json' || !entry.path.includes('/')) ||
+    parsedPackages[0];
+
+  const runPrefix =
+    chosen.packageManager === 'npm'
+      ? 'npm run'
+      : chosen.packageManager === 'bun'
+        ? 'bun run'
+        : chosen.packageManager;
+
+  // If the chosen package has scripts, use those. Otherwise merge every package.json
+  // (disambiguate duplicate names with the package folder).
+  const scriptRows =
+    chosen.scripts.length > 0
+      ? chosen.scripts.map(script => ({
+          name: script.name,
+          command: script.command,
+          runCommand: `${runPrefix} ${script.name}`,
+        }))
+      : withScripts.flatMap(entry => {
+          const folder = entry.path.includes('/')
+            ? entry.path.replace(/\/package\.json$/i, '')
+            : '.';
+          const prefix =
+            entry.packageManager === 'npm'
+              ? 'npm run'
+              : entry.packageManager === 'bun'
+                ? 'bun run'
+                : entry.packageManager;
+          return entry.scripts.map(script => ({
+            name: withScripts.length > 1 ? `${script.name} (${folder})` : script.name,
+            command: script.command,
+            runCommand: `${prefix} ${script.name}`,
+          }));
+        });
+
+  return scriptRows.sort((a, b) => {
+    const aBase = a.name.split(' ')[0];
+    const bBase = b.name.split(' ')[0];
+    const rankDiff = preferredRank(aBase) - preferredRank(bBase);
+    return rankDiff !== 0 ? rankDiff : a.name.localeCompare(b.name);
+  });
 }
 
 function detectFrameworks(source: CodebaseSource): string[] {

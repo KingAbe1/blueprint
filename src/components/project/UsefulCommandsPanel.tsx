@@ -99,7 +99,9 @@ export const UsefulCommandsPanel: React.FC<UsefulCommandsPanelProps> = React.mem
     return scripts.length > 0 ? (
       <div>{list}</div>
     ) : (
-      <p className={`px-5 py-10 text-center text-sm sm:px-6 ${muted}`}>No package scripts in package.json.</p>
+      <p className={`px-5 py-10 text-center text-sm sm:px-6 ${muted}`}>
+        No scripts found in package.json. Rescan after adding a scripts section, or check nested workspace packages.
+      </p>
     );
   }
 
