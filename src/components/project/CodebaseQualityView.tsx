@@ -18,7 +18,11 @@ import {
   overviewSeverityLabel,
   type OverviewEmphasis,
 } from './overviewUi';
-import { FindingAiExplanation } from './FindingAiExplanation';
+import {
+  FindingAiPanel,
+  FindingAiProvider,
+  FindingAiTrigger,
+} from './FindingAiExplanation';
 import { saveExportText } from '../../utils/exportFileSave';
 import { OpenInIdeButton } from './OpenInIdeButton';
 import { resolveFindingOpenLine } from '../../utils/openInIde';
@@ -597,9 +601,48 @@ ${selectedFinding.detail}${snippetText}${evidenceText}
 
               <div className="lg:col-span-7 max-h-[560px] overflow-y-auto px-5 py-4 sm:px-6 sm:py-5">
                 {selectedFinding && parsedSelected ? (
+                  <FindingAiProvider
+                    findingId={
+                      selectedFinding.ruleId ||
+                      `${selectedFinding.title}:${selectedFinding.location?.path || ''}:${selectedFinding.location?.line || ''}`
+                    }
+                    frameworkLabel={
+                      selectedFinding.source === 'blueprint-nextjs'
+                        ? 'Next.js'
+                        : selectedFinding.source === 'blueprint-remix'
+                          ? 'Remix'
+                          : selectedFinding.source === 'blueprint-expo'
+                            ? 'Expo'
+                            : selectedFinding.source === 'blueprint-nodejs'
+                              ? 'Node.js'
+                              : analysis.frameworks[0] || 'Codebase'
+                    }
+                    title={selectedFinding.title}
+                    category={selectedFinding.category}
+                    severity={selectedFinding.priority}
+                    impact={selectedFinding.detail}
+                    remediation={
+                      parsedSelected.remediationAdvice.length > 0
+                        ? parsedSelected.remediationAdvice.join('\n')
+                        : selectedFinding.detail
+                    }
+                    file={selectedFinding.location?.path}
+                    focusLine={
+                      selectedFinding.codeSnippet?.focusLine || selectedFinding.location?.line
+                    }
+                    analysis={analysis}
+                    codeSnippet={
+                      selectedFinding.codeSnippet?.lines?.length
+                        ? selectedFinding.codeSnippet.lines
+                            .map((line, i) => `${selectedFinding.codeSnippet!.startLine + i}|${line}`)
+                            .join('\n')
+                        : undefined
+                    }
+                    variant="toolbar"
+                  >
                   <div className="space-y-4">
-                    <div className="flex flex-wrap items-start justify-between gap-3">
-                      <div className="min-w-0">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0 flex-1">
                         <p className={`text-xs ${muted}`}>
                           {selectedFinding.category || 'quality'}
                           {' · '}
@@ -631,7 +674,15 @@ ${selectedFinding.detail}${snippetText}${evidenceText}
                           })()}
                         </p>
                       </div>
-                      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs font-medium">
+                      <div
+                        className={`inline-flex shrink-0 flex-nowrap items-center gap-0.5 rounded-lg border p-0.5 ${
+                          isDark
+                            ? 'border-white/[0.08] bg-white/[0.03]'
+                            : 'border-slate-200/90 bg-slate-50/80'
+                        }`}
+                        role="group"
+                        aria-label="Finding actions"
+                      >
                         {selectedFinding.location?.path ? (
                           <>
                             <OpenInIdeButton
@@ -643,22 +694,33 @@ ${selectedFinding.detail}${snippetText}${evidenceText}
                               title={selectedFinding.title}
                               impact={selectedFinding.detail}
                               category={selectedFinding.category}
+                              className={
+                                isDark
+                                  ? 'inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-[11px] font-medium text-slate-300 transition-colors hover:bg-white/[0.06] hover:text-white'
+                                  : 'inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-[11px] font-medium text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-900'
+                              }
                             />
                             <button
                               type="button"
                               onClick={() => openFileInAnalysis(selectedFinding.location!.path!)}
                               className={
-                                isDark ? 'text-blue-400 hover:text-blue-300' : 'text-blue-600 hover:text-blue-800'
+                                isDark
+                                  ? 'inline-flex items-center rounded-md px-2 py-1 text-[11px] font-medium text-slate-300 hover:bg-white/[0.06] hover:text-white'
+                                  : 'inline-flex items-center rounded-md px-2 py-1 text-[11px] font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900'
                               }
                             >
-                              Open in tree
+                              Tree
                             </button>
                             <button
                               type="button"
                               onClick={copyFilePath}
-                              className={isDark ? 'text-slate-400 hover:text-slate-200' : 'text-slate-600 hover:text-slate-900'}
+                              className={
+                                isDark
+                                  ? 'inline-flex items-center rounded-md px-2 py-1 text-[11px] font-medium text-slate-300 hover:bg-white/[0.06] hover:text-white'
+                                  : 'inline-flex items-center rounded-md px-2 py-1 text-[11px] font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+                              }
                             >
-                              {copiedPath ? 'Path copied' : 'Copy path'}
+                              {copiedPath ? 'Copied' : 'Path'}
                             </button>
                           </>
                         ) : null}
@@ -666,11 +728,14 @@ ${selectedFinding.detail}${snippetText}${evidenceText}
                           type="button"
                           onClick={copyRemediation}
                           className={
-                            isDark ? 'text-blue-400 hover:text-blue-300' : 'text-blue-600 hover:text-blue-800'
+                            isDark
+                              ? 'inline-flex items-center rounded-md px-2 py-1 text-[11px] font-medium text-slate-300 hover:bg-white/[0.06] hover:text-white'
+                              : 'inline-flex items-center rounded-md px-2 py-1 text-[11px] font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900'
                           }
                         >
-                          {copiedRemediation ? 'Prompt copied' : 'Copy prompt'}
+                          {copiedRemediation ? 'Copied' : 'Prompt'}
                         </button>
+                        <FindingAiTrigger />
                         {isAiConfigured && selectedFinding && qualityReviewPathFromFinding(selectedFinding) ? (
                           <button
                             type="button"
@@ -683,10 +748,12 @@ ${selectedFinding.detail}${snippetText}${evidenceText}
                               });
                             }}
                             className={
-                              isDark ? 'text-violet-300 hover:text-violet-200' : 'text-violet-700 hover:text-violet-900'
+                              isDark
+                                ? 'inline-flex items-center rounded-md px-2 py-1 text-[11px] font-medium text-slate-300 hover:bg-white/[0.06] hover:text-white'
+                                : 'inline-flex items-center rounded-md px-2 py-1 text-[11px] font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900'
                             }
                           >
-                            Review with AI
+                            Review
                           </button>
                         ) : null}
                       </div>
@@ -699,44 +766,7 @@ ${selectedFinding.detail}${snippetText}${evidenceText}
                       </p>
                     </div>
 
-                    <FindingAiExplanation
-                      findingId={
-                        selectedFinding.ruleId ||
-                        `${selectedFinding.title}:${selectedFinding.location?.path || ''}:${selectedFinding.location?.line || ''}`
-                      }
-                      frameworkLabel={
-                        selectedFinding.source === 'blueprint-nextjs'
-                          ? 'Next.js'
-                          : selectedFinding.source === 'blueprint-remix'
-                            ? 'Remix'
-                            : selectedFinding.source === 'blueprint-expo'
-                              ? 'Expo'
-                              : selectedFinding.source === 'blueprint-nodejs'
-                                ? 'Node.js'
-                                : analysis.frameworks[0] || 'Codebase'
-                      }
-                      title={selectedFinding.title}
-                      category={selectedFinding.category}
-                      severity={selectedFinding.priority}
-                      impact={selectedFinding.detail}
-                      remediation={
-                        parsedSelected.remediationAdvice.length > 0
-                          ? parsedSelected.remediationAdvice.join('\n')
-                          : selectedFinding.detail
-                      }
-                      file={selectedFinding.location?.path}
-                      focusLine={
-                        selectedFinding.location?.line || selectedFinding.codeSnippet?.focusLine
-                      }
-                      analysis={analysis}
-                      codeSnippet={
-                        selectedFinding.codeSnippet?.lines?.length
-                          ? selectedFinding.codeSnippet.lines
-                              .map((line, i) => `${selectedFinding.codeSnippet!.startLine + i}|${line}`)
-                              .join('\n')
-                          : undefined
-                      }
-                    />
+                    <FindingAiPanel />
 
                     {selectedFinding.codeSnippet ? (
                       <div>
@@ -791,6 +821,7 @@ ${selectedFinding.detail}${snippetText}${evidenceText}
                       </div>
                     ) : null}
                   </div>
+                  </FindingAiProvider>
                 ) : (
                   <div className={`flex min-h-[240px] flex-col items-center justify-center text-center ${muted}`}>
                     <p className={`text-sm font-medium ${titleText}`}>Select a finding</p>
