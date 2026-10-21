@@ -476,12 +476,12 @@ fn ide_binary_and_app(ide_id: &str) -> Result<(&'static str, Option<&'static str
     }
 }
 
-fn push_unique(candidates: &mut Vec<String>, path: impl Into<String>) {
-    let path = path.into();
-    if path.is_empty() || candidates.iter().any(|existing| existing == &path) {
+fn push_unique(candidates: &mut Vec<String>, path: impl AsRef<str>) {
+    let path = path.as_ref();
+    if path.is_empty() || candidates.iter().any(|existing| existing == path) {
         return;
     }
-    candidates.push(path);
+    candidates.push(path.to_string());
 }
 
 fn join_home(segments: &[&str]) -> Option<PathBuf> {
@@ -601,35 +601,35 @@ fn ide_bundle_cli_candidates(ide_id: &str) -> Vec<String> {
         match ide_id {
             "cursor" => {
                 push_home_bin("cursor", &mut out);
-                push_unique(&mut out, "/usr/share/cursor/bin/cursor".into());
-                push_unique(&mut out, "/opt/Cursor/bin/cursor".into());
-                push_unique(&mut out, "/opt/cursor/bin/cursor".into());
+                push_unique(&mut out, "/usr/share/cursor/bin/cursor");
+                push_unique(&mut out, "/opt/Cursor/bin/cursor");
+                push_unique(&mut out, "/opt/cursor/bin/cursor");
             }
             "vscode" => {
                 push_home_bin("code", &mut out);
                 push_home_bin("codium", &mut out);
-                push_unique(&mut out, "/usr/share/code/bin/code".into());
-                push_unique(&mut out, "/usr/bin/code".into());
-                push_unique(&mut out, "/snap/bin/code".into());
-                push_unique(&mut out, "/usr/share/codium/bin/codium".into());
+                push_unique(&mut out, "/usr/share/code/bin/code");
+                push_unique(&mut out, "/usr/bin/code");
+                push_unique(&mut out, "/snap/bin/code");
+                push_unique(&mut out, "/usr/share/codium/bin/codium");
             }
             "windsurf" => {
                 push_home_bin("windsurf", &mut out);
-                push_unique(&mut out, "/usr/share/windsurf/bin/windsurf".into());
-                push_unique(&mut out, "/opt/Windsurf/bin/windsurf".into());
+                push_unique(&mut out, "/usr/share/windsurf/bin/windsurf");
+                push_unique(&mut out, "/opt/Windsurf/bin/windsurf");
             }
             "zed" => {
                 push_home_bin("zed", &mut out);
-                push_unique(&mut out, "/usr/bin/zed".into());
-                push_unique(&mut out, "/usr/local/bin/zed".into());
+                push_unique(&mut out, "/usr/bin/zed");
+                push_unique(&mut out, "/usr/local/bin/zed");
                 if let Some(path) = join_home(&[".local", "zed", "bin", "zed"]) {
-                    push_unique(&mut out, path.to_string_lossy().to_string());
+                    push_unique(&mut out, path.to_string_lossy());
                 }
             }
             "sublime" => {
                 push_home_bin("subl", &mut out);
-                push_unique(&mut out, "/usr/bin/subl".into());
-                push_unique(&mut out, "/opt/sublime_text/sublime_text".into());
+                push_unique(&mut out, "/usr/bin/subl");
+                push_unique(&mut out, "/opt/sublime_text/sublime_text");
             }
             "webstorm" => {
                 push_home_bin("webstorm", &mut out);
