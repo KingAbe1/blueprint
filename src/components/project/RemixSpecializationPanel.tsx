@@ -33,6 +33,7 @@ const CATEGORY_LABELS: Record<'all' | RemixImprovementCategory, string> = {
   'config-delivery': 'Config',
   security: 'Security',
   'seo-metadata': 'SEO',
+  'data-caching': 'Caching',
   modernization: 'Modern',
 };
 
@@ -45,6 +46,7 @@ const CATEGORY_KEYS = [
   'config-delivery',
   'security',
   'seo-metadata',
+  'data-caching',
   'modernization',
 ] as const;
 
@@ -206,6 +208,7 @@ export const RemixSpecializationPanel: React.FC<RemixSpecializationPanelProps> =
       'config-delivery': 0,
       security: 0,
       'seo-metadata': 0,
+      'data-caching': 0,
       modernization: 0,
     };
     for (const item of improvements) {

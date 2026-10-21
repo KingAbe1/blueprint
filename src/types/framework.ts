@@ -160,6 +160,7 @@ export type RemixImprovementCategory =
   | 'config-delivery'
   | 'security'
   | 'seo-metadata'
+  | 'data-caching'
   | 'modernization';
 
 export type RemixImprovementSeverity = 'critical' | 'warning' | 'optimization';
@@ -205,6 +206,8 @@ export interface RemixResilienceAudit {
   routeErrorBoundaryCount: number;
   missingErrorBoundaryRoutes: string[];
   hasHydrateFallback: boolean;
+  /** Catch-all / splat 404 route present. */
+  hasCatchAllRoute?: boolean;
 }
 
 export interface RemixBundleAudit {
@@ -234,6 +237,8 @@ export interface RemixSecurityAudit {
   unsignedCookieFiles?: string[];
   openRedirectFiles?: string[];
   secretInLoaderReturnFiles?: string[];
+  secretInActionReturnFiles?: string[];
+  missingCsrfActionFiles?: string[];
   issueCount: number;
 }
 
@@ -241,6 +246,8 @@ export interface RemixSeoAudit {
   hasRootMeta: boolean;
   hasRootLinks: boolean;
   routesMissingMeta: string[];
+  hasRobotsRoute?: boolean;
+  hasSitemapRoute?: boolean;
   issueCount: number;
 }
 
@@ -357,6 +364,8 @@ export interface NodeJsConfigAudit {
   eolNodeEngine?: boolean;
   /** Committed secret env files found in the tree (not .env.example). */
   committedEnvFiles?: string[];
+  /** Root tsconfig has strict: false. */
+  looseTsconfig?: boolean;
   issueCount: number;
 }
 
@@ -368,12 +377,14 @@ export interface NodeJsSecurityAudit {
   hardcodedSecretFiles: string[];
   weakCookieFiles?: string[];
   unboundedUploadFiles?: string[];
+  unboundedBodyParserFiles?: string[];
   errorLeakFiles?: string[];
   sqlInjectionFiles?: string[];
   pathTraversalFiles?: string[];
   webhookUnsignedFiles?: string[];
   weakJwtFiles?: string[];
   dependencyFootguns?: string[];
+  tlsInsecureFiles?: string[];
   issueCount: number;
 }
 
@@ -430,6 +441,8 @@ export interface ExpoSecurityAudit {
   weakSessionStorageFiles?: string[];
   /** Cleartext http:// fetches or cleartext traffic enabled. */
   cleartextNetworkFiles?: string[];
+  openDeepLinkFiles?: string[];
+  untrustedWebViewFiles?: string[];
   issueCount: number;
 }
 
@@ -448,6 +461,10 @@ export interface ExpoConfigAudit {
   missingPrivacyDescriptions?: string[];
   /** No eas.json or production profile looks incomplete. */
   easIssue?: boolean;
+  missingLintScript?: boolean;
+  missingTypecheckSignal?: boolean;
+  /** Android backup enabled while secure token storage is used. */
+  androidBackupRisk?: boolean;
   issueCount: number;
 }
 

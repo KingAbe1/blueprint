@@ -24,6 +24,30 @@ const WEAK_SESSION_STORAGE =
 const CLEARTEXT_HTTP =
   /\bfetch\s*\(\s*['"]http:\/\/(?!localhost|127\.0\.0\.1|10\.|192\.168\.)[^'"]+['"]|\baxios\.(?:get|post|put|patch|delete|request)\s*\(\s*['"]http:\/\/(?!localhost|127\.0\.0\.1)/i;
 
+export const VALIDATION_SIGNAL =
+  /\b(?:z\.|valibot|yup|zod|schema\.parse|safeParse|parseAsync)\b/i;
+
+const AUTH_HEADER_SIGNAL =
+  /\b(?:Authorization|Bearer|getToken|accessToken|SecureStore\.getItemAsync|auth(?:Token|Header)|session)\b/i;
+
+const HEAVY_CLIENT_LIBS =
+  /\bfrom\s*['"](?:three|@react-three\/fiber|chart\.js|recharts|d3|monaco-editor|@monaco-editor\/react|leaflet|mapbox-gl|react-native-maps|victory-native|gifted-charts)['"]/i;
+
+const OPEN_DEEP_LINK =
+  /\b(?:Linking\.openURL|WebBrowser\.openBrowserAsync|WebBrowser\.openAuthSessionAsync|openAuthSessionAsync)\s*\(\s*(?:[^)]*(?:params|searchParams|route\.|useLocalSearchParams|query|href))/i;
+
+const DEEP_LINK_ALLOWLIST =
+  /\b(?:startsWith\s*\(\s*['"](?:https?:\/\/|[\w+-]+:)|allowedHosts|ALLOW(?:ED)?_HOST|originWhitelist|canOpenURL)/i;
+
+const UNTRUSTED_WEBVIEW =
+  /<(?:WebView|webview)\b[^>]*(?:source\s*=\s*\{\s*\{\s*uri\s*:\s*(?:[^}]*(?:params|searchParams|route|uri\s*=))|source=\{\{[^}]*uri:\s*(?:props|param))/i;
+
+const ANDROID_BACKUP_TRUE =
+  /android:allowBackup\s*=\s*["']true["']|allowBackup\s*:\s*true|"allowBackup"\s*:\s*true/i;
+
+const ANDROID_BACKUP_FALSE =
+  /android:allowBackup\s*=\s*["']false["']|allowBackup\s*:\s*false|"allowBackup"\s*:\s*false/i;
+
 const SENSITIVE_API_USAGE: Array<{ api: RegExp; iosKey: string; label: string }> = [
   { api: /\b(?:expo-camera|Camera\.|useCameraPermissions)\b/, iosKey: 'NSCameraUsageDescription', label: 'camera' },
   { api: /\b(?:expo-image-picker|ImagePicker\.)\b/, iosKey: 'NSPhotoLibraryUsageDescription', label: 'photo library' },
@@ -164,6 +188,8 @@ export function auditExpoSecurity(
   const hardcodedSecretFiles: string[] = [];
   const weakSessionStorageFiles: string[] = [];
   const cleartextNetworkFiles: string[] = [];
+  const openDeepLinkFiles: string[] = [];
+  const untrustedWebViewFiles: string[] = [];
 
   for (const [path, content] of Object.entries(sourceContents)) {
     if (!isSourceFile(path) || !content) continue;
@@ -233,6 +259,77 @@ export function auditExpoSecurity(
         file: path,
       });
     }
+
+    // Open redirect analogue: deep links / browser sessions from params
+    if (OPEN_DEEP_LINK.test(content) && !DEEP_LINK_ALLOWLIST.test(content)) {
+      openDeepLinkFiles.push(path);
+      improvements.push({
+        id: `security-open-deeplink-${path}`,
+        category: 'security',
+        severity: 'warning',
+        title: `User-Controlled Deep Link in ${fileName(path)}`,
+        impact: `${path} opens a URL from route/params without an obvious scheme/host allowlist. Malicious links can phish or leave the app unexpectedly.`,
+        remediation: 'Allowlist https hosts / custom schemes before Linking.openURL / WebBrowser; reject unexpected URLs.',
+        file: path,
+      });
+    }
+
+    if (
+      (UNTRUSTED_WEBVIEW.test(content) ||
+        (/<WebView\b/.test(content) &&
+          /uri\s*:/.test(content) &&
+          /\b(?:params|searchParams|route\.|useLocalSearchParams)\b/.test(content))) &&
+      !/\boriginWhitelist\s*=\s*\{\s*\[\s*['"]https?:\/\//.test(content)
+    ) {
+      untrustedWebViewFiles.push(path);
+      improvements.push({
+        id: `security-webview-uri-${path}`,
+        category: 'security',
+        severity: 'warning',
+        title: `WebView Loads Untrusted URI in ${fileName(path)}`,
+        impact: `${path} feeds a WebView uri from params/state without a tight originWhitelist. Untrusted pages can steal session data.`,
+        remediation: 'Only load allowlisted https origins; set a restrictive originWhitelist and disable JS if not required.',
+        file: path,
+      });
+    }
+
+    // Client API mutation hygiene (Next API route analogue on device)
+    const mutatesApi =
+      /\b(?:fetch|axios)\s*\([\s\S]{0,200}(?:method\s*:\s*['"](?:POST|PUT|PATCH|DELETE)|['"](?:POST|PUT|PATCH|DELETE)['"])/i.test(
+        content,
+      ) ||
+      /\baxios\.(?:post|put|patch|delete)\s*\(/.test(content);
+    const looksApiCall =
+      /['"`][^'"`]*(?:\/api\/|EXPO_PUBLIC_.*URL|API_URL|BASE_URL)/i.test(content) ||
+      /\bfetch\s*\(/.test(content);
+    if (mutatesApi && looksApiCall && !VALIDATION_SIGNAL.test(content) && content.split(/\r\n|\n|\r/).length > 40) {
+      improvements.push({
+        id: `security-api-unvalidated-${path}`,
+        category: 'security',
+        severity: 'optimization',
+        title: `API Mutation Without Client Validation (${fileName(path)})`,
+        impact: `${path} POSTs/PUTs JSON without an obvious schema validator. Invalid payloads waste network and confuse backends.`,
+        remediation: 'Validate request bodies with Zod/Yup before fetch/axios, matching your API contract.',
+        file: path,
+      });
+    }
+    if (
+      looksApiCall &&
+      mutatesApi &&
+      !AUTH_HEADER_SIGNAL.test(content) &&
+      !/(?:login|signin|signup|register|public|oauth)/i.test(path) &&
+      content.split(/\r\n|\n|\r/).length > 40
+    ) {
+      improvements.push({
+        id: `security-api-no-auth-${path}`,
+        category: 'security',
+        severity: 'warning',
+        title: `Protected API Call Without Auth Signal (${fileName(path)})`,
+        impact: `${path} mutates a backend API without an Authorization/Bearer/SecureStore token signal.`,
+        remediation: 'Attach a Bearer token (from SecureStore) or session header on authenticated API calls.',
+        file: path,
+      });
+    }
   }
 
   const committedEnv = normalizedPaths.filter(path => {
@@ -277,12 +374,16 @@ export function auditExpoSecurity(
     hardcodedSecretFiles,
     weakSessionStorageFiles,
     cleartextNetworkFiles,
+    openDeepLinkFiles,
+    untrustedWebViewFiles,
     issueCount:
       asyncStorageTokenFiles.length +
       secretInPublicEnvFiles.length +
       hardcodedSecretFiles.length +
       weakSessionStorageFiles.length +
-      cleartextNetworkFiles.length,
+      cleartextNetworkFiles.length +
+      openDeepLinkFiles.length +
+      untrustedWebViewFiles.length,
   };
 }
 
@@ -453,6 +554,67 @@ export function auditExpoConfig(
     }
   }
 
+  // Lint / typecheck quality gates (Next/Remix/Node parity)
+  let missingLintScript = false;
+  let missingTypecheckSignal = false;
+  const rootPkg =
+    manifests['package.json'] ||
+    Object.entries(manifests).find(([p]) => /(^|\/)package\.json$/i.test(p.replace(/\\/g, '/')))?.[1];
+  if (rootPkg) {
+    try {
+      const pkg = JSON.parse(rootPkg) as { scripts?: Record<string, string> };
+      const scriptBlob = Object.entries(pkg.scripts || {})
+        .map(([name, cmd]) => `${name} ${cmd}`)
+        .join('\n');
+      missingLintScript = !/\b(?:lint|eslint)\b/i.test(scriptBlob);
+      missingTypecheckSignal =
+        !/\b(?:type-?check|tsc\b)\b/i.test(scriptBlob) &&
+        !normalizedPaths.some(path => /(^|\/)tsconfig(?:\.[^/]+)?\.json$/i.test(path));
+    } catch {
+      // ignore
+    }
+  }
+  if (missingLintScript) {
+    improvements.push({
+      id: 'config-missing-lint-script',
+      category: 'config-delivery',
+      severity: 'optimization',
+      title: 'No Lint Script in package.json',
+      impact: 'Without a lint script, contributors and CI lack a standard quality gate for Expo/RN code.',
+      remediation: 'Add an ESLint (expo/eslint-config) lint script and run it in CI.',
+      file: 'package.json',
+    });
+  }
+  if (missingTypecheckSignal) {
+    improvements.push({
+      id: 'config-missing-typecheck',
+      category: 'config-delivery',
+      severity: 'warning',
+      title: 'No Typecheck Signal Detected',
+      impact: 'TypeScript Expo apps without tsc/typecheck miss navigation and API typing regressions.',
+      remediation: 'Add a typecheck script (`tsc --noEmit`) and run it in CI.',
+      file: 'package.json',
+    });
+  }
+
+  // Android backup vs secure token storage
+  const usesSecureStore = Object.values(sourceContents).some(c => SECURE_STORE.test(c || ''));
+  const configAllowsBackup = ANDROID_BACKUP_TRUE.test(configContent);
+  const configDisallowsBackup = ANDROID_BACKUP_FALSE.test(configContent);
+  const androidBackupRisk = Boolean(usesSecureStore && configAllowsBackup && !configDisallowsBackup);
+  if (androidBackupRisk) {
+    improvements.push({
+      id: 'config-android-backup-tokens',
+      category: 'security',
+      severity: 'warning',
+      title: 'Android Backup Enabled With Secure Token Storage',
+      impact:
+        'The app uses SecureStore/token storage but Android allowBackup appears true. Backups can exfiltrate app data on some devices.',
+      remediation: 'Set `android.allowBackup: false` (or equivalent manifest flag) for apps that store auth material on device.',
+      file: configPath,
+    });
+  }
+
   // EAS build profile
   const easPath = normalizedPaths.find(p => /(^|\/)eas\.json$/i.test(p));
   const easContent = easPath ? sourceContents[easPath] || manifests[easPath] || manifests['eas.json'] || '' : '';
@@ -511,6 +673,9 @@ export function auditExpoConfig(
     newArchDisabled,
     missingPrivacyDescriptions,
     easIssue,
+    missingLintScript,
+    missingTypecheckSignal,
+    androidBackupRisk,
     issueCount: [
       !hasAppConfig,
       missingScheme,
@@ -520,12 +685,15 @@ export function auditExpoConfig(
       newArchDisabled,
       missingPrivacyDescriptions.length > 0,
       easIssue,
+      missingLintScript,
+      missingTypecheckSignal,
+      androidBackupRisk,
     ].filter(Boolean).length,
   };
 }
 
 export function auditExpoPerformance(
-  _normalizedPaths: string[],
+  normalizedPaths: string[],
   sourceContents: Record<string, string>,
   improvements: ExpoArchitecturalImprovement[],
 ): ExpoPerformanceAudit {
@@ -535,6 +703,22 @@ export function auditExpoPerformance(
   for (const [path, content] of Object.entries(sourceContents)) {
     if (!isSourceFile(path) || !content) continue;
     if (/(^|\/)(?:node_modules|android|ios)\//i.test(path)) continue;
+
+    // Heavy libs at app root / layout (Next heavy-client analogue)
+    const isRootish =
+      /(^|\/)(?:app\/_layout|App|src\/App|app\/\(tabs\)\/_layout)\.(?:jsx?|tsx?)$/i.test(path) ||
+      collectExpoEntryFiles(normalizedPaths).includes(path);
+    if (isRootish && HEAVY_CLIENT_LIBS.test(content) && !/\b(?:React\.lazy|lazy\s*\(|import\s*\()/i.test(content)) {
+      improvements.push({
+        id: `perf-heavy-root-${path}`,
+        category: 'performance',
+        severity: 'optimization',
+        title: `Heavy Library at App Root (${fileName(path)})`,
+        impact: `${path} imports maps/charts/3D libraries at the root layout. That inflates startup JS for every screen.`,
+        remediation: 'Lazy-load heavy screens with React.lazy / dynamic import so root stays thin.',
+        file: path,
+      });
+    }
 
     if (/\bFlatList\b/.test(content)) {
       const missingKey = !/\bkeyExtractor\b/.test(content);
@@ -576,6 +760,45 @@ export function auditExpoPerformance(
     }
   }
 
+  // Large screens without local error boundary (Next segment error.tsx analogue) — batched
+  const missingScreenErrorBoundaries: string[] = [];
+  for (const [path, content] of Object.entries(sourceContents)) {
+    if (!isSourceFile(path) || !content) continue;
+    if (/(^|\/)(?:node_modules|android|ios)\//i.test(path)) continue;
+    const lines = content.split(/\r\n|\n|\r/).length;
+    const isScreen =
+      /(^|\/)(?:app|screens|src\/screens)\//i.test(path) &&
+      !/_layout\./i.test(path) &&
+      !/error\./i.test(path);
+    if (
+      isScreen &&
+      lines > 80 &&
+      !/\bErrorBoundary\b|react-error-boundary/.test(content) &&
+      !normalizedPaths.some(
+        p =>
+          p !== path &&
+          p.replace(/\/[^/]+$/, '/') === path.replace(/\/[^/]+$/, '/') &&
+          /error\.(?:jsx?|tsx?)$/i.test(p),
+      )
+    ) {
+      missingScreenErrorBoundaries.push(path);
+    }
+  }
+  if (missingScreenErrorBoundaries.length >= 3) {
+    improvements.push({
+      id: 'perf-missing-screen-error-boundaries',
+      category: 'performance',
+      severity: 'optimization',
+      title: `Missing Error Boundaries on ${missingScreenErrorBoundaries.length} Large Screens`,
+      impact: `Screens like ${missingScreenErrorBoundaries
+        .slice(0, 3)
+        .map(fileName)
+        .join(', ')}${missingScreenErrorBoundaries.length > 3 ? ', …' : ''} have no local ErrorBoundary/error route. Render failures can blank larger parts of the navigator.`,
+      remediation: 'Add route-level error.tsx (Expo Router) or wrap critical screens in ErrorBoundary.',
+      file: missingScreenErrorBoundaries[0],
+    });
+  }
+
   // Permissions without usage description hints in config are hard; flag Contacts/Camera imports lightly
   for (const [path, content] of Object.entries(sourceContents)) {
     if (!isSourceFile(path) || !content) continue;
@@ -602,6 +825,9 @@ export function auditExpoPerformance(
   return {
     flatListWithoutOptimizationFiles,
     imageWithoutExpoImageFiles,
-    issueCount: flatListWithoutOptimizationFiles.length + imageWithoutExpoImageFiles.length,
+    issueCount:
+      flatListWithoutOptimizationFiles.length +
+      imageWithoutExpoImageFiles.length +
+      (missingScreenErrorBoundaries.length >= 3 ? 1 : 0),
   };
 }

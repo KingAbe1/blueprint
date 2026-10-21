@@ -130,7 +130,7 @@ export const nodeJsAnalyzer: FrameworkAnalyzer<NodeJsSpecialization> = {
     const routeAudit = auditNodeRoutes(normalizedPaths, sourceContents, improvements);
     const middlewareAudit = auditNodeMiddleware(normalizedPaths, sourceContents, entryFiles, improvements);
     const resilienceAudit = auditNodeResilience(normalizedPaths, sourceContents, entryFiles, improvements);
-    const configAudit = auditNodeConfig(manifests, normalizedPaths, improvements);
+    const configAudit = auditNodeConfig(manifests, normalizedPaths, improvements, sourceContents);
     const securityAudit = auditNodeSecurity(
       normalizedPaths,
       sourceContents,

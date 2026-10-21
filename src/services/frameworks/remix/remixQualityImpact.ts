@@ -30,6 +30,7 @@ function categoryForImprovement(
   if (category === 'config-delivery') return 'delivery';
   if (category === 'seo-metadata') return 'documentation';
   if (category === 'route-resilience') return 'structure';
+  if (category === 'data-caching') return 'performance';
   if (category === 'modernization') return 'correctness';
   return 'maintainability';
 }

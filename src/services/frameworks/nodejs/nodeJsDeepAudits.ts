@@ -88,6 +88,23 @@ const DEPRECATED_CRYPTO_SIGNAL = /\bcrypto\.createCipher\s*\(|\.createCipher\s*\
 /** Node majors at or below this are treated as EOL for engines.node warnings. */
 const EOL_NODE_MAJOR_MAX = 18;
 
+const BODY_PARSER_SIGNAL =
+  /\b(?:express\.json|bodyParser\.json|body-parser|fastify\.(?:register|addContentTypeParser)|@fastify\/formbody)\s*\(/i;
+
+const BODY_LIMIT_SIGNAL = /\b(?:limit|bodyLimit)\s*:/i;
+
+const CACHE_HEADER_SIGNAL =
+  /\b(?:Cache-Control|cache-control|ETag|etag|maxAge|max-age|fresh|res\.set\s*\([^)]*Cache)/i;
+
+const TLS_INSECURE_SIGNAL =
+  /\bNODE_TLS_REJECT_UNAUTHORIZED\s*=\s*['"]?0['"]?|rejectUnauthorized\s*:\s*false/i;
+
+const X_POWERED_BY_DISABLE =
+  /\b(?:disable\s*\(\s*['"]x-powered-by['"]|x-powered-by\s*:\s*false|hidePoweredBy)\b/i;
+
+const HEALTH_ROUTE_SIGNAL =
+  /(?:^|\/)(?:health|ready|livez|readyz|ping|status)(?:\/|$|\.)|(?:['"`])\/(?:health|ready|livez|readyz|ping|status)(?:['"`/])/i;
+
 function parseEnginesNodeMajor(enginesNode: string | undefined): number | undefined {
   if (!enginesNode) return undefined;
   const match = enginesNode.match(/(\d{1,2})/);
@@ -222,6 +239,41 @@ export function auditNodeRoutes(
         file: path,
       });
     }
+
+    // Large route/controller modules (Next/Remix complexity analogue)
+    if (lines > 120 && methodCount >= 3) {
+      improvements.push({
+        id: `route-complexity-${path}`,
+        category: 'route-hygiene',
+        severity: 'optimization',
+        title: `Large Route Module in ${fileName(path)} (${lines} LOC)`,
+        impact: `${path} packs many handlers into one file. Oversized route modules mix validation, auth, and domain logic.`,
+        remediation: 'Split into routers + controllers/services; keep route files as thin wiring.',
+        file: path,
+      });
+    }
+
+    // Read-heavy GET handlers without cache hints
+    const hasGet =
+      /\.get\s*\(|@Get\s*\(/.test(content) &&
+      !/\.(?:post|put|patch|delete)\s*\(|@(?:Post|Put|Patch|Delete)\s*\(/.test(content);
+    if (
+      hasGet &&
+      !publicish &&
+      !CACHE_HEADER_SIGNAL.test(content) &&
+      lines > 40 &&
+      /\b(?:json|findMany|findAll|select|list)\b/i.test(content)
+    ) {
+      improvements.push({
+        id: `route-missing-cache-${path}`,
+        category: 'route-hygiene',
+        severity: 'optimization',
+        title: `GET Handler Without Cache Headers (${fileName(path)})`,
+        impact: `${path} serves list/JSON reads without Cache-Control/ETag signals. Clients and CDNs may refetch on every request.`,
+        remediation: 'Set Cache-Control / ETag for cacheable GETs, or document why the response must stay private/no-store.',
+        file: path,
+      });
+    }
   }
 
   return {
@@ -304,8 +356,43 @@ export function auditNodeMiddleware(
     });
   }
 
-  void normalizedPaths;
-  void corsPresent;
+  const usesExpressOrFastify =
+    /\b(?:express\s*\(|from\s*['"]express['"]|fastify\s*\(|from\s*['"]fastify['"])/.test(blob);
+  if (usesExpressOrFastify && entryFiles.length > 0 && !X_POWERED_BY_DISABLE.test(blob) && !helmetOrHeadersPresent) {
+    issueCount += 1;
+    improvements.push({
+      id: 'middleware-x-powered-by',
+      category: 'middleware',
+      severity: 'optimization',
+      title: 'X-Powered-By / Framework Fingerprint Not Disabled',
+      impact: 'Express/Fastify may advertise the stack via X-Powered-By (or similar) when helmet/hidePoweredBy is absent.',
+      remediation: 'Call `app.disable("x-powered-by")`, enable helmet hidePoweredBy, or strip the header at the reverse proxy.',
+      file: entryFiles[0],
+    });
+  }
+
+  const usesBrowserSessions = SESSION_COOKIE_SIGNAL.test(blob);
+  const hasMutationRoutes = normalizedPaths.some(path => {
+    const content = sourceContents[path] || '';
+    return (
+      isSourceFile(path) &&
+      /\.(?:post|put|patch|delete)\s*\(|@(?:Post|Put|Patch|Delete)\s*\(/.test(content)
+    );
+  });
+  if (usesBrowserSessions && hasMutationRoutes && !corsPresent && entryFiles.length > 0) {
+    issueCount += 1;
+    improvements.push({
+      id: 'middleware-missing-cors-with-sessions',
+      category: 'middleware',
+      severity: 'warning',
+      title: 'Session Cookies Without Explicit CORS Policy',
+      impact:
+        'Cookie/session APIs with mutation routes but no CORS setup often break browser clients or accidentally rely on defaults. Cross-origin SPAs need an explicit allowlist.',
+      remediation:
+        'Configure cors / @fastify/cors with an explicit origin allowlist and credentials: true only for trusted frontends.',
+      file: entryFiles[0],
+    });
+  }
 
   return {
     helmetOrHeadersPresent,
@@ -375,6 +462,26 @@ export function auditNodeResilience(
     if (issueCount > 8) break;
   }
 
+  const isContainerized = normalizedPaths.some(path =>
+    /(^|\/)(?:Dockerfile|docker-compose\.ya?ml|compose\.ya?ml|k8s\/|kubernetes\/|helm\/)/i.test(path),
+  );
+  const hasHealthRoute =
+    normalizedPaths.some(path => HEALTH_ROUTE_SIGNAL.test(path)) ||
+    Object.values(sourceContents).some(content => HEALTH_ROUTE_SIGNAL.test(content || ''));
+  if (isContainerized && !hasHealthRoute && entryFiles.length > 0) {
+    issueCount += 1;
+    improvements.push({
+      id: 'resilience-missing-health-probe',
+      category: 'error-handling',
+      severity: 'warning',
+      title: 'Containerized App Without Health/Ready Probe',
+      impact:
+        'Docker/Compose/k8s files are present but no health/ready/livez route was detected. Orchestrators cannot distinguish live vs ready processes cleanly.',
+      remediation: 'Expose `/health` (liveness) and `/ready` (readiness) that check process up vs dependency readiness.',
+      file: entryFiles[0],
+    });
+  }
+
   return {
     hasUncaughtExceptionHandler,
     hasUnhandledRejectionHandler,
@@ -387,6 +494,7 @@ export function auditNodeConfig(
   manifests: Record<string, string>,
   normalizedPaths: string[],
   improvements: NodeJsArchitecturalImprovement[],
+  sourceContents: Record<string, string> = {},
 ): NodeJsConfigAudit {
   let hasEnginesField = false;
   let isEsm = false;
@@ -493,6 +601,32 @@ export function auditNodeConfig(
     });
   }
 
+  let looseTsconfig = false;
+  const tsconfigCandidates = [
+    ...Object.entries(manifests),
+    ...Object.entries(sourceContents),
+  ].filter(([path]) => /(^|\/)tsconfig(?:\.[^/]+)?\.json$/i.test(path.replace(/\\/g, '/')));
+  for (const [path, content] of tsconfigCandidates) {
+    if (!content || looseTsconfig) continue;
+    try {
+      const cfg = JSON.parse(content) as { compilerOptions?: { strict?: boolean } };
+      if (cfg.compilerOptions?.strict === false) {
+        looseTsconfig = true;
+        improvements.push({
+          id: 'config-loose-tsconfig',
+          category: 'config-delivery',
+          severity: 'warning',
+          title: 'TypeScript strict Mode Disabled',
+          impact: `${path} sets compilerOptions.strict to false. That hides nullability and typing bugs that Next-style projects catch at build time.`,
+          remediation: 'Enable `"strict": true` (or migrate gradually with strictNullChecks) and keep `tsc --noEmit` in CI.',
+          file: path,
+        });
+      }
+    } catch {
+      // ignore
+    }
+  }
+
   return {
     hasEnginesField,
     isEsm,
@@ -500,12 +634,14 @@ export function auditNodeConfig(
     missingTypecheckSignal,
     eolNodeEngine,
     committedEnvFiles,
+    looseTsconfig,
     issueCount: [
       !hasEnginesField,
       eolNodeEngine,
       missingLintScript,
       missingTypecheckSignal,
       committedEnvFiles.length > 0,
+      looseTsconfig,
     ].filter(Boolean).length,
   };
 }
@@ -523,12 +659,14 @@ export function auditNodeSecurity(
   const hardcodedSecretFiles: string[] = [];
   const weakCookieFiles: string[] = [];
   const unboundedUploadFiles: string[] = [];
+  const unboundedBodyParserFiles: string[] = [];
   const errorLeakFiles: string[] = [];
   const sqlInjectionFiles: string[] = [];
   const pathTraversalFiles: string[] = [];
   const webhookUnsignedFiles: string[] = [];
   const weakJwtFiles: string[] = [];
   const dependencyFootguns: string[] = [];
+  const tlsInsecureFiles: string[] = [];
 
   for (const [path, content] of Object.entries(sourceContents)) {
     if (!isSourceFile(path) || !content) continue;
@@ -689,6 +827,41 @@ export function auditNodeSecurity(
       });
     }
 
+    // express.json / body-parser without limit (DoS class)
+    if (
+      BODY_PARSER_SIGNAL.test(content) &&
+      !BODY_LIMIT_SIGNAL.test(content) &&
+      /\.(?:post|put|patch)\s*\(|@(?:Post|Put|Patch)\s*\(|req\.body|request\.body/.test(content)
+    ) {
+      unboundedBodyParserFiles.push(path);
+      improvements.push({
+        id: `security-body-limit-${path}`,
+        category: 'security',
+        severity: 'warning',
+        title: `Unbounded JSON/Body Parser in ${fileName(path)}`,
+        impact: `${path} enables JSON/body parsing without an obvious size limit. Large payloads can exhaust memory.`,
+        remediation: 'Pass `limit` to express.json/body-parser, or `bodyLimit` for Fastify, sized for your largest legitimate request.',
+        file: path,
+      });
+    }
+
+    if (
+      TLS_INSECURE_SIGNAL.test(content) &&
+      !/(?:test|spec|fixture|mock)/i.test(path) &&
+      /\b(?:https|fetch|axios|tls|request)\b/i.test(content)
+    ) {
+      tlsInsecureFiles.push(path);
+      improvements.push({
+        id: `security-tls-insecure-${path}`,
+        category: 'security',
+        severity: 'critical',
+        title: `TLS Verification Disabled in ${fileName(path)}`,
+        impact: `${path} sets NODE_TLS_REJECT_UNAUTHORIZED=0 or rejectUnauthorized: false near outbound HTTPS. MITM becomes trivial.`,
+        remediation: 'Remove the override. Fix certificate trust with a proper CA bundle instead of disabling verification.',
+        file: path,
+      });
+    }
+
     if (ERROR_LEAK_SIGNAL.test(content)) {
       errorLeakFiles.push(path);
       improvements.push({
@@ -760,12 +933,14 @@ export function auditNodeSecurity(
     hardcodedSecretFiles,
     weakCookieFiles,
     unboundedUploadFiles,
+    unboundedBodyParserFiles,
     errorLeakFiles,
     sqlInjectionFiles,
     pathTraversalFiles,
     webhookUnsignedFiles,
     weakJwtFiles,
     dependencyFootguns,
+    tlsInsecureFiles,
     issueCount:
       (middlewareAudit.helmetOrHeadersPresent ? 0 : 1) +
       permissiveCorsFiles.length +
@@ -774,12 +949,14 @@ export function auditNodeSecurity(
       hardcodedSecretFiles.length +
       weakCookieFiles.length +
       unboundedUploadFiles.length +
+      unboundedBodyParserFiles.length +
       errorLeakFiles.length +
       sqlInjectionFiles.length +
       pathTraversalFiles.length +
       webhookUnsignedFiles.length +
       weakJwtFiles.length +
-      dependencyFootguns.length,
+      dependencyFootguns.length +
+      tlsInsecureFiles.length,
   };
 }
 

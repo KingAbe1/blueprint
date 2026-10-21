@@ -31,6 +31,15 @@ const LOADER_MUTATION_SIGNAL =
 const SECURITY_HEADER_SIGNAL =
   /Content-Security-Policy|X-Frame-Options|Strict-Transport-Security|X-Content-Type-Options|Referrer-Policy|Permissions-Policy/i;
 
+const CSRF_SIGNAL =
+  /\b(?:csrf|authenticityToken|@remix-run\/csrf|verifyAuthenticityToken|Origin|Referer|same-origin|formData\.get\s*\(\s*['"](?:_csrf|csrfToken|authenticityToken))/i;
+
+const CACHE_HEADER_SIGNAL =
+  /\b(?:Cache-Control|cache-control|max-age|cdn-cache-control|s-maxage|stale-while-revalidate)\b/i;
+
+const SECRET_RETURN_SIGNAL =
+  /return\s+(?:json\s*\()?\s*\{[^}]*(?:password|secret|privateKey|apiKey|accessToken|refreshToken|process\.env\.[A-Z0-9_]*(?:SECRET|TOKEN|KEY|PASSWORD))/i;
+
 function fileName(path: string): string {
   return path.split('/').pop() || path;
 }
@@ -165,8 +174,9 @@ export function auditRemixRouteHandlers(
     if (hasAction) {
       totalActions += 1;
       actionFiles.push(entry);
+      const actionBlock = extractNamedExportBlock(content, 'action') || content;
       const readsForm =
-        /\brequest\.(?:formData|json)\s*\(|formData\b|Object\.fromEntries/i.test(content);
+        /\brequest\.(?:formData|json)\s*\(|formData\b|Object\.fromEntries/i.test(actionBlock);
       if (readsForm && !hasValidation && !publicish) {
         unvalidatedActions += 1;
         improvements.push({
@@ -188,6 +198,19 @@ export function auditRemixRouteHandlers(
           title: `Missing Auth Guard in action (${name})`,
           impact: `${path} exports an action without an obvious auth check. Remix actions are public POST endpoints for the route.`,
           remediation: 'Verify the session at the start of the action and throw/redirect when unauthorized.',
+          file: path,
+        });
+      }
+      // CSRF / Origin hygiene for form-reading actions
+      if (readsForm && !publicish && !CSRF_SIGNAL.test(actionBlock) && !CSRF_SIGNAL.test(content) && lines > 40) {
+        improvements.push({
+          id: `action-missing-csrf-${path}`,
+          category: 'action-hygiene',
+          severity: 'warning',
+          title: `Action Without CSRF/Origin Check (${name})`,
+          impact: `${path} mutates via form/JSON without an obvious Origin/Referer check, authenticity token, or CSRF helper. Cross-site POSTs can forge actions.`,
+          remediation:
+            'Verify Origin/Referer against your host, use `@remix-run/csrf` / authenticity tokens, or same-origin session-bound form tokens.',
           file: path,
         });
       }
@@ -215,6 +238,72 @@ export function auditRemixRouteHandlers(
         title: `Unvalidated Search Params in loader (${name})`,
         impact: `${path} reads URL/search params without schema validation.`,
         remediation: 'Parse search params with Zod (or similar) so invalid query strings fail clearly.',
+        file: path,
+      });
+    }
+
+    // Loader data-fetch without Cache-Control (Next uncached-fetch analogue)
+    if (hasLoader && !publicish) {
+      const loaderBlock = extractNamedExportBlock(content, 'loader') || '';
+      const fetchesData =
+        /\bfetch\s*\(/.test(loaderBlock) ||
+        /\b(?:prisma|db|drizzle|mongoose|sql|knex)\b/i.test(loaderBlock);
+      const setsCookieOrSession =
+        /\b(?:Set-Cookie|commitSession|destroySession|setCookie)\b/.test(loaderBlock) ||
+        AUTH_SIGNAL.test(loaderBlock);
+      const hasCacheHint =
+        CACHE_HEADER_SIGNAL.test(loaderBlock) ||
+        CACHE_HEADER_SIGNAL.test(content) ||
+        /\bexport\s+(?:const|function)\s+headers\b/.test(content);
+      if (fetchesData && !setsCookieOrSession && !hasCacheHint && lines > 50) {
+        improvements.push({
+          id: `cache-loader-no-headers-${path}`,
+          category: 'data-caching',
+          severity: 'optimization',
+          title: `Loader Without Cache-Control (${name})`,
+          impact: `${path} loads remote/DB data in a loader without Cache-Control / headers(). Repeat navigations may refetch more than needed.`,
+          remediation:
+            'Return `headers: { "Cache-Control": "…" }` from the loader (or a headers export) for cacheable reads; keep private for user-specific data.',
+          file: path,
+        });
+      }
+
+      // Auth/session loaders without shouldRevalidate
+      if (
+        AUTH_SIGNAL.test(loaderBlock) &&
+        /\buseLoaderData\b/.test(content) &&
+        !/\bshouldRevalidate\b/.test(content) &&
+        lines > 40
+      ) {
+        improvements.push({
+          id: `cache-missing-should-revalidate-${path}`,
+          category: 'data-caching',
+          severity: 'optimization',
+          title: `Auth Loader Missing shouldRevalidate (${name})`,
+          impact: `${path} loads session/auth data without shouldRevalidate. Login/logout can leave stale UI until a full reload.`,
+          remediation:
+            'Export shouldRevalidate to force revalidation after auth mutations (or always revalidate when session cookies change).',
+          file: path,
+        });
+      }
+    }
+
+    // Client fetch in UI route without a server loader (bypasses Remix data layer)
+    if (
+      /\bexport\s+default\b/.test(content) &&
+      !hasLoader &&
+      !hasClientLoader &&
+      /\buseEffect\b/.test(content) &&
+      /\b(?:fetch|axios)\s*\(/.test(content) &&
+      lines > 60
+    ) {
+      improvements.push({
+        id: `loader-client-fetch-bypass-${path}`,
+        category: 'loader-hygiene',
+        severity: 'warning',
+        title: `Client fetch Without loader (${name})`,
+        impact: `${path} fetches data in useEffect without a loader/clientLoader. That bypasses Remix auth/validation and hurts SSR/SEO.`,
+        remediation: 'Prefer a server loader (or clientLoader) so data loading stays on the Remix request path.',
         file: path,
       });
     }
@@ -309,6 +398,36 @@ export function auditRemixResilience(
     });
   }
 
+  const uiRouteCount = routePaths.filter(path =>
+    /\bexport\s+default\b/.test(sourceContents[path] || ''),
+  ).length;
+  const hasCatchAllRoute = routePaths.some(path => {
+    const base = fileName(path).replace(/\.(?:jsx?|tsx?)$/i, '');
+    return (
+      /^(?:\$|_\.|\[\.\.\.|Splat|\*)/.test(base) ||
+      /(?:^|\/)(?:\$|_\$|\*\.|\[\.\.\.)[^/]*$/i.test(path) ||
+      /(?:^|\/)routes\/(?:\$|\*\.|\[\.\.\.)/i.test(path)
+    );
+  }) ||
+    routePaths.some(path => {
+      const content = sourceContents[path] || '';
+      return (
+        /\bstatus\s*:\s*404\b|\bthrow\s+new\s+Response\s*\([^)]*404/.test(content) &&
+        /(?:^|\/)(?:\$|not-found|404|splat)/i.test(path)
+      );
+    });
+
+  if (uiRouteCount >= 4 && !hasCatchAllRoute) {
+    improvements.push({
+      id: 'resilience-missing-catch-all',
+      category: 'route-resilience',
+      severity: 'warning',
+      title: 'No Catch-all / 404 Route Detected',
+      impact: `Found ${uiRouteCount} UI routes but no splat/catch-all ($ / * / […]) route. Unknown URLs may render a blank tree or the wrong parent layout.`,
+      remediation: 'Add a splat route (e.g. `routes/$.tsx`) that returns a 404 Response and a friendly not-found UI.',
+    });
+  }
+
   return {
     hasRoot,
     hasRootErrorBoundary,
@@ -316,6 +435,7 @@ export function auditRemixResilience(
     routeErrorBoundaryCount,
     missingErrorBoundaryRoutes: missingErrorBoundaryRoutes.slice(0, 20),
     hasHydrateFallback,
+    hasCatchAllRoute,
   };
 }
 
@@ -497,24 +617,36 @@ export function auditRemixSecurity(
 
   const entryServerFile = normalizedPaths.find(path => /(^|\/)app\/entry\.server\.(?:jsx?|tsx?)$/i.test(path));
   const entryServerContent = entryServerFile ? sourceContents[entryServerFile] || '' : '';
+  const viteOrServerBlob = normalizedPaths
+    .filter(path => /(^|\/)(?:vite\.config|server|app\/entry\.server)/i.test(path))
+    .map(path => sourceContents[path] || '')
+    .join('\n');
   const hasHeadersSomewhere =
     SECURITY_HEADER_SIGNAL.test(entryServerContent) ||
+    SECURITY_HEADER_SIGNAL.test(viteOrServerBlob) ||
     normalizedPaths.some(path => {
       const c = sourceContents[path] || '';
       return /(^|\/)app\//i.test(path) && SECURITY_HEADER_SIGNAL.test(c);
     });
-  const missingHeaders = Boolean(entryServerFile && entryServerContent && !hasHeadersSomewhere);
+  const missingHeaders = Boolean(
+    (entryServerFile && entryServerContent && !hasHeadersSomewhere) ||
+      (!entryServerFile && routePaths.length >= 3 && !hasHeadersSomewhere),
+  );
 
-  if (missingHeaders && entryServerFile) {
+  if (missingHeaders) {
     improvements.push({
       id: 'security-missing-entry-headers',
       category: 'security',
       severity: 'warning',
-      title: 'No Security Headers in entry.server',
-      impact: `${entryServerFile} does not set CSP / frame / HSTS-style headers. Route-level headers() exports do not merge reliably across the tree.`,
+      title: entryServerFile
+        ? 'No Security Headers in entry.server'
+        : 'No Security Headers Detected (Default Remix Server)',
+      impact: entryServerFile
+        ? `${entryServerFile} does not set CSP / frame / HSTS-style headers. Route-level headers() exports do not merge reliably across the tree.`
+        : 'No custom entry.server was found and no CSP/HSTS-style headers appear in app/server/vite config. Default Remix responses often ship without browser hardening.',
       remediation:
         'Apply baseline security headers in entry.server (and handleDataRequest for data requests), or document equivalent CDN/proxy headers.',
-      file: entryServerFile,
+      file: entryServerFile || 'app/entry.server.tsx',
     });
   }
 
@@ -635,16 +767,14 @@ export function auditRemixSecurity(
     }
   }
 
-  // Secrets returned from loaders (serialized to the client)
+  const secretInActionReturnFiles: string[] = [];
+  const missingCsrfActionFiles: string[] = [];
+
+  // Secrets returned from loaders/actions (serialized to the client)
   for (const path of routePaths) {
     const content = sourceContents[path] || '';
     const loaderBlock = extractNamedExportBlock(content, 'loader');
-    if (!loaderBlock) continue;
-    if (
-      /return\s+(?:json\s*\()?\s*\{[^}]*(?:password|secret|privateKey|apiKey|accessToken|refreshToken|process\.env\.[A-Z0-9_]*(?:SECRET|TOKEN|KEY|PASSWORD))/i.test(
-        loaderBlock,
-      )
-    ) {
+    if (loaderBlock && SECRET_RETURN_SIGNAL.test(loaderBlock)) {
       secretInLoaderReturnFiles.push(path);
       improvements.push({
         id: `security-secret-in-loader-return-${path}`,
@@ -655,6 +785,30 @@ export function auditRemixSecurity(
         remediation: 'Never return secrets, tokens, or private keys from loaders. Keep privileged values on the server only.',
         file: path,
       });
+    }
+
+    const actionBlock = extractNamedExportBlock(content, 'action');
+    if (actionBlock && SECRET_RETURN_SIGNAL.test(actionBlock)) {
+      secretInActionReturnFiles.push(path);
+      improvements.push({
+        id: `security-secret-in-action-return-${path}`,
+        category: 'security',
+        severity: 'critical',
+        title: `Secret-like Data Returned from action (${fileName(path)})`,
+        impact: `${path} appears to return secret-like fields from an action. Action data is serialized to the browser.`,
+        remediation: 'Never return secrets, tokens, or private keys from actions. Return only UI-safe confirmation data.',
+        file: path,
+      });
+    }
+
+    if (
+      actionBlock &&
+      /\brequest\.(?:formData|json)\s*\(/.test(actionBlock) &&
+      !looksPublicRoute(path) &&
+      !CSRF_SIGNAL.test(actionBlock) &&
+      !CSRF_SIGNAL.test(content)
+    ) {
+      missingCsrfActionFiles.push(path);
     }
   }
 
@@ -667,6 +821,8 @@ export function auditRemixSecurity(
     unsignedCookieFiles,
     openRedirectFiles,
     secretInLoaderReturnFiles,
+    secretInActionReturnFiles,
+    missingCsrfActionFiles,
     issueCount:
       secretEnvInClientFiles.length +
       serverImportInClientFiles.length +
@@ -674,7 +830,8 @@ export function auditRemixSecurity(
       (missingHeaders ? 1 : 0) +
       unsignedCookieFiles.length +
       openRedirectFiles.length +
-      secretInLoaderReturnFiles.length,
+      secretInLoaderReturnFiles.length +
+      secretInActionReturnFiles.length,
   };
 }
 
@@ -697,6 +854,21 @@ export function auditRemixSeo(
     if (content.split(/\r\n|\n|\r/).filter(l => l.trim()).length < 40) continue;
     routesMissingMeta.push(path);
   }
+
+  const uiRouteCount = routePaths.filter(path =>
+    /\bexport\s+default\b/.test(sourceContents[path] || ''),
+  ).length;
+  const hasRobotsRoute = routePaths.some(
+    path =>
+      /robots/i.test(path) ||
+      /\brobots\b/i.test(sourceContents[path] || '') && /text\/plain|User-agent/i.test(sourceContents[path] || ''),
+  );
+  const hasSitemapRoute = routePaths.some(
+    path =>
+      /sitemap/i.test(path) ||
+      (/\bsitemap\b/i.test(sourceContents[path] || '') &&
+        /application\/xml|urlset|<url>/i.test(sourceContents[path] || '')),
+  );
 
   if (!hasRootMeta) {
     improvements.push({
@@ -734,9 +906,33 @@ export function auditRemixSeo(
     });
   }
 
+  if (uiRouteCount >= 3 && !hasRobotsRoute) {
+    improvements.push({
+      id: 'seo-missing-robots',
+      category: 'seo-metadata',
+      severity: 'optimization',
+      title: 'No robots.txt Resource Route',
+      impact: 'No robots.txt route was detected. Crawlers fall back to defaults and you cannot control indexing cleanly.',
+      remediation: 'Add a resource route such as `routes/robots[.]txt.tsx` that returns text/plain robots rules.',
+    });
+  }
+
+  if (uiRouteCount >= 3 && !hasSitemapRoute) {
+    improvements.push({
+      id: 'seo-missing-sitemap',
+      category: 'seo-metadata',
+      severity: 'optimization',
+      title: 'No sitemap.xml Resource Route',
+      impact: 'No sitemap route was detected. Search engines discover indexable URLs more slowly without one.',
+      remediation: 'Add a resource route such as `routes/sitemap[.]xml.tsx` that returns an XML urlset.',
+    });
+  }
+
   return {
     hasRootMeta,
     hasRootLinks,
+    hasRobotsRoute,
+    hasSitemapRoute,
     routesMissingMeta: routesMissingMeta.slice(0, 20),
     issueCount: (hasRootMeta ? 0 : 1) + (hasRootLinks ? 0 : 1),
   };
