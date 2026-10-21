@@ -26,6 +26,7 @@ import { startRescanProgressTicker } from '../../utils/rescanProgress';
 import { ensureAnalysisDependencyAudit } from '../../services/codebaseAnalysisLoader';
 import { saveExportText } from '../../utils/exportFileSave';
 import { resolveIdeOption } from '../../constants/supportedIdes';
+import { openInPreferredIde } from '../../utils/openInIde';
 import { useSystemSettings } from '../../context/SystemSettingsContext';
 
 export type ProjectSection = CodebaseProjectSection;
@@ -260,20 +261,6 @@ export const CodebaseAnalysisView: React.FC<CodebaseAnalysisViewProps> = ({
 
   const selectedIde = resolveIdeOption(systemPreferences.preferredIdeId);
 
-  const launchIDE = useCallback((ide: typeof selectedIde) => {
-    const protocolUrl = ide.getProtocolUrl(analysis.rootPath);
-    try {
-      const a = document.createElement('a');
-      a.href = protocolUrl;
-      a.style.display = 'none';
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-    } catch {
-      window.location.assign(protocolUrl);
-    }
-  }, [analysis.rootPath]);
-
   const muted = isDark ? 'text-slate-400' : 'text-slate-500';
   const panel = isDark ? 'border-white/[0.08] bg-[#141518]' : 'border-slate-200/90 bg-white shadow-2xs';
 
@@ -443,8 +430,15 @@ export const CodebaseAnalysisView: React.FC<CodebaseAnalysisViewProps> = ({
   }, [analysis, notify]);
 
   const openPreferredIde = useCallback(() => {
-    launchIDE(selectedIde);
-  }, [launchIDE, selectedIde]);
+    void openInPreferredIde({
+      rootPath: analysis.rootPath,
+      ideId: systemPreferences.preferredIdeId,
+    }).then(result => {
+      if (!result.ok) {
+        notify.error(result.message, { title: 'Could not open IDE' });
+      }
+    });
+  }, [analysis.rootPath, systemPreferences.preferredIdeId, notify]);
 
   const lastScannedLabel = useMemo(() => {
     try {

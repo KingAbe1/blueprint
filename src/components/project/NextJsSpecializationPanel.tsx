@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
-import { Check, CheckCircle2 } from 'lucide-react';
+import { CheckCircle2 } from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
 import {
   NextJsSpecialization,
@@ -17,11 +17,10 @@ import {
   overviewDivideClass,
   overviewMetricValueAccent,
   overviewPanelClass,
-  overviewRowEmphasis,
   overviewSeverityLabel,
   type OverviewEmphasis,
 } from './overviewUi';
-import { FindingAiExplanation, FindingStaticCopy } from './FindingAiExplanation';
+import { FrameworkFindingRow } from './FrameworkFindingRow';
 
 interface NextJsSpecializationPanelProps {
   specialization: NextJsSpecialization;
@@ -704,65 +703,24 @@ Refactor the code to implement this recommendation. Ensure clean TypeScript typi
 
       {filteredImprovements.length > 0 ? (
         <ul className={`divide-y ${divide}`}>
-          {visibleImprovements.map(item => {
-            const isCopied = copiedId === item.id;
-            const emphasis = rowEmphasisForSeverity(item.severity);
-            const rowClass = overviewRowEmphasis(isDark, emphasis);
-
-            return (
-              <li key={item.id} className={`py-5 pr-5 sm:pr-6 ${rowClass || 'px-5 sm:px-6'}`}>
-                <div className="flex flex-wrap items-start justify-between gap-3">
-                  <div className="min-w-0 flex-1">
-                    <p className={`text-sm font-medium leading-snug ${title}`}>{item.title}</p>
-                    <p className={`mt-1 text-xs ${muted}`}>
-                      <span className={overviewSeverityLabel(isDark, item.severity)}>{item.severity}</span>
-                      <span> · {CATEGORY_LABELS[item.category] || item.category.replace(/-/g, ' ')}</span>
-                      {item.file ? (
-                        <>
-                          <span> · </span>
-                          <span className="font-mono text-[11px]">{item.file}</span>
-                        </>
-                      ) : null}
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => void copyFixPrompt(item)}
-                    className={`shrink-0 text-xs font-medium transition-colors ${
-                      isCopied
-                        ? isDark
-                          ? 'text-emerald-400'
-                          : 'text-emerald-700'
-                        : isDark
-                          ? 'text-blue-400 hover:text-blue-300'
-                          : 'text-blue-600 hover:text-blue-800'
-                    }`}
-                  >
-                    {isCopied ? (
-                      <span className="inline-flex items-center gap-1">
-                        <Check className="h-3.5 w-3.5" />
-                        Copied
-                      </span>
-                    ) : (
-                      'Copy prompt'
-                    )}
-                  </button>
-                </div>
-                <FindingStaticCopy impact={item.impact} remediation={item.remediation} />
-                <FindingAiExplanation
-                  findingId={item.id}
-                  frameworkLabel="Next.js"
-                  title={item.title}
-                  category={item.category}
-                  severity={item.severity}
-                  impact={item.impact}
-                  remediation={item.remediation}
-                  file={item.file}
-                  analysis={analysis}
-                />
-              </li>
-            );
-          })}
+          {visibleImprovements.map(item => (
+            <FrameworkFindingRow
+              key={item.id}
+              id={item.id}
+              title={item.title}
+              severity={item.severity}
+              categoryLabel={CATEGORY_LABELS[item.category] || item.category.replace(/-/g, ' ')}
+              file={item.file}
+              line={item.line}
+              impact={item.impact}
+              remediation={item.remediation}
+              frameworkLabel="Next.js"
+              analysis={analysis}
+              rowEmphasis={rowEmphasisForSeverity(item.severity)}
+              copied={copiedId === item.id}
+              onCopyPrompt={() => void copyFixPrompt(item)}
+            />
+          ))}
         </ul>
       ) : (
         <div className="px-5 py-10 text-center sm:px-6">

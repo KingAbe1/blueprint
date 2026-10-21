@@ -20,6 +20,8 @@ import {
 } from './overviewUi';
 import { FindingAiExplanation } from './FindingAiExplanation';
 import { saveExportText } from '../../utils/exportFileSave';
+import { OpenInIdeButton } from './OpenInIdeButton';
+import { resolveFindingOpenLine } from '../../utils/openInIde';
 
 interface CodebaseQualityViewProps {
   analysis: CodebaseAnalysis;
@@ -618,12 +620,30 @@ ${selectedFinding.detail}${snippetText}${evidenceText}
                         <h3 className={`mt-1 text-[15px] font-medium leading-snug ${titleText}`}>{parsedSelected.headline}</h3>
                         <p className={`mt-1 truncate text-xs ${muted}`}>
                           {selectedFinding.location?.path || 'No file path'}
-                          {selectedFinding.location?.line ? `:${selectedFinding.location.line}` : null}
+                          {(() => {
+                            const openLine = resolveFindingOpenLine({
+                              focusLine: selectedFinding.codeSnippet?.focusLine,
+                              line: selectedFinding.location?.line,
+                              evidence: selectedFinding.evidence,
+                              filePath: selectedFinding.location?.path,
+                            });
+                            return openLine ? `:${openLine}` : null;
+                          })()}
                         </p>
                       </div>
                       <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs font-medium">
                         {selectedFinding.location?.path ? (
                           <>
+                            <OpenInIdeButton
+                              rootPath={analysis.rootPath}
+                              relativePath={selectedFinding.location.path}
+                              focusLine={selectedFinding.codeSnippet?.focusLine}
+                              line={selectedFinding.location.line}
+                              evidence={selectedFinding.evidence}
+                              title={selectedFinding.title}
+                              impact={selectedFinding.detail}
+                              category={selectedFinding.category}
+                            />
                             <button
                               type="button"
                               onClick={() => openFileInAnalysis(selectedFinding.location!.path!)}

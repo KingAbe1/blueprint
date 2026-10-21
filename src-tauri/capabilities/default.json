@@ -15,6 +15,7 @@
     "allow-read-codebase",
     "allow-handoff-export",
     "allow-open-external-url",
+    "allow-open-in-ide",
     "dialog:allow-open",
     "dialog:allow-save",
     "notification:default"

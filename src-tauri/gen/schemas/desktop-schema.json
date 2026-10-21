@@ -189,6 +189,12 @@
           "markdownDescription": "Allows opening system settings URLs (e.g. notification preferences)."
         },
         {
+          "description": "Allows launching the preferred IDE CLI/app at a project path (and optional file:line).",
+          "type": "string",
+          "const": "allow-open-in-ide",
+          "markdownDescription": "Allows launching the preferred IDE CLI/app at a project path (and optional file:line)."
+        },
+        {
           "description": "Allows scanning and reading source files from a user-selected codebase folder.",
           "type": "string",
           "const": "allow-read-codebase",

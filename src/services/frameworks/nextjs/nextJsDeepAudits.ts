@@ -6,6 +6,7 @@ import {
   NextJsSecurityAudit,
   NextJsSeoAudit,
 } from '../../../types/framework';
+import { firstMatchLine } from '../../findingLineResolve';
 
 export const AUTH_SIGNAL =
   /\b(?:auth\s*\(|getServerSession|createClient|supabase\.auth|currentUser|getUser\s*\(|clerkClient|auth\(\)|requireAuth|requireUser|getToken\s*\(|verifyToken|session|cookies\s*\()/i;
@@ -107,6 +108,10 @@ export function auditApiRoutes(
         remediation:
           'Parse request JSON/query with Zod (or similar) before business logic, and return 400 on validation failure.',
         file: path,
+        line: firstMatchLine(
+          content,
+          /request\.json\(|req\.body|export\s+async\s+function\s+(?:POST|PUT|PATCH|DELETE)/i,
+        ),
       });
     }
 
@@ -121,6 +126,10 @@ export function auditApiRoutes(
         remediation:
           'Verify session/token at the top of the handler and return 401/403 when unauthorized. Public webhooks should verify signatures instead.',
         file: path,
+        line: firstMatchLine(
+          content,
+          /export\s+async\s+function\s+(?:POST|PUT|PATCH|DELETE|GET)|req\.body|request\.json\(/i,
+        ),
       });
     }
 
@@ -508,6 +517,7 @@ export function auditSecurity(
         remediation:
           'Move data access behind a Server Component, Server Action, or Route Handler. Mark privileged modules with `import "server-only"`.',
         file: path,
+        line: firstMatchLine(content, SERVER_ONLY_IMPORT),
       });
     }
 
@@ -522,6 +532,7 @@ export function auditSecurity(
         remediation:
           'Keep secrets server-side. Expose only intentional NEXT_PUBLIC_* values, or fetch through an authenticated server endpoint.',
         file: path,
+        line: firstMatchLine(content, SECRET_ENV_IN_CLIENT),
       });
     }
   }

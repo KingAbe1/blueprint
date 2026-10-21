@@ -15,6 +15,7 @@ import {
   auditRemixSeo,
   isRemixRouteModule,
 } from './remixDeepAudits';
+import { attachMissingImprovementLines } from '../../findingLineResolve';
 
 function detectRemixVersion(manifests: Record<string, string>): string | undefined {
   for (const [path, content] of Object.entries(manifests)) {
@@ -146,7 +147,7 @@ export const remixAnalyzer: FrameworkAnalyzer<RemixSpecialization> = {
       configAudit,
       securityAudit,
       seoAudit,
-      improvements,
+      improvements: attachMissingImprovementLines(improvements, sourceContents),
       resourceRouteCount,
       dynamicRoutesCount,
     };

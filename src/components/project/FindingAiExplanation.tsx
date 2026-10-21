@@ -27,6 +27,8 @@ export interface FindingAiExplanationProps {
   codeSnippet?: string;
   /** When set, Explain loads the flagged file from disk for a code-grounded answer. */
   analysis?: CodebaseAnalysis;
+  /** Tighter layout for Overview finding rows (hides helper copy). */
+  compact?: boolean;
 }
 
 function explainButtonClass(isDark: boolean): string {
@@ -47,6 +49,7 @@ export const FindingAiExplanation: React.FC<FindingAiExplanationProps> = ({
   focusLine,
   codeSnippet,
   analysis,
+  compact = false,
 }) => {
   const { isDark } = useTheme();
   const { activeConfig, isAiConfigured, setIsSettingsOpen } = useAI();
@@ -137,7 +140,7 @@ export const FindingAiExplanation: React.FC<FindingAiExplanationProps> = ({
   );
 
   return (
-    <div className="mt-3">
+    <div className={compact ? 'mt-1.5' : 'mt-3'}>
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
         <button
           type="button"
@@ -161,13 +164,15 @@ export const FindingAiExplanation: React.FC<FindingAiExplanationProps> = ({
             </>
           )}
         </button>
-        {!isAiConfigured ? (
-          <span className={`text-[11px] ${muted}`}>Opens the file and explains what the static finding means in your code.</span>
-        ) : file ? (
-          <span className={`text-[11px] ${muted}`}>Reads `{file}` and adds detail beyond the static note.</span>
-        ) : (
-          <span className={`text-[11px] ${muted}`}>Adds plain-language detail (no file path on this finding).</span>
-        )}
+        {!compact ? (
+          !isAiConfigured ? (
+            <span className={`text-[11px] ${muted}`}>Opens the file and explains what the static finding means in your code.</span>
+          ) : file ? (
+            <span className={`text-[11px] ${muted}`}>Reads `{file}` and adds detail beyond the static note.</span>
+          ) : (
+            <span className={`text-[11px] ${muted}`}>Adds plain-language detail (no file path on this finding).</span>
+          )
+        ) : null}
       </div>
 
       {error ? (
@@ -185,7 +190,7 @@ export const FindingAiExplanation: React.FC<FindingAiExplanationProps> = ({
 
       {explanation ? (
         <div
-          className={`mt-3 space-y-3 rounded-xl border px-3.5 py-3 ${
+          className={`mt-2 space-y-2.5 rounded-lg border px-3 py-2.5 ${
             isDark ? 'border-violet-500/20 bg-violet-500/[0.06]' : 'border-violet-200/80 bg-violet-50/60'
           }`}
         >

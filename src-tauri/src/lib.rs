@@ -462,6 +462,361 @@ fn open_external_url(url: String) -> Result<(), String> {
     }
 }
 
+/// Prefer IDE CLI / `open -a` so macOS does not show a buried custom-URL allow dialog.
+fn ide_binary_and_app(ide_id: &str) -> Result<(&'static str, Option<&'static str>), String> {
+    match ide_id {
+        "vscode" => Ok(("code", Some("Visual Studio Code"))),
+        "cursor" => Ok(("cursor", Some("Cursor"))),
+        "windsurf" => Ok(("windsurf", Some("Windsurf"))),
+        "webstorm" => Ok(("webstorm", Some("WebStorm"))),
+        "idea" => Ok(("idea", Some("IntelliJ IDEA"))),
+        "zed" => Ok(("zed", Some("Zed"))),
+        "sublime" => Ok(("subl", Some("Sublime Text"))),
+        _ => Err(format!("Unsupported IDE id: {ide_id}")),
+    }
+}
+
+/// Bundled CLIs (GUI apps usually are not on PATH when launched from Tauri).
+fn ide_bundle_cli_candidates(ide_id: &str) -> &'static [&'static str] {
+    match ide_id {
+        "cursor" => &[
+            "/Applications/Cursor.app/Contents/Resources/app/bin/cursor",
+            "/Applications/Cursor.app/Contents/Resources/app/bin/code",
+        ],
+        "vscode" => &[
+            "/Applications/Visual Studio Code.app/Contents/Resources/app/bin/code",
+            "/Applications/VSCodium.app/Contents/Resources/app/bin/codium",
+        ],
+        "windsurf" => &["/Applications/Windsurf.app/Contents/Resources/app/bin/windsurf"],
+        "zed" => &[
+            "/Applications/Zed.app/Contents/MacOS/zed",
+            "/Applications/Zed.app/Contents/MacOS/cli",
+        ],
+        "sublime" => &["/Applications/Sublime Text.app/Contents/SharedSupport/bin/subl"],
+        "webstorm" => &["/Applications/WebStorm.app/Contents/MacOS/webstorm"],
+        "idea" => &["/Applications/IntelliJ IDEA.app/Contents/MacOS/idea"],
+        _ => &[],
+    }
+}
+
+fn require_absolute_path(path: &str, label: &str) -> Result<PathBuf, String> {
+    let trimmed = path.trim();
+    if trimmed.is_empty() {
+        return Err(format!("{label} is empty."));
+    }
+    let buf = PathBuf::from(trimmed);
+    if !buf.is_absolute() {
+        return Err(format!("{label} must be an absolute path."));
+    }
+    Ok(buf)
+}
+
+fn path_is_within(root: &Path, candidate: &Path) -> bool {
+    let root_canon = fs::canonicalize(root).unwrap_or_else(|_| root.to_path_buf());
+    let candidate_canon = fs::canonicalize(candidate).unwrap_or_else(|_| candidate.to_path_buf());
+    if candidate_canon.starts_with(&root_canon) {
+        return true;
+    }
+    // Non-existent suggested files still need to resolve under the project string prefix.
+    let root_s = root_canon.to_string_lossy().trim_end_matches(['/', '\\']).to_string();
+    let cand_s = candidate.to_string_lossy();
+    cand_s == root_s
+        || cand_s.starts_with(&(root_s.clone() + "/"))
+        || cand_s.starts_with(&(root_s + "\\"))
+}
+
+fn spawn_command(program: &str, args: &[&str]) -> Result<(), String> {
+    let path = Path::new(program);
+    if program.contains('/') || program.contains('\\') {
+        if !path.is_file() {
+            return Err(format!("CLI not found: {program}"));
+        }
+    }
+    Command::new(program)
+        .args(args)
+        .spawn()
+        .map(|_| ())
+        .map_err(|error| format!("Could not start {program}: {error}"))
+}
+
+fn try_spawn_ide_binary(ide_id: &str, binary: &str, args: &[&str]) -> Result<(), String> {
+    let mut candidates: Vec<String> = Vec::new();
+    for path in ide_bundle_cli_candidates(ide_id) {
+        candidates.push((*path).to_string());
+    }
+    candidates.push(binary.to_string());
+    candidates.push(format!("/usr/local/bin/{binary}"));
+    candidates.push(format!("/opt/homebrew/bin/{binary}"));
+    candidates.push(format!("/usr/bin/{binary}"));
+
+    let mut last_error = format!("Could not find the `{binary}` CLI.");
+    for path in candidates {
+        match spawn_command(&path, args) {
+            Ok(()) => return Ok(()),
+            Err(error) => last_error = error,
+        }
+    }
+    Err(last_error)
+}
+
+#[cfg(target_os = "macos")]
+fn macos_process_name(app_name: &str) -> &str {
+    match app_name {
+        "Visual Studio Code" => "Code",
+        "IntelliJ IDEA" => "idea",
+        other => other,
+    }
+}
+
+#[cfg(target_os = "macos")]
+fn activate_macos_app(app_name: &str) {
+    // Do NOT call `open -a App` here — that raises an already-open window and can
+    // leave a freshly created (-n) window buried in the background.
+    let process = macos_process_name(app_name);
+    let script = format!(
+        r#"tell application "{app}" to activate
+delay 0.2
+tell application "System Events"
+  if exists process "{process}" then
+    set frontmost of process "{process}" to true
+  end if
+end tell"#,
+        app = app_name,
+        process = process
+    );
+    let _ = Command::new("osascript").args(["-e", &script]).output();
+}
+
+#[cfg(target_os = "macos")]
+fn try_open_macos_new_instance(app_name: &str, args: &[&str]) -> Result<(), String> {
+    // -n = new app instance; usually focuses that instance (unlike bare `open -a`).
+    let mut command = Command::new("open");
+    command.arg("-na").arg(app_name);
+    if !args.is_empty() {
+        command.arg("--args");
+        // Drop a leading IDE `-n` — `open -n` already requested a new instance.
+        let filtered: Vec<&str> = args
+            .iter()
+            .copied()
+            .filter(|arg| *arg != "-n" && *arg != "--new")
+            .collect();
+        command.args(&filtered);
+    }
+    command
+        .spawn()
+        .map(|_| ())
+        .map_err(|error| format!("Could not open {app_name}: {error}"))
+}
+
+#[cfg(target_os = "macos")]
+fn try_open_macos_app_file(app_name: &str, file: &Path) -> Result<(), String> {
+    // Positional file path (not --args) reliably opens the document and focuses the app.
+    Command::new("open")
+        .arg("-na")
+        .arg(app_name)
+        .arg(file)
+        .spawn()
+        .map(|_| ())
+        .map_err(|error| format!("Could not open {app_name}: {error}"))
+}
+
+#[cfg(target_os = "macos")]
+fn try_open_macos_app_folder(app_name: &str, folder: &Path) -> Result<(), String> {
+    Command::new("open")
+        .arg("-na")
+        .arg(app_name)
+        .arg(folder)
+        .spawn()
+        .map(|_| ())
+        .map_err(|error| format!("Could not open {app_name}: {error}"))
+}
+
+fn vscode_goto_target(file: &Path, line: Option<u32>) -> String {
+    // Include column 1 so editors land on the finding line reliably.
+    match line.filter(|value| *value >= 1) {
+        Some(line) => format!("{}:{line}:1", file.to_string_lossy()),
+        None => file.to_string_lossy().to_string(),
+    }
+}
+
+fn build_ide_launch_args(
+    ide_id: &str,
+    project_root: &Path,
+    file_path: Option<&Path>,
+    line: Option<u32>,
+) -> Result<Vec<String>, String> {
+    let root = project_root.to_string_lossy().to_string();
+    match ide_id {
+        // Folder-only open (file+line uses a two-step launch in open_in_ide).
+        "vscode" | "cursor" | "windsurf" => Ok(vec!["-n".to_string(), root]),
+        "webstorm" | "idea" => {
+            let mut args = Vec::new();
+            if let (Some(file), Some(line)) = (file_path, line.filter(|value| *value >= 1)) {
+                args.push("--line".to_string());
+                args.push(line.to_string());
+                args.push(file.to_string_lossy().to_string());
+            } else if let Some(file) = file_path {
+                args.push(file.to_string_lossy().to_string());
+            } else {
+                args.push(root);
+            }
+            Ok(args)
+        }
+        "zed" => {
+            if let Some(file) = file_path {
+                Ok(vec![
+                    "--new".to_string(),
+                    root,
+                    vscode_goto_target(file, line),
+                ])
+            } else {
+                Ok(vec!["--new".to_string(), root])
+            }
+        }
+        "sublime" => {
+            if let Some(file) = file_path {
+                Ok(vec![
+                    "-n".to_string(),
+                    root,
+                    vscode_goto_target(file, line),
+                ])
+            } else {
+                Ok(vec!["-n".to_string(), root])
+            }
+        }
+        _ => Err(format!("Unsupported IDE id: {ide_id}")),
+    }
+}
+
+fn open_vscode_family_project_then_file(
+    ide: &str,
+    binary: &str,
+    project_root: &Path,
+    file: &Path,
+    line: Option<u32>,
+) -> Result<(), String> {
+    let root = project_root.to_string_lossy().to_string();
+    let target = vscode_goto_target(file, line);
+
+    // One shot: new window + goto. Prefer this when we have a line.
+    if line.is_some() {
+        let one_shot = ["-n", "-g", target.as_str(), root.as_str()];
+        if try_spawn_ide_binary(ide, binary, &one_shot).is_ok() {
+            return Ok(());
+        }
+    }
+
+    // Two-step: open project in a new window, then goto without -r.
+    // (-r can target an older Cursor window and skip the new one.)
+    let open_project = ["-n", root.as_str()];
+    try_spawn_ide_binary(ide, binary, &open_project)?;
+    std::thread::sleep(std::time::Duration::from_millis(650));
+    let goto = ["-g", target.as_str()];
+    try_spawn_ide_binary(ide, binary, &goto)?;
+    Ok(())
+}
+
+#[tauri::command]
+fn open_in_ide(
+    ide_id: String,
+    project_root: String,
+    file_path: Option<String>,
+    line: Option<u32>,
+) -> Result<(), String> {
+    let ide = ide_id.trim();
+    let (binary, app_name) = ide_binary_and_app(ide)?;
+    let root = require_absolute_path(&project_root, "Project root")?;
+    if !root.is_dir() {
+        return Err("The scanned project folder is no longer available.".into());
+    }
+
+    let file = match file_path.as_deref().map(str::trim).filter(|value| !value.is_empty()) {
+        Some(path) => {
+            let absolute = require_absolute_path(path, "File path")?;
+            if !path_is_within(&root, &absolute) {
+                return Err("File path must stay inside the scanned project.".into());
+            }
+            Some(absolute)
+        }
+        None => None,
+    };
+
+    let is_vscode_family = matches!(ide, "vscode" | "cursor" | "windsurf");
+
+    if is_vscode_family {
+        let opened = if let Some(file) = file.as_ref() {
+            open_vscode_family_project_then_file(ide, binary, &root, file, line)
+        } else {
+            let args = build_ide_launch_args(ide, &root, None, None)?;
+            let arg_refs: Vec<&str> = args.iter().map(String::as_str).collect();
+            try_spawn_ide_binary(ide, binary, &arg_refs)
+        };
+
+        if opened.is_ok() {
+            #[cfg(target_os = "macos")]
+            if let Some(app) = app_name {
+                std::thread::sleep(std::time::Duration::from_millis(200));
+                activate_macos_app(app);
+            }
+            return Ok(());
+        }
+
+        #[cfg(target_os = "macos")]
+        if let Some(app) = app_name {
+            // Fallback: new instance with project, then try document open for the file.
+            let root_arg = root.to_string_lossy().to_string();
+            let project_args = ["-n", root_arg.as_str()];
+            let _ = try_open_macos_new_instance(app, &project_args);
+            std::thread::sleep(std::time::Duration::from_millis(700));
+            if let Some(file) = file.as_ref() {
+                let target = vscode_goto_target(file, line);
+                let goto = ["-g", target.as_str()];
+                let _ = try_spawn_ide_binary(ide, binary, &goto);
+                let _ = try_open_macos_app_file(app, file);
+            }
+            activate_macos_app(app);
+            return Ok(());
+        }
+
+        return opened;
+    }
+
+    let args = build_ide_launch_args(ide, &root, file.as_deref(), line)?;
+    let arg_refs: Vec<&str> = args.iter().map(String::as_str).collect();
+
+    if try_spawn_ide_binary(ide, binary, &arg_refs).is_ok() {
+        #[cfg(target_os = "macos")]
+        if let Some(app) = app_name {
+            std::thread::sleep(std::time::Duration::from_millis(450));
+            activate_macos_app(app);
+        }
+        return Ok(());
+    }
+
+    #[cfg(target_os = "macos")]
+    if let Some(app) = app_name {
+        if try_open_macos_new_instance(app, &arg_refs).is_ok() {
+            std::thread::sleep(std::time::Duration::from_millis(450));
+            activate_macos_app(app);
+            return Ok(());
+        }
+        let result = if let Some(file) = file.as_ref() {
+            try_open_macos_app_file(app, file)
+        } else {
+            try_open_macos_app_folder(app, &root)
+        };
+        if result.is_ok() {
+            activate_macos_app(app);
+        }
+        return result;
+    }
+
+    Err(format!(
+        "Could not open {}. Install the `{binary}` shell command (Cursor: Command Palette → “Install 'cursor' command in PATH”).",
+        app_name.unwrap_or(binary)
+    ))
+}
+
 #[tauri::command]
 fn open_handoff_folder(target_dir: String) -> Result<(), String> {
     let root = PathBuf::from(target_dir);
@@ -600,6 +955,7 @@ pub fn run() {
             open_handoff_folder,
             write_export_file,
             open_external_url,
+            open_in_ide,
             get_os_theme,
             set_theme_app_icon
         ])

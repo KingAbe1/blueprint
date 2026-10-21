@@ -14,6 +14,7 @@ import {
   collectExpoEntryFiles,
   detectExpoSdkVersion,
 } from './expoDeepAudits';
+import { attachMissingImprovementLines } from '../../findingLineResolve';
 
 const EXPO_OR_RN_DEP = /["'](?:expo|expo-router|react-native)["']\s*:/;
 
@@ -103,7 +104,7 @@ export const expoAnalyzer: FrameworkAnalyzer<ExpoSpecialization> = {
       securityAudit,
       configAudit,
       performanceAudit,
-      improvements,
+      improvements: attachMissingImprovementLines(improvements, sourceContents),
       entryFiles,
     };
 

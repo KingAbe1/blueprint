@@ -1,0 +1,4 @@
+[[permission]]
+identifier = "allow-open-in-ide"
+description = "Allows launching the preferred IDE CLI/app at a project path (and optional file:line)."
+commands.allow = ["open_in_ide"]

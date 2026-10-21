@@ -16,6 +16,7 @@ import {
   collectNodeEntryFiles,
   detectNodeRuntimeStyle,
 } from './nodeJsDeepAudits';
+import { attachMissingImprovementLines } from '../../findingLineResolve';
 
 const NODE_SERVER_DEPS =
   /["'](?:express|fastify|koa|hono|@nestjs\/core|restify|polka|@hapi\/hapi|micro)["']\s*:/;
@@ -168,7 +169,7 @@ export const nodeJsAnalyzer: FrameworkAnalyzer<NodeJsSpecialization> = {
       configAudit,
       securityAudit,
       dataModelAudit,
-      improvements,
+      improvements: attachMissingImprovementLines(improvements, sourceContents),
       entryFiles,
     };
 

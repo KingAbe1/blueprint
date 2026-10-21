@@ -17,6 +17,7 @@ import {
   auditSeoMetadata,
   pushResilienceExtras,
 } from './nextJsDeepAudits';
+import { attachMissingImprovementLines } from '../../findingLineResolve';
 
 export const nextJsAnalyzer: FrameworkAnalyzer<NextJsSpecialization> = {
   id: 'nextjs',
@@ -483,7 +484,7 @@ export const nextJsAnalyzer: FrameworkAnalyzer<NextJsSpecialization> = {
       cachingAudit,
       securityAudit,
       seoAudit,
-      improvements,
+      improvements: attachMissingImprovementLines(improvements, sourceContents),
       routeGroups: Array.from(routeGroupsSet),
       parallelRoutes: Array.from(parallelRoutesSet),
       interceptingRoutes: Array.from(interceptingRoutesSet),
