@@ -13,6 +13,7 @@ const FrameworkSpecializationContent: React.FC<FrameworkSpecializationPanelProps
   if (analysis.frameworkProfile?.id === 'nextjs') {
     const specialization = analysis.frameworkProfile.specialization as NextJsSpecialization;
     if (specialization?.actionAudit && specialization?.bundleAudit && specialization?.resilienceAudit) {
+      // Newer audit fields are optional on legacy saved scans; the panel fills defaults.
       return <NextJsSpecializationPanel specialization={specialization} rootName={analysis.rootName} />;
     }
   }
@@ -167,18 +168,60 @@ const FrameworkSpecializationContent: React.FC<FrameworkSpecializationPanelProps
         serverRatio: 76,
         clientRatio: 24,
         unnecessaryClientFiles: clientComponentFiles.slice(0, 5),
+        rawImgTagFiles: [],
+        missingNextFont: false,
+        sharpMissingWithImages: false,
       },
       resilienceAudit: {
         hasRootLayout: layoutFiles.some(p => /(^|\/)app\/layout\./i.test(p)),
         hasRootLoading: loadingFiles.some(p => /(^|\/)app\/loading\./i.test(p)),
         hasRootError: Boolean(hasRootError),
         hasRootNotFound: notFoundFiles.some(p => /(^|\/)app\/not-found\./i.test(p)),
+        hasGlobalError: false,
         layoutCount: layoutFiles.length,
         loadingCount: loadingFiles.length,
         errorCount: errorFiles.length,
         notFoundCount: notFoundFiles.length,
         missingLoadingSegments: loadingFiles.length === 0 ? ['dashboard', 'admin'] : [],
         missingErrorSegments: errorFiles.length === 0 ? ['dashboard', 'admin'] : [],
+      },
+      apiAudit: {
+        routeHandlerCount: paths.filter(p => /\/route\.(?:js|ts)$/i.test(p)).length,
+        pagesApiCount: paths.filter(p => /(^|\/)pages\/api\//i.test(p)).length,
+        unvalidatedFilesCount: 0,
+        unprotectedFilesCount: 0,
+        auditedFiles: [],
+      },
+      configAudit: {
+        ignoreBuildErrors: false,
+        ignoreDuringBuilds: false,
+        hasSecurityHeaders: false,
+        hasStandaloneOutput: false,
+        openImageRemotePatterns: false,
+        missingLintScript: false,
+        missingTypecheckSignal: false,
+        issueCount: 0,
+      },
+      cachingAudit: {
+        forceDynamicFiles: [],
+        zeroRevalidateFiles: [],
+        uncachedFetchFiles: [],
+        syncRequestApiFiles: [],
+        dynamicRoutesMissingStaticParams: [],
+        issueCount: 0,
+      },
+      securityAudit: {
+        serverImportInClientFiles: [],
+        secretEnvInClientFiles: [],
+        middlewareWithoutAuth: false,
+        issueCount: 0,
+      },
+      seoAudit: {
+        hasRootMetadata: false,
+        hasRobotsFile: false,
+        hasSitemapFile: false,
+        pagesMissingMetadata: [],
+        issueCount: 0,
       },
       improvements,
       routeGroups: Array.from(routeGroupsSet),

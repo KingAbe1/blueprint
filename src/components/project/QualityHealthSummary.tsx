@@ -169,19 +169,19 @@ export const QualityHealthSummary: React.FC<QualityHealthSummaryProps> = ({
             role="dialog"
             aria-modal="true"
             aria-labelledby="quality-score-breakdown-title"
-            className={`max-h-[min(85vh,640px)] w-full max-w-lg overflow-hidden rounded-2xl border shadow-2xl ${modalSurface} ${
+            className={`flex max-h-[min(85vh,640px)] w-full max-w-lg flex-col overflow-hidden rounded-2xl border shadow-2xl ${modalSurface} ${
               isDark ? 'shadow-black/50' : 'shadow-slate-900/15'
             }`}
             onMouseDown={event => event.stopPropagation()}
           >
-            <header className={`flex items-start justify-between gap-3 border-b px-5 py-4 sm:px-6 ${border}`}>
-              <div>
+            <header className={`flex shrink-0 items-start justify-between gap-3 border-b px-5 py-4 sm:px-6 ${border}`}>
+              <div className="min-w-0">
                 <h2 id="quality-score-breakdown-title" className={`text-[15px] font-medium ${title}`}>
                   How health score is calculated
                 </h2>
                 <p className={`mt-1 text-[13px] leading-relaxed ${muted}`}>
-                  The score sums dimension points from the local static scan (structure, maintainability, tests, tooling,
-                  and related checks). Supply-chain CVEs are tracked separately in the supply chain section.
+                  Dimension points from the local scan. Next.js repos include a Next.js practices row. CVEs are scored
+                  separately.
                 </p>
               </div>
               <button
@@ -193,7 +193,7 @@ export const QualityHealthSummary: React.FC<QualityHealthSummaryProps> = ({
                 <X className="h-4 w-4" />
               </button>
             </header>
-            <div className="max-h-[calc(min(85vh,640px)-8rem)] overflow-y-auto px-5 py-4 sm:px-6">
+            <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4 sm:px-6">
               <ul className={`divide-y ${divide}`}>
                 {(quality.dimensions || []).map(dim => (
                   <li key={dim.name} className="py-3 first:pt-0 last:pb-0">
@@ -204,11 +204,26 @@ export const QualityHealthSummary: React.FC<QualityHealthSummaryProps> = ({
                       </span>
                     </div>
                     <p className={`mt-1 text-xs leading-relaxed ${muted}`}>{dim.summary}</p>
+                    {dim.scoreEvidence && dim.scoreEvidence.length > 0 ? (
+                      <ul className={`mt-2 space-y-1 ${muted}`}>
+                        {dim.scoreEvidence.map(item => (
+                          <li key={item.label} className="text-[11px] leading-relaxed">
+                            <span className={title}>{item.label}</span>
+                            <span className="tabular-nums">
+                              {' '}
+                              ({item.points > 0 ? '+' : ''}
+                              {item.points})
+                            </span>
+                            <span> — {item.detail}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    ) : null}
                   </li>
                 ))}
               </ul>
             </div>
-            <footer className={`border-t px-5 py-3 sm:px-6 ${border}`}>
+            <footer className={`shrink-0 border-t px-5 py-3 sm:px-6 ${border}`}>
               <p className={`text-xs tabular-nums ${muted}`}>
                 Total{' '}
                 <span className={title}>

@@ -7,6 +7,7 @@ export type { QualityReviewSourceFile } from './qualityReviewSourceService';
 import { LANGUAGE_SOURCE_RULES, NEXT_SOURCE_RULES, TOOLCHAIN_QUALITY_RULES } from './codeQualityRules';
 import { extractNpmDependencyInventory, scanNpmDependencyRisks } from './dependencyRiskService';
 import { detectAndAnalyzeFramework } from './frameworks/frameworkRegistry';
+import { computeNextJsQualityImpact } from './frameworks/nextjs/nextJsQualityImpact';
 import {
   collectParsedFileFindings,
   collectProjectHygieneFindings,
@@ -21,6 +22,7 @@ import {
   deepProfileRulesUnsupportedMessage,
   supportedDeepProfilesSummary,
 } from '../constants/supportedAnalysisProfiles';
+import type { FrameworkProfile } from '../types/framework';
 
 const EXTENSION_LANGUAGES: Record<string, string> = {
   ts: 'TypeScript', tsx: 'TypeScript', mts: 'TypeScript', cts: 'TypeScript',
@@ -392,6 +394,7 @@ function assessQualityChecks(
   manifests: Record<string, string>,
   deepAnalysis: Awaited<ReturnType<typeof inspectSourceCode>>,
   findings: QualityFinding[],
+  nextJsCheck?: NonNullable<QualityAssessment['checks']>[number],
 ): QualityAssessment['checks'] {
   const lowerPaths = paths.map(path => path.toLowerCase());
   const manifestContents = Object.values(manifests).join('\n').toLowerCase();
@@ -443,6 +446,12 @@ function assessQualityChecks(
     checks.push(check('tests', 'Automated tests', 'testing', testFilesCount > 0 ? 'incomplete' : 'not-configured', testFilesCount > 0 ? `${testFilesCount} test-like file(s) found; no language-specific runner profile is available.` : 'No test files or supported test runner configuration were detected.'));
   }
 
+  if (nextJsCheck) {
+    const securityIdx = checks.findIndex(entry => entry.id === 'source-patterns');
+    if (securityIdx >= 0) checks.splice(securityIdx + 1, 0, nextJsCheck);
+    else checks.push(nextJsCheck);
+  }
+
   return checks;
 }
 
@@ -456,6 +465,7 @@ function assessCodeQuality(
   sourceContents: Record<string, string>,
   deepAnalysis: Awaited<ReturnType<typeof inspectSourceCode>>,
   dependencyRisk?: DependencyRiskAssessment,
+  frameworkProfile?: FrameworkProfile,
 ): QualityAssessment {
   const normalizedPaths = paths.map(path => path.replace(/\\/g, '/'));
   const lowerPaths = normalizedPaths.map(path => path.toLowerCase());
@@ -474,6 +484,8 @@ function assessCodeQuality(
   const averageSourceDepth = sourcePaths.length
     ? sourcePaths.reduce((total, path) => total + path.split('/').length, 0) / sourcePaths.length
     : 0;
+
+  const nextJsImpact = computeNextJsQualityImpact(frameworkProfile);
 
   let testingScore = 0;
   if (testFilesCount > 0) testingScore += 13;
@@ -509,13 +521,15 @@ function assessCodeQuality(
     && finding.evidence.some(evidence => [...correctnessPathSet].some(path => evidence.startsWith(`${path}:`))));
   const correctnessAssessed = isNextProject && deepAnalysis.parsedFiles > 0 && correctnessPaths.length > 0;
   const correctnessPartial = correctnessAssessed && (deepAnalysis.skippedFiles > 0 || nextProfileFilesNotInspected > 0);
+
   const securityScore = securityAssessed
     ? Math.max(0, 10 - Math.min(10, securityFindings.reduce((penalty, finding) => penalty + (finding.priority === 'high' ? 3 : finding.priority === 'medium' ? 2 : 1), 0)))
     : 0;
   const correctnessScore = correctnessAssessed
     ? Math.max(0, 5 - Math.min(5, correctnessFindings.reduce((penalty, finding) => penalty + (finding.priority === 'high' ? 2 : 1), 0)))
     : 0;
-  const dimensions = [
+
+  const dimensions: QualityDimension[] = [
     { name: 'Tests', score: testingScore, maxScore: 20, summary: testFilesCount > 0 ? `${testFilesCount} test files${hasTestConfig ? ' and test tooling' : ''} detected.` : hasTestConfig || hasTestScript ? 'Test tooling is configured, but no test files were found.' : 'No test files, test configuration, or test script were detected.' },
     { name: 'Code maintainability', score: maintainabilityScore, maxScore: 25, summary: sourceMetrics.analyzedFiles > 0 ? `${sourceMetrics.analyzedFiles} source files inspected · ${sourceMetrics.linesOfCode.toLocaleString()} non-empty lines.` : 'Source contents were not available to inspect.' },
     { name: 'Folder structure', score: organizationScore, maxScore: 15, summary: sourcePaths.length ? `${directories.length} folders · ${rootLevelSourceFiles} source files at the project root.` : 'No source files were available to assess organization.' },
@@ -524,6 +538,12 @@ function assessCodeQuality(
     { name: 'Security risks', score: securityScore, maxScore: securityAssessed ? 10 : 0, assessmentStatus: securityAssessed ? (deepAnalysis.skippedFiles || nextProfileFilesNotInspected ? 'partial' as const : 'reviewed' as const) : 'not-assessed' as const, summary: securityAssessed ? `${securityFindings.length} configured risk pattern${securityFindings.length === 1 ? '' : 's'} flagged across ${deepAnalysis.parsedFiles} inspected file(s) using the ${supportedDeepProfilesSummary()} profile. A clean result does not guarantee security.` : `No supported language/framework profile matched this repo for deep security rules. ${deepProfileNotMatchedMessage()}` },
     { name: 'Code correctness', score: correctnessScore, maxScore: correctnessAssessed ? 5 : 0, assessmentStatus: !correctnessAssessed ? 'not-assessed' as const : correctnessPartial ? 'partial' as const : 'reviewed' as const, summary: correctnessAssessed ? `${correctnessFindings.length} correctness signal${correctnessFindings.length === 1 ? '' : 's'} flagged across ${correctnessPaths.length} source file(s) (${supportedDeepProfilesSummary()}). ${correctnessPartial ? 'Some files were skipped or fall outside the active profile.' : 'Only configured static rules were checked.'}` : `No supported language/framework profile matched for deep correctness checks. ${deepProfileNotMatchedMessage()}` },
   ];
+
+  if (nextJsImpact) {
+    const securityIdx = dimensions.findIndex(dim => dim.name === 'Security risks');
+    if (securityIdx >= 0) dimensions.splice(securityIdx + 1, 0, nextJsImpact.dimension);
+    else dimensions.push(nextJsImpact.dimension);
+  }
 
   const findings: QualityFinding[] = [];
   if (!testFilesCount) {
@@ -542,25 +562,35 @@ function assessCodeQuality(
     ...collectProjectHygieneFindings(normalizedPaths, lowerPaths, manifests, sourceContents),
   );
   findings.push(...deepAnalysis.findings);
+  if (nextJsImpact) findings.push(...nextJsImpact.findings);
 
   const availableScore = dimensions.reduce((total, dimension) => total + dimension.score, 0);
   const availableMaxScore = dimensions.reduce((total, dimension) => total + dimension.maxScore, 0);
   const score = availableMaxScore ? Math.round((availableScore / availableMaxScore) * 100) : 0;
   const coverageRatio = sourcePaths.length ? sourceMetrics.analyzedFiles / sourcePaths.length : 0;
   const sortedFindings = findings
-    .sort((a, b) => ({ high: 0, medium: 1, low: 2 }[a.priority] - { high: 0, medium: 1, low: 2 }[b.priority]))
+    .sort((a, b) => ({ high: 0, medium: 1, low: 2 }[a.priority] - { high: 0, medium: 1, low: 2 }[b.priority]));
   const MAX_VISIBLE_FINDINGS = 50;
   const allNormalizedFindings = sortedFindings
     .map(normalizeQualityFinding);
   const normalizedFindings = allNormalizedFindings
-    .slice(0, MAX_VISIBLE_FINDINGS)
+    .slice(0, MAX_VISIBLE_FINDINGS);
   const initialQuality: QualityAssessment = {
     score,
     confidence: coverageRatio >= 0.8 && !sourceMetrics.skippedFiles && !deepAnalysis.skippedFiles ? 'high' : coverageRatio >= 0.5 ? 'medium' : 'low',
     dimensions,
     findings: normalizedFindings,
     findingsOmitted: Math.max(0, sortedFindings.length - MAX_VISIBLE_FINDINGS),
-    checks: assessQualityChecks(paths, scripts, testFilesCount, sourceMetrics, manifests, deepAnalysis, allNormalizedFindings),
+    checks: assessQualityChecks(
+      paths,
+      scripts,
+      testFilesCount,
+      sourceMetrics,
+      manifests,
+      deepAnalysis,
+      allNormalizedFindings,
+      nextJsImpact?.check,
+    ),
     analyzedSourceFiles: sourceMetrics.analyzedFiles,
     linesOfCode: sourceMetrics.linesOfCode,
     todoMarkers: sourceMetrics.todoMarkers,
@@ -805,6 +835,8 @@ export async function analyzeCodebaseSource(source: CodebaseSource): Promise<Cod
     }
   }
 
+  const frameworkProfile = detectAndAnalyzeFramework(source);
+
   return {
     rootName: source.rootName,
     rootPath: source.rootPath,
@@ -816,7 +848,7 @@ export async function analyzeCodebaseSource(source: CodebaseSource): Promise<Cod
     languages,
     frameworks: detectFrameworks(source),
     nextjs: assessNextJsOverview(source, paths),
-    frameworkProfile: detectAndAnalyzeFramework(source),
+    frameworkProfile,
     dependencyInventory,
     dependencyRisk,
     entryPoints: [...entryPoints].sort(),
@@ -836,7 +868,18 @@ export async function analyzeCodebaseSource(source: CodebaseSource): Promise<Cod
       .sort((a, b) => a.parent.localeCompare(b.parent) || b.files - a.files || a.name.localeCompare(b.name))
       .slice(0, 24),
     testFilesCount,
-    quality: assessCodeQuality(paths, source.directories || [], scripts, testFiles.length, sourceMetrics, source.manifests, source.sourceContents || {}, deepAnalysis, dependencyRisk),
+    quality: assessCodeQuality(
+      paths,
+      source.directories || [],
+      scripts,
+      testFiles.length,
+      sourceMetrics,
+      source.manifests,
+      source.sourceContents || {},
+      deepAnalysis,
+      dependencyRisk,
+      frameworkProfile,
+    ),
     architecture: assessArchitecture(source, paths),
     suggestions: suggestImprovements(paths, scripts, testFiles.length, hasNextJsProjectSignal(paths, source.manifests)),
     git: source.git,

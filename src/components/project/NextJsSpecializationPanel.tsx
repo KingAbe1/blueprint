@@ -5,6 +5,11 @@ import {
   NextJsSpecialization,
   NextJsArchitecturalImprovement,
   NextJsImprovementCategory,
+  NextJsApiAudit,
+  NextJsConfigAudit,
+  NextJsCachingAudit,
+  NextJsSecurityAudit,
+  NextJsSeoAudit,
 } from '../../types/framework';
 import {
   overviewBorderClass,
@@ -24,16 +29,26 @@ interface NextJsSpecializationPanelProps {
 const CATEGORY_LABELS: Record<'all' | NextJsImprovementCategory, string> = {
   all: 'All',
   'action-hygiene': 'Actions',
+  'api-hygiene': 'API',
   'bundle-optimization': 'Bundle',
   'route-resilience': 'Routes',
+  'config-delivery': 'Config',
+  'data-caching': 'Cache',
+  'security': 'Security',
+  'seo-metadata': 'SEO',
   modernization: 'Modern',
 };
 
 const CATEGORY_KEYS = [
   'all',
   'action-hygiene',
+  'api-hygiene',
   'bundle-optimization',
   'route-resilience',
+  'config-delivery',
+  'data-caching',
+  'security',
+  'seo-metadata',
   'modernization',
 ] as const;
 
@@ -50,6 +65,49 @@ const SEVERITY_RANK: Record<NextJsArchitecturalImprovement['severity'], number> 
   critical: 0,
   warning: 1,
   optimization: 2,
+};
+
+const EMPTY_API_AUDIT: NextJsApiAudit = {
+  routeHandlerCount: 0,
+  pagesApiCount: 0,
+  unvalidatedFilesCount: 0,
+  unprotectedFilesCount: 0,
+  auditedFiles: [],
+};
+
+const EMPTY_CONFIG_AUDIT: NextJsConfigAudit = {
+  ignoreBuildErrors: false,
+  ignoreDuringBuilds: false,
+  hasSecurityHeaders: false,
+  hasStandaloneOutput: false,
+  openImageRemotePatterns: false,
+  missingLintScript: false,
+  missingTypecheckSignal: false,
+  issueCount: 0,
+};
+
+const EMPTY_CACHING_AUDIT: NextJsCachingAudit = {
+  forceDynamicFiles: [],
+  zeroRevalidateFiles: [],
+  uncachedFetchFiles: [],
+  syncRequestApiFiles: [],
+  dynamicRoutesMissingStaticParams: [],
+  issueCount: 0,
+};
+
+const EMPTY_SECURITY_AUDIT: NextJsSecurityAudit = {
+  serverImportInClientFiles: [],
+  secretEnvInClientFiles: [],
+  middlewareWithoutAuth: false,
+  issueCount: 0,
+};
+
+const EMPTY_SEO_AUDIT: NextJsSeoAudit = {
+  hasRootMetadata: false,
+  hasRobotsFile: false,
+  hasSitemapFile: false,
+  pagesMissingMetadata: [],
+  issueCount: 0,
 };
 
 function rowEmphasisForSeverity(severity: NextJsArchitecturalImprovement['severity']): OverviewEmphasis {
@@ -126,6 +184,27 @@ function severityChipClass(
       : `${base} border-slate-200 text-slate-600 hover:border-blue-200 hover:text-blue-800`;
 }
 
+function metricCell(
+  isDark: boolean,
+  muted: string,
+  label: string,
+  value: React.ReactNode,
+  detail: React.ReactNode,
+  emphasis: OverviewEmphasis,
+) {
+  return (
+    <div className="px-5 py-5 sm:px-6">
+      <dt className={`text-[13px] ${muted}`}>{label}</dt>
+      <dd
+        className={`mt-2 text-xl font-medium tabular-nums tracking-tight ${overviewMetricValueAccent(isDark, emphasis)}`}
+      >
+        {value}
+      </dd>
+      <dd className={`mt-1.5 text-xs leading-relaxed ${muted}`}>{detail}</dd>
+    </div>
+  );
+}
+
 export const NextJsSpecializationPanel: React.FC<NextJsSpecializationPanelProps> = ({
   specialization,
 }) => {
@@ -162,11 +241,19 @@ export const NextJsSpecializationPanel: React.FC<NextJsSpecializationPanelProps>
     };
   }, [specialization]);
 
+  const apiAudit = specialization?.apiAudit || EMPTY_API_AUDIT;
+  const configAudit = specialization?.configAudit || EMPTY_CONFIG_AUDIT;
+  const cachingAudit = specialization?.cachingAudit || EMPTY_CACHING_AUDIT;
+  const securityAudit = specialization?.securityAudit || EMPTY_SECURITY_AUDIT;
+  const seoAudit = specialization?.seoAudit || EMPTY_SEO_AUDIT;
+
   const bundleAudit = useMemo(() => {
     if (specialization?.bundleAudit) {
       return {
         serverRatio: specialization.bundleAudit.serverRatio ?? 70,
         unnecessaryClientFiles: specialization.bundleAudit.unnecessaryClientFiles || [],
+        rawImgTagFiles: specialization.bundleAudit.rawImgTagFiles || [],
+        missingNextFont: specialization.bundleAudit.missingNextFont ?? false,
       };
     }
     const legacyDist = (specialization as { componentDistribution?: { serverRatio?: number; clientComponentFiles?: string[] } })
@@ -174,6 +261,8 @@ export const NextJsSpecializationPanel: React.FC<NextJsSpecializationPanelProps>
     return {
       serverRatio: legacyDist?.serverRatio ?? 70,
       unnecessaryClientFiles: (legacyDist?.clientComponentFiles || []).slice(0, 5),
+      rawImgTagFiles: [] as string[],
+      missingNextFont: false,
     };
   }, [specialization]);
 
@@ -183,9 +272,11 @@ export const NextJsSpecializationPanel: React.FC<NextJsSpecializationPanelProps>
         boundaryFiles:
           (specialization.resilienceAudit.layoutCount ?? 0) +
           (specialization.resilienceAudit.loadingCount ?? 0) +
-          (specialization.resilienceAudit.errorCount ?? 0),
+          (specialization.resilienceAudit.errorCount ?? 0) +
+          (specialization.resilienceAudit.notFoundCount ?? 0),
         missingErrorSegments: specialization.resilienceAudit.missingErrorSegments || [],
         hasRootError: specialization.resilienceAudit.hasRootError ?? false,
+        hasRootNotFound: specialization.resilienceAudit.hasRootNotFound ?? false,
       };
     }
     const legacyHealth = (specialization as { boundaryHealth?: { layoutCount?: number; loadingCount?: number; errorCount?: number; hasRootError?: boolean } })
@@ -195,6 +286,7 @@ export const NextJsSpecializationPanel: React.FC<NextJsSpecializationPanelProps>
       boundaryFiles: (legacyHealth?.layoutCount ?? 0) + (legacyHealth?.loadingCount ?? 0) + (legacyHealth?.errorCount ?? 0),
       missingErrorSegments: !hasRootError ? ['app/error.tsx'] : [],
       hasRootError,
+      hasRootNotFound: false,
     };
   }, [specialization]);
 
@@ -229,15 +321,25 @@ export const NextJsSpecializationPanel: React.FC<NextJsSpecializationPanelProps>
     const counts: Record<'all' | NextJsImprovementCategory, number> = {
       all: improvements.length,
       'action-hygiene': 0,
+      'api-hygiene': 0,
       'bundle-optimization': 0,
       'route-resilience': 0,
+      'config-delivery': 0,
+      'data-caching': 0,
+      security: 0,
+      'seo-metadata': 0,
       modernization: 0,
     };
     for (const item of improvements) {
-      counts[item.category] += 1;
+      if (item.category in counts) counts[item.category] += 1;
     }
     return counts;
   }, [improvements]);
+
+  // Hide empty category chips (except All) to keep the filter strip scannable.
+  const visibleCategoryKeys = useMemo(() => {
+    return CATEGORY_KEYS.filter(cat => cat === 'all' || categoryCounts[cat] > 0);
+  }, [categoryCounts]);
 
   const panel = overviewPanelClass(isDark);
   const divide = overviewDivideClass(isDark);
@@ -245,8 +347,20 @@ export const NextJsSpecializationPanel: React.FC<NextJsSpecializationPanelProps>
 
   const actionsMetricEmphasis: OverviewEmphasis =
     actionAudit.unvalidatedFilesCount > 0 || actionAudit.unprotectedFilesCount > 0 ? 'warning' : 'neutral';
-  const bundleMetricEmphasis: OverviewEmphasis = bundleAudit.unnecessaryClientFiles.length > 0 ? 'warning' : 'neutral';
+  const apiMetricEmphasis: OverviewEmphasis =
+    apiAudit.unvalidatedFilesCount > 0 || apiAudit.unprotectedFilesCount > 0 ? 'warning' : 'neutral';
+  const bundleMetricEmphasis: OverviewEmphasis =
+    bundleAudit.unnecessaryClientFiles.length > 0 || bundleAudit.rawImgTagFiles.length > 0 ? 'warning' : 'neutral';
   const boundaryMetricEmphasis: OverviewEmphasis = resilienceAudit.hasRootError ? 'neutral' : 'critical';
+  const securityMetricEmphasis: OverviewEmphasis = securityAudit.issueCount > 0 ? 'warning' : 'neutral';
+  const configMetricEmphasis: OverviewEmphasis =
+    configAudit.ignoreBuildErrors ? 'critical' : configAudit.issueCount > 0 || cachingAudit.issueCount > 0 || seoAudit.issueCount > 0
+      ? 'warning'
+      : 'neutral';
+
+  const apiRouteTotal = apiAudit.routeHandlerCount + apiAudit.pagesApiCount;
+  const bundleSignalCount = bundleAudit.unnecessaryClientFiles.length + bundleAudit.rawImgTagFiles.length;
+  const deliveryIssueCount = configAudit.issueCount + cachingAudit.issueCount + seoAudit.issueCount;
 
   const copyFixPrompt = useCallback(async (item: NextJsArchitecturalImprovement) => {
     const prompt = `### Next.js Architectural Improvement Request
@@ -315,61 +429,100 @@ Refactor the code to implement this recommendation. Ensure clean TypeScript typi
         </div>
       </header>
 
-      <dl className={`grid grid-cols-1 divide-y md:grid-cols-3 md:divide-x md:divide-y-0 ${divide}`}>
-        <div className="px-5 py-5 sm:px-6">
-          <dt className={`text-[13px] ${muted}`}>Server actions</dt>
-          <dd
-            className={`mt-2 text-xl font-medium tabular-nums tracking-tight ${overviewMetricValueAccent(isDark, actionsMetricEmphasis)}`}
-          >
-            {actionAudit.totalActionsCount}
-          </dd>
-          <dd className={`mt-1.5 text-xs leading-relaxed ${muted}`}>
-            {actionAudit.unvalidatedFilesCount > 0 ? (
-              <>
+      <dl
+        className={`grid grid-cols-1 divide-y sm:grid-cols-2 sm:divide-x lg:grid-cols-3 ${divide}`}
+      >
+        {metricCell(
+          isDark,
+          muted,
+          'Server actions',
+          actionAudit.totalActionsCount,
+          actionAudit.unvalidatedFilesCount > 0 ? (
+            <>
+              <span className={overviewSeverityLabel(isDark, 'warning')}>
+                {actionAudit.unvalidatedFilesCount} without validation
+              </span>
+              {actionAudit.unprotectedFilesCount > 0 ? (
+                <>
+                  <span> · </span>
+                  <span className={overviewSeverityLabel(isDark, 'warning')}>
+                    {actionAudit.unprotectedFilesCount} without auth
+                  </span>
+                </>
+              ) : null}
+            </>
+          ) : (
+            'Validation and auth look consistent in scanned modules'
+          ),
+          actionsMetricEmphasis,
+        )}
+
+        {metricCell(
+          isDark,
+          muted,
+          'API routes',
+          apiRouteTotal,
+          apiRouteTotal === 0 ? (
+            'No Route Handlers or pages/api detected'
+          ) : apiAudit.unvalidatedFilesCount > 0 || apiAudit.unprotectedFilesCount > 0 ? (
+            <>
+              {apiAudit.unvalidatedFilesCount > 0 ? (
                 <span className={overviewSeverityLabel(isDark, 'warning')}>
-                  {actionAudit.unvalidatedFilesCount} without validation
+                  {apiAudit.unvalidatedFilesCount} without validation
                 </span>
-                {actionAudit.unprotectedFilesCount > 0 ? (
-                  <>
-                    <span> · </span>
-                    <span className={overviewSeverityLabel(isDark, 'warning')}>
-                      {actionAudit.unprotectedFilesCount} without auth
-                    </span>
-                  </>
-                ) : null}
+              ) : null}
+              {apiAudit.unvalidatedFilesCount > 0 && apiAudit.unprotectedFilesCount > 0 ? <span> · </span> : null}
+              {apiAudit.unprotectedFilesCount > 0 ? (
+                <span className={overviewSeverityLabel(isDark, 'warning')}>
+                  {apiAudit.unprotectedFilesCount} without auth
+                </span>
+              ) : null}
+            </>
+          ) : (
+            `${apiAudit.routeHandlerCount} app · ${apiAudit.pagesApiCount} pages/api`
+          ),
+          apiMetricEmphasis,
+        )}
+
+        {metricCell(
+          isDark,
+          muted,
+          'Client bundle',
+          <>
+            {bundleSignalCount}
+            <span className={`ml-1.5 text-sm font-normal ${muted}`}>signals</span>
+          </>,
+          <>
+            {bundleAudit.serverRatio}% server components
+            {bundleAudit.rawImgTagFiles.length > 0 ? (
+              <>
+                <span> · </span>
+                <span className={overviewSeverityLabel(isDark, 'warning')}>
+                  {bundleAudit.rawImgTagFiles.length} raw &lt;img&gt;
+                </span>
               </>
-            ) : (
-              'Validation and auth look consistent in scanned modules'
-            )}
-          </dd>
-        </div>
+            ) : null}
+          </>,
+          bundleMetricEmphasis,
+        )}
 
-        <div className="px-5 py-5 sm:px-6">
-          <dt className={`text-[13px] ${muted}`}>Client bundle</dt>
-          <dd
-            className={`mt-2 text-xl font-medium tabular-nums tracking-tight ${overviewMetricValueAccent(isDark, bundleMetricEmphasis)}`}
-          >
-            {bundleAudit.unnecessaryClientFiles.length}
-            <span className={`ml-1.5 text-sm font-normal ${muted}`}>convertible</span>
-          </dd>
-          <dd className={`mt-1.5 text-xs leading-relaxed ${muted}`}>
-            {bundleAudit.serverRatio}% server components in sampled tree
-          </dd>
-        </div>
-
-        <div className="px-5 py-5 sm:px-6">
-          <dt className={`text-[13px] ${muted}`}>Route boundaries</dt>
-          <dd
-            className={`mt-2 text-xl font-medium tabular-nums tracking-tight ${overviewMetricValueAccent(isDark, boundaryMetricEmphasis)}`}
-          >
-            {resilienceAudit.boundaryFiles}
-          </dd>
-          <dd className={`mt-1.5 text-xs leading-relaxed ${muted}`}>
+        {metricCell(
+          isDark,
+          muted,
+          'Route boundaries',
+          resilienceAudit.boundaryFiles,
+          <>
             {resilienceAudit.hasRootError ? (
               'Root error boundary present'
             ) : (
               <span className={overviewSeverityLabel(isDark, 'critical')}>Missing root error boundary</span>
             )}
+            {!resilienceAudit.hasRootNotFound ? (
+              <>
+                <span> · </span>
+                <span className={overviewSeverityLabel(isDark, 'warning')}>No not-found.tsx</span>
+              </>
+            ) : null}
             {resilienceAudit.missingErrorSegments.length > 0 ? (
               <>
                 <span> · </span>
@@ -378,8 +531,75 @@ Refactor the code to implement this recommendation. Ensure clean TypeScript typi
                 </span>
               </>
             ) : null}
-          </dd>
-        </div>
+          </>,
+          boundaryMetricEmphasis,
+        )}
+
+        {metricCell(
+          isDark,
+          muted,
+          'Security',
+          securityAudit.issueCount,
+          securityAudit.issueCount === 0 ? (
+            'No client leakage or middleware auth gaps flagged'
+          ) : (
+            <>
+              {securityAudit.serverImportInClientFiles.length + securityAudit.secretEnvInClientFiles.length > 0 ? (
+                <span className={overviewSeverityLabel(isDark, 'warning')}>
+                  {securityAudit.serverImportInClientFiles.length + securityAudit.secretEnvInClientFiles.length} client
+                  leakage
+                </span>
+              ) : null}
+              {securityAudit.middlewareWithoutAuth ? (
+                <>
+                  {(securityAudit.serverImportInClientFiles.length + securityAudit.secretEnvInClientFiles.length > 0) ? (
+                    <span> · </span>
+                  ) : null}
+                  <span className={overviewSeverityLabel(isDark, 'warning')}>Middleware auth gap</span>
+                </>
+              ) : null}
+              {securityAudit.issueCount > 0 &&
+              securityAudit.serverImportInClientFiles.length + securityAudit.secretEnvInClientFiles.length === 0 &&
+              !securityAudit.middlewareWithoutAuth
+                ? 'Review open-redirect and related signals'
+                : null}
+            </>
+          ),
+          securityMetricEmphasis,
+        )}
+
+        {metricCell(
+          isDark,
+          muted,
+          'Config & delivery',
+          deliveryIssueCount,
+          <>
+            {configAudit.ignoreBuildErrors ? (
+              <span className={overviewSeverityLabel(isDark, 'critical')}>Build ignores type errors</span>
+            ) : configAudit.issueCount > 0 ? (
+              <span className={overviewSeverityLabel(isDark, 'warning')}>
+                {configAudit.issueCount} config issue{configAudit.issueCount === 1 ? '' : 's'}
+              </span>
+            ) : (
+              'Config baseline looks healthy'
+            )}
+            {cachingAudit.issueCount > 0 ? (
+              <>
+                <span> · </span>
+                <span className={overviewSeverityLabel(isDark, 'warning')}>
+                  {cachingAudit.issueCount} cache/data
+                </span>
+              </>
+            ) : null}
+            {seoAudit.issueCount > 0 ? (
+              <>
+                <span> · </span>
+                <span className={overviewSeverityLabel(isDark, 'warning')}>{seoAudit.issueCount} SEO</span>
+              </>
+            ) : null}
+          </>,
+          configMetricEmphasis,
+        )}
       </dl>
 
       {improvements.length > 0 ? (
@@ -418,62 +638,61 @@ Refactor the code to implement this recommendation. Ensure clean TypeScript typi
                 : 'overflow-x-auto rounded-xl border border-slate-200/80 bg-slate-50/80 px-2.5 py-2'
             }
           >
-            <div className="flex min-w-max flex-wrap items-center gap-x-2 gap-y-2 sm:min-w-0 sm:flex-nowrap">
-              <span className={`shrink-0 text-[11px] font-medium ${muted}`}>Category</span>
-              <div className="flex flex-wrap items-center gap-1" role="tablist" aria-label="Filter by category">
-                {CATEGORY_KEYS.map(cat => {
-                  const selected = categoryFilter === cat;
-                  const count = categoryCounts[cat];
-                  return (
-                    <button
-                      key={cat}
-                      type="button"
-                      role="tab"
-                      aria-selected={selected}
-                      onClick={() => setCategoryFilter(cat)}
-                      className={categoryChipClass(isDark, selected)}
-                    >
-                      <span>{CATEGORY_LABELS[cat]}</span>
-                      <span className={`tabular-nums text-[11px] ${selected ? 'opacity-85' : 'opacity-55'}`}>
-                        {count}
-                      </span>
-                    </button>
-                  );
-                })}
+            <div className="flex min-w-max flex-col gap-2 sm:min-w-0">
+              <div className="flex flex-wrap items-center gap-x-2 gap-y-2">
+                <span className={`shrink-0 text-[11px] font-medium ${muted}`}>Category</span>
+                <div className="flex flex-wrap items-center gap-1" role="tablist" aria-label="Filter by category">
+                  {visibleCategoryKeys.map(cat => {
+                    const selected = categoryFilter === cat;
+                    const count = categoryCounts[cat];
+                    return (
+                      <button
+                        key={cat}
+                        type="button"
+                        role="tab"
+                        aria-selected={selected}
+                        onClick={() => setCategoryFilter(cat)}
+                        className={categoryChipClass(isDark, selected)}
+                      >
+                        <span>{CATEGORY_LABELS[cat]}</span>
+                        <span className={`tabular-nums text-[11px] ${selected ? 'opacity-85' : 'opacity-55'}`}>
+                          {count}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
 
-              <span
-                className={`mx-0.5 hidden h-4 w-px shrink-0 sm:block ${isDark ? 'bg-white/10' : 'bg-slate-300/70'}`}
-                aria-hidden
-              />
-
-              <span className={`shrink-0 text-[11px] font-medium ${muted}`}>Severity</span>
-              <div className="flex flex-wrap items-center gap-1" aria-label="Filter by severity">
-                {SEVERITY_KEYS.map(sev => {
-                  const selected = severityFilter === sev;
-                  const count = severityCount(sev);
-                  const showDot = sev !== 'all' && count > 0;
-                  return (
-                    <button
-                      key={sev}
-                      type="button"
-                      aria-pressed={selected}
-                      onClick={() => setSeverityFilter(sev)}
-                      className={`${severityChipClass(isDark, sev, selected)} !px-2.5 !py-1 text-[12px]`}
-                    >
-                      {showDot ? (
-                        <span
-                          className={`h-1.5 w-1.5 shrink-0 rounded-full ${severityDotClass(isDark, sev)}`}
-                          aria-hidden
-                        />
-                      ) : null}
-                      <span>{SEVERITY_LABELS[sev]}</span>
-                      <span className={`tabular-nums text-[11px] ${selected ? 'opacity-90' : 'opacity-55'}`}>
-                        {count}
-                      </span>
-                    </button>
-                  );
-                })}
+              <div className="flex flex-wrap items-center gap-x-2 gap-y-2">
+                <span className={`shrink-0 text-[11px] font-medium ${muted}`}>Severity</span>
+                <div className="flex flex-wrap items-center gap-1" aria-label="Filter by severity">
+                  {SEVERITY_KEYS.map(sev => {
+                    const selected = severityFilter === sev;
+                    const count = severityCount(sev);
+                    const showDot = sev !== 'all' && count > 0;
+                    return (
+                      <button
+                        key={sev}
+                        type="button"
+                        aria-pressed={selected}
+                        onClick={() => setSeverityFilter(sev)}
+                        className={`${severityChipClass(isDark, sev, selected)} !px-2.5 !py-1 text-[12px]`}
+                      >
+                        {showDot ? (
+                          <span
+                            className={`h-1.5 w-1.5 shrink-0 rounded-full ${severityDotClass(isDark, sev)}`}
+                            aria-hidden
+                          />
+                        ) : null}
+                        <span>{SEVERITY_LABELS[sev]}</span>
+                        <span className={`tabular-nums text-[11px] ${selected ? 'opacity-90' : 'opacity-55'}`}>
+                          {count}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
             </div>
           </div>
@@ -494,7 +713,7 @@ Refactor the code to implement this recommendation. Ensure clean TypeScript typi
                     <p className={`text-sm font-medium leading-snug ${title}`}>{item.title}</p>
                     <p className={`mt-1 text-xs ${muted}`}>
                       <span className={overviewSeverityLabel(isDark, item.severity)}>{item.severity}</span>
-                      <span> · {item.category.replace(/-/g, ' ')}</span>
+                      <span> · {CATEGORY_LABELS[item.category] || item.category.replace(/-/g, ' ')}</span>
                       {item.file ? (
                         <>
                           <span> · </span>
@@ -535,8 +754,14 @@ Refactor the code to implement this recommendation. Ensure clean TypeScript typi
       ) : (
         <div className="px-5 py-10 text-center sm:px-6">
           <CheckCircle2 className={`mx-auto h-6 w-6 ${isDark ? 'text-slate-500' : 'text-slate-400'}`} />
-          <p className={`mt-2 text-sm font-medium ${title}`}>Nothing in this filter</p>
-          <p className={`mt-1 text-xs ${muted}`}>Try another category or severity.</p>
+          <p className={`mt-2 text-sm font-medium ${title}`}>
+            {improvements.length === 0 ? 'No Next.js findings' : 'Nothing in this filter'}
+          </p>
+          <p className={`mt-1 text-xs ${muted}`}>
+            {improvements.length === 0
+              ? 'Actions, APIs, config, caching, security, and SEO checks did not flag issues in this scan.'
+              : 'Try another category or severity.'}
+          </p>
         </div>
       )}
 

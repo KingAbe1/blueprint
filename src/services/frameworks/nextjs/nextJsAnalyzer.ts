@@ -6,6 +6,17 @@ import {
   UniversalRoute,
   UniversalBoundary,
 } from '../../../types/framework';
+import {
+  AUTH_SIGNAL,
+  VALIDATION_SIGNAL,
+  auditApiRoutes,
+  auditCachingAndData,
+  auditNextConfig,
+  auditPerformanceSignals,
+  auditSecurity,
+  auditSeoMetadata,
+  pushResilienceExtras,
+} from './nextJsDeepAudits';
 
 export const nextJsAnalyzer: FrameworkAnalyzer<NextJsSpecialization> = {
   id: 'nextjs',
@@ -123,6 +134,15 @@ export const nextJsAnalyzer: FrameworkAnalyzer<NextJsSpecialization> = {
       });
     }
 
+    for (const apiPath of [...appApiPaths, ...pagesApiPaths]) {
+      universalRoutes.push({
+        path: apiPath,
+        pattern: apiPath,
+        type: 'api',
+        file: apiPath,
+      });
+    }
+
     // 3. Server Actions & Mutation Hygiene Audit
     const actionCandidatePaths = normalizedPaths.filter(path => {
       const lower = path.toLowerCase();
@@ -149,7 +169,6 @@ export const nextJsAnalyzer: FrameworkAnalyzer<NextJsSpecialization> = {
       const lines = content ? content.split(/\r\n|\n|\r/).length : 0;
       const fileName = actPath.split('/').pop() || actPath;
 
-      // Extract exported functions
       const exportedActions: string[] = [];
       const exportFuncRegex = /export\s+(?:async\s+)?function\s+([a-zA-Z0-9_$]+)/g;
       let match: RegExpExecArray | null;
@@ -163,10 +182,8 @@ export const nextJsAnalyzer: FrameworkAnalyzer<NextJsSpecialization> = {
 
       totalActionsCount += exportedActions.length;
 
-      // Check schema validation (Zod / Valibot / Yup / safeParse)
-      const hasValidation = /\b(?:z\.|valibot|yup|schema\.parse|safeParse)\b/i.test(content);
-      // Check auth / session check
-      const hasAuth = /\b(?:auth\s*\(|getServerSession|createClient|supabase\.auth|currentUser|session|cookies\s*\()/i.test(content);
+      const hasValidation = VALIDATION_SIGNAL.test(content);
+      const hasAuth = AUTH_SIGNAL.test(content);
 
       if (!hasValidation) {
         unvalidatedFilesCount += 1;
@@ -245,7 +262,6 @@ export const nextJsAnalyzer: FrameworkAnalyzer<NextJsSpecialization> = {
         if (hasUseClient) {
           clientComponentFiles.push(compPath);
 
-          // Check if it actually uses hooks or events
           const hasHooks = /\buse(?:State|Effect|LayoutEffect|Reducer|Ref|Callback|Memo|Context|Transition|DeferredValue|SyncExternalStore|Router|Params|Pathname|SearchParams)\s*\(/i.test(content);
           const hasEvents = /\bon(?:Click|Change|Submit|KeyDown|KeyUp|MouseEnter|MouseLeave|Focus|Blur)\s*=/i.test(content);
 
@@ -283,21 +299,22 @@ export const nextJsAnalyzer: FrameworkAnalyzer<NextJsSpecialization> = {
     const loadingFiles = normalizedPaths.filter(p => /\/loading\.(?:js|jsx|ts|tsx)$/i.test(p) || /^loading\.(?:js|jsx|ts|tsx)$/i.test(p));
     const errorFiles = normalizedPaths.filter(p => /\/error\.(?:js|jsx|ts|tsx)$/i.test(p) || /^error\.(?:js|jsx|ts|tsx)$/i.test(p));
     const notFoundFiles = normalizedPaths.filter(p => /\/not-found\.(?:js|jsx|ts|tsx)$/i.test(p) || /^not-found\.(?:js|jsx|ts|tsx)$/i.test(p));
+    const globalErrorFiles = normalizedPaths.filter(p => /\/global-error\.(?:js|jsx|ts|tsx)$/i.test(p) || /^global-error\.(?:js|jsx|ts|tsx)$/i.test(p));
     const middlewareFiles = normalizedPaths.filter(p => /(^|\/)(?:proxy|middleware)\.(?:js|ts)$/i.test(p));
 
     const hasRootLayout = layoutFiles.some(p => /(^|\/)app\/layout\./i.test(p) || /(^|\/)src\/app\/layout\./i.test(p));
     const hasRootLoading = loadingFiles.some(p => /(^|\/)app\/loading\./i.test(p) || /(^|\/)src\/app\/loading\./i.test(p));
     const hasRootError = errorFiles.some(p => /(^|\/)app\/error\./i.test(p) || /(^|\/)src\/app\/error\./i.test(p));
     const hasRootNotFound = notFoundFiles.some(p => /(^|\/)app\/not-found\./i.test(p) || /(^|\/)src\/app\/not-found\./i.test(p));
+    const hasGlobalError = globalErrorFiles.length > 0;
 
-    // Extract App Router segments to check for missing loading/error boundaries
     const missingLoadingSegments: string[] = [];
     const missingErrorSegments: string[] = [];
 
     const appSegments = new Set<string>();
     for (const pagePath of appPagePaths) {
       const parts = pagePath.split('/');
-      const appIdx = parts.lastIndexOf('app');
+      const appIdx = parts.map(s => s.toLowerCase()).lastIndexOf('app');
       if (appIdx >= 0 && parts.length > appIdx + 2) {
         const seg = parts[appIdx + 1];
         if (!seg.startsWith('(') && !seg.startsWith('@')) {
@@ -341,6 +358,17 @@ export const nextJsAnalyzer: FrameworkAnalyzer<NextJsSpecialization> = {
       });
     }
 
+    pushResilienceExtras(
+      {
+        hasRootNotFound,
+        hasGlobalError,
+        hasAppPages: appPagePaths.length > 0,
+        missingErrorSegments,
+        appPagePathsLength: appPagePaths.length,
+      },
+      improvements,
+    );
+
     // 6. Modernization & Breaking Version Migration
     const hasLegacyMiddleware = middlewareFiles.some(p => /(^|\/)middleware\.(?:js|ts)$/i.test(p));
     if (isNext16OrHigher && hasLegacyMiddleware) {
@@ -355,17 +383,6 @@ export const nextJsAnalyzer: FrameworkAnalyzer<NextJsSpecialization> = {
       });
     }
 
-    if (isNext15OrHigher) {
-      improvements.push({
-        id: 'modernization-next15-async-cookies',
-        category: 'modernization',
-        severity: 'warning',
-        title: 'Next.js 15+ Async Request APIs (cookies & headers)',
-        impact: 'Next.js 15 makes cookies(), headers(), and route params asynchronous. Synchronous access triggers runtime deprecation warnings and will fail in future releases.',
-        remediation: 'Audit server components and server actions to ensure cookies() and headers() calls are preceded with await.',
-      });
-    }
-
     if (pagesRoutePaths.length > 0 && appPagePaths.length > 0) {
       improvements.push({
         id: 'modernization-hybrid-migration',
@@ -377,7 +394,31 @@ export const nextJsAnalyzer: FrameworkAnalyzer<NextJsSpecialization> = {
       });
     }
 
-    // 7. Route Topology
+    // 7. Deep audits (API, config, caching, security, SEO, performance)
+    const apiAudit = auditApiRoutes(normalizedPaths, sourceContents, improvements);
+    const configAudit = auditNextConfig(normalizedPaths, sourceContents, manifests, improvements);
+    const cachingAudit = auditCachingAndData(
+      normalizedPaths,
+      sourceContents,
+      appPagePaths,
+      isNext15OrHigher,
+      improvements,
+    );
+    const securityAudit = auditSecurity(normalizedPaths, sourceContents, middlewareFiles, improvements);
+    const seoAudit = auditSeoMetadata(
+      normalizedPaths,
+      sourceContents,
+      appPagePaths,
+      appRouterPresent,
+      improvements,
+    );
+    const performance = auditPerformanceSignals(normalizedPaths, sourceContents, manifests, improvements);
+
+    // If Next 15+ but we found no sync misuse, skip blanket warning (caching audit covers real hits).
+    // Keep a light modernization note only when version is known and no sync findings exist yet
+    // and source was too sparse to inspect — omitted intentionally for lower noise.
+
+    // 8. Route Topology
     const routeGroupsSet = new Set<string>();
     const parallelRoutesSet = new Set<string>();
     const interceptingRoutesSet = new Set<string>();
@@ -413,6 +454,7 @@ export const nextJsAnalyzer: FrameworkAnalyzer<NextJsSpecialization> = {
         complexActionsCount,
         actionFiles: auditedActionFiles,
       },
+      apiAudit,
       bundleAudit: {
         serverComponentsCount,
         clientComponentsCount,
@@ -420,12 +462,16 @@ export const nextJsAnalyzer: FrameworkAnalyzer<NextJsSpecialization> = {
         serverRatio,
         clientRatio,
         unnecessaryClientFiles,
+        rawImgTagFiles: performance.rawImgTagFiles,
+        missingNextFont: performance.missingNextFont,
+        sharpMissingWithImages: performance.sharpMissingWithImages,
       },
       resilienceAudit: {
         hasRootLayout,
         hasRootLoading,
         hasRootError,
         hasRootNotFound,
+        hasGlobalError,
         layoutCount: layoutFiles.length,
         loadingCount: loadingFiles.length,
         errorCount: errorFiles.length,
@@ -433,12 +479,20 @@ export const nextJsAnalyzer: FrameworkAnalyzer<NextJsSpecialization> = {
         missingLoadingSegments,
         missingErrorSegments,
       },
+      configAudit,
+      cachingAudit,
+      securityAudit,
+      seoAudit,
       improvements,
       routeGroups: Array.from(routeGroupsSet),
       parallelRoutes: Array.from(parallelRoutesSet),
       interceptingRoutes: Array.from(interceptingRoutesSet),
       dynamicRoutesCount,
     };
+
+    const apiRisks = apiAudit.unvalidatedFilesCount + apiAudit.unprotectedFilesCount;
+    const securityRisks = securityAudit.issueCount;
+    const configIssues = configAudit.issueCount;
 
     return {
       id: 'nextjs',
@@ -450,8 +504,12 @@ export const nextJsAnalyzer: FrameworkAnalyzer<NextJsSpecialization> = {
       boundaries: universalBoundaries,
       stats: {
         'App Router Pages': appPagePaths.length,
+        'API Routes': apiAudit.routeHandlerCount + apiAudit.pagesApiCount,
         'Action Risks': unvalidatedFilesCount + unprotectedFilesCount,
-        'Bundle Optimizations': unnecessaryClientFiles.length,
+        'API Risks': apiRisks,
+        'Security Signals': securityRisks,
+        'Config Issues': configIssues,
+        'Bundle Optimizations': unnecessaryClientFiles.length + performance.rawImgTagFiles.length,
         'Server Component Ratio': `${serverRatio}%`,
       },
       specialization,

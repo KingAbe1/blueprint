@@ -26,8 +26,13 @@ export interface UniversalBoundary {
 
 export type NextJsImprovementCategory =
   | 'action-hygiene'
+  | 'api-hygiene'
   | 'bundle-optimization'
   | 'route-resilience'
+  | 'config-delivery'
+  | 'data-caching'
+  | 'security'
+  | 'seo-metadata'
   | 'modernization';
 
 export type NextJsImprovementSeverity = 'critical' | 'warning' | 'optimization';
@@ -59,6 +64,19 @@ export interface NextJsActionAudit {
   }>;
 }
 
+export interface NextJsApiAudit {
+  routeHandlerCount: number;
+  pagesApiCount: number;
+  unvalidatedFilesCount: number;
+  unprotectedFilesCount: number;
+  auditedFiles: Array<{
+    path: string;
+    kind: 'route-handler' | 'pages-api';
+    hasValidation: boolean;
+    hasAuth: boolean;
+  }>;
+}
+
 export interface NextJsBundleAudit {
   serverComponentsCount: number;
   clientComponentsCount: number;
@@ -66,6 +84,9 @@ export interface NextJsBundleAudit {
   serverRatio: number; // 0 to 100
   clientRatio: number; // 0 to 100
   unnecessaryClientFiles: string[];
+  rawImgTagFiles?: string[];
+  missingNextFont?: boolean;
+  sharpMissingWithImages?: boolean;
 }
 
 export interface NextJsResilienceAudit {
@@ -73,6 +94,7 @@ export interface NextJsResilienceAudit {
   hasRootLoading: boolean;
   hasRootError: boolean;
   hasRootNotFound: boolean;
+  hasGlobalError?: boolean;
   layoutCount: number;
   loadingCount: number;
   errorCount: number;
@@ -81,13 +103,56 @@ export interface NextJsResilienceAudit {
   missingErrorSegments: string[];
 }
 
+export interface NextJsConfigAudit {
+  configFile?: string;
+  ignoreBuildErrors: boolean;
+  ignoreDuringBuilds: boolean;
+  hasSecurityHeaders: boolean;
+  hasStandaloneOutput: boolean;
+  openImageRemotePatterns: boolean;
+  missingLintScript: boolean;
+  missingTypecheckSignal: boolean;
+  issueCount: number;
+}
+
+export interface NextJsCachingAudit {
+  forceDynamicFiles: string[];
+  zeroRevalidateFiles: string[];
+  uncachedFetchFiles: string[];
+  syncRequestApiFiles: string[];
+  dynamicRoutesMissingStaticParams: string[];
+  issueCount: number;
+}
+
+export interface NextJsSecurityAudit {
+  serverImportInClientFiles: string[];
+  secretEnvInClientFiles: string[];
+  middlewareWithoutAuth: boolean;
+  middlewareFile?: string;
+  issueCount: number;
+}
+
+export interface NextJsSeoAudit {
+  hasRootMetadata: boolean;
+  hasRobotsFile: boolean;
+  hasSitemapFile: boolean;
+  pagesMissingMetadata: string[];
+  issueCount: number;
+}
+
 export interface NextJsSpecialization {
   router: 'App Router' | 'Pages Router' | 'Both routers' | 'Router not identified';
   version?: string;
   majorVersion?: number;
   actionAudit: NextJsActionAudit;
+  /** Present on scans after the deep Next.js audit expansion; panel defaults when missing. */
+  apiAudit?: NextJsApiAudit;
   bundleAudit: NextJsBundleAudit;
   resilienceAudit: NextJsResilienceAudit;
+  configAudit?: NextJsConfigAudit;
+  cachingAudit?: NextJsCachingAudit;
+  securityAudit?: NextJsSecurityAudit;
+  seoAudit?: NextJsSeoAudit;
   improvements: NextJsArchitecturalImprovement[];
   routeGroups: string[];
   parallelRoutes: string[];
