@@ -2,7 +2,9 @@
 
 Specs and scans stay on the user's machine. Please keep it that way unless there is a written, opt-in design.
 
-Read [README.md](./README.md) and [docs/overview.md](./docs/overview.md) if you need context. [SECURITY.md](./SECURITY.md) for vulnerabilities. [CODE_OF_CONDUCT.md](./CODE_OF_CONDUCT.md) applies.
+Looking for a place to start? See issues labeled [`good first issue`](https://github.com/KingAbe1/blueprint/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22). Questions and ideas: [Discussions](https://github.com/KingAbe1/blueprint/discussions).
+
+Read [README.md](./README.md) and [docs/overview.md](./docs/overview.md) (contributor notes) if you need context. [SECURITY.md](./SECURITY.md) for vulnerabilities. [CODE_OF_CONDUCT.md](./CODE_OF_CONDUCT.md) applies.
 
 Contributions are MIT-licensed like the rest of the repo ([LICENSE](./LICENSE)). Forks are fine; the official app is **blueprint studio** at [blueprint-web-chi.vercel.app](https://blueprint-web-chi.vercel.app/) - please do not pass off a fork as that product.
 

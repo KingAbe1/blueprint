@@ -1,6 +1,6 @@
-# Overview (contributors)
+# Contributor overview
 
-The public site explains the product narrative. This file is rough notes on how the app is wired.
+How the app is wired for contributors. Product narrative lives on the [website](https://blueprint-web-chi.vercel.app/) and in [README.md](../README.md).
 
 ## Greenfield tabs
 

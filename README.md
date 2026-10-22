@@ -5,8 +5,12 @@
 <h1 align="center">blueprint studio</h1>
 
 <p align="center">
-	Local studio to plan new products or scan existing repos.<br>
-	Agent handoffs and codebase quality reports, on your machine.
+	<strong>Plan before your AI agent builds. Scan what it already built.</strong>
+</p>
+
+<p align="center">
+	Local studio for agent handoffs and codebase quality reports.<br>
+	Everything stays on your machine.
 </p>
 
 <p align="center">
@@ -14,9 +18,11 @@
 	 ·
 	<a href="https://github.com/KingAbe1/blueprint/releases">Download</a>
 	 ·
-	<a href="./docs/overview.md">Docs</a>
+	<a href="./docs/overview.md">Overview</a>
 	 ·
 	<a href="./CONTRIBUTING.md">Contributing</a>
+	 ·
+	<a href="https://github.com/KingAbe1/blueprint/discussions">Discussions</a>
 </p>
 
 <p align="center">
@@ -26,18 +32,13 @@
 	<a href="./LICENSE">
 		<img src="https://img.shields.io/badge/license-MIT-slate" alt="MIT license">
 	</a>
-	<a href="https://github.com/KingAbe1/blueprint/stargazers">
-		<img src="https://img.shields.io/github/stars/KingAbe1/blueprint?style=flat" alt="Stars">
-	</a>
 </p>
 
-<img src="docs/assets/app-preview.png" alt="blueprint studio welcome screen">
+| Plan a new product | Architecture map | Scan an existing repo |
+| :---: | :---: | :---: |
+| <img src="docs/assets/app-preview.png" alt="Welcome screen: plan a new project or scan a folder"> | <img src="docs/assets/architecture-map.png" alt="Greenfield architecture map with recommended stack"> | <img src="docs/assets/codebase-overview.png" alt="Codebase overview with framework findings"> |
 
-<img src="docs/assets/ai-connection.png" alt="blueprint studio AI connection settings">
-
-<img src="docs/assets/codebase-overview.png" alt="blueprint studio codebase overview and findings">
-
-blueprint studio helps you move past fragile vibe coding. Plan a greenfield product with a brief, interview, architecture map, and agent handoff package, or open a local repo for overview, quality, supply-chain checks, and deep framework review. Specs and scans stay on your machine; there is no hosted backend for your projects.
+Plan a greenfield product with a brief, interview, architecture map, and agent handoff package, or open a local repo for overview, quality, supply-chain checks, and deep framework review. There is no hosted backend for your projects.
 
 Works in the **browser** or as a **desktop app** (Tauri). Use desktop for reliable folder access and writing handoffs to disk.
 
@@ -66,6 +67,8 @@ For most users, the fastest path is:
 3. For greenfield AI steps, configure a provider in Settings.
 4. Export a handoff zip, write files to disk, or browse findings and open them in your IDE.
 
+**Note:** macOS builds are not Apple-notarized yet. After install you may need a one-line Terminal fix (details below the table).
+
 | Platform | File to use |
 | --- | --- |
 | macOS Apple Silicon | `.dmg` with `aarch64` in the name |
@@ -75,7 +78,7 @@ For most users, the fastest path is:
 
 ### macOS: “damaged and can’t be opened”
 
-Builds are not Apple-notarized yet. After dragging the app to **Applications**:
+After dragging the app to **Applications**:
 
 ```bash
 xattr -cr "/Applications/blueprint studio.app"
@@ -114,7 +117,7 @@ Publishing a tag like `v1.1.3` triggers the [desktop release](https://github.com
 | `src/` | React UI, services, framework analyzers |
 | `src/services/frameworks/` | Deep brownfield profiles (Next.js, Remix, Expo, Node) |
 | `src-tauri/` | Tauri shell, IDE open, folder I/O, handoff export |
-| `docs/` | Contributor notes |
+| `docs/` | Contributor overview and notes |
 | `.github/workflows/` | Desktop build and release |
 
 ## Privacy
@@ -127,12 +130,14 @@ Publishing a tag like `v1.1.3` triggers the [desktop release](https://github.com
 
 Issues, pull requests, docs fixes, and new framework profiles are welcome.
 
+Looking for a place to start? See issues labeled [`good first issue`](https://github.com/KingAbe1/blueprint/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22). Questions and ideas belong in [Discussions](https://github.com/KingAbe1/blueprint/discussions).
+
 - Read [CONTRIBUTING.md](./CONTRIBUTING.md) before opening a pull request.
-- See [docs/overview.md](./docs/overview.md) for how the app is wired.
+- See [docs/overview.md](./docs/overview.md) for how the app is wired (contributor notes).
 - [CODE_OF_CONDUCT.md](./CODE_OF_CONDUCT.md) and [SECURITY.md](./SECURITY.md) apply.
 
 ## License
 
 [MIT](./LICENSE). Fork, modify, and ship your own product (keep the license notice).
 
-The name **blueprint studio** and [blueprint-web-chi.vercel.app](https://blueprint-web-chi.vercel.app/) are the maintainer’s product. Forks are welcome—please use a different name and branding so users know who they are getting software from.
+The name **blueprint studio** and [blueprint-web-chi.vercel.app](https://blueprint-web-chi.vercel.app/) are the maintainer’s product. Forks are welcome; please use a different name and branding so users know who they are getting software from.
