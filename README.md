@@ -10,7 +10,7 @@
 
 <p align="center">
 	Local studio for agent handoffs and codebase quality reports.<br>
-	Everything stays on your machine.
+	Specs and scans stay on your machine; AI calls go only to the provider you choose.
 </p>
 
 <p align="center">
@@ -38,9 +38,7 @@
 | :---: | :---: | :---: |
 | <img src="docs/assets/app-preview.png" alt="Welcome screen: plan a new project or scan a folder"> | <img src="docs/assets/architecture-map.png" alt="Greenfield architecture map with recommended stack"> | <img src="docs/assets/codebase-overview.png" alt="Codebase overview with framework findings"> |
 
-Plan a greenfield product with a brief, interview, architecture map, and agent handoff package, or open a local repo for overview, quality, supply-chain checks, and deep framework review. There is no hosted backend for your projects.
-
-Works in the **browser** or as a **desktop app** (Tauri). Use desktop for reliable folder access and writing handoffs to disk.
+Works in the **browser** or as a **desktop app** (Tauri). Use desktop for reliable folder access and writing handoffs to disk. There is no hosted backend for your projects.
 
 ## Why blueprint studio
 
@@ -49,14 +47,7 @@ Works in the **browser** or as a **desktop app** (Tauri). Use desktop for reliab
 - **Framework-aware depth.** Deep profiles for Next.js, Remix, Expo / React Native, and Node.js (Express / Fastify / Koa / Hono / Nest / http).
 - **Open in your editor.** Jump from findings to file and line in your preferred IDE (Cursor, VS Code, Windsurf, JetBrains, Zed, Sublime).
 - **Your AI, your keys.** Optional providers (OpenAI, Anthropic, Gemini, Ollama, OpenRouter, Groq, DeepSeek, Mistral, xAI, Together, or a custom base URL). Requests go to your provider; blueprint studio does not proxy them.
-- **Local by default.** Specs, scans, and exports stay on disk. No cloud sync of your projects.
-
-## Modes
-
-| Mode | Best for | How it works |
-| --- | --- | --- |
-| New project (greenfield) | Starting a product with agents | Brief, interview, architecture map, then preview / edit / zip / write a handoff into a folder. |
-| Existing codebase (brownfield) | Understanding and hardening a repo | Pick a local folder for overview, quality, supply chain, framework findings, and optional AI review. |
+- **Local by default.** Specs and scans stay on disk. AI calls go only to the provider you configure. No cloud sync of your projects.
 
 ## Get started
 
