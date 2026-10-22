@@ -31,7 +31,11 @@
 	</a>
 </p>
 
-<img src="docs/assets/app-preview.png" alt="blueprint studio app preview">
+<img src="docs/assets/app-preview.png" alt="blueprint studio welcome screen">
+
+<img src="docs/assets/ai-connection.png" alt="blueprint studio AI connection settings">
+
+<img src="docs/assets/codebase-overview.png" alt="blueprint studio codebase overview and findings">
 
 blueprint studio helps you move past fragile vibe coding. Plan a greenfield product with a brief, interview, architecture map, and agent handoff package, or open a local repo for overview, quality, supply-chain checks, and deep framework review. Specs and scans stay on your machine; there is no hosted backend for your projects.
 
