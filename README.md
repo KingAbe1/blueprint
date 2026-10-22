@@ -115,6 +115,7 @@ Publishing a tag like `v1.1.3` triggers the [desktop release](https://github.com
 
 - Specs and scan results stay local. Export/import JSON from the project menu to back up.
 - Scans read files on disk; they are not uploaded to us.
+- When you run AI review, only the source files you select (plus related static-finding notes and light project context) go to the provider you configured. The rest of the repo stays local. Greenfield AI steps send the brief and interview answers you enter, not a folder scan.
 - GitHub / npm advisory features only use credentials or lockfile data you already opted into.
 
 ## Contributing
