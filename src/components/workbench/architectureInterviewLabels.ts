@@ -42,7 +42,7 @@ export const CATEGORY_MAP_NODE: Partial<Record<ArchitectureQuestion['category'],
   scale: 'services',
   compliance: 'services',
   data: 'data',
-  realtime: 'data',
+  realtime: 'realtime',
   integrations: 'integrations',
   deployment: 'delivery',
   delivery: 'delivery',
@@ -52,6 +52,71 @@ export const CATEGORY_MAP_NODE: Partial<Record<ArchitectureQuestion['category'],
   reliability: 'operations',
   operations: 'operations',
 };
+
+/**
+ * Show Identity & access as its own map node only when answers imply a dedicated
+ * or managed identity boundary. Self-managed / in-app auth folds into Application.
+ */
+export function shouldShowSeparateIdentityNode(
+  accessAndSecurityText: string,
+  allDecisionText = '',
+): boolean {
+  const blob = `${accessAndSecurityText} ${allDecisionText}`.toLowerCase();
+  if (!blob.trim()) return false;
+
+  if (/no (sign[- ]?in|login|accounts?)|public only|anonymous only|without (accounts?|sign[- ]?in|login)|open to everyone/.test(blob)) {
+    return false;
+  }
+
+  if (
+    /manage (auth|identity|sign[- ]?in|it) (my|our)sel|build(ing)? (our |my |the )?(own|in[- ]house)|in[- ]app (auth|sign[- ]?in)|part of the (app|backend|product|monolith)|same (app|backend|codebase)|roll our own|handle (auth|sign[- ]?in) (ourselves|in[- ]house|inside)|simple (email|password) (in|inside)|auth (lives|stays) in/.test(blob)
+  ) {
+    return false;
+  }
+
+  if (
+    /\bsso\b|single sign[- ]?on|auth0|clerk\.|clerk |firebase auth|cognito|okta|workos|supabase auth|identity provider|\bidp\b|managed (auth|identity)|separate (identity|auth)|third[- ]party (auth|identity|idp)|external (auth|identity)|dedicated (auth|identity)|saml|oidc|open ?id|enterprise directory|active directory/.test(blob)
+  ) {
+    return true;
+  }
+
+  // Vague “no preference” → keep the map simple; auth lives with the application.
+  if (/no preference|let blueprint decide|not sure|no strong preference/.test(accessAndSecurityText.toLowerCase())) {
+    return false;
+  }
+
+  // A concrete access policy without naming a separate IdP still deserves a node
+  // when roles, invites, or org boundaries are the focus of the answer.
+  if (accessAndSecurityText.trim() && /roles?|permissions?|rbac|invit|organization|tenant|admin access|who can/.test(accessAndSecurityText.toLowerCase())) {
+    return true;
+  }
+
+  return false;
+}
+
+export function mapNodeIdForCategory(
+  category: ArchitectureQuestion['category'],
+  options?: {
+    separateIdentity?: boolean;
+    showRealtime?: boolean;
+    showAnalytics?: boolean;
+    showDr?: boolean;
+  },
+): string | undefined {
+  if ((category === 'access' || category === 'security') && options?.separateIdentity === false) {
+    return 'services';
+  }
+  if (category === 'realtime' && options?.showRealtime === false) {
+    return 'services';
+  }
+  if (category === 'observability' && options?.showAnalytics) {
+    return 'analytics';
+  }
+  if (category === 'reliability' && options?.showDr) {
+    return 'dr';
+  }
+  return CATEGORY_MAP_NODE[category];
+}
 
 export const DECISION_GROUPS: Array<{
   title: string;

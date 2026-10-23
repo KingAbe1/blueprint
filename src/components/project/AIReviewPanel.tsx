@@ -964,7 +964,7 @@ function reviewFixSteps(text: string): string[] {
   if (!trimmed) return [];
   const lines = trimmed
     .split(/\n+/)
-    .map(line => line.replace(/^[\s•\-– - *]+/, '').replace(/^\d+[.)]\s*/, '').trim())
+    .map(line => line.replace(/^[\s•*–-]+/, '').replace(/^\d+[.)]\s*/, '').trim())
     .filter(Boolean);
   return lines.length > 1 ? lines : [trimmed];
 }

@@ -5,6 +5,8 @@ import { useTheme } from '../../context/ThemeContext';
 import { isDesktopApp } from '../../utils/platform';
 import { ArchitectureQuestion, ArchitectureTopology } from '../../types/project';
 import { ArchitectureMap } from './ArchitectureMap';
+import { resolveArchitectureMapFeatures } from '../../services/architectureMapFeatures';
+import { shouldShowSeparateIdentityNode } from './architectureInterviewLabels';
 import { WorkbenchPhaseHeader } from './WorkbenchPhaseHeader';
 import { workbenchCanvasClass, workbenchPagePadding, workbenchTheme } from './workbenchUi';
 import { DesignDecisionsPanel } from './DesignDecisionsPanel';
@@ -58,6 +60,27 @@ export const ArchitectureMapView: React.FC<ArchitectureMapViewProps> = ({ onEdit
     ].filter(layer => Boolean(layer.value));
   }, [recommendation]);
 
+  const separateIdentityNode = useMemo(() => {
+    const accessBits = decisions
+      .filter(decision => decision.category === 'access' || decision.category === 'security')
+      .map(decision => decision.value)
+      .join(' · ');
+    const allBits = decisions.map(decision => decision.value).join(' ');
+    return shouldShowSeparateIdentityNode(accessBits, allBits);
+  }, [decisions]);
+
+  const mapFeatures = useMemo(() => {
+    if (!recommendation) return null;
+    const topology = recommendation.topology || 'modular_monolith';
+    const simple = resolveArchitectureMapFeatures(recommendation, topology, decisions, false);
+    const detailedView = resolveArchitectureMapFeatures(recommendation, topology, decisions, true);
+    return {
+      showRealtime: simple.showRealtime || detailedView.showRealtime,
+      showAnalytics: simple.showAnalytics || detailedView.showAnalytics,
+      showDr: simple.showDr || detailedView.showDr,
+    };
+  }, [recommendation, decisions]);
+
   if (!activeProject) return null;
 
   return (
@@ -72,7 +95,7 @@ export const ArchitectureMapView: React.FC<ArchitectureMapViewProps> = ({ onEdit
           title="Architecture map"
           description={
             ready
-              ? 'See how users, apps, data, and delivery connect - then open build handoff when you’re ready to implement.'
+              ? 'See how users, apps, data, and delivery connect. Switch to Detailed for cache, edge, and async layers - then open build handoff when you’re ready.'
               : 'blueprint studio turns your product brief and answers into an interactive system map.'
           }
           actions={
@@ -164,9 +187,12 @@ export const ArchitectureMapView: React.FC<ArchitectureMapViewProps> = ({ onEdit
             {interview?.status === 'completed' ? (
               <DesignDecisionsPanel
                 interview={interview}
-                defaultExpanded
                 focusedMapNodeId={focusedMapNodeId}
                 onFocusMapNode={nodeId => setFocusedMapNodeId(nodeId)}
+                separateIdentityNode={separateIdentityNode}
+                showRealtimeNode={mapFeatures?.showRealtime}
+                showAnalyticsNode={mapFeatures?.showAnalytics}
+                showDrNode={mapFeatures?.showDr}
               />
             ) : null}
 

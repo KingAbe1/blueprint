@@ -12,7 +12,7 @@ Order: product blueprint → architecture map → build handoff. Map and handoff
 
 **Architecture:** AI path calls `analyzeFrameworksWithAI` (single result). Offline path uses `recommendFrameworkFromText`. Topology/modules patched with `applyInterviewTopology`.
 
-**Map:** `ArchitectureMapView`, layout in `spec.architectureMapLayout`. PNG/SVG via `architectureMapExport`.
+**Map:** `ArchitectureMapView`, layout in `spec.architectureMapLayout` (includes Simple/Detailed). Heuristics in `architectureMapFeatures.ts` add domain modules, operators, payments, realtime, search/media, secrets, analytics, and DR when decisions imply them; Detailed also adds cache, edge, messaging, and gateway. PNG/SVG via `architectureMapExport`.
 
 **Handoff:** `handoffService` builds files; user can edit in UI. Zip: `handoffZipDownload`. Folder: `handoffExportService` + Tauri commands in `lib.rs`. Next.js-specific copy gated by `greenfieldStackPolicy` / `handoffNextJsGuidance`. Prefs: `greenfieldHandoffPrefsStorage`.
 

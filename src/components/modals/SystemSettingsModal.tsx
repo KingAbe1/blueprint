@@ -1,12 +1,21 @@
-import React, { useEffect, useMemo } from 'react';
-import { Code2, X } from 'lucide-react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { Code2, Loader2, RefreshCw, X } from 'lucide-react';
 import { Dropdown } from '../common/Dropdown';
 import { useTheme } from '../../context/ThemeContext';
 import { useSystemSettings } from '../../context/SystemSettingsContext';
+import { useNotification } from '../../context/NotificationContext';
 import { SUPPORTED_IDES } from '../../constants/supportedIdes';
+import { RELEASES_PAGE_URL } from '../../constants/appRelease';
 import { overviewBorderClass, overviewPanelClass } from '../project/overviewUi';
 import { openNotificationSystemSettings } from '../../utils/openSystemSettings';
 import { isDesktopApp } from '../../utils/platform';
+import { openExternalUrl } from '../../utils/openExternalUrl';
+import {
+  checkForAppUpdate,
+  clearDismissedUpdateVersion,
+  dismissUpdateVersion,
+  getInstalledAppVersion,
+} from '../../services/appUpdateService';
 
 function SettingToggle({
   label,
@@ -93,6 +102,9 @@ export const SystemSettingsModal: React.FC = () => {
     setIsSystemSettingsOpen,
   } = useTheme();
   const { preferences, setPreference } = useSystemSettings();
+  const { notify } = useNotification();
+  const [installedVersion, setInstalledVersion] = useState<string>('');
+  const [isCheckingUpdate, setIsCheckingUpdate] = useState(false);
   const ideOptions = useMemo(
     () =>
       SUPPORTED_IDES.map(ide => ({
@@ -111,6 +123,51 @@ export const SystemSettingsModal: React.FC = () => {
     window.addEventListener('keydown', handleEscape);
     return () => window.removeEventListener('keydown', handleEscape);
   }, [isSystemSettingsOpen, setIsSystemSettingsOpen]);
+
+  useEffect(() => {
+    if (!isSystemSettingsOpen) return;
+    void getInstalledAppVersion().then(setInstalledVersion);
+  }, [isSystemSettingsOpen]);
+
+  const handleCheckForUpdates = async () => {
+    if (isCheckingUpdate) return;
+    setIsCheckingUpdate(true);
+    try {
+      clearDismissedUpdateVersion();
+      const result = await checkForAppUpdate();
+      setInstalledVersion(result.currentVersion);
+
+      if (result.status === 'update_available') {
+        notify.info(`Version ${result.latest.version} is available. You’re on ${result.currentVersion}.`, {
+          title: 'Update available',
+          duration: 12000,
+          action: {
+            label: 'Download',
+            onClick: () => {
+              dismissUpdateVersion(result.latest.version);
+              void openExternalUrl(result.latest.htmlUrl || RELEASES_PAGE_URL);
+            },
+          },
+        });
+      } else if (result.status === 'up_to_date') {
+        notify.success(`You’re on the latest version (${result.currentVersion}).`, {
+          title: 'Up to date',
+        });
+      } else {
+        notify.warning(result.message, {
+          title: 'Couldn’t check for updates',
+          action: {
+            label: 'Open releases',
+            onClick: () => {
+              void openExternalUrl(RELEASES_PAGE_URL);
+            },
+          },
+        });
+      }
+    } finally {
+      setIsCheckingUpdate(false);
+    }
+  };
 
   if (!isSystemSettingsOpen) return null;
 
@@ -134,7 +191,7 @@ export const SystemSettingsModal: React.FC = () => {
         role="dialog"
         aria-modal="true"
         aria-labelledby="system-settings-title"
-        className={`flex w-full max-w-md flex-col overflow-hidden rounded-2xl border shadow-2xl ${panel}`}
+        className={`flex max-h-[min(90vh,40rem)] w-full max-w-md flex-col overflow-hidden rounded-2xl border shadow-2xl ${panel}`}
       >
         <header className={`shrink-0 border-b px-5 py-4 ${border}`}>
           <div className="flex items-start justify-between gap-3">
@@ -155,7 +212,7 @@ export const SystemSettingsModal: React.FC = () => {
           </div>
         </header>
 
-        <div className="space-y-7 px-5 py-5">
+        <div className="space-y-7 overflow-y-auto px-5 py-5">
           <SettingsSection title="Appearance" isDark={isDark}>
             <InsetSettingsCard insetPanel={insetPanel}>
               <FieldLabel isDark={isDark}>Theme</FieldLabel>
@@ -247,6 +304,41 @@ export const SystemSettingsModal: React.FC = () => {
                   isDark={isDark}
                 />
               </div>
+            </InsetSettingsCard>
+          </SettingsSection>
+
+          <SettingsSection title="Updates" isDark={isDark}>
+            <InsetSettingsCard insetPanel={insetPanel}>
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className={`text-[13px] font-medium leading-snug ${titleText}`}>
+                    Version {installedVersion || '…'}
+                  </p>
+                  <p className={`mt-0.5 text-xs leading-relaxed ${muted}`}>
+                    Checks GitHub Releases. Download and install manually when an update is available.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => void handleCheckForUpdates()}
+                  disabled={isCheckingUpdate}
+                  className="btn-secondary-accent flex shrink-0 items-center gap-1.5 px-3 py-2 text-xs disabled:opacity-50"
+                >
+                  {isCheckingUpdate ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <RefreshCw className="h-3.5 w-3.5" />
+                  )}
+                  {isCheckingUpdate ? 'Checking…' : 'Check'}
+                </button>
+              </div>
+              <button
+                type="button"
+                onClick={() => void openExternalUrl(RELEASES_PAGE_URL)}
+                className={`mt-3 text-xs ${isDark ? 'text-slate-500 hover:text-slate-300' : 'text-slate-500 hover:text-slate-700'}`}
+              >
+                Open releases page…
+              </button>
             </InsetSettingsCard>
           </SettingsSection>
         </div>

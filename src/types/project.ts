@@ -24,11 +24,15 @@ export interface HandoffPackage {
   files: HandoffFile[];
 }
 
+export type ArchitectureMapDetailLevel = 'simple' | 'detailed';
+
 export interface ArchitectureMapLayout {
   /** Saved node coordinates; unset nodes use the default lane layout. */
   positions?: Record<string, { x: number; y: number }>;
   zoom?: number;
   pan?: { x: number; y: number };
+  /** Simple = product flow; detailed adds cache, edge, messaging, and gateway when relevant. */
+  detailLevel?: ArchitectureMapDetailLevel;
 }
 
 export interface FrameworkRecommendation {

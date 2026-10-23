@@ -2,8 +2,14 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import {
   Activity,
+  BarChart3,
   CloudCog,
+  CreditCard,
   Database,
+  FolderOpen,
+  Globe,
+  HardDrive,
+  KeyRound,
   Maximize2,
   Minimize2,
   Minus,
@@ -11,27 +17,36 @@ import {
   Move,
   Plus,
   PlugZap,
+  Radio,
   RotateCcw,
+  Route,
+  Search,
   ServerCog,
   ShieldCheck,
+  UserCog,
   UserRound,
+  Wifi,
   Download,
   ImageDown,
+  Boxes,
 } from 'lucide-react';
 import { exportArchitectureMapFile } from '../../services/architectureMapExport';
 import { useNotification } from '../../context/NotificationContext';
 import {
+  ArchitectureMapDetailLevel,
   ArchitectureMapLayout,
   ArchitectureQuestion,
   ArchitectureTopology,
   FrameworkRecommendation,
 } from '../../types/project';
+import {
+  ArchitectureDecision,
+  decisionBlob,
+  moduleNodeId,
+  resolveArchitectureMapFeatures,
+} from '../../services/architectureMapFeatures';
+import { shouldShowSeparateIdentityNode } from './architectureInterviewLabels';
 import { workbenchTheme } from './workbenchUi';
-
-interface ArchitectureDecision {
-  category: ArchitectureQuestion['category'];
-  value: string;
-}
 
 interface ArchitectureMapProps {
   projectId: string;
@@ -71,31 +86,71 @@ const LANE_HEADER_HEIGHT = 36;
 const LANE_NODE_GAP = 20;
 /** Primary path sits just under the lane header band (no large empty band above nodes). */
 const PRIMARY_ROW_Y = LANE_HEADER_HEIGHT + 20;
-/** Tall enough for a three-node lane stack plus bottom breathing room. */
-const CANVAS_HEIGHT = PRIMARY_ROW_Y + NODE_HEIGHT + 2 * (NODE_HEIGHT + LANE_NODE_GAP) + 28;
 const DEFAULT_MAP_ZOOM = 1;
 
-/** Vertical stacking order within each lane (primary path nodes first). */
-const LANE_NODE_ORDER: Record<number, string[]> = {
-  0: ['people'],
-  1: ['experience', 'access'],
-  2: ['services', 'delivery'],
-  3: ['data', 'integrations', 'operations'],
-};
+function canvasHeightFor(maxLaneNodes: number): number {
+  const stack = Math.max(1, maxLaneNodes);
+  return PRIMARY_ROW_Y + NODE_HEIGHT + (stack - 1) * (NODE_HEIGHT + LANE_NODE_GAP) + 28;
+}
 
 const PRIMARY_PATH_NODES = new Set(['people', 'experience', 'services', 'data']);
 
-const EDGES: GraphEdge[] = [
+function buildLaneNodeOrder(moduleCount: number): Record<number, string[]> {
+  const moduleIds = Array.from({ length: moduleCount }, (_, index) => moduleNodeId(index));
+  return {
+    0: ['people', 'operators'],
+    1: ['experience', 'access', 'edge'],
+    2: ['services', 'gateway', ...moduleIds, 'messaging', 'realtime', 'delivery'],
+    3: ['data', 'cache', 'objectStore', 'search', 'integrations', 'payments', 'secrets', 'analytics', 'operations', 'dr'],
+  };
+}
+
+const BASE_EDGES: GraphEdge[] = [
   { from: 'people', to: 'experience', label: 'uses' },
+  { from: 'operators', to: 'experience', label: 'operates' },
   { from: 'experience', to: 'services', label: 'requests' },
+  { from: 'experience', to: 'edge', label: 'loads' },
+  { from: 'edge', to: 'experience', label: 'accelerates', dashed: true },
   { from: 'access', to: 'experience', label: 'signs in' },
   { from: 'access', to: 'services', label: 'authorizes' },
+  { from: 'access', to: 'gateway', label: 'authorizes' },
+  { from: 'experience', to: 'gateway', label: 'requests' },
+  { from: 'gateway', to: 'services', label: 'routes' },
   { from: 'services', to: 'data', label: 'stores' },
+  { from: 'services', to: 'cache', label: 'caches' },
+  { from: 'cache', to: 'data', label: 'backs', dashed: true },
+  { from: 'services', to: 'messaging', label: 'publishes' },
+  { from: 'messaging', to: 'services', label: 'triggers', dashed: true },
+  { from: 'services', to: 'realtime', label: 'streams' },
+  { from: 'realtime', to: 'experience', label: 'pushes', dashed: true },
   { from: 'services', to: 'integrations', label: 'connects' },
+  { from: 'services', to: 'payments', label: 'charges' },
+  { from: 'payments', to: 'services', label: 'webhooks', dashed: true },
+  { from: 'services', to: 'objectStore', label: 'stores files' },
+  { from: 'services', to: 'search', label: 'indexes' },
+  { from: 'experience', to: 'search', label: 'queries', dashed: true },
+  { from: 'services', to: 'secrets', label: 'reads', dashed: true },
+  { from: 'services', to: 'analytics', label: 'emits' },
   { from: 'services', to: 'operations', label: 'health' },
+  { from: 'data', to: 'dr', label: 'replicates', dashed: true },
+  { from: 'operations', to: 'dr', label: 'failovers', dashed: true },
   { from: 'delivery', to: 'experience', label: 'releases', dashed: true },
   { from: 'delivery', to: 'services', label: 'deploys', dashed: true },
+  { from: 'delivery', to: 'edge', label: 'publishes', dashed: true },
 ];
+
+function buildGraphEdges(moduleCount: number): GraphEdge[] {
+  const moduleEdges: GraphEdge[] = [];
+  for (let index = 0; index < moduleCount; index += 1) {
+    const id = moduleNodeId(index);
+    moduleEdges.push({ from: 'services', to: id, label: 'owns' });
+    moduleEdges.push({ from: id, to: 'data', label: 'reads/writes' });
+    if (index === 0) {
+      moduleEdges.push({ from: id, to: 'integrations', label: 'uses', dashed: true });
+    }
+  }
+  return [...BASE_EDGES, ...moduleEdges];
+}
 
 const PRIMARY_FLOW: Array<[string, string]> = [
   ['people', 'experience'],
@@ -106,8 +161,8 @@ const PRIMARY_FLOW: Array<[string, string]> = [
 const LANE_SPECS = [
   { width: 252, label: 'People' },
   { width: 264, label: 'Experience' },
-  { width: 284, label: 'Application' },
-  { width: 244, label: 'Platform' },
+  { width: 300, label: 'Application' },
+  { width: 268, label: 'Platform' },
 ] as const;
 
 const FLOW_LANES = LANE_SPECS.reduce<Array<{ x: number; width: number; label: string }>>((lanes, spec, index) => {
@@ -176,21 +231,121 @@ function recommendationTopology(recommendation: FrameworkRecommendation): Archit
   return 'modular_monolith';
 }
 
-function fallbackModules(decisions: ArchitectureDecision[]) {
-  const text = decisions.map(decision => decision.value).join(' ').toLowerCase();
-  if (/fleet|vehicle|dispatch|driver/.test(text)) {
-    return ['Fleet & assets', 'Live tracking', 'Dispatch', 'Drivers & attendance', 'Maintenance', 'Reporting'];
-  }
-  if (/catalog|cart|checkout|order|inventory|payment|store/.test(text)) {
-    return ['Accounts & access', 'Catalog', 'Cart & checkout', 'Orders & inventory', 'Payments', 'Notifications'];
-  }
-  return ['Accounts & access', 'Core product', 'Notifications', 'Administration'];
+function stackBlob(recommendation: FrameworkRecommendation): string {
+  return [
+    recommendation.name,
+    recommendation.frontendStack,
+    recommendation.backendStack,
+    recommendation.databaseStack,
+    recommendation.deploymentTarget,
+    recommendation.category,
+  ].filter(Boolean).join(' ').toLowerCase();
 }
 
-function integrationsAreInScope(decisions: ArchitectureDecision[], valueFor: (...categories: ArchitectureQuestion['category'][]) => string): boolean {
-  const value = valueFor('integrations', 'api');
-  if (!value) return false;
-  return !/no required|none|not needed|out of scope|no preference|let blueprint decide|no external/i.test(value.toLowerCase());
+function isCliOnlyProduct(decisions: ArchitectureDecision[]): boolean {
+  return /\bcli\b|command[- ]line|terminal only/.test(decisionBlob(decisions))
+    && !/\bweb\b|mobile|ios|android|desktop|browser/.test(decisionBlob(decisions));
+}
+
+/** Which infra nodes belong on the detailed map for this stack and topology. */
+function resolveDetailedInfra(
+  recommendation: FrameworkRecommendation,
+  topology: ArchitectureTopology,
+  decisions: ArchitectureDecision[],
+): {
+  showEdge: boolean;
+  showCache: boolean;
+  showMessaging: boolean;
+  showGateway: boolean;
+  edge: { label: string; detail: string };
+  cache: { label: string; detail: string };
+  messaging: { label: string; detail: string };
+  gateway: { label: string; detail: string };
+} {
+  const stack = stackBlob(recommendation);
+  const answers = decisionBlob(decisions);
+  const isFirebase = /firebase|firestore/.test(stack);
+  const isSupabase = /supabase/.test(stack);
+  const wantsRealtime = /realtime|live|sync|push|offline|websocket|instant/.test(`${answers} ${stack}`);
+  const scaleHeavy = /10×|10x|thousands|millions|high traffic|scale|fast under load|doubling/.test(answers);
+  const showGateway = topology === 'microservices' || topology === 'hybrid'
+    || /api gateway|bff|separate.*(api|backend)/.test(`${stack} ${answers}`);
+  // Detailed view always surfaces cache, async work, and edge (when not CLI-only).
+  const showMessaging = true;
+  const showEdge = !isCliOnlyProduct(decisions);
+  const showCache = true;
+
+  const edge = /mobile|ios|android|play store|app store|expo|flutter|react native/.test(stack)
+    ? {
+      label: 'CDN & media edge',
+      detail: 'Caches images, static assets, and downloadable content close to users so the app feels fast worldwide.',
+    }
+    : {
+      label: 'CDN & edge delivery',
+      detail: 'Serves static assets and often API responses from the edge to cut latency and shield the origin.',
+    };
+
+  let cache: { label: string; detail: string };
+  if (isFirebase) {
+    cache = {
+      label: 'Client & query cache',
+      detail: 'Firestore persistence and in-memory query caching reduce reads and keep the UI responsive offline or on poor networks. Add Redis only if a custom backend needs shared server-side cache.',
+    };
+  } else if (isSupabase) {
+    cache = {
+      label: 'Edge + Redis cache',
+      detail: 'Cache hot reads at the edge or in Redis so dashboards and feeds stay fast without hitting Postgres on every request.',
+    };
+  } else if (/redis/.test(stack)) {
+    cache = {
+      label: 'Redis cache',
+      detail: 'Shared in-memory cache for sessions, rate limits, and hot product reads.',
+    };
+  } else if (scaleHeavy || wantsRealtime) {
+    cache = {
+      label: 'Redis / in-memory cache',
+      detail: 'Keeps hot reads, sessions, and rate limits out of the primary database so growth and live updates stay snappy.',
+    };
+  } else {
+    cache = {
+      label: 'Redis / application cache',
+      detail: 'Optional shared cache for sessions, rate limits, and frequently read product data as traffic grows.',
+    };
+  }
+
+  let messaging: { label: string; detail: string };
+  if (isFirebase) {
+    messaging = {
+      label: 'Push, jobs & events',
+      detail: 'FCM push, scheduled Cloud Functions, and event triggers for reminders, sync, and background workflows.',
+    };
+  } else if (topology === 'event_driven') {
+    messaging = {
+      label: 'Event bus & queues',
+      detail: 'Durable events and workers keep long-running work reliable without blocking the user-facing path.',
+    };
+  } else {
+    messaging = {
+      label: 'Queues & background jobs',
+      detail: 'Async workers for notifications, imports, billing hooks, and other work that should not block the main request path.',
+    };
+  }
+
+  const gateway = {
+    label: 'API gateway / BFF',
+    detail: 'Single entry for clients: auth checks, routing to services, and aggregation so apps do not call every service directly.',
+  };
+
+  return {
+    showEdge,
+    showCache,
+    showMessaging,
+    showGateway,
+    edge,
+    cache,
+    messaging,
+    gateway,
+  };
 }
 
 function isPrimaryEdge(from: string, to: string): boolean {
@@ -203,11 +358,14 @@ function laneCenterX(laneIndex: number): number {
 }
 
 /** Snap visible nodes into swim lanes; primary path shares one horizontal row. */
-function computeLaneLayout(visibleIds: Set<string>): Record<string, Point> {
+function computeLaneLayout(
+  visibleIds: Set<string>,
+  laneOrder: Record<number, string[]>,
+): Record<string, Point> {
   const positions: Record<string, Point> = {};
 
   for (let laneIndex = 0; laneIndex < FLOW_LANES.length; laneIndex += 1) {
-    const ordered = LANE_NODE_ORDER[laneIndex].filter(id => visibleIds.has(id));
+    const ordered = (laneOrder[laneIndex] || []).filter(id => visibleIds.has(id));
     if (ordered.length === 0) continue;
 
     const x = laneCenterX(laneIndex);
@@ -261,27 +419,61 @@ function readSavedPositions(persisted?: ArchitectureMapLayout): Record<string, P
   return {};
 }
 
+/**
+ * Use a custom layout only when every visible node has a saved position for this
+ * exact set. Otherwise fall back to the lane stack — partial saves from an older,
+ * smaller map stack new nodes on top of old ones.
+ */
 function mergeNodePositions(
   laneLayout: Record<string, Point>,
   saved: Record<string, Point>,
   visibleIds: Set<string>,
 ): Record<string, Point> {
-  const merged = { ...laneLayout };
-  for (const id of visibleIds) {
-    if (saved[id]) merged[id] = saved[id];
+  const ids = [...visibleIds];
+  if (ids.length === 0) return { ...laneLayout };
+  const complete = ids.every(id => Boolean(saved[id]));
+  if (!complete) return { ...laneLayout };
+  return Object.fromEntries(ids.map(id => [id, { ...saved[id] }]));
+}
+
+/** Push overlapping nodes in the same lane apart (safety net after restores). */
+function separateOverlappingPositions(
+  positions: Record<string, Point>,
+  laneOrder: Record<number, string[]>,
+  visibleIds: Set<string>,
+): Record<string, Point> {
+  const next = { ...positions };
+  const minGap = NODE_HEIGHT + LANE_NODE_GAP;
+
+  for (let laneIndex = 0; laneIndex < FLOW_LANES.length; laneIndex += 1) {
+    const ordered = (laneOrder[laneIndex] || []).filter(id => visibleIds.has(id) && next[id]);
+    if (ordered.length < 2) continue;
+
+    ordered.sort((a, b) => next[a].y - next[b].y);
+    for (let index = 1; index < ordered.length; index += 1) {
+      const prev = ordered[index - 1];
+      const current = ordered[index];
+      const minY = next[prev].y + minGap;
+      if (next[current].y < minY) {
+        next[current] = { x: next[current].x, y: minY };
+      }
+    }
   }
-  return merged;
+
+  return next;
 }
 
 function seedLayoutState(persisted?: ArchitectureMapLayout): {
   nodePositions: Record<string, Point>;
   zoom: number;
   pan: Point;
+  detailLevel: ArchitectureMapDetailLevel;
 } {
   return {
     nodePositions: readSavedPositions(persisted),
     zoom: persisted?.zoom ?? DEFAULT_MAP_ZOOM,
     pan: persisted?.pan ? { ...persisted.pan } : { x: 0, y: 0 },
+    detailLevel: persisted?.detailLevel === 'detailed' ? 'detailed' : 'simple',
   };
 }
 
@@ -299,7 +491,11 @@ export const ArchitectureMap: React.FC<ArchitectureMapProps> = ({
   const { notify } = useNotification();
   const topology = recommendationTopology(recommendation);
   const selectedTopology = topologyMeta[topology];
-  const systemModules = recommendation.systemModules?.length ? recommendation.systemModules : fallbackModules(decisions);
+  const [detailLevel, setDetailLevel] = useState<ArchitectureMapDetailLevel>(
+    () => seedLayoutState(persistedLayout).detailLevel,
+  );
+  const detailLevelRef = useRef(detailLevel);
+  const detailed = detailLevel === 'detailed';
 
   const valueFor = (...categories: ArchitectureQuestion['category'][]) => {
     const matches = uniqueValues(
@@ -308,93 +504,278 @@ export const ArchitectureMap: React.FC<ArchitectureMapProps> = ({
     return matches.join(' · ');
   };
 
-  const showIntegrations = integrationsAreInScope(decisions, valueFor);
+  const features = useMemo(
+    () => resolveArchitectureMapFeatures(recommendation, topology, decisions, detailed),
+    [recommendation, topology, decisions, detailed],
+  );
+  const accessDecisionText = valueFor('access', 'security');
+  const showSeparateIdentity = shouldShowSeparateIdentityNode(
+    accessDecisionText,
+    decisionBlob(decisions),
+  );
+  const infra = useMemo(
+    () => resolveDetailedInfra(recommendation, topology, decisions),
+    [recommendation, topology, decisions],
+  );
+  const laneOrder = useMemo(
+    () => buildLaneNodeOrder(features.modules.length),
+    [features.modules.length],
+  );
+  const graphEdges = useMemo(
+    () => buildGraphEdges(features.modules.length),
+    [features.modules.length],
+  );
 
-  const nodes = useMemo<MapNode[]>(() => [
-    {
-      id: 'people',
-      eyebrow: 'People',
-      label: valueFor('users') || 'Product users',
-      detail: 'The people and roles that enter the product and start its main workflows.',
-      icon: UserRound,
-      tone: 'blue',
-    },
-    {
-      id: 'experience',
-      eyebrow: 'Product experience',
-      label: recommendation.frontendStack || recommendation.name,
-      detail: 'The customer-facing application where people complete tasks and interact with the product.',
-      icon: MonitorSmartphone,
-      tone: 'violet',
-    },
-    {
-      id: 'services',
-      eyebrow: selectedTopology.label,
-      label: recommendation.backendStack || recommendation.architecture || 'Application backend',
-      detail: recommendation.topologyRationale || selectedTopology.description,
-      icon: ServerCog,
-      tone: 'blue',
-    },
-    {
-      id: 'data',
-      eyebrow: 'Product data',
-      label: recommendation.databaseStack || valueFor('data') || 'Primary data store',
-      detail: 'The durable source of truth for accounts, content, transactions, and product history.',
-      icon: Database,
-      tone: 'emerald',
-    },
-    {
-      id: 'access',
-      eyebrow: 'Identity & access',
-      label: valueFor('access') || valueFor('security') || 'Protected access',
-      detail: 'Controls who can enter the product and which information or actions each role can access.',
-      icon: ShieldCheck,
-      tone: 'emerald',
-    },
-    {
-      id: 'integrations',
-      eyebrow: 'External services',
-      label: valueFor('integrations') || valueFor('api') || 'No required external services',
-      detail: 'Outside platforms used for payments, messaging, content, or other business workflows.',
-      icon: PlugZap,
-      tone: 'amber',
-      hidden: !showIntegrations,
-    },
-    {
-      id: 'delivery',
-      eyebrow: 'Delivery',
-      label: recommendation.deploymentTarget || valueFor('deployment', 'delivery') || 'Production deployment',
-      detail: 'How releases are built, hosted, and delivered safely to the people using the product.',
-      icon: CloudCog,
-      tone: 'violet',
-    },
-    {
-      id: 'operations',
-      eyebrow: 'Health & recovery',
-      label: valueFor('observability', 'reliability') || 'Monitoring and recovery',
-      detail: 'How the team detects problems, understands system health, and restores service after failures.',
-      icon: Activity,
-      tone: 'blue',
-    },
+  const servicesDetail = (() => {
+    const base = recommendation.topologyRationale || selectedTopology.description;
+    if (showSeparateIdentity || !accessDecisionText) return base;
+    if (/no (sign[- ]?in|login|accounts?)|public only|anonymous only/i.test(accessDecisionText)) {
+      return `${base} Sign-in is not a separate system for this product.`;
+    }
+    return `${base} Sign-in and access are handled inside the application (not a separate identity service).`;
+  })();
+
+  const operationsLabel = (() => {
+    if (features.showDr && features.showAnalytics) {
+      return valueFor('observability') || 'Uptime monitoring';
+    }
+    if (features.showDr) {
+      return valueFor('observability') || 'Monitoring and alerts';
+    }
+    return valueFor('observability', 'reliability') || 'Monitoring and recovery';
+  })();
+
+  const nodes = useMemo<MapNode[]>(() => {
+    const moduleNodes: MapNode[] = features.modules.map((moduleName, index) => ({
+      id: moduleNodeId(index),
+      eyebrow: 'Domain module',
+      label: moduleName,
+      detail: `Owns the behavior and data for ${moduleName.toLowerCase()}. Talks to other modules through explicit boundaries.`,
+      icon: Boxes,
+      tone: 'blue' as const,
+    }));
+
+    return [
+      {
+        id: 'people',
+        eyebrow: 'People',
+        label: valueFor('users') || 'Product users',
+        detail: 'The people and roles that enter the product and start its main workflows.',
+        icon: UserRound,
+        tone: 'blue',
+      },
+      {
+        id: 'operators',
+        eyebrow: 'Internal',
+        label: features.operators.label,
+        detail: features.operators.detail,
+        icon: UserCog,
+        tone: 'violet',
+        hidden: !features.showOperators,
+      },
+      {
+        id: 'experience',
+        eyebrow: 'Product experience',
+        label: recommendation.frontendStack || recommendation.name,
+        detail: 'The customer-facing application where people complete tasks and interact with the product.',
+        icon: MonitorSmartphone,
+        tone: 'violet',
+      },
+      {
+        id: 'services',
+        eyebrow: selectedTopology.label,
+        label: recommendation.backendStack || recommendation.architecture || 'Application backend',
+        detail: servicesDetail,
+        icon: ServerCog,
+        tone: 'blue',
+      },
+      ...moduleNodes,
+      {
+        id: 'data',
+        eyebrow: 'Product data',
+        label: recommendation.databaseStack || valueFor('data') || 'Primary data store',
+        detail: 'The durable source of truth for accounts, content, transactions, and product history.',
+        icon: Database,
+        tone: 'emerald',
+      },
+      {
+        id: 'access',
+        eyebrow: 'Identity & access',
+        label: accessDecisionText || 'Protected access',
+        detail: 'A dedicated identity boundary: sign-in, sessions, and who can access which parts of the product.',
+        icon: ShieldCheck,
+        tone: 'emerald',
+        hidden: !showSeparateIdentity,
+      },
+      {
+        id: 'integrations',
+        eyebrow: 'External services',
+        label: features.integrationsLabel,
+        detail: features.showPayments
+          ? 'Outside platforms for messaging, content, maps, or other business workflows (payments are shown separately).'
+          : 'Outside platforms used for messaging, content, or other business workflows.',
+        icon: PlugZap,
+        tone: 'amber',
+        hidden: !features.showIntegrations,
+      },
+      {
+        id: 'payments',
+        eyebrow: 'Billing',
+        label: features.payments.label,
+        detail: features.payments.detail,
+        icon: CreditCard,
+        tone: 'amber',
+        hidden: !features.showPayments,
+      },
+      {
+        id: 'delivery',
+        eyebrow: 'Delivery',
+        label: recommendation.deploymentTarget || valueFor('deployment', 'delivery') || 'Production deployment',
+        detail: 'How releases are built, hosted, and delivered safely to the people using the product.',
+        icon: CloudCog,
+        tone: 'violet',
+      },
+      {
+        id: 'operations',
+        eyebrow: 'Health',
+        label: operationsLabel,
+        detail: features.showDr
+          ? 'How the team detects incidents and understands live system health. Geographic recovery is shown on Multi-region & recovery.'
+          : 'How the team detects problems, understands system health, and restores service after failures.',
+        icon: Activity,
+        tone: 'blue',
+      },
+      {
+        id: 'edge',
+        eyebrow: 'Edge',
+        label: infra.edge.label,
+        detail: infra.edge.detail,
+        icon: Globe,
+        tone: 'violet',
+        hidden: !detailed || !infra.showEdge,
+      },
+      {
+        id: 'cache',
+        eyebrow: 'Cache',
+        label: infra.cache.label,
+        detail: infra.cache.detail,
+        icon: HardDrive,
+        tone: 'amber',
+        hidden: !detailed || !infra.showCache,
+      },
+      {
+        id: 'messaging',
+        eyebrow: 'Async',
+        label: infra.messaging.label,
+        detail: infra.messaging.detail,
+        icon: Radio,
+        tone: 'amber',
+        hidden: !detailed || !infra.showMessaging,
+      },
+      {
+        id: 'gateway',
+        eyebrow: 'Gateway',
+        label: infra.gateway.label,
+        detail: infra.gateway.detail,
+        icon: Route,
+        tone: 'blue',
+        hidden: !detailed || !infra.showGateway,
+      },
+      {
+        id: 'realtime',
+        eyebrow: 'Realtime',
+        label: features.realtime.label,
+        detail: features.realtime.detail,
+        icon: Wifi,
+        tone: 'violet',
+        hidden: !features.showRealtime,
+      },
+      {
+        id: 'search',
+        eyebrow: 'Discovery',
+        label: features.search.label,
+        detail: features.search.detail,
+        icon: Search,
+        tone: 'emerald',
+        hidden: !features.showSearch,
+      },
+      {
+        id: 'objectStore',
+        eyebrow: 'Media',
+        label: features.objectStore.label,
+        detail: features.objectStore.detail,
+        icon: FolderOpen,
+        tone: 'emerald',
+        hidden: !features.showObjectStore,
+      },
+      {
+        id: 'secrets',
+        eyebrow: 'Config',
+        label: features.secrets.label,
+        detail: features.secrets.detail,
+        icon: KeyRound,
+        tone: 'amber',
+        hidden: !features.showSecrets,
+      },
+      {
+        id: 'analytics',
+        eyebrow: 'Analytics',
+        label: features.analytics.label,
+        detail: features.analytics.detail,
+        icon: BarChart3,
+        tone: 'violet',
+        hidden: !features.showAnalytics,
+      },
+      {
+        id: 'dr',
+        eyebrow: 'Resilience',
+        label: features.dr.label,
+        detail: features.dr.detail,
+        icon: Globe,
+        tone: 'blue',
+        hidden: !features.showDr,
+      },
+    ];
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  ], [recommendation, decisions, selectedTopology, showIntegrations]);
+  }, [recommendation, decisions, selectedTopology, detailed, infra, showSeparateIdentity, accessDecisionText, servicesDetail, features, operationsLabel]);
 
   const visibleNodes = useMemo(() => nodes.filter(node => !node.hidden), [nodes]);
   const visibleNodeIds = useMemo(() => new Set(visibleNodes.map(node => node.id)), [visibleNodes]);
-  const visibleEdges = useMemo(
-    () => EDGES.filter(edge => visibleNodeIds.has(edge.from) && visibleNodeIds.has(edge.to)),
-    [visibleNodeIds],
-  );
+  const visibleEdges = useMemo(() => {
+    const gatewayVisible = visibleNodeIds.has('gateway');
+    return graphEdges.filter(edge => {
+      if (!visibleNodeIds.has(edge.from) || !visibleNodeIds.has(edge.to)) return false;
+      // Prefer gateway hop over a direct client→services link when the gateway is shown.
+      if (gatewayVisible && edge.from === 'experience' && edge.to === 'services') return false;
+      // When modules are visible, keep the high-level services→data link only if no modules shown.
+      if (features.modules.length > 0 && edge.from === 'services' && edge.to === 'data') return false;
+      return true;
+    });
+  }, [visibleNodeIds, graphEdges, features.modules.length]);
 
-  const laneLayout = useMemo(() => computeLaneLayout(visibleNodeIds), [visibleNodeIds]);
+  const laneLayout = useMemo(
+    () => computeLaneLayout(visibleNodeIds, laneOrder),
+    [visibleNodeIds, laneOrder],
+  );
+  const canvasHeight = useMemo(() => {
+    let maxStack = 1;
+    for (let laneIndex = 0; laneIndex < FLOW_LANES.length; laneIndex += 1) {
+      const count = (laneOrder[laneIndex] || []).filter(id => visibleNodeIds.has(id)).length;
+      maxStack = Math.max(maxStack, count);
+    }
+    return canvasHeightFor(maxStack);
+  }, [visibleNodeIds, laneOrder]);
   const [nodePositions, setNodePositions] = useState<Record<string, Point>>(
     () => seedLayoutState(persistedLayout).nodePositions,
   );
-  const positions = useMemo(
-    () => mergeNodePositions(laneLayout, nodePositions, visibleNodeIds),
-    [laneLayout, nodePositions, visibleNodeIds],
-  );
-  const hasSavedNodePositions = Object.keys(nodePositions).length > 0;
+  const positions = useMemo(() => {
+    const merged = mergeNodePositions(laneLayout, nodePositions, visibleNodeIds);
+    return separateOverlappingPositions(merged, laneOrder, visibleNodeIds);
+  }, [laneLayout, nodePositions, visibleNodeIds, laneOrder]);
+  const hasCompleteSavedLayout = useMemo(() => {
+    const ids = [...visibleNodeIds];
+    return ids.length > 0 && ids.every(id => Boolean(nodePositions[id]));
+  }, [visibleNodeIds, nodePositions]);
   const [activeNodeId, setActiveNodeId] = useState('people');
   const [zoom, setZoom] = useState(() => seedLayoutState(persistedLayout).zoom);
   const [pan, setPan] = useState<Point>(() => seedLayoutState(persistedLayout).pan);
@@ -416,6 +797,9 @@ export const ArchitectureMap: React.FC<ArchitectureMapProps> = ({
   useEffect(() => {
     panStateRef.current = pan;
   }, [pan]);
+  useEffect(() => {
+    detailLevelRef.current = detailLevel;
+  }, [detailLevel]);
 
   const activeNode = visibleNodes.find(node => node.id === activeNodeId) || visibleNodes[0];
   const ActiveIcon = activeNode.icon;
@@ -428,16 +812,50 @@ export const ArchitectureMap: React.FC<ArchitectureMapProps> = ({
   persistLayoutRef.current = onPersistLayout;
 
   const commitLayout = (overrides: Partial<ArchitectureMapLayout> = {}) => {
-    const savedPositions = overrides.positions ?? nodePositionsRef.current;
     const next: ArchitectureMapLayout = {
       zoom: overrides.zoom ?? zoomRef.current,
       pan: overrides.pan ?? panStateRef.current,
+      detailLevel: overrides.detailLevel ?? detailLevelRef.current,
     };
-    if (Object.keys(savedPositions).length > 0) {
-      next.positions = savedPositions;
+    if ('positions' in overrides) {
+      if (overrides.positions && Object.keys(overrides.positions).length > 0) {
+        next.positions = overrides.positions;
+      }
+    } else if (Object.keys(nodePositionsRef.current).length > 0) {
+      next.positions = nodePositionsRef.current;
     }
     persistLayoutRef.current?.(next);
   };
+
+  const setDetailLevelAndPersist = (next: ArchitectureMapDetailLevel) => {
+    if (next === detailLevelRef.current) return;
+    setDetailLevel(next);
+    detailLevelRef.current = next;
+    // Drop custom positions so new infra nodes land on the default lane layout.
+    setNodePositions({});
+    nodePositionsRef.current = {};
+    commitLayout({ detailLevel: next, positions: {} });
+  };
+
+  // Drop stale partial layouts when the visible node set changes (e.g. modules / Detailed).
+  const visibleLayoutKey = useMemo(
+    () => `${detailLevel}:${[...visibleNodeIds].sort().join('|')}`,
+    [detailLevel, visibleNodeIds],
+  );
+  const visibleLayoutKeyRef = useRef(visibleLayoutKey);
+  useEffect(() => {
+    if (visibleLayoutKeyRef.current === visibleLayoutKey) return;
+    visibleLayoutKeyRef.current = visibleLayoutKey;
+    const saved = nodePositionsRef.current;
+    const ids = [...visibleNodeIds];
+    const complete = ids.length > 0 && ids.every(id => Boolean(saved[id]));
+    if (complete) return;
+    if (Object.keys(saved).length === 0) return;
+    setNodePositions({});
+    nodePositionsRef.current = {};
+    commitLayout({ positions: {} });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visibleLayoutKey]);
 
   useEffect(() => {
     const seeded = seedLayoutState(persistedLayout);
@@ -447,9 +865,37 @@ export const ArchitectureMap: React.FC<ArchitectureMapProps> = ({
     zoomRef.current = seeded.zoom;
     setPan(seeded.pan);
     panStateRef.current = seeded.pan;
+    setDetailLevel(seeded.detailLevel);
+    detailLevelRef.current = seeded.detailLevel;
     setActiveNodeId('people');
+    // Force the visible-set effect to re-evaluate stale positions for this project.
+    visibleLayoutKeyRef.current = '';
   // Restore saved map view when switching projects only.
   // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [projectId]);
+
+  const skipDetailRefitRef = useRef(true);
+  // Refit when switching simple ↔ detailed so new nodes stay in frame.
+  useEffect(() => {
+    if (skipDetailRefitRef.current) {
+      skipDetailRefitRef.current = false;
+      return;
+    }
+    const frame = requestAnimationFrame(() => {
+      const fitted = fitMapInView(mergeNodePositions(laneLayout, {}, visibleNodeIds), DEFAULT_MAP_ZOOM);
+      if (!fitted) return;
+      setZoom(fitted.zoom);
+      zoomRef.current = fitted.zoom;
+      setPan(fitted.pan);
+      panStateRef.current = fitted.pan;
+      commitLayout({ zoom: fitted.zoom, pan: fitted.pan, detailLevel: detailLevelRef.current });
+    });
+    return () => cancelAnimationFrame(frame);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [detailLevel]);
+
+  useEffect(() => {
+    skipDetailRefitRef.current = true;
   }, [projectId]);
 
   useEffect(() => {
@@ -465,7 +911,7 @@ export const ArchitectureMap: React.FC<ArchitectureMapProps> = ({
     const filename = `${safeName}.${format}`;
     const scene = {
       width: CANVAS_WIDTH,
-      height: CANVAS_HEIGHT,
+      height: canvasHeight,
       title: exportTitle,
       isDark,
       nodes: visibleNodes.map(node => ({ id: node.id, eyebrow: node.eyebrow, label: node.label })),
@@ -497,7 +943,7 @@ export const ArchitectureMap: React.FC<ArchitectureMapProps> = ({
     if (!viewport) return null;
 
     const points = Object.values(nextPositions);
-    const nodeMaxY = points.length ? Math.max(...points.map(point => point.y + NODE_HEIGHT)) : CANVAS_HEIGHT;
+    const nodeMaxY = points.length ? Math.max(...points.map(point => point.y + NODE_HEIGHT)) : canvasHeight;
 
     const minX = 0;
     const maxX = CANVAS_WIDTH;
@@ -521,14 +967,14 @@ export const ArchitectureMap: React.FC<ArchitectureMapProps> = ({
   };
 
   useEffect(() => {
-    if (hasSavedNodePositions) return;
+    if (hasCompleteSavedLayout) return;
     const frame = requestAnimationFrame(() => {
       fitMapInView(laneLayout, DEFAULT_MAP_ZOOM);
     });
     return () => cancelAnimationFrame(frame);
   // Refit when the canvas switches between embedded and expanded sizes or lane layout changes.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isExpanded, hasSavedNodePositions, laneLayout]);
+  }, [isExpanded, hasCompleteSavedLayout, laneLayout, canvasHeight]);
 
   const onPointerDown = (event: React.PointerEvent<HTMLButtonElement>, id: string) => {
     event.stopPropagation();
@@ -657,10 +1103,44 @@ export const ArchitectureMap: React.FC<ArchitectureMapProps> = ({
           </div>
           <h3 className={`mt-0.5 text-[13px] ${titleText}`}>System flow</h3>
           <p className={`mt-1 text-xs leading-relaxed ${muted}`}>
-            Drag nodes to rearrange · positions save automatically · follow the blue path · click a node for detail
+            {detailed
+              ? 'Detailed adds cache, edge, async, gateway, secrets, and analytics when relevant · modules and payments appear from your decisions'
+              : 'Modules, payments, realtime, and admin roles appear when your decisions need them · switch to Detailed for infra depth'}
           </p>
         </div>
         <div className="flex flex-wrap items-center justify-end gap-1.5">
+          <div
+            className={`mr-1 flex items-center rounded-lg border p-0.5 ${border} ${isDark ? 'bg-white/[0.03]' : 'bg-slate-50'}`}
+            role="group"
+            aria-label="Map detail level"
+          >
+            <button
+              type="button"
+              onClick={() => setDetailLevelAndPersist('simple')}
+              className={`rounded-md px-2.5 py-1.5 text-[10px] font-medium transition-colors ${
+                !detailed
+                  ? isDark
+                    ? 'bg-white/[0.1] text-white'
+                    : 'bg-white text-slate-900 shadow-sm'
+                  : muted
+              }`}
+            >
+              Simple
+            </button>
+            <button
+              type="button"
+              onClick={() => setDetailLevelAndPersist('detailed')}
+              className={`rounded-md px-2.5 py-1.5 text-[10px] font-medium transition-colors ${
+                detailed
+                  ? isDark
+                    ? 'bg-white/[0.1] text-white'
+                    : 'bg-white text-slate-900 shadow-sm'
+                  : muted
+              }`}
+            >
+              Detailed
+            </button>
+          </div>
           <button type="button" onClick={() => changeZoom(-0.1)} className="btn-secondary p-2" title="Zoom out" aria-label="Zoom out">
             <Minus className="h-3.5 w-3.5" />
           </button>
@@ -761,12 +1241,12 @@ export const ArchitectureMap: React.FC<ArchitectureMapProps> = ({
             className="absolute left-0 top-0 overflow-visible"
             style={{
               width: CANVAS_WIDTH,
-              height: CANVAS_HEIGHT,
+              height: canvasHeight,
               transform: `translate(${pan.x}px, ${pan.y + LANE_HEADER_HEIGHT}px) scale(${zoom})`,
               transformOrigin: 'top left',
             }}
           >
-            <svg className="pointer-events-none absolute inset-0 overflow-visible" width={CANVAS_WIDTH} height={CANVAS_HEIGHT} viewBox={`0 0 ${CANVAS_WIDTH} ${CANVAS_HEIGHT}`} aria-hidden="true">
+            <svg className="pointer-events-none absolute inset-0 overflow-visible" width={CANVAS_WIDTH} height={canvasHeight} viewBox={`0 0 ${CANVAS_WIDTH} ${canvasHeight}`} aria-hidden="true">
               <defs>
                 <marker id="architecture-arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto" markerUnits="strokeWidth">
                   <path d="M 0 0 L 8 4 L 0 8 z" fill={isDark ? '#64748b' : '#94a3b8'} />
@@ -819,7 +1299,8 @@ export const ArchitectureMap: React.FC<ArchitectureMapProps> = ({
 
             {visibleNodes.map(node => {
               const Icon = node.icon;
-              const position = positions[node.id];
+              const position = positions[node.id] ?? laneLayout[node.id];
+              if (!position) return null;
               const selected = node.id === activeNode.id;
               const highlighted = node.id === highlightedNodeId;
               return (
@@ -866,15 +1347,11 @@ export const ArchitectureMap: React.FC<ArchitectureMapProps> = ({
           <p className={`text-[10px] uppercase tracking-wide ${muted}`}>{activeNode.eyebrow}</p>
           <p className={`mt-0.5 text-[13px] ${titleText}`}>{activeNode.label}</p>
           <p className={`mt-1.5 text-xs leading-relaxed ${muted}`}>{activeNode.detail}</p>
-          {activeNode.id === 'services' && (
-            <div className="mt-2 flex flex-wrap gap-1.5">
-              {systemModules.map(module => (
-                <span key={module} className={`rounded-md border px-2 py-1 text-[10px] ${border} ${
-                  isDark ? 'bg-white/[0.03] text-slate-300' : 'bg-white text-slate-600'
-                }`}>{module}</span>
-              ))}
-            </div>
-          )}
+          {activeNode.id === 'services' && features.modules.length > 0 ? (
+            <p className={`mt-2 text-[11px] leading-relaxed ${muted}`}>
+              Domain modules appear as nodes on the map ({features.modules.join(', ')}).
+            </p>
+          ) : null}
         </div>
       </div>
     </section>

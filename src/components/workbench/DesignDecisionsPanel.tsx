@@ -3,7 +3,7 @@ import { ChevronDown } from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
 import { ArchitecturalInterview } from '../../types/project';
 import { overviewDivideClass } from '../project/overviewUi';
-import { CATEGORY_LABELS, CATEGORY_MAP_NODE, DECISION_GROUPS } from './architectureInterviewLabels';
+import { CATEGORY_LABELS, DECISION_GROUPS, mapNodeIdForCategory } from './architectureInterviewLabels';
 import { workbenchTheme } from './workbenchUi';
 
 interface DesignDecisionsPanelProps {
@@ -14,14 +14,23 @@ interface DesignDecisionsPanelProps {
   /** When set, decision rows can focus the linked map node. */
   onFocusMapNode?: (nodeId: string) => void;
   focusedMapNodeId?: string | null;
+  /** When false, access/security decisions link to Application instead of a separate identity node. */
+  separateIdentityNode?: boolean;
+  showRealtimeNode?: boolean;
+  showAnalyticsNode?: boolean;
+  showDrNode?: boolean;
 }
 
 export const DesignDecisionsPanel: React.FC<DesignDecisionsPanelProps> = ({
   interview,
-  defaultExpanded = true,
+  defaultExpanded = false,
   className = '',
   onFocusMapNode,
   focusedMapNodeId,
+  separateIdentityNode = true,
+  showRealtimeNode = false,
+  showAnalyticsNode = false,
+  showDrNode = false,
 }) => {
   const { isDark } = useTheme();
   const [expanded, setExpanded] = useState(defaultExpanded);
@@ -114,7 +123,12 @@ export const DesignDecisionsPanel: React.FC<DesignDecisionsPanelProps> = ({
                   <div className={`divide-y ${divide}`}>
                     {groupQuestions.map(question => {
                       const answer = interview.answers.find(item => item.questionId === question.id);
-                      const mapNodeId = CATEGORY_MAP_NODE[question.category];
+                      const mapNodeId = mapNodeIdForCategory(question.category, {
+                        separateIdentity: separateIdentityNode,
+                        showRealtime: showRealtimeNode,
+                        showAnalytics: showAnalyticsNode,
+                        showDr: showDrNode,
+                      });
                       const isLinked = Boolean(mapNodeId && onFocusMapNode);
                       const isFocused = mapNodeId && focusedMapNodeId === mapNodeId;
                       const rowClass = `px-4 py-3 text-left w-full transition-colors ${

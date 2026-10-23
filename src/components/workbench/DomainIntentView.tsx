@@ -78,6 +78,14 @@ function topologyFromText(value?: string): ArchitectureTopology | undefined {
   return undefined;
 }
 
+/** Briefs below this usually produce weaker, more generic build questions. */
+const BRIEF_RICH_WORD_MIN = 40;
+
+function briefLooksRich(description: string): boolean {
+  const words = description.trim().split(/\s+/).filter(Boolean).length;
+  return words >= BRIEF_RICH_WORD_MIN || description.includes('\n');
+}
+
 function inferSystemModules(description: string): string[] {
   const text = description.toLowerCase();
   if (/store|commerce|checkout|payment|order|inventory|catalog/.test(text)) {
@@ -219,28 +227,35 @@ export const DomainIntentView: React.FC<DomainIntentViewProps> = ({ onOpenArchit
     updateProjectSpec(activeProject.id, updates);
   };
 
-  const handlePolish = async () => {
-    if (!spec.description?.trim()) {
+  /** Returns polished text on success; null if cancelled, blocked, or failed. */
+  const runPolish = async (sourceDescription: string): Promise<string | null> => {
+    if (!sourceDescription.trim()) {
       notify.warning('Add a short description first.');
-      return;
+      return null;
     }
     if (!isAiConfigured) {
       setIsSettingsOpen(true);
-      return;
+      return null;
     }
 
-    setPrePolishDescription(spec.description);
+    setPrePolishDescription(sourceDescription);
     setIsPolishing(true);
     try {
-      const result = await expandAndPolishDescription(activeProject.name, spec.description, settings);
+      const result = await expandAndPolishDescription(activeProject.name, sourceDescription, settings);
       updateSpec({ description: result.text, descriptionHtml: undefined });
       setDescriptionViewMode('preview');
       notify.success(`Product brief updated with ${result.providerName}.`);
+      return result.text;
     } catch (error: any) {
       notify.error(error?.message || 'Could not polish the description.');
+      return null;
     } finally {
       setIsPolishing(false);
     }
+  };
+
+  const handlePolish = async () => {
+    await runPolish(spec.description || '');
   };
 
   const handleEditProduct = async () => {
@@ -262,7 +277,7 @@ export const DomainIntentView: React.FC<DomainIntentViewProps> = ({ onOpenArchit
     });
   };
 
-  const startInterview = async () => {
+  const startInterview = async (options?: { skipThinBriefGate?: boolean }) => {
     if (!spec.description?.trim()) {
       notify.warning('Describe the product before designing its architecture.');
       return;
@@ -271,6 +286,23 @@ export const DomainIntentView: React.FC<DomainIntentViewProps> = ({ onOpenArchit
     if (!isAiConfigured) {
       setIsSettingsOpen(true);
       return;
+    }
+
+    let briefForQuestions = spec.description;
+
+    if (!options?.skipThinBriefGate && !briefLooksRich(briefForQuestions)) {
+      const polishFirst = await confirm({
+        title: 'Brief is still short',
+        description:
+          'Better build questions come from a richer product brief. Polish with AI first, or continue with what you have.',
+        confirmLabel: 'Polish, then start',
+        cancelLabel: 'Start anyway',
+      });
+      if (polishFirst) {
+        const polished = await runPolish(briefForQuestions);
+        if (!polished) return;
+        briefForQuestions = polished;
+      }
     }
 
     if (interview?.status === 'in_progress' || interview?.status === 'completed') {
@@ -288,7 +320,7 @@ export const DomainIntentView: React.FC<DomainIntentViewProps> = ({ onOpenArchit
     setInterviewBeforeEdit(completedInterview);
     setIsGeneratingInterview(true);
     try {
-      const result = await generateArchitectureInterview(activeProject.name, spec.description, settings);
+      const result = await generateArchitectureInterview(activeProject.name, briefForQuestions, settings);
 
       const nextInterview: ArchitecturalInterview = {
         status: 'in_progress',
@@ -475,10 +507,13 @@ export const DomainIntentView: React.FC<DomainIntentViewProps> = ({ onOpenArchit
     && !interviewCompleted,
   );
 
+  const briefIsThin = descriptionReady && !briefLooksRich(spec.description || '');
   const interviewStatus = !interview
-    ? descriptionReady
-      ? 'Brief ready · start build questions'
-      : 'Add your product brief'
+    ? !descriptionReady
+      ? 'Add your product brief'
+      : briefIsThin
+        ? 'Brief started · polish before questions'
+        : 'Brief ready · start build questions'
     : interview.status === 'in_progress'
       ? `Question ${interview.currentQuestionIndex + 1} of ${interview.questions.length}`
       : selectedFramework
@@ -499,11 +534,14 @@ export const DomainIntentView: React.FC<DomainIntentViewProps> = ({ onOpenArchit
     if (interview?.status === 'in_progress') {
       return 'One choice per question; blueprint studio recommends a stack from your answers.';
     }
+    if (pinBuildQuestionsBesideBrief && briefIsThin) {
+      return 'Expand or polish the brief first - short notes produce vaguer build questions.';
+    }
     if (pinBuildQuestionsBesideBrief) {
       return 'Brief ready - start build questions when you are.';
     }
     return 'Add a brief, then answer build questions.';
-  }, [showArchitectureSection, interview?.status, pinBuildQuestionsBesideBrief]);
+  }, [showArchitectureSection, interview?.status, pinBuildQuestionsBesideBrief, briefIsThin]);
 
   const foundationSteps = useMemo((): WorkbenchStep[] => {
     const briefState: WorkbenchStep['state'] = descriptionReady
@@ -547,7 +585,8 @@ export const DomainIntentView: React.FC<DomainIntentViewProps> = ({ onOpenArchit
 
   const desktop = isDesktopApp();
   const showBriefPreview = !showDescriptionTextarea && interview?.status !== 'completed';
-  const briefLooksPolished = descriptionReady && (descriptionWordCountEarly >= 40 || spec.description.includes('\n'));
+  const briefLooksPolished = descriptionReady && briefLooksRich(spec.description || '');
+  const busyBriefActions = isPolishing || isGeneratingInterview;
   return (
     <div className={`flex-1 overflow-y-auto ${workbenchCanvasClass(isDark)}`}>
       <div className={workbenchPagePadding(desktop)}>
@@ -705,7 +744,12 @@ export const DomainIntentView: React.FC<DomainIntentViewProps> = ({ onOpenArchit
             <div className="flex shrink-0 items-center gap-3">
               {interview?.status !== 'completed' && showDescriptionTextarea && (
                 <span className={`text-xs ${muted}`}>
-                  {wordCount} words{!descriptionReady ? ' · 5+ to continue' : ''}
+                  {wordCount} words
+                  {!descriptionReady
+                    ? ' · 5+ to continue'
+                    : briefIsThin
+                      ? ` · ~${BRIEF_RICH_WORD_MIN}+ or polish for better questions`
+                      : ''}
                 </span>
               )}
               {descriptionReady && !interview && !pinBuildQuestionsBesideBrief && (
@@ -762,9 +806,11 @@ export const DomainIntentView: React.FC<DomainIntentViewProps> = ({ onOpenArchit
                 <p className={`mt-1 max-w-xl text-xs leading-5 ${muted}`}>
                   {interview?.status === 'completed'
                     ? 'Drives stack and structure choices.'
-                    : pinBuildQuestionsBesideBrief && !interview
-                      ? 'AI-generated from your brief when you start.'
-                      : 'One answer per question for this project.'}
+                    : pinBuildQuestionsBesideBrief && briefIsThin
+                      ? 'Short briefs produce vaguer questions - polish first when you can.'
+                      : pinBuildQuestionsBesideBrief && !interview
+                        ? 'AI-generated from your brief when you start.'
+                        : 'One answer per question for this project.'}
                 </p>
               </div>
             </div>
@@ -810,30 +856,78 @@ export const DomainIntentView: React.FC<DomainIntentViewProps> = ({ onOpenArchit
           {!reviewDraft && !interview && (
             pinBuildQuestionsBesideBrief ? (
               <div className="space-y-3">
-                <button
-                  type="button"
-                  onClick={() => startInterview()}
-                  disabled={isGeneratingInterview || !descriptionReady}
-                  className="flex w-full items-center justify-center gap-2 rounded-lg btn-primary-blue px-4 py-3 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-40"
-                >
-                  {isGeneratingInterview ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowRight className="h-4 w-4" />}
-                  {isGeneratingInterview ? 'Preparing…' : isAiConfigured ? 'Start build questions' : 'Connect AI to start'}
-                </button>
+                {briefIsThin && isAiConfigured ? (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => void handlePolish()}
+                      disabled={busyBriefActions || !descriptionReady}
+                      className="flex w-full items-center justify-center gap-2 rounded-lg btn-primary-blue px-4 py-3 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-40"
+                    >
+                      {isPolishing ? <Loader2 className="h-4 w-4 animate-spin" /> : <WandSparkles className="h-4 w-4" />}
+                      {isPolishing ? 'Polishing…' : 'Polish with AI first'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => void startInterview({ skipThinBriefGate: true })}
+                      disabled={busyBriefActions || !descriptionReady}
+                      className="btn-secondary-accent flex w-full items-center justify-center gap-2 px-4 py-2.5 text-xs disabled:cursor-not-allowed disabled:opacity-40"
+                    >
+                      {isGeneratingInterview ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ArrowRight className="h-3.5 w-3.5" />}
+                      {isGeneratingInterview ? 'Preparing…' : 'Start build questions anyway'}
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => void startInterview()}
+                    disabled={busyBriefActions || !descriptionReady}
+                    className="flex w-full items-center justify-center gap-2 rounded-lg btn-primary-blue px-4 py-3 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    {isGeneratingInterview ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowRight className="h-4 w-4" />}
+                    {isGeneratingInterview ? 'Preparing…' : isAiConfigured ? 'Start build questions' : 'Connect AI to start'}
+                  </button>
+                )}
               </div>
             ) : (
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <p className={`max-w-lg text-sm leading-6 ${muted}`}>
-                  blueprint studio turns your answers into stack choices and constraints for the coding agent.
+                  {briefIsThin && isAiConfigured
+                    ? 'Short briefs produce vaguer questions. Polish first when you can, or start anyway.'
+                    : 'blueprint studio turns your answers into stack choices and constraints for the coding agent.'}
                 </p>
-                <button
-                  type="button"
-                  onClick={() => startInterview()}
-                  disabled={isGeneratingInterview || !descriptionReady}
-                  className="flex shrink-0 items-center justify-center gap-2 rounded-lg btn-primary-blue px-4 py-2.5 text-xs font-medium text-white disabled:cursor-not-allowed disabled:opacity-40"
-                >
-                  {isGeneratingInterview ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ArrowRight className="h-3.5 w-3.5" />}
-                  {isGeneratingInterview ? 'Preparing…' : isAiConfigured ? 'Start build questions' : 'Connect AI'}
-                </button>
+                {briefIsThin && isAiConfigured ? (
+                  <div className="flex shrink-0 flex-col gap-2 sm:items-stretch">
+                    <button
+                      type="button"
+                      onClick={() => void handlePolish()}
+                      disabled={busyBriefActions || !descriptionReady}
+                      className="flex items-center justify-center gap-2 rounded-lg btn-primary-blue px-4 py-2.5 text-xs font-medium text-white disabled:cursor-not-allowed disabled:opacity-40"
+                    >
+                      {isPolishing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <WandSparkles className="h-3.5 w-3.5" />}
+                      {isPolishing ? 'Polishing…' : 'Polish with AI first'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => void startInterview({ skipThinBriefGate: true })}
+                      disabled={busyBriefActions || !descriptionReady}
+                      className="btn-secondary-accent flex items-center justify-center gap-2 px-4 py-2 text-xs disabled:cursor-not-allowed disabled:opacity-40"
+                    >
+                      {isGeneratingInterview ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ArrowRight className="h-3.5 w-3.5" />}
+                      {isGeneratingInterview ? 'Preparing…' : 'Start anyway'}
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => void startInterview()}
+                    disabled={busyBriefActions || !descriptionReady}
+                    className="flex shrink-0 items-center justify-center gap-2 rounded-lg btn-primary-blue px-4 py-2.5 text-xs font-medium text-white disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    {isGeneratingInterview ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ArrowRight className="h-3.5 w-3.5" />}
+                    {isGeneratingInterview ? 'Preparing…' : isAiConfigured ? 'Start build questions' : 'Connect AI'}
+                  </button>
+                )}
               </div>
             )
           )}

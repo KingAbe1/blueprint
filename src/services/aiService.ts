@@ -403,7 +403,7 @@ export async function expandAndPolishDescription(
   const activeConfig = requireActiveProviderConfig(settings);
 
   const wordCount = draft.split(/\s+/).filter(Boolean).length;
-  const draftBulletCount = (draft.match(/^[ \t]*[•\-*– - ]\s+/gm) || []).length;
+  const draftBulletCount = (draft.match(/^[ \t]*[•*–-]\s+/gm) || []).length;
   const mode: 'expand' | 'polish' | 'tighten' =
     wordCount < 18 ? 'expand' : wordCount > 140 ? 'tighten' : 'polish';
 
