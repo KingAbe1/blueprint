@@ -16,6 +16,7 @@ import {
   type OverviewEmphasis,
 } from './overviewUi';
 import { FrameworkFindingRow } from './FrameworkFindingRow';
+import { buildFixPrompt, frameworkImprovementToFixItem } from '../../services/fixPromptService';
 
 interface RemixSpecializationPanelProps {
   specialization: RemixSpecialization;
@@ -246,19 +247,10 @@ export const RemixSpecializationPanel: React.FC<RemixSpecializationPanelProps> =
     configAudit.usesLegacyJsonDefer || configAudit.issueCount > 0 ? 'warning' : 'neutral';
 
   const copyFixPrompt = useCallback(async (item: RemixArchitecturalImprovement) => {
-    const prompt = `### Remix Architectural Improvement Request
-**Issue:** ${item.title}
-**Category:** ${item.category} | **Severity:** ${item.severity.toUpperCase()}
-${item.file ? `**File:** \`${item.file}\`` : ''}
-
-### Architectural Impact
-${item.impact}
-
-### Recommended Engineering Solution
-${item.remediation}
-
-### Task
-Refactor the code to implement this recommendation. Follow modern Remix (Vite) conventions for loaders, actions, and ErrorBoundary exports.`;
+    const prompt = buildFixPrompt(
+      frameworkImprovementToFixItem(item, { id: 'remix', label: 'Remix' }, CATEGORY_LABELS[item.category]),
+      analysis,
+    );
 
     try {
       await navigator.clipboard.writeText(prompt);
@@ -267,7 +259,7 @@ Refactor the code to implement this recommendation. Follow modern Remix (Vite) c
     } catch {
       // Ignore
     }
-  }, []);
+  }, [analysis]);
 
   const severityCount = (sev: 'all' | 'critical' | 'warning' | 'optimization') => {
     if (sev === 'all') return improvements.length;

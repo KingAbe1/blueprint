@@ -16,6 +16,7 @@ import {
   type OverviewEmphasis,
 } from './overviewUi';
 import { FrameworkFindingRow } from './FrameworkFindingRow';
+import { buildFixPrompt, frameworkImprovementToFixItem } from '../../services/fixPromptService';
 
 interface NodeJsSpecializationPanelProps {
   specialization: NodeJsSpecialization;
@@ -275,19 +276,10 @@ export const NodeJsSpecializationPanel: React.FC<NodeJsSpecializationPanelProps>
   })();
 
   const copyFixPrompt = useCallback(async (item: NodeJsArchitecturalImprovement) => {
-    const prompt = `### Node.js Architectural Improvement Request
-**Issue:** ${item.title}
-**Category:** ${item.category} | **Severity:** ${item.severity.toUpperCase()}
-${item.file ? `**File:** \`${item.file}\`` : ''}
-
-### Architectural Impact
-${item.impact}
-
-### Recommended Engineering Solution
-${item.remediation}
-
-### Task
-Refactor the code to implement this recommendation. Follow modern Node.js server conventions for the detected runtime (Express, Fastify, Koa, Hono, Nest, or http).`;
+    const prompt = buildFixPrompt(
+      frameworkImprovementToFixItem(item, { id: 'nodejs', label: 'Node.js' }, CATEGORY_LABELS[item.category]),
+      analysis,
+    );
 
     try {
       await navigator.clipboard.writeText(prompt);
@@ -296,7 +288,7 @@ Refactor the code to implement this recommendation. Follow modern Node.js server
     } catch {
       // Ignore
     }
-  }, []);
+  }, [analysis]);
 
   const severityCount = (sev: 'all' | 'critical' | 'warning' | 'optimization') => {
     if (sev === 'all') return improvements.length;

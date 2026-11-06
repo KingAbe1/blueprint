@@ -21,6 +21,7 @@ import {
   type OverviewEmphasis,
 } from './overviewUi';
 import { FrameworkFindingRow } from './FrameworkFindingRow';
+import { buildFixPrompt, frameworkImprovementToFixItem } from '../../services/fixPromptService';
 
 interface NextJsSpecializationPanelProps {
   specialization: NextJsSpecialization;
@@ -365,19 +366,10 @@ export const NextJsSpecializationPanel: React.FC<NextJsSpecializationPanelProps>
   const deliveryIssueCount = configAudit.issueCount + cachingAudit.issueCount + seoAudit.issueCount;
 
   const copyFixPrompt = useCallback(async (item: NextJsArchitecturalImprovement) => {
-    const prompt = `### Next.js Architectural Improvement Request
-**Issue:** ${item.title}
-**Category:** ${item.category} | **Severity:** ${item.severity.toUpperCase()}
-${item.file ? `**File:** \`${item.file}\`` : ''}
-
-### Architectural Impact
-${item.impact}
-
-### Recommended Engineering Solution
-${item.remediation}
-
-### Task
-Refactor the code to implement this recommendation. Ensure clean TypeScript typing, adhere to modern Next.js App Router best practices, and maintain backwards compatibility.`;
+    const prompt = buildFixPrompt(
+      frameworkImprovementToFixItem(item, { id: 'nextjs', label: 'Next.js' }, CATEGORY_LABELS[item.category]),
+      analysis,
+    );
 
     try {
       await navigator.clipboard.writeText(prompt);
@@ -386,7 +378,7 @@ Refactor the code to implement this recommendation. Ensure clean TypeScript typi
     } catch {
       // Ignore
     }
-  }, []);
+  }, [analysis]);
 
   const severityCount = (sev: 'all' | 'critical' | 'warning' | 'optimization') => {
     if (sev === 'all') return improvements.length;

@@ -4,6 +4,7 @@ import { useTheme } from '../../context/ThemeContext';
 import { CodebaseAnalysis, QualityDimension } from '../../types/codebase';
 import { SafeErrorBoundary } from '../common/SafeErrorBoundary';
 import { AIReviewPanel } from './AIReviewPanel';
+import { AgentFixesPanel } from './AgentFixesPanel';
 import { DependencySecurityPanel } from './DependencySecurityPanel';
 import { QualityHealthSummary } from './QualityHealthSummary';
 import { overviewPanelClass } from './overviewUi';
@@ -181,6 +182,8 @@ export const CodebaseQualityView: React.FC<CodebaseQualityViewProps> = React.mem
               onExportReport={exportAuditReport}
               copiedReport={copiedReport}
             />
+
+            <AgentFixesPanel analysis={analysis} />
 
             <div id="quality-supply-chain-panel" className="scroll-mt-4">
               <DependencySecurityPanel analysis={analysis} onUpdateAnalysis={onUpdateAnalysis} />
