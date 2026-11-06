@@ -210,7 +210,7 @@ fn inspect_codebase_directory(
             let is_manifest = is_workflow || matches!(
                 file_name.as_str(),
                 "package.json" | "cargo.toml" | "pyproject.toml" | "requirements.txt" | "go.mod"
-                    | "package-lock.json" | "npm-shrinkwrap.json"
+                    | "package-lock.json" | "npm-shrinkwrap.json" | "pnpm-lock.yaml" | "yarn.lock" | "bun.lock"
                     | "gemfile" | "composer.json" | "pubspec.yaml" | "pom.xml" | "build.gradle"
                     | "build.gradle.kts" | "settings.gradle" | "settings.gradle.kts" | "readme.md"
                     | "vite.config.ts" | "vite.config.js" | "vitest.config.ts" | "jest.config.js"
@@ -218,7 +218,7 @@ fn inspect_codebase_directory(
             );
             if is_manifest {
                 if let Ok(metadata) = entry.metadata() {
-                    let max_bytes = if matches!(file_name.as_str(), "package-lock.json" | "npm-shrinkwrap.json") { MAX_LOCKFILE_BYTES } else { MAX_MANIFEST_BYTES };
+                    let max_bytes = if matches!(file_name.as_str(), "package-lock.json" | "npm-shrinkwrap.json" | "pnpm-lock.yaml" | "yarn.lock" | "bun.lock") { MAX_LOCKFILE_BYTES } else { MAX_MANIFEST_BYTES };
                     if metadata.len() <= max_bytes {
                         if let Ok(content) = fs::read_to_string(&path) {
                             manifests.insert(relative_string.clone(), content);
