@@ -1,5 +1,5 @@
-import React, { useCallback, useMemo, useState } from 'react';
-import { Check, ClipboardList, FileDown, Loader2 } from 'lucide-react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { Check, ClipboardList, FileDown, GitBranch, Loader2, RefreshCw } from 'lucide-react';
 import type { CodebaseAnalysis } from '../../types/codebase';
 import { useTheme } from '../../context/ThemeContext';
 import { useNotification } from '../../context/NotificationContext';
@@ -12,6 +12,15 @@ import {
   type FixPromptItem,
 } from '../../services/fixPromptService';
 import { findingKey } from '../../services/scanHistoryService';
+import {
+  canListChangedFiles,
+  describeScope,
+  filterItemsToChangedFiles,
+  listChangedFiles,
+  type ChangeScope,
+  type ChangedFiles,
+} from '../../services/changedFilesService';
+import { formatRelativeTime } from '../../utils/formatRelativeTime';
 import { exportHandoffFiles, inspectHandoffConflicts, type HandoffTarget } from '../../services/handoffExportService';
 import { saveExportText } from '../../utils/exportFileSave';
 import { isDesktopApp } from '../../utils/platform';
@@ -57,20 +66,60 @@ export const AgentFixesPanel: React.FC<AgentFixesPanelProps> = ({ analysis, newF
   const [copiedAll, setCopiedAll] = useState(false);
   const [writing, setWriting] = useState(false);
 
+  const scopeAvailable = canListChangedFiles(analysis.rootPath, analysis.git?.tracked);
+  const [scope, setScope] = useState<ChangeScope>('all');
+  const [changed, setChanged] = useState<ChangedFiles | null>(null);
+  const [scopeLoading, setScopeLoading] = useState(false);
+  const [scopeError, setScopeError] = useState<string | null>(null);
+  const [scopeRefresh, setScopeRefresh] = useState(0);
+
+  // Changed files are read live from git; re-read when the scope changes, after a rescan, or on refresh.
+  useEffect(() => {
+    if (scope === 'all' || !scopeAvailable) {
+      setChanged(null);
+      setScopeError(null);
+      return;
+    }
+    let cancelled = false;
+    setScopeLoading(true);
+    setScopeError(null);
+    listChangedFiles(analysis.rootPath, scope)
+      .then(result => {
+        if (!cancelled) setChanged(result);
+      })
+      .catch(error => {
+        if (cancelled) return;
+        setChanged(null);
+        setScopeError(error instanceof Error ? error.message : String(error));
+      })
+      .finally(() => {
+        if (!cancelled) setScopeLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [scope, scopeAvailable, analysis.rootPath, analysis.scannedAt, scopeRefresh]);
+
+  const scopedItems = useMemo(
+    () => (scope !== 'all' && changed ? filterItemsToChangedFiles(items, changed) : scope === 'all' ? items : []),
+    [items, scope, changed],
+  );
+  const scopeNote = scope !== 'all' && changed ? describeScope(changed) : undefined;
+
   const filtered = useMemo(
-    () => (filter === 'all' ? items : items.filter(item => item.priority === filter)),
-    [items, filter],
+    () => (filter === 'all' ? scopedItems : scopedItems.filter(item => item.priority === filter)),
+    [scopedItems, filter],
   );
   const visible = showAll ? filtered : filtered.slice(0, PREVIEW_COUNT);
   const hiddenCount = filtered.length - visible.length;
   const counts = useMemo(
     () => ({
-      all: items.length,
-      high: items.filter(i => i.priority === 'high').length,
-      medium: items.filter(i => i.priority === 'medium').length,
-      low: items.filter(i => i.priority === 'low').length,
+      all: scopedItems.length,
+      high: scopedItems.filter(i => i.priority === 'high').length,
+      medium: scopedItems.filter(i => i.priority === 'medium').length,
+      low: scopedItems.filter(i => i.priority === 'low').length,
     }),
-    [items],
+    [scopedItems],
   );
 
   const canWriteToRepo = isDesktopApp() && isAbsolutePath(analysis.rootPath);
@@ -89,7 +138,7 @@ export const AgentFixesPanel: React.FC<AgentFixesPanelProps> = ({ analysis, newF
   );
 
   const copyAll = useCallback(async () => {
-    const markdown = buildFixesMarkdown(analysis, filtered);
+    const markdown = buildFixesMarkdown(analysis, filtered, { scopeNote });
     try {
       await navigator.clipboard.writeText(markdown);
       setCopiedAll(true);
@@ -97,10 +146,10 @@ export const AgentFixesPanel: React.FC<AgentFixesPanelProps> = ({ analysis, newF
     } catch {
       notify.error('Clipboard access was blocked.', { title: 'Could not copy fixes' });
     }
-  }, [analysis, filtered, notify]);
+  }, [analysis, filtered, scopeNote, notify]);
 
   const writeFixesFile = useCallback(async () => {
-    const content = buildFixesMarkdown(analysis, items);
+    const content = buildFixesMarkdown(analysis, scopedItems, { scopeNote });
     setWriting(true);
     try {
       if (canWriteToRepo) {
@@ -133,7 +182,7 @@ export const AgentFixesPanel: React.FC<AgentFixesPanelProps> = ({ analysis, newF
     } finally {
       setWriting(false);
     }
-  }, [analysis, items, canWriteToRepo, confirm, notify]);
+  }, [analysis, scopedItems, scopeNote, canWriteToRepo, confirm, notify]);
 
   const panel = overviewPanelClass(isDark);
   const border = overviewBorderClass(isDark);
@@ -160,10 +209,12 @@ export const AgentFixesPanel: React.FC<AgentFixesPanelProps> = ({ analysis, newF
           <p className={`mt-0.5 text-[13px] ${muted}`}>
             {items.length === 0
               ? 'Nothing to fix in this scan.'
-              : `${items.length} item${items.length === 1 ? '' : 's'} from this scan, highest priority first. Copy a prompt for one, or hand your agent the whole list.`}
+              : scopeNote
+                ? `${scopedItems.length} of ${items.length} items are in files touched by ${scopeNote}.`
+                : `${items.length} item${items.length === 1 ? '' : 's'} from this scan, highest priority first. Copy a prompt for one, or hand your agent the whole list.`}
           </p>
         </div>
-        {items.length > 0 ? (
+        {scopedItems.length > 0 ? (
           <div className="flex flex-wrap items-center gap-4">
             <button type="button" onClick={() => void copyAll()} className={linkBtn} title="Copy the filtered list as a checklist prompt">
               {copiedAll ? <Check className="h-3.5 w-3.5" /> : <ClipboardList className="h-3.5 w-3.5" />}
@@ -183,7 +234,73 @@ export const AgentFixesPanel: React.FC<AgentFixesPanelProps> = ({ analysis, newF
         ) : null}
       </header>
 
-      {items.length > 0 ? (
+      {items.length > 0 && scopeAvailable ? (
+        <div className={`flex flex-wrap items-center gap-x-3 gap-y-2 border-b px-5 py-2 sm:px-6 ${border}`}>
+          <div className="flex items-center gap-1" role="group" aria-label="Which changes to check">
+            <GitBranch className={`mr-1 h-3.5 w-3.5 ${muted}`} aria-hidden />
+            {(
+              [
+                ['all', 'Whole repo'],
+                ['branch', 'This branch'],
+                ['uncommitted', 'Uncommitted'],
+              ] as const
+            ).map(([key, label]) => (
+              <button
+                key={key}
+                type="button"
+                onClick={() => {
+                  setScope(key);
+                  setShowAll(false);
+                }}
+                className={chip(scope === key)}
+                aria-pressed={scope === key}
+                title={
+                  key === 'branch'
+                    ? 'Only findings in files changed since this branch left main, including uncommitted work'
+                    : key === 'uncommitted'
+                      ? 'Only findings in files with uncommitted changes'
+                      : 'Every finding from the scan'
+                }
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          {scope !== 'all' ? (
+            <div className={`flex min-w-0 items-center gap-2 text-[11px] ${muted}`}>
+              {scopeLoading ? (
+                <Loader2 className="h-3 w-3 animate-spin" aria-hidden />
+              ) : scopeError ? (
+                <span className={isDark ? 'text-amber-400' : 'text-amber-700'}>{scopeError}</span>
+              ) : changed ? (
+                <span>
+                  {changed.files.length} changed file{changed.files.length === 1 ? '' : 's'}
+                  {changed.base ? ` vs ${changed.base}` : ''} · scanned {formatRelativeTime(analysis.scannedAt).replace('Just now', 'just now')}
+                </span>
+              ) : null}
+              <button
+                type="button"
+                onClick={() => setScopeRefresh(n => n + 1)}
+                disabled={scopeLoading}
+                className={`inline-flex items-center rounded p-0.5 hover:opacity-80 disabled:opacity-40`}
+                title="Re-read changed files from git"
+                aria-label="Re-read changed files from git"
+              >
+                <RefreshCw className="h-3 w-3" aria-hidden />
+              </button>
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+
+      {scope !== 'all' && changed && !scopeLoading && scopedItems.length === 0 && items.length > 0 ? (
+        <p className={`px-5 py-6 text-center text-[13px] sm:px-6 ${muted}`}>
+          No findings in the {changed.files.length} file{changed.files.length === 1 ? '' : 's'} touched by {describeScope(changed)}.
+          Rescan first if you edited files after the last scan.
+        </p>
+      ) : null}
+
+      {scopedItems.length > 0 ? (
         <>
           <div className={`flex flex-wrap items-center gap-1 border-b px-5 py-2 sm:px-6 ${border}`} role="group" aria-label="Filter by priority">
             {(['all', 'high', 'medium', 'low'] as const).map(key => (

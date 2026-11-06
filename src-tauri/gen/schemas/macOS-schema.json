@@ -195,10 +195,10 @@
           "markdownDescription": "Allows launching the preferred IDE CLI/app at a project path (and optional file:line)."
         },
         {
-          "description": "Allows scanning and reading source files from a user-selected codebase folder.",
+          "description": "Allows scanning and reading source files, and listing git-changed files, in a user-selected codebase folder.",
           "type": "string",
           "const": "allow-read-codebase",
-          "markdownDescription": "Allows scanning and reading source files from a user-selected codebase folder."
+          "markdownDescription": "Allows scanning and reading source files, and listing git-changed files, in a user-selected codebase folder."
         },
         {
           "description": "Allows updating the dock/window icon when appearance changes.",

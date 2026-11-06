@@ -247,6 +247,77 @@ fn inspect_codebase_directory(
     Ok(())
 }
 
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct GitChangedFiles {
+    scope: String,
+    /// Ref the branch was compared against (e.g. "origin/main"), when scope is "branch".
+    base: Option<String>,
+    branch: Option<String>,
+    files: Vec<String>,
+}
+
+fn git_lines(root: &Path, args: &[&str]) -> Option<Vec<String>> {
+    let output = Command::new("git")
+        .arg("-C").arg(root)
+        .args(["-c", "core.quotepath=off"])
+        .args(args)
+        .output()
+        .ok()?;
+    if !output.status.success() { return None; }
+    Some(String::from_utf8_lossy(&output.stdout).lines().map(str::trim).filter(|line| !line.is_empty()).map(|line| line.replace('\\', "/")).collect())
+}
+
+fn default_base_ref(root: &Path) -> Option<String> {
+    if let Some(origin_head) = git_output(root, &["symbolic-ref", "--short", "refs/remotes/origin/HEAD"]) {
+        return Some(origin_head);
+    }
+    ["origin/main", "origin/master", "main", "master"].iter()
+        .find(|candidate| git_output(root, &["rev-parse", "--verify", "--quiet", candidate]).is_some())
+        .map(|candidate| candidate.to_string())
+}
+
+/// Files changed in the working tree ("uncommitted") or since the branch left the default branch ("branch").
+/// Paths are relative to `root_path`, which may be a subfolder of the repository.
+#[tauri::command]
+fn git_changed_files(root_path: String, scope: String) -> Result<GitChangedFiles, String> {
+    let root = PathBuf::from(&root_path);
+    if !root.is_absolute() || !root.is_dir() {
+        return Err("Choose an existing project folder.".into());
+    }
+    if git_output(&root, &["rev-parse", "--is-inside-work-tree"]).as_deref() != Some("true") {
+        return Err("This folder is not a git repository.".into());
+    }
+
+    let branch = git_output(&root, &["symbolic-ref", "--short", "HEAD"]);
+    let (base, mut files) = match scope.as_str() {
+        "uncommitted" => {
+            let tracked = git_lines(&root, &["diff", "--name-only", "--relative", "HEAD"])
+                .ok_or("Could not read uncommitted changes. Does the repository have a first commit?")?;
+            (None, tracked)
+        }
+        "branch" => {
+            let base_ref = default_base_ref(&root).ok_or("Could not find a main or master branch to compare against.")?;
+            let merge_base = git_output(&root, &["merge-base", "HEAD", &base_ref])
+                .ok_or_else(|| format!("This branch has no common history with {base_ref}."))?;
+            // Diffing against the merge base (no "..") includes committed and uncommitted work on this branch.
+            let changed = git_lines(&root, &["diff", "--name-only", "--relative", &merge_base])
+                .ok_or_else(|| format!("Could not compare with {base_ref}."))?;
+            (Some(base_ref), changed)
+        }
+        _ => return Err(format!("Unknown change scope: {scope}")),
+    };
+
+    if let Some(untracked) = git_lines(&root, &["ls-files", "--others", "--exclude-standard"]) {
+        files.extend(untracked);
+    }
+    files.sort();
+    files.dedup();
+    files.truncate(5000);
+
+    Ok(GitChangedFiles { scope, base, branch, files })
+}
+
 #[tauri::command]
 fn read_codebase(root_path: String) -> Result<CodebaseSource, String> {
     let selected_root = PathBuf::from(&root_path);
@@ -1128,6 +1199,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             read_codebase,
             read_codebase_files,
+            git_changed_files,
             inspect_handoff_conflicts,
             export_handoff_files,
             open_handoff_folder,
