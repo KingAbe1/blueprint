@@ -11,6 +11,7 @@ import {
   collectFixItems,
   type FixPromptItem,
 } from '../../services/fixPromptService';
+import { findingKey } from '../../services/scanHistoryService';
 import { exportHandoffFiles, inspectHandoffConflicts, type HandoffTarget } from '../../services/handoffExportService';
 import { saveExportText } from '../../utils/exportFileSave';
 import { isDesktopApp } from '../../utils/platform';
@@ -39,10 +40,12 @@ function isAbsolutePath(path: string): boolean {
 
 interface AgentFixesPanelProps {
   analysis: CodebaseAnalysis;
+  /** Finding keys that were not in the previous scan. */
+  newFindingKeys?: Set<string>;
 }
 
 /** Turns scan results into prompts and a FIXES.md checklist for a coding agent. */
-export const AgentFixesPanel: React.FC<AgentFixesPanelProps> = ({ analysis }) => {
+export const AgentFixesPanel: React.FC<AgentFixesPanelProps> = ({ analysis, newFindingKeys }) => {
   const { isDark } = useTheme();
   const { notify } = useNotification();
   const { confirm } = useConfirm();
@@ -217,6 +220,7 @@ export const AgentFixesPanel: React.FC<AgentFixesPanelProps> = ({ analysis }) =>
                 rowEmphasis={emphasisForPriority(item.priority)}
                 copied={copiedId === item.id}
                 onCopyPrompt={() => void copyPrompt(item)}
+                badge={newFindingKeys?.has(findingKey(item)) ? 'New' : undefined}
               />
             ))}
           </ul>

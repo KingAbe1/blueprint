@@ -5,6 +5,8 @@ import { CodebaseAnalysis, QualityDimension } from '../../types/codebase';
 import { SafeErrorBoundary } from '../common/SafeErrorBoundary';
 import { AIReviewPanel } from './AIReviewPanel';
 import { AgentFixesPanel } from './AgentFixesPanel';
+import { ScanProgressPanel } from './ScanProgressPanel';
+import { diffForScan, useScanHistory } from '../../services/scanHistoryService';
 import { DependencySecurityPanel } from './DependencySecurityPanel';
 import { QualityHealthSummary } from './QualityHealthSummary';
 import { overviewPanelClass } from './overviewUi';
@@ -12,6 +14,7 @@ import { saveExportText } from '../../utils/exportFileSave';
 
 interface CodebaseQualityViewProps {
   analysis: CodebaseAnalysis;
+  projectId?: string;
   onRescan: () => Promise<void>;
   isRescanning: boolean;
   onUpdateAnalysis?: (analysis: CodebaseAnalysis) => void;
@@ -19,11 +22,17 @@ interface CodebaseQualityViewProps {
 
 export const CodebaseQualityView: React.FC<CodebaseQualityViewProps> = React.memo(({
   analysis,
+  projectId,
   onRescan,
   isRescanning,
   onUpdateAnalysis,
 }) => {
   const { isDark } = useTheme();
+  const scanHistory = useScanHistory(projectId);
+  const newFindingKeys = useMemo(() => {
+    const diff = diffForScan(scanHistory, analysis.scannedAt);
+    return diff ? new Set(diff.added.map(f => f.key)) : undefined;
+  }, [scanHistory, analysis.scannedAt]);
   const muted = isDark ? 'text-slate-400' : 'text-slate-500';
 
   const [copiedReport, setCopiedReport] = useState(false);
@@ -183,7 +192,9 @@ export const CodebaseQualityView: React.FC<CodebaseQualityViewProps> = React.mem
               copiedReport={copiedReport}
             />
 
-            <AgentFixesPanel analysis={analysis} />
+            <ScanProgressPanel analysis={analysis} projectId={projectId} />
+
+            <AgentFixesPanel analysis={analysis} newFindingKeys={newFindingKeys} />
 
             <div id="quality-supply-chain-panel" className="scroll-mt-4">
               <DependencySecurityPanel analysis={analysis} onUpdateAnalysis={onUpdateAnalysis} />

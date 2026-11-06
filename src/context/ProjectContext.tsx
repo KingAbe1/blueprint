@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 import { Project, ProjectSpec } from '../types/project';
 import { CodebaseAnalysis } from '../types/codebase';
 import { storageService } from '../services/storageService';
+import { clearScanHistory, recordScanSnapshot } from '../services/scanHistoryService';
 import { readSystemPreferences } from '../utils/systemPreferences';
 
 interface ProjectContextType {
@@ -100,6 +101,14 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({ children })
     
     lastSavedJsonRef.current = currentJson;
     storageService.saveProjects(projects);
+  }, [projects, isLoaded]);
+
+  // Keep scan history in step with saved scans. Upserts by scannedAt, so non-scan updates are no-ops.
+  useEffect(() => {
+    if (!isLoaded) return;
+    for (const project of projects) {
+      if (project.codebaseAnalysis) recordScanSnapshot(project.id, project.codebaseAnalysis);
+    }
   }, [projects, isLoaded]);
 
   // Sync active project to localStorage
@@ -255,6 +264,7 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({ children })
   const deleteProject = (id: string) => {
     const updated = projects.filter(p => p.id !== id);
     setProjects(updated);
+    clearScanHistory(id);
 
     if (activeProjectId === id) {
       if (updated.length > 0) {
