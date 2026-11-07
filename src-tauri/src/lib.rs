@@ -292,7 +292,7 @@ fn git_changed_files(root_path: String, scope: String) -> Result<GitChangedFiles
     let branch = git_output(&root, &["symbolic-ref", "--short", "HEAD"]);
     let (base, mut files) = match scope.as_str() {
         "uncommitted" => {
-            let tracked = git_lines(&root, &["diff", "--name-only", "--relative", "HEAD"])
+            let tracked = git_lines(&root, &["diff", "--name-only", "--relative", "--diff-filter=d", "HEAD"])
                 .ok_or("Could not read uncommitted changes. Does the repository have a first commit?")?;
             (None, tracked)
         }
@@ -301,7 +301,8 @@ fn git_changed_files(root_path: String, scope: String) -> Result<GitChangedFiles
             let merge_base = git_output(&root, &["merge-base", "HEAD", &base_ref])
                 .ok_or_else(|| format!("This branch has no common history with {base_ref}."))?;
             // Diffing against the merge base (no "..") includes committed and uncommitted work on this branch.
-            let changed = git_lines(&root, &["diff", "--name-only", "--relative", &merge_base])
+            // Deleted files are left out: they cannot carry findings and only inflate the count.
+            let changed = git_lines(&root, &["diff", "--name-only", "--relative", "--diff-filter=d", &merge_base])
                 .ok_or_else(|| format!("Could not compare with {base_ref}."))?;
             (Some(base_ref), changed)
         }
@@ -1215,4 +1216,25 @@ pub fn run() {
         })
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
+}
+
+#[cfg(test)]
+mod git_changed_files_tests {
+    use super::*;
+
+    #[test]
+    fn rejects_bad_input() {
+        assert!(git_changed_files("relative/path".into(), "branch".into()).is_err());
+        let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).to_string_lossy().into_owned();
+        assert!(git_changed_files(root, "bogus".into()).is_err());
+    }
+
+    #[test]
+    fn rejects_non_git_folder() {
+        let folder = std::env::temp_dir().join(format!("blueprint-not-git-{}", std::process::id()));
+        fs::create_dir_all(&folder).unwrap();
+        let result = git_changed_files(folder.to_string_lossy().into_owned(), "uncommitted".into());
+        let _ = fs::remove_dir_all(&folder);
+        assert_eq!(result.err().as_deref(), Some("This folder is not a git repository."));
+    }
 }
