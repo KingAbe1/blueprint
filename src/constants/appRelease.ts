@@ -1,5 +1,5 @@
 /** Keep in sync with package.json and src-tauri/tauri.conf.json */
-export const APP_VERSION = '1.1.4';
+export const APP_VERSION = '1.1.5';
 
 export const GITHUB_REPO = 'KingAbe1/blueprint';
 

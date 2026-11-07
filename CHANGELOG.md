@@ -2,6 +2,18 @@
 
 All notable changes to blueprint studio are documented here.
 
+## [1.1.5] - 2026-11-07
+
+### Added
+- **Agent fix prompts**: turn scan findings into ready-to-paste prompts for your coding agent, or export them all as `FIXES.md`
+- **Changed-files scope** for agent fixes: only uncommitted files, or only files changed on the current branch
+- **Scan history** with a since-last-scan diff
+- CVE scanning for **pnpm, yarn, and bun** lockfiles (not only npm)
+
+### Fixed
+- Deleted files no longer counted in the changed-files scope
+- Stopped tracking `src-tauri/target/` build output in git, which bloated clones
+
 ## [1.1.4] - 2026-10-23
 
 ### Added
