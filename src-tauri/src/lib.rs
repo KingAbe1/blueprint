@@ -210,7 +210,7 @@ fn inspect_codebase_directory(
             let is_manifest = is_workflow || matches!(
                 file_name.as_str(),
                 "package.json" | "cargo.toml" | "pyproject.toml" | "requirements.txt" | "go.mod"
-                    | "package-lock.json" | "npm-shrinkwrap.json"
+                    | "package-lock.json" | "npm-shrinkwrap.json" | "pnpm-lock.yaml" | "yarn.lock" | "bun.lock"
                     | "gemfile" | "composer.json" | "pubspec.yaml" | "pom.xml" | "build.gradle"
                     | "build.gradle.kts" | "settings.gradle" | "settings.gradle.kts" | "readme.md"
                     | "vite.config.ts" | "vite.config.js" | "vitest.config.ts" | "jest.config.js"
@@ -218,7 +218,7 @@ fn inspect_codebase_directory(
             );
             if is_manifest {
                 if let Ok(metadata) = entry.metadata() {
-                    let max_bytes = if matches!(file_name.as_str(), "package-lock.json" | "npm-shrinkwrap.json") { MAX_LOCKFILE_BYTES } else { MAX_MANIFEST_BYTES };
+                    let max_bytes = if matches!(file_name.as_str(), "package-lock.json" | "npm-shrinkwrap.json" | "pnpm-lock.yaml" | "yarn.lock" | "bun.lock") { MAX_LOCKFILE_BYTES } else { MAX_MANIFEST_BYTES };
                     if metadata.len() <= max_bytes {
                         if let Ok(content) = fs::read_to_string(&path) {
                             manifests.insert(relative_string.clone(), content);
@@ -245,6 +245,78 @@ fn inspect_codebase_directory(
     }
 
     Ok(())
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct GitChangedFiles {
+    scope: String,
+    /// Ref the branch was compared against (e.g. "origin/main"), when scope is "branch".
+    base: Option<String>,
+    branch: Option<String>,
+    files: Vec<String>,
+}
+
+fn git_lines(root: &Path, args: &[&str]) -> Option<Vec<String>> {
+    let output = Command::new("git")
+        .arg("-C").arg(root)
+        .args(["-c", "core.quotepath=off"])
+        .args(args)
+        .output()
+        .ok()?;
+    if !output.status.success() { return None; }
+    Some(String::from_utf8_lossy(&output.stdout).lines().map(str::trim).filter(|line| !line.is_empty()).map(|line| line.replace('\\', "/")).collect())
+}
+
+fn default_base_ref(root: &Path) -> Option<String> {
+    if let Some(origin_head) = git_output(root, &["symbolic-ref", "--short", "refs/remotes/origin/HEAD"]) {
+        return Some(origin_head);
+    }
+    ["origin/main", "origin/master", "main", "master"].iter()
+        .find(|candidate| git_output(root, &["rev-parse", "--verify", "--quiet", candidate]).is_some())
+        .map(|candidate| candidate.to_string())
+}
+
+/// Files changed in the working tree ("uncommitted") or since the branch left the default branch ("branch").
+/// Paths are relative to `root_path`, which may be a subfolder of the repository.
+#[tauri::command]
+fn git_changed_files(root_path: String, scope: String) -> Result<GitChangedFiles, String> {
+    let root = PathBuf::from(&root_path);
+    if !root.is_absolute() || !root.is_dir() {
+        return Err("Choose an existing project folder.".into());
+    }
+    if git_output(&root, &["rev-parse", "--is-inside-work-tree"]).as_deref() != Some("true") {
+        return Err("This folder is not a git repository.".into());
+    }
+
+    let branch = git_output(&root, &["symbolic-ref", "--short", "HEAD"]);
+    let (base, mut files) = match scope.as_str() {
+        "uncommitted" => {
+            let tracked = git_lines(&root, &["diff", "--name-only", "--relative", "--diff-filter=d", "HEAD"])
+                .ok_or("Could not read uncommitted changes. Does the repository have a first commit?")?;
+            (None, tracked)
+        }
+        "branch" => {
+            let base_ref = default_base_ref(&root).ok_or("Could not find a main or master branch to compare against.")?;
+            let merge_base = git_output(&root, &["merge-base", "HEAD", &base_ref])
+                .ok_or_else(|| format!("This branch has no common history with {base_ref}."))?;
+            // Diffing against the merge base (no "..") includes committed and uncommitted work on this branch.
+            // Deleted files are left out: they cannot carry findings and only inflate the count.
+            let changed = git_lines(&root, &["diff", "--name-only", "--relative", "--diff-filter=d", &merge_base])
+                .ok_or_else(|| format!("Could not compare with {base_ref}."))?;
+            (Some(base_ref), changed)
+        }
+        _ => return Err(format!("Unknown change scope: {scope}")),
+    };
+
+    if let Some(untracked) = git_lines(&root, &["ls-files", "--others", "--exclude-standard"]) {
+        files.extend(untracked);
+    }
+    files.sort();
+    files.dedup();
+    files.truncate(5000);
+
+    Ok(GitChangedFiles { scope, base, branch, files })
 }
 
 #[tauri::command]
@@ -1128,6 +1200,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             read_codebase,
             read_codebase_files,
+            git_changed_files,
             inspect_handoff_conflicts,
             export_handoff_files,
             open_handoff_folder,
@@ -1143,4 +1216,25 @@ pub fn run() {
         })
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
+}
+
+#[cfg(test)]
+mod git_changed_files_tests {
+    use super::*;
+
+    #[test]
+    fn rejects_bad_input() {
+        assert!(git_changed_files("relative/path".into(), "branch".into()).is_err());
+        let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).to_string_lossy().into_owned();
+        assert!(git_changed_files(root, "bogus".into()).is_err());
+    }
+
+    #[test]
+    fn rejects_non_git_folder() {
+        let folder = std::env::temp_dir().join(format!("blueprint-not-git-{}", std::process::id()));
+        fs::create_dir_all(&folder).unwrap();
+        let result = git_changed_files(folder.to_string_lossy().into_owned(), "uncommitted".into());
+        let _ = fs::remove_dir_all(&folder);
+        assert_eq!(result.err().as_deref(), Some("This folder is not a git repository."));
+    }
 }

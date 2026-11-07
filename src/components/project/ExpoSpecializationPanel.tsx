@@ -16,6 +16,7 @@ import {
   type OverviewEmphasis,
 } from './overviewUi';
 import { FrameworkFindingRow } from './FrameworkFindingRow';
+import { buildFixPrompt, frameworkImprovementToFixItem } from '../../services/fixPromptService';
 
 interface ExpoSpecializationPanelProps {
   specialization: ExpoSpecialization;
@@ -243,19 +244,10 @@ export const ExpoSpecializationPanel: React.FC<ExpoSpecializationPanelProps> = (
   const perfEmphasis: OverviewEmphasis = performanceAudit.issueCount > 0 ? 'warning' : 'neutral';
 
   const copyFixPrompt = useCallback(async (item: ExpoArchitecturalImprovement) => {
-    const prompt = `### Expo / React Native Architectural Improvement Request
-**Issue:** ${item.title}
-**Category:** ${item.category} | **Severity:** ${item.severity.toUpperCase()}
-${item.file ? `**File:** \`${item.file}\`` : ''}
-
-### Architectural Impact
-${item.impact}
-
-### Recommended Engineering Solution
-${item.remediation}
-
-### Task
-Refactor the code to implement this recommendation. Follow modern Expo (SDK) and React Native conventions for navigation, SecureStore, and app config.`;
+    const prompt = buildFixPrompt(
+      frameworkImprovementToFixItem(item, { id: 'expo', label: 'Expo' }, CATEGORY_LABELS[item.category]),
+      analysis,
+    );
 
     try {
       await navigator.clipboard.writeText(prompt);
@@ -264,7 +256,7 @@ Refactor the code to implement this recommendation. Follow modern Expo (SDK) and
     } catch {
       // Ignore
     }
-  }, []);
+  }, [analysis]);
 
   const severityCount = (sev: 'all' | 'critical' | 'warning' | 'optimization') => {
     if (sev === 'all') return improvements.length;

@@ -32,6 +32,8 @@ export interface FrameworkFindingRowProps {
   rowEmphasis: OverviewEmphasis;
   copied: boolean;
   onCopyPrompt: () => void;
+  /** Short label shown before the title, e.g. "New" for findings not in the previous scan. */
+  badge?: string;
 }
 
 function actionBtnClass(isDark: boolean, active = false): string {
@@ -60,6 +62,7 @@ export const FrameworkFindingRow: React.FC<FrameworkFindingRowProps> = ({
   rowEmphasis,
   copied,
   onCopyPrompt,
+  badge,
 }) => {
   const { isDark } = useTheme();
   const { notify } = useNotification();
@@ -117,7 +120,18 @@ export const FrameworkFindingRow: React.FC<FrameworkFindingRowProps> = ({
       <li className={`py-3 pr-4 sm:pr-5 ${rowClass || 'px-4 sm:px-5'}`}>
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0 flex-1">
-            <p className={`text-[13px] font-medium leading-snug ${titleText}`}>{title}</p>
+            <p className={`text-[13px] font-medium leading-snug ${titleText}`}>
+              {badge ? (
+                <span
+                  className={`mr-1.5 inline-block rounded px-1.5 py-px align-[1px] text-[10px] font-semibold uppercase tracking-wide ${
+                    isDark ? 'bg-blue-500/15 text-blue-300' : 'bg-blue-50 text-blue-700'
+                  }`}
+                >
+                  {badge}
+                </span>
+              ) : null}
+              {title}
+            </p>
             <p className={`mt-0.5 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[11px] ${muted}`}>
               <span className={overviewSeverityLabel(isDark, severity)}>{severity}</span>
               <span aria-hidden>·</span>

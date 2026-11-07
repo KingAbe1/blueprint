@@ -564,6 +564,7 @@ export const CodebaseAnalysisView: React.FC<CodebaseAnalysisViewProps> = ({
           <div className={activeSection === 'quality' ? 'space-y-5' : 'hidden'} role="tabpanel">
             <CodebaseQualityView
               analysis={analysis}
+              projectId={projectId}
               onRescan={rescan}
               isRescanning={isRescanning}
               onUpdateAnalysis={onUpdateAnalysis}

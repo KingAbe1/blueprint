@@ -1,6 +1,6 @@
 import { CodebaseAnalysis, CodebaseSource, DependencyRiskAssessment, PipelineAssessment, QualityAssessment, QualityDimension, QualityFinding, SourceContentMetrics } from '../types/codebase';
 import { assessArchitecture, assessNextJsOverview, configuredTestToolSignals, suggestImprovements } from './architectureAnalysisService';
-import { IGNORED_DIRECTORIES, MANIFEST_FILES, normalizedName } from './codebaseAnalysisConstants';
+import { IGNORED_DIRECTORIES, LOCKFILE_NAMES, MANIFEST_FILES, normalizedName } from './codebaseAnalysisConstants';
 import { BrowserDirectoryHandle, isDirectoryHandle, loadDirectoryHandle, saveDirectoryHandle } from './browserDirectoryAccess';
 export { getQualityReviewCandidatePaths, readQualityReviewSources } from './qualityReviewSourceService';
 export type { QualityReviewSourceFile } from './qualityReviewSourceService';
@@ -1132,7 +1132,8 @@ export async function analyzeCodebaseSource(source: CodebaseSource): Promise<Cod
   const sourceMetrics = source.sourceMetrics || createEmptySourceMetrics();
   const deepAnalysis = await inspectSourceCode(source);
   const deepJsProfile = hasSupportedJsDeepProfile(paths, source.manifests);
-  const dependencyInventory = extractNpmDependencyInventory(paths, source.manifests, deepJsProfile);
+  const hasPackageJson = paths.some(path => normalizedName(path) === 'package.json');
+  const dependencyInventory = extractNpmDependencyInventory(paths, source.manifests, deepJsProfile || hasPackageJson);
 
   let dependencyRisk: DependencyRiskAssessment | undefined;
   const npmInventory = dependencyInventory;
@@ -1247,7 +1248,7 @@ async function scanBrowserDirectory(root: BrowserDirectoryHandle, rootPath: stri
             addSourceContentMetric(path, content, sourceMetrics);
           } else sourceMetrics.skippedFiles += 1;
         }
-        const isLockfile = ['package-lock.json', 'npm-shrinkwrap.json'].includes(name.toLowerCase());
+        const isLockfile = LOCKFILE_NAMES.has(name.toLowerCase());
         if ((MANIFEST_FILES.has(name.toLowerCase()) || isWorkflow) && file.size <= (isLockfile ? LOCKFILE_MAX_BYTES : 256 * 1024)) manifests[path] = await file.text();
       } catch {
         // Keep the path in the report if a manifest cannot be read.
